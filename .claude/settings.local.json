@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat >> *)",
+      "Bash(python3 add_sprite_endpoint.py)",
+      "Bash(node --check static/app.js)",
+      "Bash(python3 update_hash.py)",
+      "Bash(python3 -m py_compile app.py)",
+      "Bash(python3 -c \"d=open\\('static/index.html','rb'\\).read\\(\\); print\\('scripts:', d.count\\(b'<script'\\), '| complete:', b'</body>' in d and b'</html>' in d, '| NUL:', d.count\\(b'\\\\x00'\\)\\)\")",
+      "Bash(python3 revert_components.py)",
+      "Bash(rm -f revert_components.py)",
+      "Bash(python3)",
+      "Bash(python3 -c \"d=open\\('static/index.html','rb'\\).read\\(\\); print\\('HTML OK' if d.count\\(b'<script'\\)==2 and b'</body>' in d else 'ERROR'\\)\")"
+    ]
+  }
+}

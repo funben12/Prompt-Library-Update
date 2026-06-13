@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Prompt Builder - Vast Canvas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Variables and Base Styles */
+        :root {
+            --bg-primary: #F3F4F6;
+            --bg-secondary: #FFFFFF;
+            --bg-tertiary: #FAFAFA;
+            --bg-code-preview: #1F2937;
+            --text-primary: #111827;
+            --text-secondary: #374151;
+            --text-tertiary: #6B7280;
+            --text-inverted: #F9FAFB;
+            --text-placeholder: #9CA3AF;
+            --border-primary: #E5E7EB;
+            --border-secondary: #D1D5DB;
+            --border-hover: #3B82F6;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --shadow-focus-ring: rgba(59, 130, 246, 0.1);
+            --accent-primary: #3B82F6;
+            --accent-primary-hover: #2563EB;
+            --accent-danger-bg: #FEE2E2;
+            --accent-danger-text: #B91C1C;
+            --accent-danger-border: #FCA5A5;
+            --accent-danger-hover-bg: #FECACA;
+            --grid-dot-color: #E5E7EB;
+            --connection-point-bg: #CBD5E1;
+            --connection-point-hover-bg: #3B82F6;
+            --connection-line-stroke: #60A5FA;
+            --connection-line-hover-stroke: #2563EB;
+            --connection-line-selected-stroke: #EF4444;
+            --temp-connection-stroke: #3B82F6;
+            /* Block icon BGs */
+            --choice-block-bg: #EC4899;
+            --containsmatch-block-bg: #F59E0B;
+            --output-block-bg: #10B981;
+            --workflowcapture-block-bg: #D946EF;
+            --endflow-block-bg: #EF4444;
+            --checkpoint-block-bg: #FBBF24;
+            --errorcatch-block-bg: #F87171;
+            --dynamicresponse-block-bg: #6366F1;
+        }
+
+        body.dark-mode {
+            --bg-primary: #111827;
+            --bg-secondary: #1F2937;
+            --bg-tertiary: #0D1117;
+            --bg-code-preview: #0D1117;
+            --text-primary: #F9FAFB;
+            --text-secondary: #D1D5DB;
+            --text-tertiary: #9CA3AF;
+            --text-placeholder: #6B7280;
+            --border-primary: #374151;
+            --border-secondary: #4B5563;
+            --border-hover: #2563EB;
+            --shadow-color: rgba(0, 0, 0, 0.4);
+            --shadow-focus-ring: rgba(59, 130, 246, 0.25);
+            --grid-dot-color: #4B5563;
+            --connection-point-bg: #4B5563;
+            --text-inverted: #1F2937;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden; /* Prevent body scrollbars */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            user-select: none;
+            transition: background-color .3s ease, color .3s ease;
+            display: flex;
+            flex-direction: column; /* To position footer at the bottom */
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 280px 1fr 360px;
+            grid-template-rows: 60px 1fr;
+            flex-grow: 1; /* Allow app container to fill space above footer */
+            gap: 0;
+            transition: grid-template-columns .3s ease-in-out;
+            min-height: 0; /* Fix for flexbox growing beyond viewport in some cases */
+        }
+
+        .top-bar {
+            grid-column: 1 / -1;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 1px 3px var(--shadow-color);
+            z-index: 100;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .project-name {
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .top-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .2s;
+            font-family: inherit;
+        }
+
+        .btn:disabled {
+            opacity: .6;
+            cursor: not-allowed;
+            background-color: var(--border-primary);
+            color: var(--text-tertiary);
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-primary-hover);
+        }
+
+        .btn-secondary {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-secondary);
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: color-mix(in srgb, var(--bg-primary) 90%, var(--text-secondary) 10%);
+        }
+
+        .btn-danger {
+            background-color: var(--accent-danger-bg);
+            color: var(--accent-danger-text);
+            border: 1px solid var(--accent-danger-border);
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background-color: var(--accent-danger-hover-bg);
+        }
+
+        .btn-sm {
+            padding: 6px 10px;
+            font-size: 14px;
+            min-width: 36px;
+            text-align: center;
+        }
+
+        #toggle-dark-mode-btn,
+        #help-btn,
+        #start-tutorial-btn {
+            font-size: 1.1em;
+            line-height: 1;
+        }
+
+        .top-controls .select-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .top-controls .select-dropdown button {
+            min-width: 120px;
+        }
+
+        .top-controls .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: var(--bg-secondary);
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+            z-index: 1001;
+            border-radius: 8px;
+            border: 1px solid var(--border-primary);
+            padding: 8px 0;
+        }
+
+        .top-controls .dropdown-content a {
+            color: var(--text-secondary);
+            padding: 10px 16px;
+            text-decoration: none;
+            display: block;
+            font-size: 14px;
+        }
+
+        .top-controls .dropdown-content a:hover {
+            background-color: var(--bg-primary);
+        }
+
+        .top-controls .select-dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        .left-sidebar,
+        .right-sidebar {
+            background: var(--bg-secondary);
+            transition: padding .3s ease-in-out, border-width .3s ease-in-out, background-color .3s ease;
+            overflow-y: auto;
+        }
+
+        .left-sidebar::-webkit-scrollbar,
+        .right-sidebar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .left-sidebar,
+        .right-sidebar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .left-sidebar {
+            border-right: 1px solid var(--border-primary);
+            padding: 20px;
+        }
+
+        .right-sidebar {
+            border-left: 1px solid var(--border-primary);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .left-sidebar.collapsed,
+        .right-sidebar.collapsed {
+            padding: 0;
+            border-left-width: 0 !important;
+            border-right-width: 0 !important;
+            overflow: hidden;
+        }
+
+        .left-sidebar.collapsed>*,
+        .right-sidebar.collapsed>* {
+            display: none;
+        }
+
+        .sidebar-title {
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .block-category {
+            margin-bottom: 24px;
+        }
+
+        .category-title {
+            font-weight: 500;
+            color: var(--text-tertiary);
+            font-size: 13px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            border-bottom: 1px solid var(--border-primary);
+            padding-bottom: 6px;
+        }
+
+        .block-item {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: grab;
+            margin-bottom: 8px;
+            transition: all .2s;
+            border: 2px dashed transparent;
+        }
+
+        .block-item-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .block-item:hover {
+            background: color-mix(in srgb, var(--bg-secondary) 95%, var(--text-secondary) 5%);
+            border-color: var(--border-secondary);
+        }
+
+        .block-item.dragging {
+            opacity: .5;
+            border-color: var(--accent-primary);
+        }
+
+        .block-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .role-block-bg { background: #A78BFA; }
+        .context-block-bg { background: #0EA5E9; }
+        .task-block-bg { background: #14B8A6; }
+        .format-block-bg { background: #64748B; }
+        .logic-block-bg { background: #F97316; }
+        .input-block-bg { background: #EC4899; }
+
+        .block-label {
+            font-weight: 500;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .block-description-sidebar {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        .main-canvas {
+            background: var(--bg-tertiary);
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+            transition: background-color .3s ease;
+        }
+
+        .main-canvas.panning {
+            cursor: grabbing;
+        }
+
+        .canvas-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 20000px;
+            height: 20000px;
+            background-image: radial-gradient(circle, var(--grid-dot-color) 1px, transparent 1px);
+            background-size: 20px 20px;
+            opacity: .3;
+            z-index: 0;
+            pointer-events: none;
+            transition: background-image .3s ease;
+        }
+
+        .canvas-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 20000px;
+            height: 20000px;
+            z-index: 1;
+        }
+
+        .prompt-block {
+            position: absolute;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px var(--shadow-color);
+            border: 2px solid transparent;
+            cursor: grab;
+            transition: background-color .3s ease, box-shadow .2s, border-color .2s, left .2s ease-out, top .2s ease-out;
+            min-width: 240px;
+            overflow: visible;
+            z-index: 10;
+        }
+
+        .prompt-block.dragging {
+            opacity: .7;
+            cursor: grabbing;
+            box-shadow: 0 12px 32px color-mix(in srgb, var(--shadow-color) 80%, black 20%);
+            z-index: 1000;
+            transition: opacity .1s, box-shadow .1s;
+        }
+
+        .prompt-block.selected {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 4px var(--shadow-focus-ring), 0 8px 24px var(--shadow-color);
+        }
+
+        .block-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: inherit;
+            transition: border-color .3s ease;
+        }
+
+        .block-content {
+            padding: 16px;
+            color: var(--text-tertiary);
+            font-size: 13px;
+            line-height: 1.4;
+            min-height: 40px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            transition: color .3s ease;
+        }
+
+        .block-title {
+            font-weight: 600;
+            color: var(--text-secondary);
+            flex: 1;
+            transition: color .3s ease;
+        }
+
+        .connection-point {
+            width: 14px;
+            height: 14px;
+            background: var(--connection-point-bg);
+            border-radius: 50%;
+            position: absolute;
+            border: 2px solid var(--bg-secondary);
+            cursor: crosshair;
+            transition: all .2s;
+            z-index: 11;
+            box-shadow: 0 1px 2px var(--shadow-color);
+        }
+
+        .connection-point:hover {
+            background: var(--connection-point-hover-bg);
+            transform: scale(1.3) !important;
+        }
+
+        .connection-point.input {
+            left: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .connection-point.output { /* Default single output */
+            right: -8px;
+            top: 50%; /* Center for single output */
+            transform: translateY(-50%);
+        }
+        /* Styling for blocks with multiple distinct outputs (conditional, containsMatch) */
+        .prompt-block[data-block-type="conditional"] .connection-point.output[data-branch-type="then"],
+        .prompt-block[data-block-type="containsMatch"] .connection-point.output[data-branch-type="then"] {
+            top: 35%;
+        }
+        .prompt-block[data-block-type="conditional"] .connection-point.output[data-branch-type="else"],
+        .prompt-block[data-block-type="containsMatch"] .connection-point.output[data-branch-type="else"] {
+            top: 65%;
+            background-color: #F59E0B; /* Orange for 'else' or second path */
+        }
+        .prompt-block[data-block-type="conditional"] .connection-point.output[data-branch-type="else"]:hover,
+        .prompt-block[data-block-type="containsMatch"] .connection-point.output[data-branch-type="else"]:hover {
+            background-color: #D97706;
+        }
+
+        /* Styling for Choice block outputs - will be dynamically positioned by JS */
+        .prompt-block[data-block-type="choice"] .connection-point.output {
+             /* Base styling, JS will set 'top' */
+        }
+
+
+        .connection-point.output-middle { /* For Switch/Case and Parallel */
+            right: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: #F59E0B;
+        }
+        .connection-point.output-middle:hover { background: #D97706; }
+
+        .connection-point.output-else { /* For Switch/Case and Parallel, also for Conditional's second output */
+            right: -8px;
+            top: 65%; /* Default for conditional's else */
+            transform: translateY(-50%);
+            background-color: #F59E0B;
+        }
+        .prompt-block[data-block-type="switchCase"] .connection-point.output[data-branch-type="path1"],
+        .prompt-block[data-block-type="parallelExec"] .connection-point.output[data-branch-type="path1"] {
+            top: 25%;
+        }
+        .prompt-block[data-block-type="switchCase"] .connection-point.output[data-branch-type="path3"], /* Default for switch */
+        .prompt-block[data-block-type="parallelExec"] .connection-point.output[data-branch-type="path3"] {
+            top: 75%;
+        }
+        .connection-point.output-else:hover { background: #D97706; }
+
+
+        #connections-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .connection-line {
+            stroke: var(--connection-line-stroke);
+            stroke-width: 3px;
+            fill: none;
+            pointer-events: stroke;
+            cursor: pointer;
+            transition: stroke .1s ease-in-out, d .2s ease-out;
+        }
+
+        .connection-line:hover {
+            stroke: var(--connection-line-hover-stroke);
+        }
+
+        .connection-line.selected-line {
+            stroke: var(--connection-line-selected-stroke);
+            stroke-dasharray: 6, 3;
+        }
+
+        #temp-connection-line {
+            stroke: var(--temp-connection-stroke);
+            stroke-width: 2.5px;
+            stroke-dasharray: 5, 5;
+            fill: none;
+            pointer-events: none;
+        }
+
+        .live-preview-container {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-primary);
+            height: 40%;
+            display: flex;
+            flex-direction: column;
+            transition: border-color .3s ease;
+        }
+
+        .properties-outer-wrapper {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .right-sidebar.collapsed .live-preview-container,
+        .right-sidebar.collapsed .properties-outer-wrapper {
+            padding: 0;
+        }
+
+        .live-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .preview-content {
+            flex-grow: 1;
+            background: var(--bg-code-preview);
+            color: var(--text-inverted);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            overflow-y: auto;
+            padding: 15px;
+            border-radius: 6px;
+            transition: background-color .3s ease, color .3s ease;
+        }
+
+        .preview-block-type { color: #38BDF8; font-weight: bold; }
+        .preview-branch-label { color: #A78BFA; font-weight: bold; }
+        .preview-choice-option { color: #FBBF24; font-style: italic;} /* For choice options */
+        .preview-logic-condition,
+        .preview-loop-details { color: #FACC15; font-style: italic; }
+
+        .panel-title { font-weight: 600; color: var(--text-secondary); margin-bottom: 16px; transition: color .3s ease;}
+        .form-label { display: block; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; font-size: 14px; transition: color .3s ease;}
+        .form-input { width: 100%; padding: 10px 12px; border: 1px solid var(--border-secondary); border-radius: 8px; font-family: inherit; transition: all .2s; font-size: 14px; background-color: var(--bg-secondary); color: var(--text-primary); }
+        .form-input:focus { outline: none; border-color: var(--border-hover); box-shadow: 0 0 0 3px var(--shadow-focus-ring); }
+        .form-input::placeholder { color: var(--text-placeholder); }
+        .form-textarea { resize: vertical; min-height: 60px; }
+        .properties-panel .form-group { display: none; }
+        .properties-panel .form-group.common,
+        .properties-panel .form-group.active-prop { display: block; }
+        .properties-panel { margin-bottom: 24px; }
+        .form-group { margin-bottom: 16px; }
+        .quick-actions-panel .btn { width: 100%; margin-bottom: 8px; }
+        .quick-actions-panel .btn:last-child { margin-bottom: 0; }
+        .ai-suggestion { background: linear-gradient(135deg, color-mix(in srgb, var(--bg-secondary) 85%, var(--accent-primary) 15%), color-mix(in srgb, var(--bg-secondary) 95%, var(--accent-primary) 5%)); border: 1px solid var(--border-secondary); border-radius: 8px; padding: 12px; margin-top: 12px; transition: background-color .3s ease, border-color .3s ease; min-height: 5em; display: flex; flex-direction: column; justify-content: center; }
+        .ai-suggestion-title { font-weight: 500; color: var(--accent-primary); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px;}
+        .ai-suggestion-text { color: var(--text-tertiary); font-size: 13px; line-height: 1.4; transition: color .3s ease, opacity 0.5s ease-in-out; }
+        .ai-suggestion-text.fade-out { opacity: 0; }
+        #properties-panel-content .form-group.prop-role, #properties-panel-content .form-group.prop-context, #properties-panel-content .form-group.prop-task, #properties-panel-content .form-group.prop-format, #properties-panel-content .form-group.prop-conditional, #properties-panel-content .form-group.prop-loop, #properties-panel-content .form-group.prop-userInput {}
+        #properties-panel-content .form-group[class*="prop-"] {}
+        #no-block-selected-message, #no-connection-selected-message { color: var(--text-tertiary); font-style: italic; display: none; transition: color .3s ease;}
+        .hidden { display: none !important; }
+        .pulse { animation: pulse 2s cubic-bezier(.4, 0, .6, 1) infinite; }
+        @keyframes pulse { 0%, 100% {opacity:1;} 50%{opacity:.7;} }
+        .tutorial-highlight { box-shadow: 0 0 0 4px var(--accent-primary), 0 0 15px var(--accent-primary) !important; border-color: var(--accent-primary) !important; transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out; position: relative; z-index: 10001; }
+        .tutorial-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.3); z-index: 10000; display: none; }
+        .tutorial-overlay.active { display: block; }
+        .tutorial-message-popup { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: var(--bg-secondary); color: var(--text-primary); padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 15px var(--shadow-color); z-index: 10005; max-width: 80%; text-align: center; border: 1px solid var(--border-primary); }
+        .tutorial-message-popup button { margin-left: 10px;}
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 10002; backdrop-filter: blur(4px); }
+        .modal-overlay.visible { display: flex; }
+        .modal-content { background: var(--bg-secondary); padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px var(--shadow-color); max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; border: 1px solid var(--border-primary); }
+        .modal-content h2 { color: var(--text-primary); margin-top: 0; margin-bottom: 20px; border-bottom: 1px solid var(--border-primary); padding-bottom: 10px;}
+        .modal-content p, .modal-content ul { margin-bottom: 15px; line-height: 1.6; color: var(--text-secondary); }
+        .modal-content ul { padding-left: 20px; }
+        .modal-content li { margin-bottom: 8px; }
+        .modal-content strong { color: var(--text-primary); }
+        .modal-close-btn { position: absolute; top: 15px; right: 20px; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-tertiary); padding: 5px;}
+        .modal-close-btn:hover { color: var(--text-primary); }
+        .modal-content kbd { background-color: var(--bg-primary); border: 1px solid var(--border-secondary); border-radius: 4px; padding: 2px 6px; font-family: 'IBM Plex Mono', monospace; font-size: 0.9em; }
+        .app-footer { padding: 10px 20px; text-align: center; font-size: 12px; color: var(--text-tertiary); background-color: var(--bg-secondary); border-top: 1px solid var(--border-primary); flex-shrink: 0; }
+    </style>
+</head>
+
+<body>
+    <div class="app-container" id="app-container">
+        <div class="top-bar">
+            <div class="logo-section">
+                <button class="btn btn-secondary btn-sm" id="toggle-left-sidebar-btn" title="Toggle Left Sidebar">❮</button>
+                <div class="logo">P</div><span class="project-name">Prompt Playground</span>
+            </div>
+            <div class="top-controls">
+                <div class="select-dropdown">
+                    <button class="btn btn-secondary">Templates</button>
+                    <div class="dropdown-content" id="templates-dropdown-content">
+                        <a href="#" data-template="blogPostGenerator">Blog Post Generator</a>
+                        <a href="#" data-template="simpleChatbot">Simple Chatbot</a>
+                        <a href="#" data-template="researchAssistant">Research Assistant</a>
+                        <a href="#" data-template="customerSupportAgent">Customer Support Agent</a>
+                        <a href="#" data-template="codeGenBot">Code Generation Bot</a>
+                        <a href="#" data-template="dataAnalysisWorkflow">Data Analysis Workflow</a>
+                    </div>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="start-tutorial-btn" title="Start Tutorial">🎓</button>
+                <button class="btn btn-secondary btn-sm" id="help-btn" title="Help">❓</button>
+                <button class="btn btn-secondary btn-sm" id="toggle-dark-mode-btn" title="Toggle Dark Mode">◐</button>
+                <button class="btn btn-secondary" id="clean-layout-btn" title="Auto-Organize Layout">✨</button>
+                <button class="btn btn-secondary" id="undo-btn" disabled>Undo</button>
+                <button class="btn btn-secondary" id="redo-btn" disabled>Redo</button>
+                <button class="btn btn-secondary" id="export-layout-btn">Export Workflow</button>
+                <label for="import-layout-input" class="btn btn-secondary" id="import-layout-btn-label">Import Workflow</label>
+                <input type="file" id="import-layout-input" accept=".json" style="display: none;">
+                <button class="btn btn-primary" id="export-btn">Export Prompt</button>
+                <button class="btn btn-secondary btn-sm" id="toggle-right-sidebar-btn" title="Toggle Right Sidebar">❯</button>
+            </div>
+        </div>
+        <!-- Left Sidebar -->
+        <div class="left-sidebar" id="left-sidebar">
+            <h3 class="sidebar-title">Block Library</h3>
+
+            <div class="block-category">
+                <div class="category-title">Core Inputs</div>
+                <div class="block-item" draggable="true" data-block-type="role" data-block-title="Persona Role" data-block-icon="R" data-icon-bg="role-block-bg" data-block-description="Define the AI's persona."> <div class="block-item-header"> <div class="block-icon role-block-bg">R</div><span class="block-label">Persona Role</span> </div> <p class="block-description-sidebar">Define the AI's persona.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="context" data-block-title="Scenario Context" data-block-icon="C" data-icon-bg="context-block-bg" data-block-description="Provide background info."> <div class="block-item-header"> <div class="block-icon context-block-bg">C</div><span class="block-label">Scenario Context</span> </div> <p class="block-description-sidebar">Provide background info.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="userInput" data-block-title="User Input" data-block-icon="U" data-icon-bg="input-block-bg" data-block-description="Direct text from user."> <div class="block-item-header"> <div class="block-icon input-block-bg">U</div><span class="block-label">User Input</span> </div> <p class="block-description-sidebar">Direct text from user.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="knowledgeBase" data-block-title="Knowledge Source" data-block-icon="KB" data-icon-bg="context-block-bg" data-block-description="Reference external documents or data."> <div class="block-item-header"> <div class="block-icon context-block-bg">KB</div><span class="block-label">Knowledge Source</span> </div> <p class="block-description-sidebar">Reference external documents or data.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="systemMessage" data-block-title="System Message" data-block-icon="SYS" data-icon-bg="role-block-bg" data-block-description="Set high-level instructions for the AI."> <div class="block-item-header"> <div class="block-icon role-block-bg">SYS</div><span class="block-label">System Message</span> </div> <p class="block-description-sidebar">Set high-level instructions for the AI.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="userProfile" data-block-title="User Profile" data-block-icon="UP" data-icon-bg="role-block-bg" data-block-description="Input details about the current user."> <div class="block-item-header"> <div class="block-icon role-block-bg">UP</div><span class="block-label">User Profile</span> </div> <p class="block-description-sidebar">Input details about the current user.</p> </div>
+            </div>
+
+            <div class="block-category">
+                <div class="category-title">Actions & Tasks</div>
+                <div class="block-item" draggable="true" data-block-type="task" data-block-title="Specific Task" data-block-icon="T" data-icon-bg="task-block-bg" data-block-description="Define AI's action."> <div class="block-item-header"> <div class="block-icon task-block-bg">T</div><span class="block-label">Specific Task</span> </div> <p class="block-description-sidebar">Define AI's action.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="contentGeneration" data-block-title="Content Generation" data-block-icon="GEN" data-icon-bg="task-block-bg" data-block-description="Generate text, images, etc."> <div class="block-item-header"> <div class="block-icon task-block-bg">GEN</div><span class="block-label">Content Generation</span> </div> <p class="block-description-sidebar">Generate text, images, etc.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="sentimentAnalysis" data-block-title="Sentiment Analysis" data-block-icon="SA" data-icon-bg="task-block-bg" data-block-description="Analyze sentiment of text."> <div class="block-item-header"> <div class="block-icon task-block-bg">SA</div><span class="block-label">Sentiment Analysis</span> </div> <p class="block-description-sidebar">Analyze sentiment of text.</p> </div>
+            </div>
+
+            <div class="block-category">
+                <div class="category-title">Logic & Reasoning</div>
+                <div class="block-item" draggable="true" data-block-type="conditional" data-block-title="If/Else Logic" data-block-icon="IF" data-icon-bg="logic-block-bg" data-block-description="Condition for True/False."> <div class="block-item-header"> <div class="block-icon logic-block-bg">IF</div><span class="block-label">If/Else Logic</span> </div> <p class="block-description-sidebar">Condition for True/False.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="loop" data-block-title="Iteration Loop" data-block-icon="∀" data-icon-bg="logic-block-bg" data-block-description="Repeat actions over items."> <div class="block-item-header"> <div class="block-icon logic-block-bg">∀</div><span class="block-label">Iteration Loop</span> </div> <p class="block-description-sidebar">Repeat actions over items.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="switchCase" data-block-title="Switch/Case" data-block-icon="SW" data-icon-bg="logic-block-bg" data-block-description="Branch based on multiple values."> <div class="block-item-header"> <div class="block-icon logic-block-bg">SW</div><span class="block-label">Switch/Case</span> </div> <p class="block-description-sidebar">Branch based on multiple values.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="parallelExec" data-block-title="Parallel Execution" data-block-icon="||" data-icon-bg="logic-block-bg" data-block-description="Run multiple branches concurrently."> <div class="block-item-header"> <div class="block-icon logic-block-bg">||</div><span class="block-label">Parallel Execution</span> </div> <p class="block-description-sidebar">Run multiple branches concurrently.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="choice" data-block-title="Choice Block" data-block-icon="CH" data-icon-bg="choice-block-bg" data-block-description="Present predefined options."> <div class="block-item-header"> <div class="block-icon choice-block-bg">CH</div><span class="block-label">Choice Block</span> </div> <p class="block-description-sidebar">Present predefined options.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="containsMatch" data-block-title="Contains/Matches" data-block-icon="C/M" data-icon-bg="containsmatch-block-bg" data-block-description="Check string containment or pattern."> <div class="block-item-header"> <div class="block-icon containsmatch-block-bg">C/M</div><span class="block-label">Contains/Matches</span> </div> <p class="block-description-sidebar">Check string containment or pattern.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="errorCatch" data-block-title="Error Catch" data-block-icon="EC" data-icon-bg="errorcatch-block-bg" data-block-description="Handle specific error path."> <div class="block-item-header"> <div class="block-icon errorcatch-block-bg">EC</div><span class="block-label">Error Catch</span> </div> <p class="block-description-sidebar">Handle specific error path.</p> </div>
+            </div>
+
+            <div class="block-category">
+                <div class="category-title">Response & Output</div>
+                <div class="block-item" draggable="true" data-block-type="format" data-block-title="Output Format" data-block-icon="F" data-icon-bg="format-block-bg" data-block-description="Specify response structure."> <div class="block-item-header"> <div class="block-icon format-block-bg">F</div><span class="block-label">Output Format</span> </div> <p class="block-description-sidebar">Specify response structure.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="structuredOutput" data-block-title="Structured Data Output" data-block-icon="JSON" data-icon-bg="format-block-bg" data-block-description="Output data in JSON/XML format."> <div class="block-item-header"> <div class="block-icon format-block-bg">JSON</div><span class="block-label">Structured Data Output</span> </div> <p class="block-description-sidebar">Output data in JSON/XML format.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="userFeedback" data-block-title="Request Feedback" data-block-icon="FB" data-icon-bg="format-block-bg" data-block-description="Ask user for feedback on output."> <div class="block-item-header"> <div class="block-icon format-block-bg">FB</div><span class="block-label">Request Feedback</span> </div> <p class="block-description-sidebar">Ask user for feedback on output.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="actionConfirmation" data-block-title="Action Confirmation" data-block-icon="OK" data-icon-bg="format-block-bg" data-block-description="Confirm an action was taken."> <div class="block-item-header"> <div class="block-icon format-block-bg">OK</div><span class="block-label">Action Confirmation</span> </div> <p class="block-description-sidebar">Confirm an action was taken.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="summaryOutput" data-block-title="Summarized Output" data-block-icon="SUM" data-icon-bg="format-block-bg" data-block-description="Provide a concise summary."> <div class="block-item-header"> <div class="block-icon format-block-bg">SUM</div><span class="block-label">Summarized Output</span> </div> <p class="block-description-sidebar">Provide a concise summary.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="finalOutput" data-block-title="Final Output" data-block-icon="OUT" data-icon-bg="output-block-bg" data-block-description="Display final output to user."> <div class="block-item-header"> <div class="block-icon output-block-bg">OUT</div><span class="block-label">Final Output</span> </div> <p class="block-description-sidebar">Display final output to user.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="dynamicResponse" data-block-title="Dynamic Response" data-block-icon="DR" data-icon-bg="dynamicresponse-block-bg" data-block-description="Generate response with variables."> <div class="block-item-header"> <div class="block-icon dynamicresponse-block-bg">DR</div><span class="block-label">Dynamic Response</span> </div> <p class="block-description-sidebar">Generate response with variables.</p> </div>
+            </div>
+            <div class="block-category">
+                <div class="category-title">Workflow & Data Flow</div>
+                <div class="block-item" draggable="true" data-block-type="workflowCapture" data-block-title="Workflow Capture" data-block-icon="WC" data-icon-bg="workflowcapture-block-bg" data-block-description="Store output of a workflow branch."> <div class="block-item-header"> <div class="block-icon workflowcapture-block-bg">WC</div><span class="block-label">Workflow Capture</span> </div> <p class="block-description-sidebar">Store output of a workflow branch.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="endFlow" data-block-title="End Flow" data-block-icon="END" data-icon-bg="endflow-block-bg" data-block-description="Gracefully terminate flow."> <div class="block-item-header"> <div class="block-icon endflow-block-bg">END</div><span class="block-label">End Flow</span> </div> <p class="block-description-sidebar">Gracefully terminate flow.</p> </div>
+                <div class="block-item" draggable="true" data-block-type="checkpoint" data-block-title="Checkpoint" data-block-icon="CP" data-icon-bg="checkpoint-block-bg" data-block-description="Save current state for restoration."> <div class="block-item-header"> <div class="block-icon checkpoint-block-bg">CP</div><span class="block-label">Checkpoint</span> </div> <p class="block-description-sidebar">Save current state for restoration.</p> </div>
+            </div>
+        </div>
+        <!-- Main Canvas -->
+        <div class="main-canvas" id="main-canvas">
+            <div class="canvas-grid" id="canvas-grid"></div>
+            <div class="canvas-content" id="canvas-content"></div>
+            <svg id="connections-svg">
+                <line id="temp-connection-line" style="display:none;"></line>
+            </svg>
+            <div class="tutorial-overlay" id="tutorial-overlay"></div>
+            <div id="tutorial-message-popup" class="tutorial-message-popup" style="display:none;">
+                <p id="tutorial-message-text"></p>
+                <button id="tutorial-next-btn" class="btn btn-primary btn-sm">Next</button>
+                <button id="tutorial-skip-btn" class="btn btn-secondary btn-sm">Skip Step</button>
+                <button id="tutorial-end-btn" class="btn btn-danger btn-sm">End Tutorial</button>
+            </div>
+        </div>
+        <!-- Right Sidebar -->
+        <div class="right-sidebar" id="right-sidebar">
+            <div class="live-preview-container">
+                <div class="live-preview-header">
+                    <h3 class="panel-title">Live Prompt Preview</h3><button class="btn btn-secondary" id="copy-preview-btn" style="font-size:12px;padding:4px 8px;">Copy</button>
+                </div>
+                <div class="preview-content" id="preview-content">Build a prompt flow...</div>
+            </div>
+            <div class="properties-outer-wrapper">
+                <div class="properties-panel">
+                    <h3 class="panel-title">Block Properties</h3>
+                    <div id="properties-panel-content">
+                        <p id="no-block-selected-message">Select a block...</p>
+                        <p id="no-connection-selected-message">Select a connection...</p>
+
+                        <div class="form-group common"><label class="form-label" for="prop-block-name">Block Name</label><input type="text" class="form-input" id="prop-block-name" data-property-key="name"></div>
+
+                        <div class="form-group prop-role"><label class="form-label" for="prop-role-description">Role Description</label><textarea class="form-input form-textarea" id="prop-role-description" data-property-key="description"></textarea></div>
+                        <div class="form-group prop-role"><label class="form-label" for="prop-role-tone">Tone</label><select class="form-input" id="prop-role-tone" data-property-key="tone"> <option>Assertive</option> <option>Authoritative</option> <option>Casual</option> <option>Conversational</option> <option>Creative</option> <option>Direct</option> <option>Empathetic</option> <option>Encouraging</option> <option>Engaging</option> <option>Formal</option> <option>Friendly</option> <option>Humorous</option> <option>Inquisitive</option> <option>Informal</option> <option>Neutral</option> <option>Optimistic</option> <option>Persuasive</option> <option>Professional</option> <option>Respectful</option> <option>Supportive</option> <option>Sympathetic</option> <option>Understanding</option> </select></div>
+                        <div class="form-group prop-role"><label class="form-label" for="prop-role-expertise">Expertise</label><select class="form-input" id="prop-role-expertise" data-property-key="expertise"> <option>Advanced</option> <option>AI Specialist</option> <option>Analyst</option> <option>Architect</option> <option>Beginner</option> <option>Business Analyst</option> <option>Business Owner</option> <option>Business Strategist</option> <option>Consultant</option> <option>Custom</option> <option>Data Scientist</option> <option>Designer</option> <option>Developer</option> <option>Engineer</option> <option>Expert</option> <option>Generalist</option> <option>Guru</option> <option>Intermediate</option> <option>Master</option> <option>Novice</option> <option>Product Manager</option> <option>Project Manager</option> <option>Researcher</option> <option>Specialist</option> <option>Strategist</option> <option>Technician</option> </select></div>
+                        <div class="form-group prop-context"><label class="form-label" for="prop-context-details">Context Details</label><textarea class="form-input form-textarea" id="prop-context-details" data-property-key="details"></textarea></div>
+                        <div class="form-group prop-task"><label class="form-label" for="prop-task-instruction">Task Instruction</label><textarea class="form-input form-textarea" id="prop-task-instruction" data-property-key="instruction"></textarea></div>
+                        <div class="form-group prop-userInput"><label class="form-label" for="prop-userInput-value">Input Value</label><textarea class="form-input form-textarea" id="prop-userInput-value" data-property-key="value" placeholder="User input..."></textarea></div>
+                        <div class="form-group prop-conditional"><label class="form-label" for="prop-conditional-condition">Condition</label><textarea class="form-input form-textarea" id="prop-conditional-condition" data-property-key="condition" placeholder="e.g., Input contains 'urgent'"></textarea><small style="font-size:11px;color:var(--text-tertiary);">True: Top out (Then), False: Btm out (Else).</small></div>
+                        <div class="form-group prop-loop"><label class="form-label" for="prop-loop-over">Loop Over</label><input type="text" class="form-input" id="prop-loop-over" data-property-key="loopOver" placeholder="e.g., Items in list"></div>
+                        <div class="form-group prop-loop"><label class="form-label" for="prop-loop-itemVariable">Item Variable</label><input type="text" class="form-input" id="prop-loop-itemVariable" data-property-key="itemVariable" placeholder="e.g., item"></div>
+                        <div class="form-group prop-loop"><label class="form-label" for="prop-loop-action">Action per Item</label><textarea class="form-input form-textarea" id="prop-loop-action" data-property-key="actionPerItem" placeholder="e.g., Summarize {{item}}"></textarea></div>
+                        <div class="form-group prop-format"><label class="form-label" for="prop-format-style">Output Style</label><select class="form-input" id="prop-format-style" data-property-key="style"> <option>Plain Text</option> <option>JSON</option> </select></div>
+                        <div class="form-group prop-format"><label class="form-label" for="prop-format-requirements">Requirements</label><textarea class="form-input form-textarea" id="prop-format-requirements" data-property-key="requirements"></textarea></div>
+                        <div class="form-group prop-knowledgeBase"><label class="form-label" for="prop-kb-description">Description</label><textarea class="form-input form-textarea" id="prop-kb-description" data-property-key="description" placeholder="e.g., Product documentation"></textarea></div>
+                        <div class="form-group prop-knowledgeBase"><label class="form-label" for="prop-kb-sourceUri">Source URI</label><input type="text" class="form-input" id="prop-kb-sourceUri" data-property-key="sourceUri" placeholder="e.g., https://docs.example.com or file_id"></div>
+                        <div class="form-group prop-knowledgeBase"><label class="form-label" for="prop-kb-accessMethod">Access Method</label><select class="form-input" id="prop-kb-accessMethod" data-property-key="accessMethod"> <option>API</option> <option>File</option> <option>Database</option> <option>Direct Query</option> </select></div>
+                        <div class="form-group prop-systemMessage"><label class="form-label" for="prop-sm-messageContent">Message Content</label><textarea class="form-input form-textarea" id="prop-sm-messageContent" data-property-key="messageContent" placeholder="e.g., Always be helpful and concise."></textarea> </div>
+                        <div class="form-group prop-systemMessage"><label class="form-label" for="prop-sm-priority">Priority</label><select class="form-input" id="prop-sm-priority" data-property-key="priority"> <option>High</option> <option>Normal</option> <option selected>Medium</option> <option>Low</option> </select></div>
+                        <div class="form-group prop-userProfile"><label class="form-label" for="prop-up-fieldsToInclude">Fields to Include</label><textarea class="form-input form-textarea" id="prop-up-fieldsToInclude" data-property-key="fieldsToInclude" placeholder="e.g., username, preferences, role (comma-separated)"></textarea></div>
+                        <div class="form-group prop-userProfile"><label class="form-label" for="prop-up-anonymize">Anonymize PII</label><select class="form-input" id="prop-up-anonymize" data-property-key="anonymize"> <option value="true">Yes</option> <option value="false" selected>No</option> </select></div>
+                        <div class="form-group prop-contentGeneration"><label class="form-label" for="prop-cg-contentType">Content Type</label><select class="form-input" id="prop-cg-contentType" data-property-key="contentType"> <option>Text</option> <option>Audio</option> <option>Video</option> <option>Image</option> <option>Code</option> <option>List</option> </select></div>
+                        <div class="form-group prop-contentGeneration"><label class="form-label" for="prop-cg-generationPrompt">Generation Prompt</label><textarea class="form-input form-textarea" id="prop-cg-generationPrompt" data-property-key="generationPrompt" placeholder="e.g., Write a short story about a robot."></textarea></div>
+                        <div class="form-group prop-contentGeneration"><label class="form-label" for="prop-cg-outputVariable">Output Variable</label><input type="text" class="form-input" id="prop-cg-outputVariable" data-property-key="outputVariable" placeholder="e.g., generatedContent"></div>
+                        <div class="form-group prop-sentimentAnalysis"><label class="form-label" for="prop-sa-inputTextVariable">Input Text Variable</label><input type="text" class="form-input" id="prop-sa-inputTextVariable" data-property-key="inputTextVariable" placeholder="e.g., userInputText"></div>
+                        <div class="form-group prop-sentimentAnalysis"><label class="form-label" for="prop-sa-model">Model</label><select class="form-input" id="prop-sa-model" data-property-key="model"> <option selected>Default</option> <option>Custom</option> </select></div>
+                        <div class="form-group prop-sentimentAnalysis"><label class="form-label" for="prop-sa-analysisResultVariable">Analysis Result Variable</label><input type="text" class="form-input" id="prop-sa-analysisResultVariable" data-property-key="analysisResultVariable" placeholder="e.g., textSentiment"></div>
+                        <div class="form-group prop-switchCase"><label class="form-label" for="prop-sc-switchValue">Switch On Variable/Value</label><input type="text" class="form-input" id="prop-sc-switchValue" data-property-key="switchValue" placeholder="e.g., {{userIntent}} or 'status_code'"></div>
+                        <div class="form-group prop-switchCase"><label class="form-label" for="prop-sc-case1Value">Case 1 Value</label><input type="text" class="form-input" id="prop-sc-case1Value" data-property-key="case1Value" placeholder="Value for first case"></div>
+                        <div class="form-group prop-switchCase"><small style="font-size:11px;color:var(--text-tertiary);">Output: Top-Right for Case 1</small></div>
+                        <div class="form-group prop-switchCase"><label class="form-label" for="prop-sc-case2Value">Case 2 Value</label><input type="text" class="form-input" id="prop-sc-case2Value" data-property-key="case2Value" placeholder="Value for second case"></div>
+                        <div class="form-group prop-switchCase"><small style="font-size:11px;color:var(--text-tertiary);">Output: Middle-Right for Case 2</small></div>
+                        <div class="form-group prop-switchCase"><label class="form-label" for="prop-sc-defaultBehavior">Default Behavior Description</label><input type="text" class="form-input" id="prop-sc-defaultBehavior" data-property-key="defaultBehavior" placeholder="e.g., Handle unknown intent"></div>
+                        <div class="form-group prop-switchCase"><small style="font-size:11px;color:var(--text-tertiary);">Output: Bottom-Right for Default</small></div>
+                        <div class="form-group prop-parallelExec"><label class="form-label" for="prop-pe-description">Description</label><textarea class="form-input form-textarea" id="prop-pe-description" data-property-key="description" placeholder="Describe the parallel tasks. Paths: Top, Middle, Bottom."></textarea></div>
+                        <div class="form-group prop-structuredOutput"><label class="form-label" for="prop-so-outputFormat">Output Format</label><select class="form-input" id="prop-so-outputFormat" data-property-key="outputFormat"> <option>JSON</option> <option>XML</option> <option>YAML</option> <option>CSV</option> <option selected>Plain Text</option> <option>Markdown</option> <option>HTML</option> <option>Custom</option> </select></div>
+                        <div class="form-group prop-structuredOutput"><label class="form-label" for="prop-so-dataSchema">Data Schema/Description</label><textarea class="form-input form-textarea" id="prop-so-dataSchema" data-property-key="dataSchema" placeholder="Describe the output structure or provide a schema."></textarea></div>
+                        <div class="form-group prop-structuredOutput"><label class="form-label" for="prop-so-sourceVariable">Source Variable</label><input type="text" class="form-input" id="prop-so-sourceVariable" data-property-key="sourceVariable" placeholder="Variable containing data to format"></div>
+                        <div class="form-group prop-userFeedback"><label class="form-label" for="prop-uf-feedbackPrompt">Feedback Prompt</label><textarea class="form-input form-textarea" id="prop-uf-feedbackPrompt" data-property-key="feedbackPrompt" placeholder="e.g., Was this helpful?"></textarea></div>
+                        <div class="form-group prop-userFeedback"><label class="form-label" for="prop-uf-feedbackOptions">Feedback Options</label><input type="text" class="form-input" id="prop-uf-feedbackOptions" data-property-key="feedbackOptions" placeholder="e.g., Yes/No, 1-5 Scale (descriptive)"></div>
+                        <div class="form-group prop-userFeedback"><label class="form-label" for="prop-uf-storeFeedbackVariable">Store Feedback In Variable</label><input type="text" class="form-input" id="prop-uf-storeFeedbackVariable" data-property-key="storeFeedbackVariable" placeholder="e.g., userRating"></div>
+                        <div class="form-group prop-actionConfirmation"><label class="form-label" for="prop-acn-confirmationMessage">Confirmation Message</label><textarea class="form-input form-textarea" id="prop-acn-confirmationMessage" data-property-key="confirmationMessage" placeholder="e.g., Your request has been processed. Ref: {{refId}}"></textarea></div>
+                        <div class="form-group prop-actionConfirmation"><label class="form-label" for="prop-acn-actionConfirmedVariable">Confirmed Action Variable (Optional)</label><input type="text" class="form-input" id="prop-acn-actionConfirmedVariable" data-property-key="actionConfirmedVariable" placeholder="e.g., orderPlacementTask"></div>
+                        <div class="form-group prop-summaryOutput"><label class="form-label" for="prop-sumo-sourceTextVariable">Source Text Variable</label><input type="text" class="form-input" id="prop-sumo-sourceTextVariable" data-property-key="sourceTextVariable" placeholder="Variable with text to summarize"></div>
+                        <div class="form-group prop-summaryOutput"><label class="form-label" for="prop-sumo-summaryLength">Summary Length</label><select class="form-input" id="prop-sumo-summaryLength" data-property-key="summaryLength"> <option>Short</option> <option selected>Medium</option> <option>Long</option> </select></div>
+                        <div class="form-group prop-summaryOutput"><label class="form-label" for="prop-sumo-outputVariable">Summarized Output Variable</label><input type="text" class="form-input" id="prop-sumo-outputVariable" data-property-key="outputVariable" placeholder="e.g., conciseSummary"></div>
+                        <div class="form-group prop-choice"><label class="form-label" for="prop-choice-label">Choice Label/Prompt</label><textarea class="form-input form-textarea" id="prop-choice-label" data-property-key="choiceLabel" placeholder="e.g., What would you like to do next?"></textarea> </div>
+                        <div class="form-group prop-choice"><label class="form-label" for="prop-choice-options">Options (one per line, max 4)</label><textarea class="form-input form-textarea" id="prop-choice-options" data-property-key="options" placeholder="Option A\nOption B\nOption C"></textarea><small style="font-size:11px;color:var(--text-tertiary);">Each line is an output. Max 4.</small></div>
+                        <div class="form-group prop-choice"><label class="form-label" for="prop-choice-outputVariable">Store Selected Choice As Variable</label><input type="text" class="form-input" id="prop-choice-outputVariable" data-property-key="outputVariable" placeholder="e.g., userChoice"> </div>
+                        <div class="form-group prop-containsMatch"><label class="form-label" for="prop-cm-inputTextVariable">Input Text Variable</label><input type="text" class="form-input" id="prop-cm-inputTextVariable" data-property-key="inputTextVariable" placeholder="e.g., {{userInput}}"></div>
+                        <div class="form-group prop-containsMatch"><label class="form-label" for="prop-cm-checkType">Check Type</label><select class="form-input" id="prop-cm-checkType" data-property-key="checkType"> <option value="contains">Contains</option> <option value="matchesRegex">Matches Regex</option> <option value="startsWith">Starts With</option> <option value="endsWith">Ends With</option> </select></div>
+                        <div class="form-group prop-containsMatch"><label class="form-label" for="prop-cm-valueToMatch">Value/Pattern to Check</label><input type="text" class="form-input" id="prop-cm-valueToMatch" data-property-key="valueToMatch" placeholder="e.g., urgent or /error-\d+/i"></div>
+                        <div class="form-group prop-containsMatch"><label class="form-label" for="prop-cm-caseSensitive">Case Sensitive</label><select class="form-input" id="prop-cm-caseSensitive" data-property-key="caseSensitive"> <option value="false">No</option> <option value="true">Yes</option> </select></div>
+                        <div class="form-group prop-containsMatch"><small style="font-size:11px;color:var(--text-tertiary);">True: Top out, False: Btm out.</small></div>
+                        <div class="form-group prop-finalOutput"><label class="form-label" for="prop-fo-outputContent">Output Content (can use variables)</label><textarea class="form-input form-textarea" id="prop-fo-outputContent" data-property-key="outputContent" placeholder="e.g., The result is {{final_result}}."></textarea></div>
+                        <div class="form-group prop-finalOutput"><label class="form-label" for="prop-fo-displayType">Display Type</label><select class="form-input" id="prop-fo-displayType" data-property-key="displayType"> <option value="text">Plain Text</option> <option value="markdown">Markdown</option> <option value="html">HTML</option> <option value="json">JSON</option> <option value="custom">Custom Format</option> </select></div>
+                        <div class="form-group prop-workflowCapture"><label class="form-label" for="prop-wc-captureName">Capture Name/ID</label><input type="text" class="form-input" id="prop-wc-captureName" data-property-key="captureName" placeholder="e.g., user_sentiment_analysis_result"></div>
+                        <div class="form-group prop-workflowCapture"><label class="form-label" for="prop-wc-variableToStore">Variable to Store</label><input type="text" class="form-input" id="prop-wc-variableToStore" data-property-key="variableToStore" placeholder="e.g., {{sentimentScore}}"></div>
+                        <div class="form-group prop-endFlow"><label class="form-label" for="prop-ef-terminationMessage">Termination Message (Optional)</label><textarea class="form-input form-textarea" id="prop-ef-terminationMessage" data-property-key="terminationMessage" placeholder="e.g., Flow ended due to user request."></textarea></div>
+                        <div class="form-group prop-checkpoint"><label class="form-label" for="prop-cp-checkpointName">Checkpoint Name</label><input type="text" class="form-input" id="prop-cp-checkpointName" data-property-key="checkpointName" placeholder="e.g., pre_payment_state"></div>
+                        <div class="form-group prop-checkpoint"><label class="form-label" for="prop-cp-dataToSave">Data to Save (Variables, comma-separated)</label><textarea class="form-input form-textarea" id="prop-cp-dataToSave" data-property-key="dataToSave" placeholder="e.g., {{cartItems}}, {{userSessionId}}"></textarea></div>
+                        <div class="form-group prop-errorCatch"><label class="form-label" for="prop-ec-errorMessageVariable">Error Message Variable (Input)</label><input type="text" class="form-input" id="prop-ec-errorMessageVariable" data-property-key="errorMessageVariable" placeholder="e.g., {{error_details}} from Catch path"></div>
+                        <div class="form-group prop-errorCatch"><label class="form-label" for="prop-ec-actionToTake">Action to Take</label><select class="form-input" id="prop-ec-actionToTake" data-property-key="actionToTake"> <option value="log">Log Error</option> <option value="notify">Notify Admin</option> <option value="fallback">Provide Fallback Response</option> </select></div>
+                        <div class="form-group prop-errorCatch"><label class="form-label" for="prop-ec-fallbackMessage">Fallback Message (if action is Fallback)</label><textarea class="form-input form-textarea" id="prop-ec-fallbackMessage" data-property-key="fallbackMessage" placeholder="Sorry, an error occurred. Please try again."></textarea></div>
+                        <div class="form-group prop-dynamicResponse"><label class="form-label" for="prop-dr-responseTemplate">Response Template</label><textarea class="form-input form-textarea" id="prop-dr-responseTemplate" data-property-key="responseTemplate" placeholder="e.g., Hello, {{name}}! The weather is {{weather_condition}}."></textarea></div>
+                        <div class="form-group prop-dynamicResponse"><label class="form-label" for="prop-dr-variablesUsed">Variables Used (Informational, comma-separated)</label><input type="text" class="form-input" id="prop-dr-variablesUsed" data-property-key="variablesUsed" placeholder="name, weather_condition"> </div>
+
+                    </div>
+                </div>
+                <div class="properties-panel quick-actions-panel">
+                    <h3 class="panel-title">Quick Actions</h3>
+                    <button class="btn btn-primary" id="test-prompt-btn">Test Prompt Flow</button>
+                    <button class="btn btn-secondary" id="group-blocks-btn" disabled>Group Selected (Future)</button>
+                    <button class="btn btn-secondary" id="duplicate-block-btn" disabled>Duplicate Block</button>
+                    <button class="btn btn-danger" id="delete-block-btn" disabled>Delete Block</button>
+                    <hr style="margin:12px 0; border-color:var(--border-primary);"><button class="btn btn-danger hidden" id="delete-connection-btn">Delete Connection</button>
+                </div>
+                <div class="ai-suggestion">
+                    <div class="ai-suggestion-title">💡 AI Tip</div>
+                    <p class="ai-suggestion-text" id="ai-suggestion-text-content">Connect blocks to define logic. Start with a Role
+                        or User Input!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer class="app-footer">
+        Made By MX Phillips | Idea and inspiration by Massimiliano
+    </footer>
+
+    <!-- Help Modal Structure -->
+    <div class="modal-overlay" id="help-modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close-btn" id="help-modal-close-btn">×</button>
+            <h2>How to Use the Prompt Playground</h2>
+            <p>Welcome! This tool helps you build and visualize complex AI prompts using a node-based editor.</p>
+            <h3>Core Concepts:</h3>
+            <ul>
+                <li><strong>Blocks:</strong> Represent parts of your prompt (e.g., Persona, Task, Conditional Logic). Drag them from the "Block Library" (left sidebar) onto the canvas.</li>
+                <li><strong>Canvas:</strong> The main area where you arrange and connect blocks. You can pan by clicking and dragging the canvas background or empty areas within the block layer. Blocks will auto-pan if dragged to edges.</li>
+                <li><strong>Connections:</strong> Link blocks together to define the flow of your prompt. Click an input or output point and drag to a compatible point on another block.</li>
+                <li><strong>Properties:</strong> Select a block to edit its specific settings in the "Block Properties" panel (right sidebar).</li>
+                <li><strong>Live Preview:</strong> See the structured version of your prompt generated in real-time as you build.</li>
+            </ul>
+            <h3>Key Actions:</h3>
+            <ul>
+                <li><strong>Add Block:</strong> Drag from Library to Canvas.</li>
+                <li><strong>Move Block:</strong> Click and drag a block on the canvas.</li>
+                <li><strong>Select Block/Connection:</strong> Click on it. Properties will appear on the right.</li>
+                <li><strong>Delete Block/Connection:</strong> Select it, then click the "Delete Block" or "Delete Connection" button. You can also press <kbd>Delete</kbd> or <kbd>Backspace</kbd> when a block/connection is selected.</li>
+                <li><strong>Duplicate Block:</strong> Select a block and click "Duplicate Block".</li>
+                <li><strong>Clean Layout:</strong> Click the ✨ button in the top bar to auto-organize blocks on the canvas.</li>
+                <li><strong>Pan Canvas:</strong> Click and drag an empty area of the canvas (background or block layer). Blocks also auto-pan when dragged to the edges.</li>
+                <li><strong>Zoom:</strong> Use your browser's zoom (<kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>+</kbd> or <kbd>-</kbd>). Canvas dragging should remain functional.</li>
+                <li><strong>Starter Templates:</strong> Use the "Templates" dropdown in the top bar to load pre-built example workflows.</li>
+                <li><strong>Tutorial:</strong> Click the 🎓 button to start an interactive guided tour.</li>
+            </ul>
+            <h3>Sidebar & Theming:</h3>
+            <ul>
+                <li><strong>Toggle Sidebars:</strong> Use the ❮ / ❯ buttons in the top bar to collapse/expand the left and right sidebars.</li>
+                <li><strong>Toggle Dark Mode:</strong> Use the ◐ / ☀️ button in the top bar to switch themes.</li>
+            </ul>
+            <h3>Import/Export:</h3>
+            <ul>
+                <li><strong>Export Workflow:</strong> Click "Export Workflow" to download your current canvas arrangement, UI state, and block properties as a JSON file.</li>
+                <li><strong>Import Workflow:</strong> Click "Import Workflow" to upload a previously exported JSON file and restore your canvas and UI settings.</li>
+                <li><strong>Export Prompt:</strong> Generates and allows copying of the final structured prompt text.</li>
+            </ul>
+            <p>Experiment with different block combinations to create powerful and nuanced AI prompts!</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Element Cache
+            const appContainer = document.getElementById('app-container');
+            const leftSidebar = document.getElementById('left-sidebar');
+            const rightSidebar = document.getElementById('right-sidebar');
+            const toggleLeftSidebarBtn = document.getElementById('toggle-left-sidebar-btn');
+            const toggleRightSidebarBtn = document.getElementById('toggle-right-sidebar-btn');
+            const toggleDarkModeBtn = document.getElementById('toggle-dark-mode-btn');
+            const helpBtn = document.getElementById('help-btn');
+            const helpModalOverlay = document.getElementById('help-modal-overlay');
+            const helpModalCloseBtn = document.getElementById('help-modal-close-btn');
+            const aiSuggestionTextElement = document.getElementById('ai-suggestion-text-content');
+
+            const startTutorialBtn = document.getElementById('start-tutorial-btn');
+            const tutorialOverlay = document.getElementById('tutorial-overlay');
+            const tutorialMessagePopup = document.getElementById('tutorial-message-popup');
+            const tutorialMessageText = document.getElementById('tutorial-message-text');
+            const tutorialNextBtn = document.getElementById('tutorial-next-btn');
+            const tutorialSkipBtn = document.getElementById('tutorial-skip-btn');
+            const tutorialEndBtn = document.getElementById('tutorial-end-btn');
+
+            const templatesDropdownContent = document.getElementById('templates-dropdown-content');
+
+            const canvasContent = document.getElementById('canvas-content');
+            const canvasGrid = document.getElementById('canvas-grid');
+            const mainCanvas = document.getElementById('main-canvas');
+            const propertiesPanelContent = document.getElementById('properties-panel-content');
+            const noBlockSelectedMessage = document.getElementById('no-block-selected-message');
+            const noConnectionSelectedMessage = document.getElementById('no-connection-selected-message');
+            const previewContent = document.getElementById('preview-content');
+            const connectionsSVG = document.getElementById('connections-svg');
+            const tempConnectionLine = document.getElementById('temp-connection-line');
+
+            const exportLayoutBtn = document.getElementById('export-layout-btn');
+            const importLayoutInput = document.getElementById('import-layout-input');
+            const cleanLayoutBtn = document.getElementById('clean-layout-btn');
+
+            const deleteBlockBtn = document.getElementById('delete-block-btn');
+            const duplicateBlockBtn = document.getElementById('duplicate-block-btn');
+            const deleteConnectionBtn = document.getElementById('delete-connection-btn');
+            const copyPreviewBtn = document.getElementById('copy-preview-btn');
+            const groupBlocksBtn = document.getElementById('group-blocks-btn');
+
+            let selectedBlockElement = null, selectedConnectionLine = null;
+            let blockIdCounter = 1;
+            let isDraggingBlock = false, dragOffsetX, dragOffsetY;
+            let activeDraggedSidebarItem = null;
+            let isDrawingConnection = false, connectionStartBlock = null, connectionStartPointElement = null, currentConnectingToPoint = null;
+            let connectionDragType = null;
+            let isPanning = false, panStartX, panStartY;
+            let viewOffsetX = 0, viewOffsetY = 0;
+            let lastMouseMoveEvent = null, autoPanInterval = null, currentAutoPanX = 0, currentAutoPanY = 0;
+            let autoSaveIntervalId = null;
+
+            const autoPanSpeed = 10;
+            const edgeThreshold = 60;
+            const autoPanIntervalTime = 20;
+            const autoSaveIntervalMs = 30000;
+
+            const initialLeftSidebarWidth = "280px", initialRightSidebarWidth = "360px", collapsedSidebarWidth = "0px";
+            let isLeftSidebarCollapsed = localStorage.getItem('promptBuilderLeftSidebarCollapsed') === 'true';
+            let isRightSidebarCollapsed = localStorage.getItem('promptBuilderRightSidebarCollapsed') === 'true';
+            let currentTheme = localStorage.getItem('promptBuilderTheme') || 'light';
+
+            const blockDefaults = {
+                role: { name: 'Persona Role', description: 'You are an AI assistant.', tone: 'Professional', expertise: 'Intermediate' },
+                context: { name: 'Scenario Context', details: 'The user needs help with...' },
+                task: { name: 'Specific Task', instruction: 'Perform the following action:' },
+                userInput: { name: 'User Input', value: '' },
+                conditional: { name: 'If/Else Logic', condition: 'Some condition is true' },
+                loop: { name: 'Iteration Loop', loopOver: 'provided items', itemVariable: 'currentItem', actionPerItem: 'Process {currentItem}' },
+                format: { name: 'Output Format', style: 'text', requirements: 'Provide a concise answer.' },
+                knowledgeBase: { name: 'Knowledge Source', description: 'Product documentation', sourceUri: '', accessMethod: 'API' },
+                systemMessage: { name: 'System Message', messageContent: 'Be helpful and concise.', priority: 'Medium' },
+                userProfile: { name: 'User Profile', fieldsToInclude: 'username, preferences', anonymize: 'false' },
+                contentGeneration: { name: 'Content Generation', contentType: 'Text', generationPrompt: 'Write a short story about...', outputVariable: 'generatedText' },
+                sentimentAnalysis: { name: 'Sentiment Analysis', inputTextVariable: 'userInput', model: 'Default', analysisResultVariable: 'sentimentScore' },
+                switchCase: { name: 'Switch/Case Logic', switchValue: '{{userIntent}}', case1Value: 'greeting', case2Value: 'support_request', defaultBehavior: 'Handle fallback' },
+                parallelExec: { name: 'Parallel Execution', description: 'Initiate multiple parallel task paths.' },
+                structuredOutput: { name: 'Structured Output', outputFormat: 'JSON', dataSchema: '{"key": "value"}', sourceVariable: 'resultData' },
+                userFeedback: { name: 'Request Feedback', feedbackPrompt: 'Was this helpful?', feedbackOptions: 'Yes/No', storeFeedbackVariable: 'userSatisfaction' },
+                actionConfirmation: { name: 'Action Confirmation', confirmationMessage: 'Action completed successfully.', actionConfirmedVariable: '' },
+                summaryOutput: { name: 'Summarized Output', sourceTextVariable: 'longArticle', summaryLength: 'Medium', outputVariable: 'articleSummary' },
+                choice: { name: 'Choice Block', choiceLabel: 'Make a selection:', options: 'Option 1\nOption 2', outputVariable: 'selectedChoice' },
+                containsMatch: { name: 'Contains/Matches', inputTextVariable: '{{someInput}}', checkType: 'contains', valueToMatch: 'keyword', caseSensitive: 'false' },
+                finalOutput: { name: 'Final Output', outputContent: 'Result: {{final_value}}', displayType: 'text' },
+                workflowCapture: { name: 'Workflow Capture', captureName: 'captured_data', variableToStore: '{{data_to_capture}}' },
+                endFlow: { name: 'End Flow', terminationMessage: 'Flow ended.' },
+                checkpoint: { name: 'Checkpoint', checkpointName: 'state_save', dataToSave: '{{var1}}, {{var2}}' },
+                errorCatch: { name: 'Error Catch', errorMessageVariable: '{{error}}', actionToTake: 'log', fallbackMessage: 'An unexpected error occurred.'},
+                dynamicResponse: { name: 'Dynamic Response', responseTemplate: 'Hello, {{user_name}}!', variablesUsed: 'user_name' }
+            };
+        
+            const starterTemplates = { 
+                blogPostGenerator: { blocks: [ { id: "tpl1_1", type: "role", name: "Expert SEO Writer", x: 50, y: 50, properties: { description: "You are an expert blog post writer specializing in SEO and engaging content.", tone: "Informative", expertise: "Expert"}, connectionsOutput: JSON.stringify([{targetId: "tpl1_2", branch: "main"}]) }, { id: "tpl1_2", type: "userInput", name: "Blog Post Topic", x: 350, y: 50, properties: { value: "The Future of AI in Content Creation"}, connectionsOutput: JSON.stringify([{targetId: "tpl1_3", branch: "main"}]) }, { id: "tpl1_3", type: "task", name: "Draft Blog Post", x: 650, y: 50, properties: { instruction: "Write a 500-word blog post on the provided topic. Include an introduction, 3 main points with explanations, and a conclusion. Target keywords: AI, content creation, future trends."}, connectionsOutput: JSON.stringify([{targetId: "tpl1_4", branch: "main"}]) }, { id: "tpl1_4", type: "format", name: "Output: Text", x: 950, y: 50, properties: { style: "Plain Text", requirements: "Well-structured paragraphs, ready for publishing."}, connectionsOutput: "[]" } ], blockIdCounter: 5, viewOffsetX: 0, viewOffsetY: 0, uiState: { theme: "light", leftSidebarCollapsed: false, rightSidebarCollapsed: false } },
+                simpleChatbot: { blocks: [ { id: "tpl2_1", type: "role", name: "Friendly Chatbot", x: 50, y: 50, properties: { description: "You are a friendly and helpful chatbot.", tone: "Casual", expertise: "Intermediate"}, connectionsOutput: JSON.stringify([{targetId: "tpl2_2", branch: "main"}]) }, { id: "tpl2_2", type: "userInput", name: "User's Question", x: 350, y: 50, properties: { value: "What can you do?"}, connectionsOutput: JSON.stringify([{targetId: "tpl2_3", branch: "main"}]) }, { id: "tpl2_3", type: "choice", name: "Initial Options", x: 650, y: 100, properties: { choiceLabel: "How can I help?", options: "Tell me a joke\nExplain capabilities\nNothing", outputVariable: "userSelection"}, connectionsOutput: JSON.stringify([{targetId: "tpl2_4", branch: "choice1"}, {targetId: "tpl2_5", branch: "choice2"}, {targetId:"tpl2_6", branch:"choice3"}]) }, { id: "tpl2_4", type: "task", name: "Tell Joke", x: 950, y: 20, properties: { instruction: "Tell a short, family-friendly joke."}, connectionsOutput: "[]" }, { id: "tpl2_5", type: "task", name: "Explain Capabilities", x: 950, y: 120, properties: { instruction: "Explain your capabilities as a chatbot."}, connectionsOutput: "[]" }, { id: "tpl2_6", type: "finalOutput", name: "End Conversation", x: 950, y: 220, properties: { outputContent: "Okay, let me know if you need anything else!"}, connectionsOutput: "[]"} ], blockIdCounter: 7, viewOffsetX: 0, viewOffsetY: 0, uiState: { theme: "dark", leftSidebarCollapsed: false, rightSidebarCollapsed: false } },
+                researchAssistant: { blocks: [ { id: "tpl3_1", type: "role", name: "Research Assistant", x: 50, y: 50, properties: { description: "You are a diligent research assistant.", tone: "Professional", expertise: "Expert"}, connectionsOutput: JSON.stringify([{targetId: "tpl3_2", branch: "main"}]) }, { id: "tpl3_2", type: "userInput", name: "Research Topic", x: 350, y: 50, properties: { value: "Impact of renewable energy on climate change"}, connectionsOutput: JSON.stringify([{targetId: "tpl3_3", branch: "main"}]) }, { id: "tpl3_3", type: "knowledgeBase", name: "Access Scientific DB", x: 650, y: 50, properties: {description: "Simulated access to scientific papers.", sourceUri: "sim://scientific_database", accessMethod: "API"}, connectionsOutput: JSON.stringify([{targetId: "tpl3_4", branch: "main"}]) }, { id: "tpl3_4", type: "task", name: "Summarize Findings", x: 950, y: 50, properties: { instruction: "Based on the research topic and accessed knowledge, provide a 3-point summary of key findings."}, connectionsOutput: JSON.stringify([{targetId: "tpl3_5", branch: "main"}]) }, { id: "tpl3_5", type: "summaryOutput", name: "Output Summary", x: 1250, y: 50, properties: { sourceTextVariable: "{{task_output}}", summaryLength: "Medium", outputVariable: "researchSummary"}, connectionsOutput: "[]" } ], blockIdCounter: 6, viewOffsetX: 0, viewOffsetY: 0, uiState: { theme: "light", leftSidebarCollapsed: true, rightSidebarCollapsed: false } },
+                customerSupportAgent: { blocks: [ { id: "tpl4_1", type: "role", name: "Support Agent", x: 50, y: 50, properties: { description: "You are a helpful customer support agent.", tone: "Empathetic", expertise: "Intermediate"}, connectionsOutput: JSON.stringify([{targetId: "tpl4_2", branch: "main"}]) }, { id: "tpl4_2", type: "userInput", name: "Customer Query", x: 350, y: 50, properties: { value: "I have an issue with my order."}, connectionsOutput: JSON.stringify([{targetId: "tpl4_3", branch: "main"}]) }, { id: "tpl4_3", type: "containsMatch", name: "Check for 'order'", x: 650, y: 100, properties: { inputTextVariable: "{{Customer Query.value}}", checkType: "contains", valueToMatch: "order", caseSensitive: "false"}, connectionsOutput: JSON.stringify([{targetId: "tpl4_4", branch: "then"}, {targetId: "tpl4_5", branch: "else"}]) }, { id: "tpl4_4", type: "task", name: "Order Inquiry Response", x: 950, y: 50, properties: { instruction: "Provide information about order tracking or ask for order ID."}, connectionsOutput: JSON.stringify([{targetId: "tpl4_6", branch: "main"}]) }, { id: "tpl4_5", type: "task", name: "General Query Response", x: 950, y: 150, properties: { instruction: "Ask for more details about the customer's issue."}, connectionsOutput: JSON.stringify([{targetId: "tpl4_6", branch: "main"}]) }, { id: "tpl4_6", type: "finalOutput", name: "Agent Response", x: 1250, y: 100, properties: { outputContent: "{{previous_task_output}}"}, connectionsOutput: "[]" } ], blockIdCounter: 7, viewOffsetX: 0, viewOffsetY: 0, uiState: { theme: "light", leftSidebarCollapsed: false, rightSidebarCollapsed: false } },
+                codeGenBot: { blocks: [ { id: "tpl5_1", type: "role", name: "Python Expert", x: 50, y: 50, properties: { description: "You are a Python programming expert.", tone: "Technical", expertise: "Expert"}, connectionsOutput: JSON.stringify([{targetId: "tpl5_2", branch: "main"}]) }, { id: "tpl5_2", type: "userInput", name: "Programming Task", x: 350, y: 50, properties: { value: "Write a Python function to sort a list of numbers."}, connectionsOutput: JSON.stringify([{targetId: "tpl5_3", branch: "main"}]) }, { id: "tpl5_3", type: "contentGeneration", name: "Generate Python Code", x: 650, y: 50, properties: { contentType: "Code", generationPrompt: "Generate Python code for the following task: {{Programming Task.value}}", outputVariable: "generatedCode"}, connectionsOutput: JSON.stringify([{targetId: "tpl5_4", branch: "main"}]) }, { id: "tpl5_4", type: "finalOutput", name: "Code Output", x: 950, y: 50, properties: { outputContent: "```python\n{{generatedCode}}\n```", displayType: "markdown"}, connectionsOutput: "[]" } ], blockIdCounter: 5, viewOffsetX: 0, viewOffsetY: 0, uiState: { theme: "dark", leftSidebarCollapsed: false, rightSidebarCollapsed: false } },
+                dataAnalysisWorkflow: { blocks: [ { id: "tpl6_1", type: "userInput", name: "Data Source URL", x: 50, y: 50, properties: { value: "https://api.example.com/data"}, connectionsOutput: JSON.stringify([{targetId: "tpl6_2", branch: "main"}]) }, { id: "tpl6_2", type: "task", name: "Fetch Data", x: 350, y: 50, properties: { instruction: "Fetch data from {{Data Source URL.value}} and store as 'rawData'."}, connectionsOutput: JSON.stringify([{targetId: "tpl6_3", branch: "main"}]) }, { id: "tpl6_3", type: "loop", name: "Process Records", x: 650, y: 50, properties: { loopOver: "{{rawData.records}}", itemVariable: "record", actionPerItem: "Analyze {{record.value}} and store in 'analysisResult'."}, connectionsOutput: JSON.stringify([{targetId: "tpl6_4", branch: "main"}]) }, { id: "tpl6_4", type: "summaryOutput", name: "Aggregated Summary", x: 950, y: 50, properties: { sourceTextVariable: "{{all_analysisResults_concatenated}}", summaryLength: "Medium", outputVariable: "finalSummary"}, connectionsOutput: "[]" } ], blockIdCounter: 5, viewOffsetX: 0, viewOffsetY: 0, uiState: { theme: "light", leftSidebarCollapsed: false, rightSidebarCollapsed: false } }
+            };
+
+            function applyTheme(theme) { document.body.classList.toggle('dark-mode', theme === 'dark'); if (toggleDarkModeBtn) toggleDarkModeBtn.textContent = theme === 'dark' ? '☀️' : '◐'; localStorage.setItem('promptBuilderTheme', theme); currentTheme = theme; triggerAutoSave(); }
+            if (toggleDarkModeBtn) { toggleDarkModeBtn.addEventListener('click', () => { applyTheme(currentTheme === 'light' ? 'dark' : 'light'); }); }
+            
+            const aiSuggestions = ["Try combining a 'Role' with a 'Task' block.","Use 'Conditional' blocks for if-then-else logic.","The 'Loop' block can iterate over items.","Zoom your browser to see more of the canvas.","Select a block to see its properties.","Connect output points to input points.","Export your layout to save your work.","The live preview shows your prompt forming.","Dark mode can be toggled with ◐/☀️.","Use Help (❓) for a usage guide."];
+            let currentSuggestionIndex = 0;
+            function showNextSuggestion() { if (!aiSuggestionTextElement) return; aiSuggestionTextElement.classList.add('fade-out'); setTimeout(() => { currentSuggestionIndex = (currentSuggestionIndex + 1) % aiSuggestions.length; aiSuggestionTextElement.textContent = aiSuggestions[currentSuggestionIndex]; aiSuggestionTextElement.classList.remove('fade-out'); }, 500); }
+            if (aiSuggestionTextElement) { setInterval(showNextSuggestion, 7000); } 
+            
+            function showHelpModal() { if(helpModalOverlay) helpModalOverlay.classList.add('visible'); }
+            function hideHelpModal() { if(helpModalOverlay) helpModalOverlay.classList.remove('visible'); }
+            if (helpBtn) helpBtn.addEventListener('click', showHelpModal);
+            if (helpModalCloseBtn) helpModalCloseBtn.addEventListener('click', hideHelpModal);
+            if (helpModalOverlay) { helpModalOverlay.addEventListener('click', (e) => { if (e.target === helpModalOverlay) hideHelpModal(); }); }
+            
+            function startOrUpdateAutoPan(panX, panY) { currentAutoPanX = panX; currentAutoPanY = panY; if (panX !== 0 || panY !== 0) { if (!autoPanInterval) { autoPanInterval = setInterval(() => { if (!lastMouseMoveEvent || (!isDraggingBlock && !isDrawingConnection && !selectedBlockElement) || (currentAutoPanX === 0 && currentAutoPanY === 0)) { stopAutoPan(); return; } viewOffsetX += currentAutoPanX; viewOffsetY += currentAutoPanY; if (isDraggingBlock && selectedBlockElement) { let tX=lastMouseMoveEvent.clientX+viewOffsetX-dragOffsetX; let tY=lastMouseMoveEvent.clientY+viewOffsetY-dragOffsetY; selectedBlockElement.style.left=`${tX}px`; selectedBlockElement.style.top=`${tY}px`; } applyViewTransform(); }, autoPanIntervalTime); } } else { stopAutoPan(); } }
+            function stopAutoPan() { if (autoPanInterval) { clearInterval(autoPanInterval); autoPanInterval = null; } currentAutoPanX = 0; currentAutoPanY = 0; }
+            
+            function applyViewTransform() { canvasContent.style.transform = `translate(${-viewOffsetX}px, ${-viewOffsetY}px)`; canvasGrid.style.transform = `translate(${-viewOffsetX}px, ${-viewOffsetY}px)`; redrawAllConnections(); }
+            
+            function updateAppGridColumns() { const leftCol = isLeftSidebarCollapsed ? collapsedSidebarWidth : initialLeftSidebarWidth; const rightCol = isRightSidebarCollapsed ? collapsedSidebarWidth : initialRightSidebarWidth; appContainer.style.gridTemplateColumns = `${leftCol} 1fr ${rightCol}`; toggleLeftSidebarBtn.textContent = isLeftSidebarCollapsed ? '❯' : '❮'; toggleLeftSidebarBtn.title = isLeftSidebarCollapsed ? 'Expand Left Sidebar' : 'Collapse Left Sidebar'; leftSidebar.classList.toggle('collapsed', isLeftSidebarCollapsed); toggleRightSidebarBtn.textContent = isRightSidebarCollapsed ? '❮' : '❯'; toggleRightSidebarBtn.title = isRightSidebarCollapsed ? 'Expand Right Sidebar' : 'Collapse Right Sidebar'; rightSidebar.classList.toggle('collapsed', isRightSidebarCollapsed); localStorage.setItem('promptBuilderLeftSidebarCollapsed', String(isLeftSidebarCollapsed)); localStorage.setItem('promptBuilderRightSidebarCollapsed', String(isRightSidebarCollapsed)); setTimeout(redrawAllConnections, 50); triggerAutoSave(); }
+            toggleLeftSidebarBtn.addEventListener('click', () => { isLeftSidebarCollapsed = !isLeftSidebarCollapsed; updateAppGridColumns(); });
+            toggleRightSidebarBtn.addEventListener('click', () => { isRightSidebarCollapsed = !isRightSidebarCollapsed; updateAppGridColumns(); });
+
+            function getNextBlockId() { let maxIdFound = 0; document.querySelectorAll('.prompt-block').forEach(b => { const idStr = b.dataset.blockId; let currentIdNum = 0; const parsedAsInt = parseInt(idStr, 10); if (!isNaN(parsedAsInt) && String(parsedAsInt) === idStr) { currentIdNum = parsedAsInt; } else { const match = idStr.match(/\d+$/); if (match) { currentIdNum = parseInt(match[0], 10); } } if (currentIdNum > maxIdFound) { maxIdFound = currentIdNum; } }); blockIdCounter = Math.max(blockIdCounter, maxIdFound + 1); return blockIdCounter++; }
+            
+            function getBlockContentPreview(blockType, data, defaults) { const d = data; const def = defaults || {}; let content = '...'; switch(blockType) { case 'role': content = (d.description || def.description || '...').substring(0,100); break; case 'context': content = (d.details || def.details || '...').substring(0,100); break; case 'task': content = (d.instruction || def.instruction || '...').substring(0,100); break; case 'userInput': content = (d.value || def.value || 'User Input Placeholder').substring(0,100); break; case 'conditional': content = `If: ${(d.condition||def.condition||'...').substring(0,50)}\nThen(top),Else(btm)`; break; case 'loop': content = `Loop:${(d.loopOver||def.loopOver||'...')}\nItem:${d.itemVariable||def.itemVariable}\nAct:${(d.actionPerItem||def.actionPerItem||'...').substring(0,30)}`; break; case 'format': content = (d.requirements || def.requirements || 'Specify format...').substring(0,100); break; case 'knowledgeBase': content = `Source: ${(d.sourceUri || def.sourceUri || 'N/A').substring(0,50)}\nDesc: ${(d.description||def.description||'...').substring(0,50)}`; break; case 'systemMessage': content = (d.messageContent || def.messageContent || '...').substring(0,100); break; case 'userProfile': content = `Fields: ${(d.fieldsToInclude||def.fieldsToInclude||'...').substring(0,70)}`; break; case 'contentGeneration': content = `Type: ${(d.contentType||def.contentType||'...')}\nPrompt: ${(d.generationPrompt||def.generationPrompt||'...').substring(0,50)}`; break; case 'sentimentAnalysis': content = `Input: ${(d.inputTextVariable||def.inputTextVariable||'...').substring(0,70)}`; break; case 'switchCase': content = `Switch: ${(d.switchValue||def.switchValue||'...').substring(0,30)}\nC1: ${(d.case1Value||def.case1Value||'...').substring(0,20)}\nC2: ${(d.case2Value||def.case2Value||'...').substring(0,20)}`; break; case 'parallelExec': content = (d.description||def.description||'Parallel Paths').substring(0,100); break; case 'structuredOutput': content = `Format: ${(d.outputFormat||def.outputFormat||'...')}\nSchema: ${(d.dataSchema||def.dataSchema||'...').substring(0,50)}`; break; case 'userFeedback': content = `Prompt: ${(d.feedbackPrompt||def.feedbackPrompt||'...').substring(0,70)}`; break; case 'actionConfirmation': content = (d.confirmationMessage||def.confirmationMessage||'...').substring(0,100); break; case 'summaryOutput': content = `Source: ${(d.sourceTextVariable||def.sourceTextVariable||'...').substring(0,70)}`; break;
+                case 'choice': 
+                    const opts = (d.options || def.options || '').split('\n').filter(opt => opt.trim() !== '');
+                    content = `Choice: ${(d.choiceLabel || def.choiceLabel || '...').substring(0,50)}\n${opts.slice(0,4).map((opt, i) => `Opt${i+1}: ${opt.substring(0,15)}...`).join('\n')}`;
+                    if (opts.length > 4) content += `\n(...and ${opts.length - 4} more)`;
+                    break;
+                case 'containsMatch': content = `Check: ${d.inputTextVariable || def.inputTextVariable}\n${d.checkType || def.checkType}: ${(d.valueToMatch || def.valueToMatch || '...').substring(0,30)}`; break;
+                case 'finalOutput': content = `Display: ${(d.outputContent || def.outputContent || '...').substring(0,70)}`; break;
+                case 'workflowCapture': content = `Store: ${d.variableToStore || def.variableToStore}\nAs: ${d.captureName || def.captureName}`; break;
+                case 'endFlow': content = `End Flow: ${(d.terminationMessage || def.terminationMessage || 'Terminated').substring(0,50)}`; break;
+                case 'checkpoint': content = `Save: ${d.checkpointName || def.checkpointName}\nData: ${(d.dataToSave || def.dataToSave || '...').substring(0,30)}`; break;
+                case 'errorCatch': content = `Error: ${d.errorMessageVariable || def.errorMessageVariable}\nAct: ${d.actionToTake || def.actionToTake}`; break;
+                case 'dynamicResponse': content = `Template: ${(d.responseTemplate || def.responseTemplate || '...').substring(0,70)}`; break;
+                default: content = (d.blockDescription || d.description || d.details || d.instruction || d.value || 'Unknown Block Type').substring(0,100); break; } return content + (content.length >= 100 && !content.includes('\n') ? '...' : (content.includes('\n') && content.split('\n').some(l => l.length > 50) ? '...' : '')); }
+            
+            function renderChoiceOutputPoints(blockElement) {
+                // Remove existing choice output points first
+                blockElement.querySelectorAll('.connection-point.output.choice-output').forEach(p => p.remove());
+
+                const optionsString = blockElement.dataset.options || blockDefaults.choice.options;
+                const options = optionsString.split('\n').map(o => o.trim()).filter(o => o);
+                const numOutputs = Math.min(options.length, 4);
+
+                // Define vertical positions for up to 4 points
+                // These percentages might need tweaking based on block height and point size
+                const positions = [25, 40, 55, 70]; 
+                if (numOutputs === 1) positions[0] = 50; // Center if only one
+                if (numOutputs === 2) { positions[0] = 35; positions[1] = 65; }
+                if (numOutputs === 3) { positions[0] = 25; positions[1] = 50; positions[2] = 75; }
+
+
+                for (let i = 0; i < numOutputs; i++) {
+                    const point = document.createElement('div');
+                    point.classList.add('connection-point', 'output', 'choice-output');
+                    point.dataset.pointType = 'output';
+                    point.dataset.branchType = `choice${i + 1}`;
+                    point.title = `Output for: ${options[i]}`;
+                    point.style.top = `${positions[i]}%`;
+                    point.style.right = "-8px"; // Common styling for output points
+                    point.style.transform = "translateY(-50%)";
+
+                    point.addEventListener('mousedown', handleConnectionPointMouseDown);
+                    point.addEventListener('mouseup', handleConnectionPointMouseUp);
+                    point.addEventListener('mouseenter', () => { currentConnectingToPoint = point; });
+                    point.addEventListener('mouseleave', () => { currentConnectingToPoint = null; });
+                    blockElement.appendChild(point);
+                }
+            }
+
+
+            function createBlockElement(blockData) { const el = document.createElement('div'); el.classList.add('prompt-block'); el.dataset.blockId = blockData.id; el.dataset.blockType = blockData.type; el.style.left = `${blockData.x}px`; el.style.top = `${blockData.y}px`; el.dataset.connectionsOutput = blockData.connectionsOutput ? JSON.stringify(blockData.connectionsOutput) : JSON.stringify([]); const blockTypeDef = blockDefaults[blockData.type] || {}; blockData.properties = {...blockTypeDef, ...blockData.properties }; for(const k in blockData.properties) el.dataset[k] = blockData.properties[k]; if (blockData.name && !el.dataset.name) el.dataset.name = blockData.name; else if (blockData.properties.name && !el.dataset.name) el.dataset.name = blockData.properties.name; else if (!el.dataset.name && blockTypeDef.name) el.dataset.name = blockTypeDef.name; else if (!el.dataset.name) el.dataset.name = blockData.type.charAt(0).toUpperCase() + blockData.type.slice(1); const title = el.dataset.name; let icon = blockData.icon; if(!icon){const w=title.split(' ');icon=w.length>1?w.map(x=>x[0]).slice(0,2).join('').toUpperCase():title.substring(0,Math.min(title.length,2)).toUpperCase();} const iconBg = blockData.iconBg || `${blockData.type}-block-bg`; const currentContent = getBlockContentPreview(blockData.type, el.dataset, blockTypeDef); let html = `<div class="block-header"><div class="block-icon ${iconBg}">${icon}</div><div class="block-title">${title}</div></div><div class="block-content">${currentContent}</div>`;
+                html += `<div class="connection-point input" data-point-type="input"></div>`; 
+                const noOutputBlocks = ['finalOutput', 'workflowCapture', 'endFlow', 'errorCatch']; 
+                
+                if (blockData.type === 'choice') {
+                    // Output points for 'choice' are added dynamically by renderChoiceOutputPoints
+                } else if (blockData.type === 'conditional' || blockData.type === 'containsMatch') { 
+                    html += `<div class="connection-point output" data-point-type="output" data-branch-type="then" title="Then"></div>`; 
+                    html += `<div class="connection-point output" data-point-type="output" data-branch-type="else" title="Else"></div>`; // CSS will position this and color it
+                } else if (blockData.type === 'switchCase' || blockData.type === 'parallelExec') { 
+                    html += `<div class="connection-point output" data-point-type="output" data-branch-type="path1" title="Path 1"></div>`; 
+                    html += `<div class="connection-point output-middle" data-point-type="output" data-branch-type="path2" title="Path 2"></div>`; 
+                    html += `<div class="connection-point output-else" data-point-type="output" data-branch-type="path3" title="Path 3"></div>`; 
+                } else if (!noOutputBlocks.includes(blockData.type)) { 
+                    html += `<div class="connection-point output" data-point-type="output" data-branch-type="main"></div>`; 
+                } 
+                el.innerHTML = html; 
+                if (blockData.type === 'choice') { renderChoiceOutputPoints(el); }
+
+                el.addEventListener('mousedown',(e)=>{if(e.target.classList.contains('connection-point'))return;if(!isPanning && (e.target.classList.contains('block-header')||e.target.classList.contains('block-title')||e.target.classList.contains('block-icon')||e.target===el)){if(e.button===0){isDraggingBlock=true;selectBlock(el);dragOffsetX=e.clientX+viewOffsetX-parseInt(el.style.left,10);dragOffsetY=e.clientY+viewOffsetY-parseInt(el.style.top,10);el.classList.add('dragging');e.preventDefault();}}}); el.addEventListener('click',(e)=>{if(e.target.classList.contains('connection-point'))return;e.stopPropagation();selectBlock(el);}); el.querySelectorAll('.connection-point:not(.choice-output)').forEach(p=>{p.addEventListener('mousedown',handleConnectionPointMouseDown);p.addEventListener('mouseup',handleConnectionPointMouseUp);p.addEventListener('mouseenter',()=>{currentConnectingToPoint=p;});p.addEventListener('mouseleave',()=>{currentConnectingToPoint=null;});}); canvasContent.appendChild(el); triggerAutoSave(); return el; }
+            
+            function selectBlock(el, fromTutorial = false) { if(selectedBlockElement===el&&!selectedConnectionLine)return;selectedBlockElement=el;selectedConnectionLine=null;updateSelectionStyle();populatePropertiesPanel();updateLivePreview();duplicateBlockBtn.disabled=!selectedBlockElement;deleteBlockBtn.disabled=!selectedBlockElement;deleteConnectionBtn.classList.add('hidden'); groupBlocksBtn.disabled = !selectedBlockElement; if (isTutorialRunning && !fromTutorial) { checkTutorialAction('selectBlock', { blockId: el.dataset.blockId, blockType: el.dataset.blockType }); } }
+            function selectConnectionLine(el, fromTutorial = false) { if(selectedConnectionLine===el)return;selectedConnectionLine=el;selectedBlockElement=null;updateSelectionStyle();populatePropertiesPanel();duplicateBlockBtn.disabled=true;deleteBlockBtn.disabled=true;deleteConnectionBtn.classList.remove('hidden'); groupBlocksBtn.disabled = true; if (isTutorialRunning && !fromTutorial) { checkTutorialAction('selectConnection', { sourceId: el.dataset.sourceId, targetId: el.dataset.targetId }); } }
+            function deselectAll() { selectedBlockElement=null;selectedConnectionLine=null;updateSelectionStyle();populatePropertiesPanel();duplicateBlockBtn.disabled=true;deleteBlockBtn.disabled=true;deleteConnectionBtn.classList.add('hidden'); groupBlocksBtn.disabled = true; }
+            function updateSelectionStyle() { document.querySelectorAll('.prompt-block.selected').forEach(b=>b.classList.remove('selected'));document.querySelectorAll('.connection-line.selected-line').forEach(l=>l.classList.remove('selected-line'));if(selectedBlockElement)selectedBlockElement.classList.add('selected');if(selectedConnectionLine)selectedConnectionLine.classList.add('selected-line');}
+            
+            function populatePropertiesPanel() { propertiesPanelContent.querySelectorAll('.form-group').forEach(g=>{g.style.display='none';g.classList.remove('active-prop');}); noBlockSelectedMessage.style.display='none';noConnectionSelectedMessage.style.display='none'; if(selectedBlockElement){ const bt=selectedBlockElement.dataset.blockType; const td=blockDefaults[bt]||{}; propertiesPanelContent.querySelectorAll('.form-group.common').forEach(g=>{g.style.display='block';g.classList.add('active-prop');}); document.getElementById('prop-block-name').value=selectedBlockElement.dataset.name||td.name||''; propertiesPanelContent.querySelectorAll(`.form-group.prop-${bt}`).forEach(g=>{g.style.display='block';g.classList.add('active-prop');}); document.querySelectorAll(`#properties-panel-content .form-group.active-prop input, #properties-panel-content .form-group.active-prop select, #properties-panel-content .form-group.active-prop textarea`).forEach(i=>{ const k=i.dataset.propertyKey; if(k)i.value=selectedBlockElement.dataset[k]!==undefined?selectedBlockElement.dataset[k]:(td[k]||''); }); }else if(selectedConnectionLine){noConnectionSelectedMessage.style.display='block'; }else{noBlockSelectedMessage.style.display='block';} }
+            
+            function updateBlockDataFromPropertiesPanel() { if(!selectedBlockElement)return; const blockType=selectedBlockElement.dataset.blockType; const typeDefaults=blockDefaults[blockType]||{}; let optionsChanged = false; document.querySelectorAll('#properties-panel-content .form-group.active-prop input, #properties-panel-content .form-group.active-prop select, #properties-panel-content .form-group.active-prop textarea').forEach(inputEl=>{ const key=inputEl.dataset.propertyKey; if(key){ const oldValue = selectedBlockElement.dataset[key]; selectedBlockElement.dataset[key]=inputEl.value; if(key==='name') selectedBlockElement.querySelector('.block-title').textContent=inputEl.value||typeDefaults.name||selectedBlockElement.dataset.blockType; if (blockType === 'choice' && key === 'options' && oldValue !== inputEl.value) { optionsChanged = true; } } }); const contentDiv = selectedBlockElement.querySelector('.block-content'); if(contentDiv) { contentDiv.textContent = getBlockContentPreview(blockType, selectedBlockElement.dataset, typeDefaults); } if (optionsChanged) { renderChoiceOutputPoints(selectedBlockElement); redrawAllConnections(); // Redraw connections if options change, as points might have moved/changed } updateLivePreview(); triggerAutoSave(); if (isTutorialRunning) { checkTutorialAction('updateProperty', { blockId: selectedBlockElement.dataset.blockId, blockType: selectedBlockElement.dataset.blockType }); } }
+            
+            function formatBlockContentForPreview(blockElement) { if(!blockElement)return ""; const type = blockElement.dataset.blockType; const d = blockElement.dataset; const def = blockDefaults[type]||{}; let content = `<span class="preview-block-type">${(d.name || type).toUpperCase()}:</span>\n`; switch(type) { case 'role': content += `  Description: ${d.description||def.description}\n  Tone: ${d.tone||def.tone}\n  Expertise: ${d.expertise||def.expertise}\n`; break; case 'context': content += `  Details: ${d.details||def.details}\n`; break; case 'task': content += `  Instruction: ${d.instruction||def.instruction}\n`; break; case 'userInput': content += `  Value: ${d.value||def.value||'(empty)'}\n`; break; case 'conditional': content += `  IF (${d.condition||def.condition})\n`; break; case 'loop': content += `  FOR ${d.itemVariable||def.itemVariable} IN ${d.loopOver||def.loopOver}:\n    ACTION: ${d.actionPerItem||def.actionPerItem}\n`; break; case 'format': content += `  Style: ${d.style||def.style}\n  Requirements: ${d.requirements||def.requirements}\n`; break; case 'knowledgeBase': content += `  Description: ${d.description||def.description}\n  Source URI: ${d.sourceUri||def.sourceUri}\n  Access: ${d.accessMethod||def.accessMethod}\n`; break; case 'systemMessage': content += `  Message: ${d.messageContent||def.messageContent}\n  Priority: ${d.priority||def.priority}\n`; break; case 'userProfile': content += `  Fields: ${d.fieldsToInclude||def.fieldsToInclude}\n  Anonymize: ${d.anonymize||def.anonymize}\n`; break; case 'contentGeneration': content += `  Type: ${d.contentType||def.contentType}\n  Prompt: ${(d.generationPrompt||def.generationPrompt).substring(0,50)}...\n  Output Var: ${d.outputVariable||def.outputVariable}\n`; break; case 'sentimentAnalysis': content += `  Input Var: ${d.inputTextVariable||def.inputTextVariable}\n  Model: ${d.model||def.model}\n  Result Var: ${d.analysisResultVariable||def.analysisResultVariable}\n`; break;  case 'switchCase': content += `  SWITCH ON (${d.switchValue||def.switchValue})\n    CASE1 VAL: ${d.case1Value||def.case1Value}\n    CASE2 VAL: ${d.case2Value||def.case2Value}\n    DEFAULT: ${d.defaultBehavior||def.defaultBehavior}\n`; break; case 'parallelExec': content += `  Description: ${d.description||def.description}\n  Paths: Path 1, Path 2, Path 3\n`; break; case 'structuredOutput': content += `  Format: ${d.outputFormat||def.outputFormat}\n  Schema: ${(d.dataSchema||def.dataSchema).substring(0,50)}...\n  Source Var: ${d.sourceVariable||def.sourceVariable}\n`; break; case 'userFeedback': content += `  Prompt: ${d.feedbackPrompt||def.feedbackPrompt}\n  Options: ${d.feedbackOptions||def.feedbackOptions}\n  Store In: ${d.storeFeedbackVariable||def.storeFeedbackVariable}\n`; break; case 'actionConfirmation': content += `  Message: ${d.confirmationMessage||def.confirmationMessage}\n  Action Var: ${d.actionConfirmedVariable||def.actionConfirmedVariable||'N/A'}\n`; break; case 'summaryOutput': content += `  Source Var: ${d.sourceTextVariable||def.sourceTextVariable}\n  Length: ${d.summaryLength||def.summaryLength}\n  Output Var: ${d.outputVariable||def.outputVariable}\n`; break;
+                case 'choice': 
+                    content += `  Label: ${d.choiceLabel||def.choiceLabel}\n`;
+                    const opts = (d.options||def.options).split('\n').map(o => o.trim()).filter(o => o);
+                    opts.slice(0,4).forEach((opt, i) => {
+                        content += `  <span class="preview-choice-option">CHOICE ${i+1} (${opt.substring(0,30)}${opt.length > 30 ? '...' : ''}):</span>\n`;
+                    });
+                    if(opts.length > 4) content += `  (...and ${opts.length - 4} more choices)\n`;
+                    content += `  Selected Choice Var: ${d.outputVariable||def.outputVariable}\n`;
+                    break;
+                case 'containsMatch': content += `  Input: ${d.inputTextVariable||def.inputTextVariable}\n  Check: ${d.checkType||def.checkType} "${d.valueToMatch||def.valueToMatch}" (Case Sensitive: ${d.caseSensitive||def.caseSensitive})\n`; break;
+                case 'finalOutput': content += `  Content: ${d.outputContent||def.outputContent}\n  Type: ${d.displayType||def.displayType}\n`; break;
+                case 'workflowCapture': content += `  Capture Name: ${d.captureName||def.captureName}\n  Store: ${d.variableToStore||def.variableToStore}\n`; break;
+                case 'endFlow': content += `  Message: ${d.terminationMessage||def.terminationMessage}\n`; break;
+                case 'checkpoint': content += `  Name: ${d.checkpointName||def.checkpointName}\n  Save Data: ${d.dataToSave||def.dataToSave}\n`; break;
+                case 'errorCatch': content += `  Error Input: ${d.errorMessageVariable||def.errorMessageVariable}\n  Action: ${d.actionToTake||def.actionToTake}\n`; if ((d.actionToTake||def.actionToTake) === 'fallback') content += `  Fallback: ${d.fallbackMessage||def.fallbackMessage}\n`; break;
+                case 'dynamicResponse': content += `  Template: ${d.responseTemplate||def.responseTemplate}\n  Vars Used: ${d.variablesUsed||def.variablesUsed||'none'}\n`; break;
+                default: content += `  Content: ${d.blockDescription || d.description || d.details || d.instruction || d.value || 'Generic Content (Type Removed or Unknown)'}\n`; break; } return content.trimEnd()+"\n\n"; }
+            
+            function buildPromptFromNode(blockElement, visited, currentPromptText, indentLevel = 0, viaBranch = "") { const blockId = blockElement.dataset.blockId; const visitedKey = `${blockId}-${viaBranch}`; if (!blockElement || visited.has(visitedKey)) return currentPromptText; visited.add(visitedKey); let indent = "  ".repeat(indentLevel); currentPromptText += formatBlockContentForPreview(blockElement).split('\n').map(line => line ? indent + line : "").join('\n').trimEnd() + "\n"; const connections = JSON.parse(blockElement.dataset.connectionsOutput || '[]'); const blockType = blockElement.dataset.blockType; 
+                if (blockType === 'conditional' || blockType === 'switchCase' || blockType === 'parallelExec' || blockType === 'containsMatch' || blockType === 'choice') { 
+                    let branches = []; 
+                    if (blockType === 'conditional' || blockType === 'containsMatch') branches = [{name: 'THEN', type: 'then'}, {name: 'ELSE', type: 'else'}];  
+                    if (blockType === 'switchCase') branches = [{name: 'CASE 1', type: 'path1'}, {name: 'CASE 2', type: 'path2'}, {name: 'DEFAULT', type: 'path3'}]; 
+                    if (blockType === 'parallelExec') branches = [{name: 'PATH 1', type: 'path1'}, {name: 'PATH 2', type: 'path2'}, {name: 'PATH 3', type: 'path3'}]; 
+                    if (blockType === 'choice') {
+                        const optionsString = blockElement.dataset.options || blockDefaults.choice.options;
+                        const opts = optionsString.split('\n').map(o => o.trim()).filter(o => o);
+                        const numOutputs = Math.min(opts.length, 4);
+                        for(let i = 0; i < numOutputs; i++) {
+                            branches.push({ name: `CHOICE ${i+1} (${opts[i].substring(0,20)}${opts[i].length > 20 ? '...' : ''})`, type: `choice${i+1}`});
+                        }
+                    }
+                    branches.forEach(branchInfo => { currentPromptText += `${indent}<span class="preview-branch-label">${branchInfo.name}:</span>\n`; const branchConnections = connections.filter(c => c.branch === branchInfo.type); if (branchConnections.length === 0) { currentPromptText += `${indent}  (No connection for ${branchInfo.name})\n`; } else { branchConnections.forEach(conn => { const targetBlock = canvasContent.querySelector(`.prompt-block[data-block-id="${conn.targetId}"]`); if (targetBlock) { currentPromptText = buildPromptFromNode(targetBlock, new Set(visited), currentPromptText, indentLevel + 1, branchInfo.type); } }); } }); 
+                    currentPromptText += `${indent}<span class="preview-block-type">END ${blockType.toUpperCase().replace('EXEC','').replace('MATCH','')}</span>\n\n`; 
+                } else { let nextIndentLevel = indentLevel; if (blockType === 'loop') nextIndentLevel++; connections.forEach(conn => { let targetId = typeof conn === 'string' ? conn : conn.targetId; if (typeof conn === 'object' && conn.branch !== 'main') return;  const targetBlock = canvasContent.querySelector(`.prompt-block[data-block-id="${targetId}"]`); if (targetBlock) { currentPromptText = buildPromptFromNode(targetBlock, new Set(visited), currentPromptText, nextIndentLevel, "main"); } }); if (blockType === 'loop') currentPromptText += `${indent}<span class="preview-block-type">ENDLOOP</span>\n\n`; } return currentPromptText; }
+            
+            function updateLivePreview(){ let finalPromptText = ""; const allBlocks = Array.from(canvasContent.querySelectorAll('.prompt-block')); if(allBlocks.length === 0){ previewContent.innerHTML='Build a prompt flow...'; return; } const startNodes = []; const targetIds = new Set(); allBlocks.forEach(block => { const connections = JSON.parse(block.dataset.connectionsOutput || '[]'); connections.forEach(conn => targetIds.add(typeof conn === 'string' ? conn : conn.targetId)); }); const topLevelStarterTypes = ['role', 'userInput', 'context', 'systemMessage', 'knowledgeBase', 'userProfile']; allBlocks.forEach(block => { const hasInputs = block.querySelector('.connection-point.input'); if (!hasInputs || !targetIds.has(block.dataset.blockId)) {  if (topLevelStarterTypes.includes(block.dataset.blockType)) { startNodes.unshift(block); } else { startNodes.push(block); } } }); if(startNodes.length === 0 && allBlocks.length > 0) { let foundStarter = false; for(const type of topLevelStarterTypes) { const typedBlock = allBlocks.find(b => b.dataset.blockType === type); if (typedBlock) { startNodes.push(typedBlock); foundStarter = true; break; } } if (!foundStarter) startNodes.push(allBlocks[0]); } const globallyVisitedForPrompt = new Set(); for (const sNode of new Set(startNodes)) {  if (!globallyVisitedForPrompt.has(`${sNode.dataset.blockId}-main`)) { finalPromptText = buildPromptFromNode(sNode, globallyVisitedForPrompt, finalPromptText, 0, "main"); } } if(finalPromptText.trim() === "") finalPromptText = selectedBlockElement ? formatBlockContentForPreview(selectedBlockElement) : 'Connect blocks to see preview...'; previewContent.innerHTML = finalPromptText.trim() ? finalPromptText.trim() : 'Connect blocks to see preview...'; }
+            
+            function collectLayoutData() { const blocksData = []; document.querySelectorAll('.prompt-block').forEach(blockEl => { const data = { id:blockEl.dataset.blockId, type:blockEl.dataset.blockType, name:blockEl.dataset.name||blockEl.querySelector('.block-title').textContent, x:parseInt(blockEl.style.left,10), y:parseInt(blockEl.style.top,10), properties:{}, connectionsOutput:JSON.parse(blockEl.dataset.connectionsOutput||'[]')}; const typeDefaults = blockDefaults[data.type] || {}; for(const key in typeDefaults){ if(blockEl.dataset[key] !== undefined) data.properties[key] = blockEl.dataset[key]; } if(blockEl.dataset.name) data.properties.name = blockEl.dataset.name; for(const key in blockEl.dataset){  if(!['blockId','blockType','x','y','connectionsOutput','connectionsInput','style'].includes(key) && !key.startsWith('offset') && !data.properties.hasOwnProperty(key)) { data.properties[key]=blockEl.dataset[key];  } } blocksData.push(data); }); return { blocks: blocksData, blockIdCounter: blockIdCounter, viewOffsetX: viewOffsetX, viewOffsetY: viewOffsetY, uiState: { theme: currentTheme, leftSidebarCollapsed: isLeftSidebarCollapsed, rightSidebarCollapsed: isRightSidebarCollapsed } }; }
+            
+            function exportLayoutToFile() { const layoutData = collectLayoutData(); const jsonString = JSON.stringify(layoutData, null, 2); const blob = new Blob([jsonString], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `prompt_playground_workflow_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); alert('Workflow Exported!'); }
+            
+            function loadLayoutFromFile(jsonData, isTemplate = false) { if (!isTemplate && document.querySelectorAll('.prompt-block').length > 0 && !confirm("Importing a new workflow will overwrite your current work. Continue?")) { return; } const data = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData; canvasContent.innerHTML = ''; connectionsSVG.innerHTML = '<line id="temp-connection-line" style="display:none;"></line>'; deselectAll(); let maxIdInLoadedData = 0; if (data.blocks) { data.blocks.forEach(b => { const idStr = b.id; let currentIdNum = 0; const parsedAsInt = parseInt(idStr, 10); if (!isNaN(parsedAsInt) && String(parsedAsInt) === idStr) { currentIdNum = parsedAsInt; } else { const match = idStr.match(/\d+$/); if (match) currentIdNum = parseInt(match[0], 10); } if (currentIdNum > maxIdInLoadedData) maxIdInLoadedData = currentIdNum; }); } blockIdCounter = Math.max(data.blockIdCounter || 0, maxIdInLoadedData) + 1; if (data.uiState) { isLeftSidebarCollapsed = data.uiState.leftSidebarCollapsed === true; isRightSidebarCollapsed = data.uiState.rightSidebarCollapsed === true; applyTheme(data.uiState.theme || 'light'); updateAppGridColumns(); } else { applyTheme(localStorage.getItem('promptBuilderTheme') || 'light'); updateAppGridColumns(); } if (data.blocks && Array.isArray(data.blocks)) { data.blocks.forEach(d => { createBlockElement(d); }); } viewOffsetX = data.viewOffsetX || 0; viewOffsetY = data.viewOffsetY || 0; applyViewTransform(); updateLivePreview(); const firstBlock = document.querySelector('.prompt-block[data-block-type="role"]') || document.querySelector('.prompt-block[data-block-type="userInput"]') || document.querySelector('.prompt-block'); if (firstBlock) selectBlock(firstBlock); else populatePropertiesPanel(); blockIdCounter = getNextBlockId(); if (!isTemplate) alert('Workflow Imported!'); else alert('Template Loaded!'); triggerAutoSave(); }
+
+            if (exportLayoutBtn) exportLayoutBtn.addEventListener('click', exportLayoutToFile);
+            if (importLayoutInput) { importLayoutInput.addEventListener('change', (event) => { const file = event.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = (e) => { try { loadLayoutFromFile(e.target.result); } catch (err) { console.error("Error importing workflow:", err); alert("Failed to import workflow. Ensure it's a valid JSON file."); } }; reader.readAsText(file); event.target.value = null; } }); }
+
+            function getRelativeCoords(element) { const er=element.getBoundingClientRect(); const sr=connectionsSVG.getBoundingClientRect(); if(sr.width===0||sr.height===0)return{x:0,y:0}; return {x:er.left-sr.left+(er.width/2),y:er.top-sr.top+(er.height/2)};}
+            
+            function handleConnectionPointMouseDown(e){ if(e.button!==0)return; const pointElement = e.target; if(pointElement.dataset.pointType === 'output' || pointElement.dataset.pointType === 'input'){ isDrawingConnection=true; connectionStartPointElement=pointElement; connectionStartBlock=pointElement.closest('.prompt-block'); connectionDragType = pointElement.dataset.pointType;  const sc=getRelativeCoords(pointElement); tempConnectionLine.setAttribute('x1',sc.x); tempConnectionLine.setAttribute('y1',sc.y); tempConnectionLine.setAttribute('x2',sc.x); tempConnectionLine.setAttribute('y2',sc.y); tempConnectionLine.style.display='block'; e.stopPropagation(); e.preventDefault(); } }
+            function handleConnectionPointMouseUp(e){} 
+            
+            function addConnection(sourceBlock,targetBlock,sourceOutputPointElement){ const sourceId=sourceBlock.dataset.blockId; const targetId=targetBlock.dataset.blockId; let connections=JSON.parse(sourceBlock.dataset.connectionsOutput||'[]'); let newConnection; const sourceBlockType = sourceBlock.dataset.blockType; if (!sourceOutputPointElement || sourceOutputPointElement.dataset.pointType !== 'output' || sourceOutputPointElement.closest('.prompt-block') !== sourceBlock) { console.error("Invalid sourceOutputPointElement in addConnection"); return;  } const branchType = sourceOutputPointElement.dataset.branchType || 'main';  newConnection = { targetId: targetId, branch: branchType }; if (connections.some(c => c.targetId === targetId && c.branch === branchType)) return;  connections.push(newConnection); sourceBlock.dataset.connectionsOutput=JSON.stringify(connections); drawConnectionLine(sourceBlock,targetBlock,sourceOutputPointElement); updateLivePreview(); triggerAutoSave(); if (isTutorialRunning) { checkTutorialAction('createConnection', { sourceId: sourceId, targetId: targetId, sourceBlockType: sourceBlockType, targetBlockType: targetBlock.dataset.blockType }); } }
+
+            function drawConnectionLine(sourceBlock,targetBlock,sourceOutputPoint){ if(!sourceBlock||!targetBlock||!sourceOutputPoint)return; const targetPoint=targetBlock.querySelector('.connection-point.input'); let eCoords; if (targetPoint) { eCoords = getRelativeCoords(targetPoint); } else { return; } const sCoords=getRelativeCoords(sourceOutputPoint); if((sCoords.x===0&&sCoords.y===0)&&(eCoords.x===0&&eCoords.y===0)&&connectionsSVG.getBoundingClientRect().width===0)return; const branchType = sourceOutputPoint.dataset.branchType || 'main'; const lineId=`conn-${sourceBlock.dataset.blockId}-${branchType}-to-${targetBlock.dataset.blockId}`; let line=connectionsSVG.querySelector(`#${lineId}`); if(!line){ line=document.createElementNS('http://www.w3.org/2000/svg','path'); line.setAttribute('id',lineId); line.setAttribute('class','connection-line'); line.dataset.sourceId=sourceBlock.dataset.blockId; line.dataset.targetId=targetBlock.dataset.blockId; line.dataset.branchType=branchType;  connectionsSVG.appendChild(line); line.addEventListener('click',(e)=>{e.stopPropagation();selectConnectionLine(line);}); } const dx=Math.abs(sCoords.x-eCoords.x); line.setAttribute('d',`M ${sCoords.x} ${sCoords.y} C ${sCoords.x+dx*0.4} ${sCoords.y}, ${eCoords.x-dx*0.4} ${eCoords.y}, ${eCoords.x} ${eCoords.y}`); }
+
+            function redrawAllConnections() { const svgRect = connectionsSVG.getBoundingClientRect(); if (svgRect.width === 0 || svgRect.height === 0) { connectionsSVG.querySelectorAll('.connection-line').forEach(l => l.remove()); return; } while (connectionsSVG.firstChild && connectionsSVG.firstChild.id !== 'temp-connection-line') { connectionsSVG.removeChild(connectionsSVG.firstChild); } document.querySelectorAll('.prompt-block').forEach(sourceBlockEl => { const connections = JSON.parse(sourceBlockEl.dataset.connectionsOutput || '[]'); connections.forEach(connObj => {  const targetId = typeof connObj === 'string' ? connObj : connObj.targetId; const branch = typeof connObj === 'string' ? 'main' : connObj.branch; const targetBlockEl = canvasContent.querySelector(`.prompt-block[data-block-id="${targetId}"]`); if (targetBlockEl) { let sourceOutputPointEl; sourceOutputPointEl = sourceBlockEl.querySelector(`.connection-point[data-point-type="output"][data-branch-type="${branch}"]`); if (sourceOutputPointEl) { drawConnectionLine(sourceBlockEl, targetBlockEl, sourceOutputPointEl); } } }); }); if(selectedConnectionLine && document.body.contains(selectedConnectionLine)) selectedConnectionLine.classList.add('selected-line'); }
+
+            document.addEventListener('mousemove', (e) => { lastMouseMoveEvent = e; if (isPanning) { const dx=e.clientX-panStartX;const dy=e.clientY-panStartY;viewOffsetX-=dx;viewOffsetY-=dy;panStartX=e.clientX;panStartY=e.clientY;applyViewTransform();} else if (isDrawingConnection) { const sr=connectionsSVG.getBoundingClientRect();if(sr.width===0||sr.height===0)return;const mx=e.clientX-sr.left;const my=e.clientY-sr.top;tempConnectionLine.setAttribute('x2',mx);tempConnectionLine.setAttribute('y2',my); const mcr=mainCanvas.getBoundingClientRect();let dX=0,dY=0;if(e.clientX<mcr.left+edgeThreshold)dX=-autoPanSpeed;else if(e.clientX>mcr.right-edgeThreshold)dX=autoPanSpeed;if(e.clientY<mcr.top+edgeThreshold)dY=-autoPanSpeed;else if(e.clientY>mcr.bottom-edgeThreshold)dY=autoPanSpeed;startOrUpdateAutoPan(dX,dY); } else if (isDraggingBlock && selectedBlockElement) { let nWX=e.clientX+viewOffsetX-dragOffsetX;let nWY=e.clientY+viewOffsetY-dragOffsetY;selectedBlockElement.style.left=`${nWX}px`;selectedBlockElement.style.top=`${nWY}px`;redrawAllConnections(); const mcr=mainCanvas.getBoundingClientRect();let dX=0,dY=0;if(e.clientX<mcr.left+edgeThreshold)dX=-autoPanSpeed;else if(e.clientX>mcr.right-edgeThreshold)dX=autoPanSpeed;if(e.clientY<mcr.top+edgeThreshold)dY=-autoPanSpeed;else if(e.clientY>mcr.bottom-edgeThreshold)dY=autoPanSpeed;startOrUpdateAutoPan(dX,dY);} else {if(!isPanning&&!isDrawingConnection&&!isDraggingBlock)stopAutoPan();}});
+            
+            document.addEventListener('mouseup', (e) => { stopAutoPan(); if (isPanning) { isPanning = false; mainCanvas.classList.remove('panning'); } if (isDrawingConnection) { if (currentConnectingToPoint && connectionStartPointElement) { const startPointType = connectionDragType;  const endPointType = currentConnectingToPoint.dataset.pointType; const startBlock = connectionStartBlock; const endBlock = currentConnectingToPoint.closest('.prompt-block'); if (startBlock && endBlock && startBlock !== endBlock) { let finalSourceBlock, finalTargetBlock, finalSourceOutputPoint; if (startPointType === 'output' && (endPointType === 'input')) {  finalSourceBlock = startBlock; finalTargetBlock = endBlock; finalSourceOutputPoint = connectionStartPointElement; } else if (startPointType === 'input' && endPointType === 'output') {  finalSourceBlock = endBlock;  finalTargetBlock = startBlock;  finalSourceOutputPoint = currentConnectingToPoint;  } if (finalSourceBlock && finalTargetBlock && finalSourceOutputPoint) { addConnection(finalSourceBlock, finalTargetBlock, finalSourceOutputPoint); } } } isDrawingConnection = false; tempConnectionLine.style.display = 'none'; connectionStartBlock = null; connectionStartPointElement = null; currentConnectingToPoint = null; connectionDragType = null; } if (isDraggingBlock) { if (selectedBlockElement) { selectedBlockElement.classList.remove('dragging'); selectedBlockElement.dataset.x = parseInt(selectedBlockElement.style.left, 10); selectedBlockElement.dataset.y = parseInt(selectedBlockElement.style.top, 10); triggerAutoSave();  } isDraggingBlock = false; } });
+            
+            document.getElementById('left-sidebar').addEventListener('dragstart', (e) => { if (e.target.classList.contains('block-item')) { const item = e.target; e.dataTransfer.setData('blockType',item.dataset.blockType); e.dataTransfer.setData('blockTitle',item.dataset.blockTitle); e.dataTransfer.setData('blockIcon',item.dataset.blockIcon); e.dataTransfer.setData('iconBg',item.dataset.iconBg); e.dataTransfer.setData('blockDescription', item.dataset.blockDescription);  activeDraggedSidebarItem=item; item.classList.add('dragging'); } });
+            document.getElementById('left-sidebar').addEventListener('dragend', (e) => { if (e.target.classList.contains('block-item') && activeDraggedSidebarItem === e.target) { activeDraggedSidebarItem.classList.remove('dragging'); activeDraggedSidebarItem=null; } });
+
+            mainCanvas.addEventListener('dragover',(e)=>e.preventDefault());
+            mainCanvas.addEventListener('drop',(e)=>{ e.preventDefault(); if(activeDraggedSidebarItem){ const blockTypeDropped=e.dataTransfer.getData('blockType'); if(blockTypeDropped){ const mcr=mainCanvas.getBoundingClientRect(); const dx=(e.clientX-mcr.left)+viewOffsetX; const dy=(e.clientY-mcr.top)+viewOffsetY; const title=e.dataTransfer.getData('blockTitle'); const defaultProps = blockDefaults[blockTypeDropped] || {}; const newBlockData = { id: getNextBlockId(), type: blockTypeDropped, name: title || defaultProps.name || blockTypeDropped, icon: e.dataTransfer.getData('blockIcon'), iconBg: e.dataTransfer.getData('iconBg'), x: Math.max(0, dx - 75), y: Math.max(0, dy - 30), properties: { ...defaultProps },  connectionsOutput: [] }; newBlockData.properties.name = newBlockData.name;  const draggedDesc = e.dataTransfer.getData('blockDescription'); if (draggedDesc) newBlockData.properties.blockDescription = draggedDesc;  const newBlockEl = createBlockElement(newBlockData);  selectBlock(newBlockEl, true);  updateLivePreview(); if (isTutorialRunning) { checkTutorialAction('dragDrop', { blockType: blockTypeDropped }); } } if(activeDraggedSidebarItem) activeDraggedSidebarItem.classList.remove('dragging'); activeDraggedSidebarItem=null; } });
+            
+            mainCanvas.addEventListener('mousedown',(e)=>{ if (isDraggingBlock || isDrawingConnection) { return; } if(e.target === mainCanvas || e.target === canvasContent){  stopAutoPan();  if(e.button === 0){  isPanning=true; panStartX=e.clientX; panStartY=e.clientY; mainCanvas.classList.add('panning'); e.preventDefault();  if(!e.target.closest('.prompt-block')) { deselectAll(); } } } });
+
+            propertiesPanelContent.addEventListener('input', updateBlockDataFromPropertiesPanel); 
+            propertiesPanelContent.addEventListener('change', updateBlockDataFromPropertiesPanel);
+            
+            deleteBlockBtn.addEventListener('click',()=>{if(selectedBlockElement){const bId=selectedBlockElement.dataset.blockId;selectedBlockElement.remove();document.querySelectorAll('.prompt-block').forEach(b=>{let cns=JSON.parse(b.dataset.connectionsOutput||'[]'); cns=cns.filter(c => (typeof c === 'string' ? c : c.targetId) !==bId); b.dataset.connectionsOutput=JSON.stringify(cns);});deselectAll();redrawAllConnections();updateLivePreview(); triggerAutoSave();}});
+            deleteConnectionBtn.addEventListener('click',()=>{ if(selectedConnectionLine){ const sourceId=selectedConnectionLine.dataset.sourceId; const targetId=selectedConnectionLine.dataset.targetId; const branchType=selectedConnectionLine.dataset.branchType;  const sourceBlock=canvasContent.querySelector(`.prompt-block[data-block-id="${sourceId}"]`); if(sourceBlock){ let connections=JSON.parse(sourceBlock.dataset.connectionsOutput||'[]'); connections=connections.filter(c => !( (typeof c === 'string' ? c === targetId && branchType === 'main' : c.targetId===targetId && c.branch===branchType) )); sourceBlock.dataset.connectionsOutput=JSON.stringify(connections); } selectedConnectionLine.remove(); deselectAll(); updateLivePreview(); redrawAllConnections();  triggerAutoSave(); } });
+            duplicateBlockBtn.addEventListener('click',()=>{ if(selectedBlockElement){ const originalType = selectedBlockElement.dataset.blockType; const originalDefaults = blockDefaults[originalType] || {}; const newBlockData = { id: getNextBlockId(), type: originalType, name: (selectedBlockElement.dataset.name || originalDefaults.name || originalType) + " (Copy)", x:parseInt(selectedBlockElement.style.left,10)+25, y:parseInt(selectedBlockElement.style.top,10)+25, properties:{},  connectionsOutput:[]  }; for(const key in selectedBlockElement.dataset){ if (originalDefaults.hasOwnProperty(key) || key === 'name' || key === 'blockDescription') {  newBlockData.properties[key]=selectedBlockElement.dataset[key]; } } newBlockData.properties.name = newBlockData.name;  const newBlock = createBlockElement(newBlockData);  selectBlock(newBlock); } });
+            copyPreviewBtn.addEventListener('click',()=>{navigator.clipboard.writeText(previewContent.innerText||previewContent.textContent).then(()=>alert('Preview copied!')).catch(err=>console.error('Copy fail:',err));});
+            
+            function triggerAutoSave() { const layoutData = collectLayoutData(); localStorage.setItem('promptPlaygroundAutoSave', JSON.stringify(layoutData)); }
+            function startPeriodicAutoSave() { if (autoSaveIntervalId) clearInterval(autoSaveIntervalId); autoSaveIntervalId = setInterval(() => { triggerAutoSave(); }, autoSaveIntervalMs); }
+            function loadAutoSavedWorkflow() { const autoSavedData = localStorage.getItem('promptPlaygroundAutoSave'); if (autoSavedData) { try { const parsedData = JSON.parse(autoSavedData); if (parsedData && parsedData.blocks && parsedData.blocks.length > 0) { if (confirm("An auto-saved session was found. Would you like to restore it?")) { loadLayoutFromFile(parsedData, true); alert("Auto-saved session restored."); return true;  } else { localStorage.removeItem('promptPlaygroundAutoSave'); } } else { localStorage.removeItem('promptPlaygroundAutoSave');  } } catch (e) { console.error("Error loading auto-saved workflow:", e); localStorage.removeItem('promptPlaygroundAutoSave');  } } return false;  }
+            
+            templatesDropdownContent.addEventListener('click', function(e) { e.preventDefault(); if (e.target.tagName === 'A' && e.target.dataset.template) { const templateKey = e.target.dataset.template; if (starterTemplates[templateKey]) { if (document.querySelectorAll('.prompt-block').length > 0 && !confirm(`Load the "${e.target.textContent}" template? This will overwrite your current work.`)) { return; } loadLayoutFromFile(JSON.parse(JSON.stringify(starterTemplates[templateKey])), true);  } else { alert("Selected template not found."); } } });
+
+            let tutorialSteps = []; let currentTutorialStep = 0; let isTutorialRunning = false; let currentTutorialActionCleanup = null;
+            function showTutorialMessage(message, showNext = true, showSkip = true) { tutorialMessageText.innerHTML = message.replace(/\n/g, "<br>"); tutorialMessagePopup.style.display = 'flex'; tutorialNextBtn.style.display = showNext ? 'inline-block' : 'none'; tutorialSkipBtn.style.display = showSkip ? 'inline-block' : 'none'; }
+            function hideTutorialMessage() { tutorialMessagePopup.style.display = 'none'; tutorialOverlay.classList.remove('active'); clearHighlights(); if (currentTutorialActionCleanup) { currentTutorialActionCleanup(); currentTutorialActionCleanup = null; } }
+            function highlightElement(selector) { const element = document.querySelector(selector); if (element) { element.classList.add('tutorial-highlight'); tutorialOverlay.classList.add('active'); element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' }); } return element; }
+            function clearHighlights() { document.querySelectorAll('.tutorial-highlight').forEach(el => el.classList.remove('tutorial-highlight')); }
+            function advanceTutorialStep() { currentTutorialStep++; runTutorialStep(); }
+            function checkTutorialAction(actionType, details) { if (!isTutorialRunning || currentTutorialStep >= tutorialSteps.length) return; const step = tutorialSteps[currentTutorialStep]; if (step.action && step.action.type === actionType) { let match = true; if (step.action.details) { for (const key in step.action.details) { if (details[key] !== step.action.details[key]) { match = false; break; } } } if (match) { if (currentTutorialActionCleanup) { currentTutorialActionCleanup(); currentTutorialActionCleanup = null; } clearHighlights(); tutorialOverlay.classList.remove('active');  advanceTutorialStep(); } } }
+            function runTutorialStep() { clearHighlights(); tutorialOverlay.classList.remove('active'); if (currentTutorialActionCleanup) { currentTutorialActionCleanup(); currentTutorialActionCleanup = null; } if (currentTutorialStep >= tutorialSteps.length) { showTutorialMessage("Tutorial finished! Feel free to explore.", true, false); tutorialNextBtn.textContent = "Finish"; tutorialNextBtn.onclick = endTutorial; return; } const step = tutorialSteps[currentTutorialStep]; showTutorialMessage(step.message, step.autoAdvance !== false && !step.action, !step.action);  tutorialNextBtn.textContent = "Next"; tutorialNextBtn.onclick = advanceTutorialStep;  if (step.elementSelector) { highlightElement(step.elementSelector); } if (step.action) { tutorialNextBtn.style.display = 'none';  } else if (step.autoAdvance === false) { tutorialNextBtn.style.display = 'inline-block';  } }
+            function endTutorial() { isTutorialRunning = false; hideTutorialMessage(); clearHighlights(); tutorialOverlay.classList.remove('active'); if (currentTutorialActionCleanup) { currentTutorialActionCleanup(); currentTutorialActionCleanup = null; } alert("Tutorial ended."); }
+            startTutorialBtn.addEventListener('click', () => { if (isTutorialRunning) { if (confirm("A tutorial is already in progress. End it and start over?")) { endTutorial(); } else { return; } } isTutorialRunning = true; tutorialSteps = [ { message: "Welcome to the Prompt Playground Tutorial!\nThis guide will walk you through the basics." }, { message: "This is the Block Library on the left. Find 'Core Inputs' and drag a 'Persona Role' block onto the main canvas (the dotted area).", elementSelector: '.block-item[data-block-type="role"]', action: { type: 'dragDrop', details: { blockType: 'role' } } }, { message: "Great! Now, select the 'Persona Role' block you just added by clicking on it.", action: { type: 'selectBlock', details: { blockType: 'role' } }  }, { message: "The Properties Panel on the right shows settings for the selected block. Try changing its name in the 'Block Name' field.", elementSelector: '#prop-block-name', action: { type: 'updateProperty' }  }, { message: "Let's add another block. Drag a 'Specific Task' block from the 'Actions & Tasks' category to the canvas.", elementSelector: '.block-item[data-block-type="task"]', action: { type: 'dragDrop', details: { blockType: 'task' } } }, { message: "Now, connect the 'Persona Role' block to the 'Specific Task' block. Click an output point (right side of 'Persona Role') and drag to an input point (left side of 'Specific Task').", action: { type: 'createConnection', details: { sourceBlockType: 'role', targetBlockType: 'task' } } }, { message: "Excellent! You've learned the basics of adding, selecting, modifying, and connecting blocks." }, { message: "Try the '✨ Clean Layout' button in the top bar to auto-organize your blocks.", elementSelector: '#clean-layout-btn', autoAdvance: false  }, { message: "Explore the 'Templates' dropdown for pre-built examples. The Help (❓) button also provides more details. This concludes the tutorial." } ]; currentTutorialStep = 0; runTutorialStep(); });
+            tutorialSkipBtn.addEventListener('click', () => { if (isTutorialRunning) advanceTutorialStep(); });
+            tutorialEndBtn.addEventListener('click', endTutorial);
+
+            function autoOrganizeLayout() { const allBlockElements = Array.from(canvasContent.querySelectorAll('.prompt-block')); if (allBlockElements.length === 0) return; const blocks = {}; const adj = {}; const inDegree = {}; allBlockElements.forEach(el => { const id = el.dataset.blockId; blocks[id] = { el: el, id: id, x: 0, y: 0, level: -1, originalX: parseInt(el.style.left) || 0, originalY: parseInt(el.style.top) || 0  }; adj[id] = []; inDegree[id] = 0; }); allBlockElements.forEach(el => { const sourceId = el.dataset.blockId; const connections = JSON.parse(el.dataset.connectionsOutput || '[]'); connections.forEach(conn => { const targetId = typeof conn === 'string' ? conn : conn.targetId; if (blocks[targetId]) {  if (!adj[sourceId].includes(targetId)) adj[sourceId].push(targetId); inDegree[targetId]++; } }); }); const queue = []; for (const id in inDegree) { if (inDegree[id] === 0) { queue.push(id); } } const X_MARGIN = 50; const Y_MARGIN = 50; const X_SPACING = (selectedBlockElement?.offsetWidth || 240) + 60;  const Y_SPACING = (selectedBlockElement?.offsetHeight || 100) + 40;  let currentLevel = 0; const nodesByLevel = {};  while (queue.length > 0) { const levelSize = queue.length; if (!nodesByLevel[currentLevel]) nodesByLevel[currentLevel] = []; for (let i = 0; i < levelSize; i++) { const u = queue.shift(); blocks[u].level = currentLevel; nodesByLevel[currentLevel].push(blocks[u]); adj[u].forEach(v => { inDegree[v]--; if (inDegree[v] === 0) { queue.push(v); } }); } currentLevel++; } Object.keys(nodesByLevel).forEach(level => { const levelNodes = nodesByLevel[level]; levelNodes.sort((a,b) => a.originalY - b.originalY);  levelNodes.forEach((node, index) => { node.x = X_MARGIN + parseInt(level) * X_SPACING; node.y = Y_MARGIN + index * Y_SPACING; }); }); let unplacedYOffset = Y_MARGIN + (Object.keys(nodesByLevel).reduce((max, level) => Math.max(max, nodesByLevel[level].length), 0) ) * Y_SPACING; let unplacedXOffset = X_MARGIN + currentLevel * X_SPACING;  let unplacedCountInCurrentX = 0; for (const id in blocks) { if (blocks[id].level === -1) {  blocks[id].x = unplacedXOffset; blocks[id].y = unplacedYOffset + unplacedCountInCurrentX * Y_SPACING; unplacedCountInCurrentX++; } } allBlockElements.forEach(el => { const block = blocks[el.dataset.blockId]; if (block) {  el.style.left = `${block.x}px`; el.style.top = `${block.y}px`; el.dataset.x = block.x; el.dataset.y = block.y; } }); setTimeout(() => { redrawAllConnections(); triggerAutoSave(); }, 250);  }
+            if (cleanLayoutBtn) { cleanLayoutBtn.addEventListener('click', autoOrganizeLayout); }
+
+            applyTheme(currentTheme); updateAppGridColumns();
+            if (!loadAutoSavedWorkflow()) { applyViewTransform(); if (!document.querySelector('.prompt-block')) { deselectAll(); updateLivePreview(); } }
+            startPeriodicAutoSave(); document.querySelectorAll('.ai-suggestion').forEach(s => setTimeout(() => s.classList.add('pulse'), 2000));
+        });
+    </script>
+</body>
+
+</html>

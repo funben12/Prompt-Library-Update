@@ -1,0 +1,3127 @@
+﻿/* ============================================================================
+   Prompt Library Pro - app.js
+   Editorial Workshop edition. Modular: state, api, helpers, render, controls.
+   Backend lives behind /api/* (Flask). Same-origin so no CORS pain.
+   ============================================================================ */
+
+(() => {
+'use strict';
+
+/* ============================================================================
+   STATE
+   ============================================================================ */
+const state = {
+  prompts:     [],
+  folders:     [],
+  filters:     { categories: [], tags: [] },
+  view:        'library',          // 'library' | 'favorites' | <folder id>
+  viewMode:    'list',             // 'list' | 'grid'
+  sortBy:      'updated',
+  groupByFolder: false,
+  search:      '',
+  filterPill:  null,               // { type:'fav'|'rated'|'category'|'tag', value? }
+  detailId:    null,
+  isPremium:   false,
+  licenceKey:  '',
+  theme:       'light',
+};
+
+/* ============================================================================
+   DOM HELPERS
+   ============================================================================ */
+const $  = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+const escapeHtml = (text) => {
+  if (text == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(text);
+  return d.innerHTML;
+};
+
+const escapeAttr = (text) => escapeHtml(text).replace(/"/g, '&quot;');
+
+/* Tagged template helper for inline HTML construction with auto-escaping
+   of ${...} interpolations. Use html`...` for safety. */
+const html = (strings, ...values) => {
+  let out = '';
+  strings.forEach((s, i) => {
+    out += s;
+    if (i < values.length) {
+      const v = values[i];
+      out += (v && v.__raw) ? v.value : escapeHtml(v);
+    }
+  });
+  return out;
+};
+const raw = (value) => ({ __raw: true, value: String(value) });
+
+/* ============================================================================
+   API CLIENT - thin fetch wrapper, returns parsed JSON or throws.
+   ============================================================================ */
+const API_BASE = window.location.origin + '/api';
+
+async function api(path, opts = {}) {
+  const url = API_BASE + path;
+  const init = {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  };
+  if (init.body && typeof init.body !== 'string') {
+    init.body = JSON.stringify(init.body);
+  }
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    let detail = '';
+    try { detail = (await res.json()).error || ''; } catch {}
+    throw new Error(`API ${res.status}: ${detail || res.statusText}`);
+  }
+  if (res.status === 204) return null;
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('application/json')) return res.json();
+  return res.text();
+}
+
+/* ============================================================================
+   VARIABLE DETECTION + REPLACEMENT
+   ============================================================================ */
+function detectVariables(content) {
+  if (!content) return [];
+  const found = new Set();
+  const patterns = [
+    /\[\[(.+?)\]\]/g,
+    /\{\{(.+?)\}\}/g,
+    /\(\((.+?)\)\)/g,
+  ];
+  for (const re of patterns) {
+    let m;
+    re.lastIndex = 0;
+    while ((m = re.exec(content)) !== null) {
+      const v = m[1].trim();
+      if (v && v.length < 100) found.add(v);
+    }
+  }
+  return Array.from(found).sort((a, b) => a.localeCompare(b));
+}
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function replaceVariables(content, varMap) {
+  let out = content;
+  for (const [name, value] of Object.entries(varMap)) {
+    const ev = escapeRegex(name);
+    out = out
+      .replace(new RegExp(`\\[\\[${ev}\\]\\]`, 'g'), value)
+      .replace(new RegExp(`\\{\\{${ev}\\}\\}`, 'g'), value)
+      .replace(new RegExp(`\\(\\(${ev}\\)\\)`, 'g'), value);
+  }
+  return out;
+}
+
+function renderChips(content) {
+  let out = escapeHtml(content);
+  const vars = detectVariables(content);
+  for (const v of vars) {
+    const ev = escapeRegex(v);
+    const chip = `<span class="var-chip">${escapeHtml(v)}</span>`;
+    out = out
+      .replace(new RegExp(`\\[\\[${ev}\\]\\]`, 'g'), chip)
+      .replace(new RegExp(`\\{\\{${ev}\\}\\}`, 'g'), chip)
+      .replace(new RegExp(`\\(\\(${ev}\\)\\)`, 'g'), chip);
+  }
+  return out;
+}
+
+/* ============================================================================
+   FORMATTERS
+   ============================================================================ */
+function relativeTime(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso + (iso.endsWith('Z') ? '' : 'Z')).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1)   return 'just now';
+  if (m < 60)  return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24)  return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7)   return `${d}d ago`;
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatDate(iso) {
+  if (!iso) return '-';
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/* ============================================================================
+   TOAST
+   ============================================================================ */
+function toast(msg, kind = 'success') {
+  const icons = { success: 'check_circle', error: 'error', warning: 'warning', info: 'info' };
+  const root = $('#toastContainer');
+  if (!root) return;
+  const el = document.createElement('div');
+  el.className = `toast ${kind}`;
+  el.innerHTML = `<span class="material-symbols-outlined">${icons[kind] || 'info'}</span><span>${escapeHtml(msg)}</span>`;
+  root.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; el.style.transition = 'all 200ms ease-out'; }, 2700);
+  setTimeout(() => el.remove(), 3000);
+}
+
+/* ============================================================================
+   CLIPBOARD
+   ============================================================================ */
+async function copyToClipboard(text) {
+  if (!text || !text.trim()) {
+    toast('Nothing to copy', 'warning');
+    return false;
+  }
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    return true;
+  } catch (err) {
+    console.error('clipboard:', err);
+    toast('Could not copy to clipboard', 'error');
+    return false;
+  }
+}
+/* ============================================================================
+   TAG CHIP INPUT SYSTEM
+   Tag inputs replace the old comma-text-fields for categories and tags.
+   Each .tag-input-wrap div gets a TagInput instance that manages:
+     - internal tags[] array (de-duplicated, case-normalised)
+     - rendered chip UI
+     - autocomplete dropdown from known filter values
+     - keyboard navigation and creation of new tags
+   ============================================================================ */
+const tagInputInstances = {};
+
+function createTagInput(containerId, knownValues = [], isCat = false) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+
+  const instance = {
+    tags: [],
+    knownValues,
+    isCat,
+    dropdownIdx: -1,
+    dropdownItems: [],
+  };
+  tagInputInstances[containerId] = instance;
+
+  // Build inner DOM
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'tag-input-field';
+  input.placeholder = wrap.dataset.placeholder || 'Add tag…';
+  wrap.appendChild(input);
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'tag-dropdown';
+  dropdown.style.display = 'none';
+  wrap.appendChild(dropdown);
+
+  function normalise(s) { return s.trim().toLowerCase(); }
+
+  function addTag(raw) {
+    const text = raw.trim();
+    if (!text) return;
+    const norm = normalise(text);
+    if (instance.tags.some(t => normalise(t) === norm)) return; // deduplicate
+    instance.tags.push(text);
+    renderChips();
+    input.value = '';
+    hideDropdown();
+  }
+
+  function removeTag(idx) {
+    instance.tags.splice(idx, 1);
+    renderChips();
+  }
+
+  function renderChips() {
+    // Remove all existing chip elements
+    wrap.querySelectorAll('.tag-chip-item').forEach(el => el.remove());
+    // Insert chips before the input
+    instance.tags.forEach((tag, i) => {
+      const chip = document.createElement('span');
+      chip.className = `tag-chip-item${isCat ? ' is-cat' : ''}`;
+      chip.innerHTML = `${escapeHtml(tag)}<button type="button" class="tag-chip-x" title="Remove"><span class="material-symbols-outlined">close</span></button>`;
+      chip.querySelector('.tag-chip-x').addEventListener('click', () => removeTag(i));
+      wrap.insertBefore(chip, input);
+    });
+  }
+
+  function showDropdown(query) {
+    const q = query.trim().toLowerCase();
+    const existing = new Set(instance.tags.map(t => t.toLowerCase()));
+    let matches = instance.knownValues
+      .filter(v => !existing.has(v.toLowerCase()) && (!q || v.toLowerCase().includes(q)));
+    instance.dropdownItems = matches;
+    instance.dropdownIdx = -1;
+
+    if (!matches.length && !q) { hideDropdown(); return; }
+
+    let html = matches.slice(0, 12).map((v, i) => {
+      const count = state.filters[isCat ? 'categories' : 'tags']
+        .find(x => x.value === v)?.count || '';
+      return `<div class="tag-dropdown-item" data-idx="${i}">
+        <span>${escapeHtml(v)}</span>
+        ${count ? `<span class="td-count">${count}</span>` : ''}
+      </div>`;
+    }).join('');
+
+    if (q && !matches.some(v => v.toLowerCase() === q)) {
+      html += `<div class="tag-dropdown-item tag-dropdown-create" data-create="1">
+        Create "<strong>${escapeHtml(q)}</strong>"
+      </div>`;
+    }
+
+    dropdown.innerHTML = html;
+    dropdown.style.display = html ? 'block' : 'none';
+  }
+
+  function hideDropdown() {
+    dropdown.style.display = 'none';
+    instance.dropdownIdx = -1;
+    instance.dropdownItems = [];
+  }
+
+  function moveDrop(dir) {
+    const items = dropdown.querySelectorAll('.tag-dropdown-item');
+    if (!items.length) return;
+    instance.dropdownIdx = Math.max(-1, Math.min(items.length - 1, instance.dropdownIdx + dir));
+    items.forEach((el, i) => el.classList.toggle('kbd-active', i === instance.dropdownIdx));
+  }
+
+  function activateDrop() {
+    const items = dropdown.querySelectorAll('.tag-dropdown-item');
+    const active = items[instance.dropdownIdx];
+    if (active) {
+      if (active.dataset.create) {
+        addTag(input.value.trim());
+      } else {
+        addTag(instance.dropdownItems[instance.dropdownIdx]);
+      }
+    } else if (input.value.trim()) {
+      addTag(input.value.trim());
+    }
+  }
+
+  input.addEventListener('input', () => showDropdown(input.value));
+  input.addEventListener('focus', () => showDropdown(input.value));
+  input.addEventListener('blur', () => setTimeout(hideDropdown, 160));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      if (dropdown.style.display !== 'none' && instance.dropdownIdx >= 0) {
+        activateDrop();
+      } else {
+        addTag(input.value.trim());
+      }
+    } else if (e.key === 'Backspace' && !input.value && instance.tags.length) {
+      e.preventDefault();
+      removeTag(instance.tags.length - 1);
+    } else if (e.key === 'ArrowDown') { e.preventDefault(); moveDrop(1); }
+    else if (e.key === 'ArrowUp')   { e.preventDefault(); moveDrop(-1); }
+    else if (e.key === 'Escape')    { hideDropdown(); }
+  });
+
+  dropdown.addEventListener('mousedown', (e) => {
+    const item = e.target.closest('.tag-dropdown-item');
+    if (!item) return;
+    e.preventDefault();
+    if (item.dataset.create) {
+      addTag(input.value.trim());
+    } else {
+      const idx = parseInt(item.dataset.idx, 10);
+      addTag(instance.dropdownItems[idx]);
+    }
+  });
+
+  wrap.addEventListener('click', (e) => {
+    if (!e.target.closest('.tag-chip-item')) input.focus();
+  });
+
+  instance.addTag = addTag;
+  instance.setTags = (arr) => {
+    instance.tags = [];
+    wrap.querySelectorAll('.tag-chip-item').forEach(el => el.remove());
+    (arr || []).forEach(t => addTag(t));
+  };
+  instance.getTags = () => instance.tags.slice();
+  instance.reset = () => {
+    instance.tags = [];
+    wrap.querySelectorAll('.tag-chip-item').forEach(el => el.remove());
+    input.value = '';
+    hideDropdown();
+  };
+  instance.updateKnown = (vals) => { instance.knownValues = vals; };
+}
+
+function getTagInputValues(containerId) {
+  return tagInputInstances[containerId]?.getTags() || [];
+}
+function setTagInputValues(containerId, arr) {
+  tagInputInstances[containerId]?.setTags(arr);
+}
+function resetTagInput(containerId) {
+  tagInputInstances[containerId]?.reset();
+}
+function updateTagInputKnown(containerId, vals) {
+  tagInputInstances[containerId]?.updateKnown(vals);
+}
+
+function initTagInputs() {
+  const catKnown = (state.filters.categories || []).map(c => c.value);
+  const tagKnown = (state.filters.tags       || []).map(t => t.value);
+  createTagInput('categoryTagInput', catKnown, true);
+  createTagInput('tagsTagInput',     tagKnown, false);
+}
+
+/* ============================================================================
+   DATA LOADERS
+   ============================================================================ */
+async function loadAll() {
+  await Promise.all([loadFolders(), loadPrompts(), loadFilterOptions()]);
+  // Re-render folders now that prompts are loaded so counts are correct.
+  // (loadFolders fires renderFolders() before state.prompts is populated.)
+  renderFolders();
+}
+
+async function loadPrompts() {
+  try {
+    state.prompts = await api('/prompts');
+    renderPrompts();
+    updateCounts();
+    updateChainSelect(null);
+  } catch (err) {
+    console.error('loadPrompts:', err);
+    toast('Could not load prompts', 'error');
+  }
+}
+
+async function loadFolders() {
+  try {
+    state.folders = await api('/folders');
+    renderFolders();
+    updateFolderDropdown();
+  } catch (err) {
+    console.error('loadFolders:', err);
+  }
+}
+
+async function loadFilterOptions() {
+  try {
+    state.filters = await api('/prompts/filters');
+    renderSidebarFilters();
+  } catch (err) {
+    console.error('loadFilterOptions:', err);
+  }
+}
+
+/* ============================================================================
+   FILTERING + SORTING
+   ============================================================================ */
+function getFilteredPrompts() {
+  let list = state.prompts.slice();
+
+  // View scope
+  if (state.view === 'favorites') {
+    list = list.filter(p => p.is_favorite);
+  } else if (typeof state.view === 'number') {
+    list = list.filter(p => p.folder_id === state.view);
+  }
+
+  // Filter pill
+  if (state.filterPill) {
+    const fp = state.filterPill;
+    if (fp.type === 'fav')      list = list.filter(p => p.is_favorite);
+    else if (fp.type === 'rated') list = list.filter(p => (p.rating || 0) > 0);
+    else if (fp.type === 'category') list = list.filter(p => (p.categories || []).includes(fp.value));
+    else if (fp.type === 'tag') list = list.filter(p => (p.tags || []).includes(fp.value));
+  }
+
+  // Search
+  const q = state.search.trim().toLowerCase();
+  if (q) {
+    list = list.filter(p =>
+      (p.title || '').toLowerCase().includes(q) ||
+      (p.description || '').toLowerCase().includes(q) ||
+      (p.content || '').toLowerCase().includes(q) ||
+      (p.categories || []).some(c => c.toLowerCase().includes(q)) ||
+      (p.tags || []).some(t => t.toLowerCase().includes(q))
+    );
+  }
+
+  // Sort
+  const cmp = {
+    updated: (a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''),
+    created: (a, b) => (b.created_at || '').localeCompare(a.created_at || ''),
+    title:   (a, b) => (a.title || '').localeCompare(b.title || ''),
+    used:    (a, b) => (b.use_count || 0) - (a.use_count || 0),
+    rating:  (a, b) => (b.rating || 0) - (a.rating || 0),
+  }[state.sortBy] || cmp.updated;
+  list.sort(cmp);
+
+  return list;
+}
+
+function updateCounts() {
+  const total     = state.prompts.length;
+  const favs      = state.prompts.filter(p => p.is_favorite).length;
+
+  const setText = (id, val) => { const el = $('#' + id); if (el) el.textContent = val; };
+  setText('libraryCount',  total);
+  setText('favCount',      favs);
+
+
+  const filtered = getFilteredPrompts();
+  $('#viewCount').textContent = filtered.length === 1 ? '1 prompt' : `${filtered.length} prompts`;
+}
+
+/* ============================================================================
+   VIEW MANAGEMENT
+   ============================================================================ */
+function setView(view) {
+  state.view = view;
+  state.filterPill = null;     // clear any active pill
+  state.search = '';
+  state.detailId = null;
+  closeDetailPanel();
+
+  // Sidebar nav active state
+  $$('.nav-item[data-view]').forEach(el => {
+    el.classList.toggle('active', String(el.dataset.view) === String(view));
+  });
+  $$('.folder-item').forEach(el => {
+    el.classList.toggle('active', Number(el.dataset.folderId) === view);
+  });
+  $$('.filter-list-item').forEach(el => el.classList.remove('active'));
+
+  // Header
+  const titleEl   = $('#viewTitle');
+  const bcEl      = $('#breadcrumb');
+  const fvaEl     = $('#folderViewActions');
+
+  if (view === 'library') {
+    titleEl.textContent = 'Library';
+    bcEl.innerHTML = '';
+    fvaEl.style.display = 'none';
+  } else if (view === 'favorites') {
+    titleEl.textContent = 'Favourites';
+    bcEl.innerHTML = '<span>Library</span>';
+    fvaEl.style.display = 'none';
+  } else {
+    const folder = state.folders.find(f => f.id === view);
+    const name = folder ? folder.name : 'Folder';
+    titleEl.textContent = name;
+    bcEl.innerHTML = `<span>Folders</span><span class="bc-sep material-symbols-outlined">chevron_right</span><span>${escapeHtml(name)}</span>`;
+    fvaEl.style.display = 'flex';
+    const safeName = JSON.stringify(name).replace(/'/g, "&#39;");
+    fvaEl.innerHTML = `
+      <button class="btn btn-ghost" onclick="window.PL_openNewPromptInFolder(${view})">
+        <span class="material-symbols-outlined">add</span> New in folder
+      </button>
+      <button class="btn btn-ghost" onclick='window.PL_renameFolder(${view}, ${safeName})'>
+        <span class="material-symbols-outlined">edit</span> Rename
+      </button>
+      <button class="btn btn-ghost btn-danger" onclick="window.PL_deleteFolder(${view})">
+        <span class="material-symbols-outlined">delete</span> Delete folder
+      </button>`;
+  }
+
+  // Reset search input
+  const si = $('#searchInput');
+  if (si) si.value = '';
+
+  // Update active filter pill
+  refreshActivePill();
+  renderPrompts();
+  updateCounts();
+}
+
+function setFilterPill(pill) {
+  state.filterPill = pill;
+  refreshActivePill();
+  renderPrompts();
+  updateCounts();
+}
+
+function clearFilterPill() {
+  state.filterPill = null;
+  refreshActivePill();
+  $('#filterFavChip').classList.remove('active');
+  $('#filterRatedChip').classList.remove('active');
+  $$('.filter-list-item').forEach(el => el.classList.remove('active'));
+  renderPrompts();
+  updateCounts();
+}
+window.clearAllFilters = clearFilterPill;
+
+function refreshActivePill() {
+  const pill = $('#activeFilterPill');
+  const lbl = $('#activeFilterLabel');
+  if (!pill || !lbl) return;
+  if (!state.filterPill) {
+    pill.hidden = true;
+    return;
+  }
+  const fp = state.filterPill;
+  let text = '';
+  if (fp.type === 'fav') text = 'Favourites only';
+  else if (fp.type === 'rated') text = 'Rated only';
+  else if (fp.type === 'category') text = `Category: ${fp.value}`;
+  else if (fp.type === 'tag') text = `Tag: #${fp.value}`;
+  lbl.textContent = text;
+  pill.hidden = false;
+}
+/* ============================================================================
+   RENDERERS
+   ============================================================================ */
+function renderPrompts() {
+  const container = $('#promptsContainer');
+  if (!container) return;
+
+  container.classList.remove('list-view', 'grid-view');
+  container.classList.add(state.viewMode === 'grid' ? 'grid-view' : 'list-view');
+
+  const list = getFilteredPrompts();
+
+  if (!list.length) {
+    container.innerHTML = renderEmptyState();
+    return;
+  }
+
+  if (state.groupByFolder && state.view !== 'favorites' && typeof state.view !== 'number') {
+    container.innerHTML = renderGroupedByFolder(list);
+  } else {
+    container.innerHTML = list.map(renderPromptCard).join('');
+  }
+}
+
+function renderEmptyState() {
+  const isSearching = !!state.search.trim();
+  if (isSearching) {
+    return `
+      <div class="empty">
+        <div class="empty-eyebrow">No matches</div>
+        <h2>Nothing found for &ldquo;<em>${escapeHtml(state.search)}</em>&rdquo;</h2>
+        <p>Try a different word, or clear the search to see your full library.</p>
+      </div>`;
+  }
+  if (state.view === 'favorites') {
+    return `
+      <div class="empty">
+        <div class="empty-eyebrow">Favourites</div>
+        <h2>You haven&rsquo;t starred anything <em>yet</em></h2>
+        <p>Click the star icon on any prompt to keep your most-used ones close to hand.</p>
+      </div>`;
+  }
+  return `
+    <div class="empty">
+      <div class="empty-shell">
+        <div>
+          <div class="empty-eyebrow">Library</div>
+          <h2>A clean page, ready for your first <em>prompt</em>.</h2>
+          <p>Save the prompts you actually use - the ones you keep rewriting in chat boxes - and they&rsquo;ll be one click away forever.</p>
+          <div class="empty-actions">
+            <button class="btn btn-accent" onclick="window.PL_openNewPromptModal()">
+              <span class="material-symbols-outlined">add</span>
+              Write your first prompt
+            </button>
+            <button class="btn" onclick="window.PL_loadStarters()">
+              <span class="material-symbols-outlined">auto_awesome</span>
+              Load starter set
+            </button>
+          </div>
+        </div>
+        <div class="empty-proof">
+          <div class="empty-proof-item"><span class="material-symbols-outlined">edit_note</span><span>Draft, refine, and keep the prompts that become part of your working practice.</span></div>
+          <div class="empty-proof-item"><span class="material-symbols-outlined">data_object</span><span>Use variables such as <code>[[client]]</code> so each prompt is ready to fill and copy.</span></div>
+          <div class="empty-proof-item"><span class="material-symbols-outlined">archive</span><span>Organise by folder, tag, colour, rating, and usage without leaving your local machine.</span></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderGroupedByFolder(prompts) {
+  const groups = new Map();
+  for (const p of prompts) {
+    const key = p.folder_id || 0;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(p);
+  }
+  const sortedKeys = Array.from(groups.keys()).sort((a, b) => {
+    if (a === 0) return -1;
+    if (b === 0) return 1;
+    const fa = state.folders.find(f => f.id === a)?.name || '';
+    const fb = state.folders.find(f => f.id === b)?.name || '';
+    return fa.localeCompare(fb);
+  });
+
+  return sortedKeys.map(key => {
+    const folder = state.folders.find(f => f.id === key);
+    const name   = folder ? folder.name : 'Unfiled';
+    const items  = groups.get(key);
+    return `
+      <div class="folder-group-header">
+        <h3>${escapeHtml(name)}</h3>
+        <span class="count">${items.length}</span>
+      </div>
+      ${items.map(renderPromptCard).join('')}`;
+  }).join('');
+}
+
+function renderPromptCard(p) {
+  const cats     = (p.categories || []).slice(0, 3);
+  const tags     = (p.tags       || []).slice(0, 3);
+  const desc     = (p.description || (p.content || '').slice(0, 120) + ((p.content || '').length > 120 ? '...' : '')) || '';
+  const folder   = state.folders.find(f => f.id === p.folder_id);
+  const colour   = p.colour_label ? `c-${p.colour_label}` : '';
+  const isFav    = !!p.is_favorite;
+  const rating   = p.rating || 0;
+  const varCount = (p.variables || []).length;
+  const updated  = relativeTime(p.updated_at || p.created_at);
+  const active   = p.id === state.detailId ? 'active' : '';
+
+  const tagPills = [
+    ...cats.map(c => `<span class="card-tag cat">${escapeHtml(c)}</span>`),
+    ...tags.map(t => `<span class="card-tag">#${escapeHtml(t)}</span>`),
+  ].join('');
+
+  return `
+    <article class="prompt-card ${active}" onclick="window.PL_openDetail(${p.id})" data-id="${p.id}">
+      <div class="card-rule ${colour}"></div>
+      <div class="card-body">
+        <div class="card-title-row">
+          <h3 class="card-title">${escapeHtml(p.title)}</h3>
+          ${isFav ? '<span class="card-fav material-symbols-outlined">star</span>' : ''}
+          ${rating > 0 ? `<span class="card-rating">${'\u2605'.repeat(rating)}${'\u2606'.repeat(5 - rating)}</span>` : ''}
+        </div>
+        ${desc ? `<p class="card-desc">${escapeHtml(desc)}</p>` : ''}
+        <div class="card-meta">
+          ${varCount > 0 ? `<span class="card-meta-item"><span class="material-symbols-outlined">token</span>${varCount} variable${varCount !== 1 ? 's' : ''}</span><span class="card-meta-sep">&middot;</span>` : ''}
+          ${folder ? `<span class="card-meta-item"><span class="material-symbols-outlined">folder</span>${escapeHtml(folder.name)}</span><span class="card-meta-sep">&middot;</span>` : ''}
+          ${updated ? `<span class="card-meta-item"><span class="material-symbols-outlined">schedule</span>${escapeHtml(updated)}</span>` : ''}
+        </div>
+        ${tagPills ? `<div class="card-tags" style="margin-top: 4px;">${tagPills}</div>` : ''}
+      </div>
+      <div class="card-actions" onclick="event.stopPropagation()">
+        <button class="icon-btn ${isFav ? 'fav-on' : ''}" onclick="window.PL_toggleFav(${p.id})" title="${isFav ? 'Remove from favourites' : 'Add to favourites'}">
+          <span class="material-symbols-outlined">star</span>
+        </button>
+        <button class="icon-btn" onclick="window.PL_useFromCard(${p.id})" title="Copy to clipboard">
+          <span class="material-symbols-outlined">content_copy</span>
+        </button>
+        <button class="icon-btn" onclick="window.PL_editPrompt(${p.id})" title="Edit">
+          <span class="material-symbols-outlined">edit</span>
+        </button>
+        <button class="icon-btn danger" onclick="window.PL_deletePrompt(${p.id})" title="Delete">
+          <span class="material-symbols-outlined">delete</span>
+        </button>
+      </div>
+    </article>`;
+}
+
+function renderFolders() {
+  const list = $('#foldersList');
+  if (!list) return;
+  if (!state.folders.length) {
+    list.innerHTML = '<p class="filter-list-empty">No folders yet</p>';
+    return;
+  }
+  list.innerHTML = state.folders.map(f => {
+    const count = state.prompts.filter(p => p.folder_id === f.id).length;
+    const safeName = JSON.stringify(f.name).replace(/'/g, '&#39;');
+    return `
+      <div class="folder-item" data-folder-id="${f.id}" onclick="window.PL_setView(${f.id})">
+        <span class="material-symbols-outlined">folder</span>
+        <span class="folder-name">${escapeHtml(f.name)}</span>
+        <span class="folder-count">${count}</span>
+        <div class="folder-actions">
+          <button class="folder-mini-btn" onclick="event.stopPropagation(); window.PL_renameFolder(${f.id}, ${safeName})" title="Rename">
+            <span class="material-symbols-outlined">edit</span>
+          </button>
+          <button class="folder-mini-btn danger" onclick="event.stopPropagation(); window.PL_deleteFolder(${f.id})" title="Delete">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderSidebarFilters() {
+  const cats = $('#categoriesList');
+  const tags = $('#tagsList');
+  if (cats) {
+    if (!state.filters.categories.length) {
+      cats.innerHTML = '<p class="filter-list-empty">None yet</p>';
+    } else {
+      cats.innerHTML = state.filters.categories.map(c => {
+        const safe = JSON.stringify(c.value).replace(/'/g, '&#39;');
+        return `
+          <div class="filter-list-item" onclick="window.PL_filterByCategory(${safe})">
+            <span class="material-symbols-outlined">category</span>
+            <span>${escapeHtml(c.value)}</span>
+            <span class="filter-count">${c.count}</span>
+          </div>`;
+      }).join('');
+    }
+  }
+  if (tags) {
+    if (!state.filters.tags.length) {
+      tags.innerHTML = '<p class="filter-list-empty">None yet</p>';
+    } else {
+      tags.innerHTML = state.filters.tags.map(t => {
+        const safe = JSON.stringify(t.value).replace(/'/g, '&#39;');
+        return `
+          <div class="filter-list-item" onclick="window.PL_filterByTag(${safe})">
+            <span class="material-symbols-outlined">tag</span>
+            <span>#${escapeHtml(t.value)}</span>
+            <span class="filter-count">${t.count}</span>
+          </div>`;
+      }).join('');
+    }
+  }
+  // Keep tag-input autocomplete lists fresh
+  updateTagInputKnown('categoryTagInput', (state.filters.categories || []).map(c => c.value));
+  updateTagInputKnown('tagsTagInput',     (state.filters.tags       || []).map(t => t.value));
+}
+
+function updateFolderDropdown() {
+  const sel = $('#promptFolder');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">No folder</option>' +
+    state.folders.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+  if (current) sel.value = current;
+}
+
+async function updateRoleDropdown(selectedId) {
+  const sel = $('#promptRole');
+  if (!sel) return;
+  try {
+    const res   = await fetch('/api/roles');
+    const data  = await res.json();
+    const roles = data.roles || data || [];
+    sel.innerHTML = '<option value="">No role</option>' +
+      roles.map(r => `<option value="${r.id}">${escapeHtml(r.icon || '')} ${escapeHtml(r.name)}</option>`).join('');
+    if (selectedId) sel.value = String(selectedId);
+    // Keep hidden field in sync
+    sel.addEventListener('change', () => {
+      const hid = $('#promptRoleId');
+      if (hid) hid.value = sel.value;
+    }, { once: false });
+  } catch (e) {
+    console.warn('updateRoleDropdown error', e);
+  }
+}
+/* ============================================================================
+   DETAIL PANEL
+   ============================================================================ */
+async function openDetail(id) {
+  try {
+    const p = await api(`/prompts/${id}`);
+    state.detailId = id;
+    renderDetailPanel(p);
+    $('#detailPanel').classList.add('open');
+    $('#detailPanel').setAttribute('aria-hidden', 'false');
+
+    // Highlight active card
+    $$('.prompt-card').forEach(el => {
+      el.classList.toggle('active', Number(el.dataset.id) === id);
+    });
+  } catch (err) {
+    console.error('openDetail:', err);
+    toast('Could not load prompt', 'error');
+  }
+}
+
+function closeDetailPanel() {
+  $('#detailPanel').classList.remove('open');
+  $('#detailPanel').setAttribute('aria-hidden', 'true');
+  state.detailId = null;
+  $$('.prompt-card').forEach(el => el.classList.remove('active'));
+}
+
+function renderDetailPanel(p) {
+  const vars   = p.variables || detectVariables(p.content);
+  const cats   = (p.categories || []).filter(Boolean);
+  const tags   = (p.tags       || []).filter(Boolean);
+  const folder = state.folders.find(f => f.id === p.folder_id);
+
+  // Favourite button
+  const favBtn = $('#panelFavBtn');
+  const favIcon = favBtn.querySelector('.material-symbols-outlined');
+  favBtn.classList.toggle('fav-on', !!p.is_favorite);
+  favIcon.textContent = p.is_favorite ? 'star' : 'star_border';
+  favIcon.style.fontVariationSettings = p.is_favorite ? '"FILL" 1' : '"FILL" 0';
+  favIcon.style.color = p.is_favorite ? 'var(--gold)' : '';
+
+  // Chips (categories + tags)
+  $('#detailChips').innerHTML =
+    cats.map(c => `<span class="card-tag cat">${escapeHtml(c)}</span>`).join('') +
+    tags.map(t => `<span class="card-tag">#${escapeHtml(t)}</span>`).join('');
+
+  $('#detailTitle').textContent = p.title || '';
+  const descEl = $('#detailDesc');
+  descEl.textContent = p.description || '';
+  descEl.style.display = p.description ? '' : 'none';
+
+  // Variable badge
+  const varBadge = $('#detailVarBadge');
+  if (vars.length > 0) {
+    varBadge.hidden = false;
+    $('#detailVarCount').textContent = `${vars.length} variable${vars.length !== 1 ? 's' : ''}`;
+  } else {
+    varBadge.hidden = true;
+  }
+
+  // Body with chip highlights
+  $('#detailPromptText').innerHTML = renderChips(p.content || '');
+
+  // Variable fill section
+  const useSec = $('#usePromptSection');
+  if (vars.length > 0) {
+    useSec.hidden = false;
+    renderVariableFields(vars, p.variable_meta || {});
+  } else {
+    useSec.hidden = true;
+    $('#variableFields').innerHTML = '';
+  }
+
+  // Meta
+  $('#metaCreated').textContent  = p.created_at ? formatDate(p.created_at) : '-';
+  $('#metaUseCount').textContent = (p.use_count || 0).toLocaleString();
+  $('#metaFolder').textContent   = folder ? folder.name : '-';
+  $('#metaLastUsed').textContent = p.last_used ? relativeTime(p.last_used) : 'Never';
+
+  // Notes & rating tab
+  $('#detailNotes').value = p.notes || '';
+  renderStars($('#detailRatingStars'), p.rating || 0, (val) => savePromptRating(p.id, val));
+
+  // Chain tab
+  renderDetailChain(p.chain_ids || []);
+
+  // History tab
+  loadAndRenderHistory(p.id);
+
+  // Reset to Prompt tab on open
+  switchDetailTab('prompt');
+}
+
+function renderVariableFields(vars, meta) {
+  const wrap = $('#variableFields');
+  if (!vars.length) { wrap.innerHTML = ''; return; }
+
+  const visible = vars.filter(v => {
+    const m = meta[v] || {};
+    return m.visible !== false;
+  });
+
+  if (!visible.length) {
+    wrap.innerHTML = '<p style="font-size: 12px; color: var(--ink-3);">All variables hidden.</p>';
+    return;
+  }
+
+  wrap.innerHTML = visible.map(v => {
+    const m = meta[v] || {};
+    const type = m.type || 'text';
+    const def  = m.default || '';
+    const opts = m.options || [];
+    let input = '';
+    if (type === 'dropdown' && opts.length) {
+      input = `<select class="var-select" data-var="${escapeAttr(v)}">
+        <option value="">Select...</option>
+        ${opts.map(o => `<option value="${escapeAttr(o)}">${escapeHtml(o)}</option>`).join('')}
+      </select>`;
+    } else if (type === 'number') {
+      input = `<input type="number" class="var-input" data-var="${escapeAttr(v)}" placeholder="Number" value="${escapeAttr(def)}" />`;
+    } else if (type === 'date') {
+      input = `<input type="date" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
+    } else {
+      input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter value..." value="${escapeAttr(def)}" />`;
+    }
+    return `<div class="var-field">
+      <div class="var-field-label">${escapeHtml(v)}<span class="var-field-type">${type}</span></div>
+      ${input}
+    </div>`;
+  }).join('');
+}
+
+function switchDetailTab(name) {
+  $$('.detail-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  $$('.detail-tab-pane').forEach(p => p.classList.toggle('active', p.id === `tab-${name}`));
+}
+
+function renderDetailChain(chainIds) {
+  const wrap   = $('#detailChainSteps');
+  const empty  = $('#detailChainEmpty');
+  const runBtn = $('#runChainBtn');
+  const runner = $('#chainRunnerWrap');
+
+  if (!chainIds.length) {
+    wrap.innerHTML = '';
+    if (runner) runner.style.display = 'none';
+    if (runBtn) runBtn.style.display = 'none';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  if (runBtn) runBtn.style.display = 'flex';
+  if (runner) runner.style.display = 'none';
+
+  wrap.innerHTML = chainIds.map((id, i) => {
+    const p = state.prompts.find(x => x.id === id);
+    const title = p ? p.title : `Prompt #${id}`;
+    return `
+      <div class="chain-step" onclick="window.PL_openDetail(${id})" style="cursor:pointer;">
+        <div class="chain-step-num">${i + 1}</div>
+        <div class="chain-step-body">
+          <div class="chain-step-title">${escapeHtml(title)}</div>
+          ${i > 0 ? `<div class="chain-step-meta">Pass previous output as context for step ${i + 1}</div>` : '<div class="chain-step-meta">Starting step</div>'}
+        </div>
+        <div class="chain-step-actions">
+          <span class="material-symbols-outlined" style="color: var(--ink-3); font-size: 16px;">chevron_right</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* Chain runner — phase-based execution
+   Phases step through a chained sequence of prompts. Each phase copies its prompt
+   (with the previous AI output prepended as context if captured) for pasting into
+   GPT, Claude, Perplexity, or any AI tool. */
+let _chainRunnerState = { ids: [], step: 0, outputs: [], roles: {} }; // roles: { promptId: roleObj }
+
+async function startChainRunner(chainIds) {
+  _chainRunnerState = { ids: chainIds, step: 0, outputs: [], roles: {} };
+  // Fetch role for each prompt that has one, cache by prompt id
+  await Promise.all(chainIds.map(async id => {
+    const p = state.prompts.find(x => x.id === id);
+    if (p && p.role_id) {
+      try {
+        const res  = await fetch(`/api/roles/${p.role_id}`);
+        const data = await res.json();
+        if (data && data.id) _chainRunnerState.roles[id] = data;
+      } catch { /* no role — skip */ }
+    }
+  }));
+  renderChainRunner();
+}
+
+function renderChainRunner() {
+  const wrap   = $('#chainRunnerWrap');
+  const runBtn = $('#runChainBtn');
+  if (!wrap) return;
+  const { ids, step, outputs } = _chainRunnerState;
+  if (!ids.length) { wrap.style.display = 'none'; return; }
+
+  if (runBtn) runBtn.style.display = 'none';
+  wrap.style.display = 'block';
+
+  const totalPhases = ids.length;
+  const currentId   = ids[step];
+  const currentP    = state.prompts.find(x => x.id === currentId);
+  const vars        = currentP ? detectVariables(currentP.content || '') : [];
+  const hasPrevOut  = step > 0 && outputs[step - 1];
+
+  const phasesHtml = ids.map((id, i) => {
+    const p      = state.prompts.find(x => x.id === id);
+    const title  = p ? p.title : `Prompt #${id}`;
+    const status = i < step ? 'done' : i === step ? 'current' : '';
+    const varBlock = (i === step && vars.length > 0) ? `
+      <div style="margin-top: var(--sp-3);">
+        ${vars.map(v => `
+          <div style="margin-bottom: var(--sp-2);">
+            <div style="font-size: 11px; font-weight: 600; color: var(--ink-3); margin-bottom: 3px;">${escapeHtml(v)}</div>
+            <input type="text" class="form-input chain-var-input" data-var="${escapeAttr(v)}" placeholder="Fill in…" style="padding: 6px 10px;" />
+          </div>`).join('')}
+      </div>` : '';
+    const stepRole   = _chainRunnerState.roles[id];
+    const roleBadge  = stepRole
+      ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:20px;background:var(--accent-soft);color:var(--accent);margin-top:3px;font-weight:600;">
+           ${escapeHtml(stepRole.icon || '🎯')} ${escapeHtml(stepRole.name)}
+         </span>`
+      : '';
+    return `
+      <div class="chain-runner-step ${status}">
+        <div style="display:flex; align-items:flex-start; gap: var(--sp-3);">
+          <div class="chain-step-num-badge ${status}">${i < step ? '✓' : i + 1}</div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size: var(--fs-sm); font-weight: 600; color: var(--ink); margin-bottom: 2px;">${escapeHtml(title)}</div>
+            <div style="font-size: 11px; color: var(--ink-3); margin-bottom: var(--sp-1);">Phase ${i + 1}${i < step && outputs[i] ? ' · response captured' : ''}</div>
+            ${roleBadge}
+            ${varBlock}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const contextBar = hasPrevOut ? `
+    <div class="chain-phase-context">
+      <span class="material-symbols-outlined" style="font-size:14px;">link</span>
+      <span>Phase ${step} response will be prepended as context</span>
+    </div>` : '';
+
+  const nextBtn = step < totalPhases - 1
+    ? `<button class="btn btn-primary" onclick="window.PL_showOutputCapture()" style="justify-content:center;">Next phase <span class="material-symbols-outlined">arrow_forward</span></button>`
+    : `<button class="btn" style="background:var(--success);color:white;border-color:var(--success);justify-content:center;" onclick="window.PL_finishChain()"><span class="material-symbols-outlined">check_circle</span> Finish chain</button>`;
+
+  const copyLabel = `Copy Phase ${step + 1}${vars.length ? ' (fill variables first)' : ''}`;
+
+  wrap.innerHTML = `
+    <div class="chain-runner">
+      <div class="chain-runner-header">
+        <span>Phase ${step + 1} of ${totalPhases}</span>
+        <button class="btn btn-ghost" style="padding: 4px 8px; font-size: 12px;" onclick="window.PL_stopChain()">
+          <span class="material-symbols-outlined" style="font-size:14px;">stop</span> Stop
+        </button>
+      </div>
+      ${phasesHtml}
+      ${contextBar}
+      <div class="chain-output-capture" id="chainOutputCapture" style="display:none;">
+        <div style="font-size: 11px; font-weight: 600; color: var(--ink-3); margin-bottom: var(--sp-2);">PASTE AI RESPONSE — Phase ${step + 1}</div>
+        <textarea id="chainPhaseOutput" class="form-input" rows="5"
+          placeholder="Paste the AI's response here — it becomes context for Phase ${step + 2}…"
+          style="resize:vertical; font-size:var(--fs-sm); width:100%;"></textarea>
+        <div style="display:flex; gap:var(--sp-2); margin-top:var(--sp-2);">
+          <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="window.PL_captureAndNext()">
+            Save &amp; go to Phase ${step + 2} <span class="material-symbols-outlined">arrow_forward</span>
+          </button>
+          <button class="btn btn-ghost" onclick="window.PL_skipCapture()" style="padding:6px 14px;">Skip</button>
+        </div>
+      </div>
+      <div class="chain-runner-actions" id="chainRunnerActions">
+        <button class="btn btn-accent" onclick="window.PL_copyChainPhase()" style="flex:1; justify-content:center;">
+          <span class="material-symbols-outlined">content_copy</span>
+          ${copyLabel}
+        </button>
+        ${nextBtn}
+      </div>
+    </div>`;
+}
+
+/* Copy current phase prompt — prepends previous AI response as context if captured */
+window.PL_copyChainPhase = async function() {
+  const { ids, step, outputs } = _chainRunnerState;
+  const id = ids[step];
+  const p  = state.prompts.find(x => x.id === id);
+  if (!p) return;
+  const varMap = {};
+  $$('#chainRunnerWrap .chain-var-input').forEach(inp => {
+    varMap[inp.dataset.var] = inp.value.trim() || `[${inp.dataset.var}]`;
+  });
+  const vars = detectVariables(p.content || '');
+  let text   = vars.length ? replaceVariables(p.content, varMap) : (p.content || '');
+  // Prepend role persona as system context if this prompt has a role assigned
+  const role = _chainRunnerState.roles[id];
+  if (role && role.persona) {
+    const roleHeader = `--- Role: ${role.icon || ''} ${role.name} ---\n${role.persona}${role.tone ? '\nTone: ' + role.tone : ''}${role.expertise ? '\nExpertise: ' + role.expertise : ''}`;
+    text = `${roleHeader}\n\n--- Prompt ---\n${text}`;
+  }
+  // Prepend previous phase output as context automatically
+  if (step > 0 && outputs[step - 1]) {
+    text = `--- Context from Phase ${step} ---\n${outputs[step - 1]}\n\n--- Phase ${step + 1} Prompt ---\n${text}`;
+  }
+  const ok = await copyToClipboard(text);
+  if (ok) {
+    api(`/prompts/${id}/use`, { method: 'POST' }).catch(() => {});
+    toast(`Phase ${step + 1} copied — paste into your AI tool`, 'success');
+  }
+};
+
+/* Show the AI response capture panel before advancing to next phase */
+window.PL_showOutputCapture = function() {
+  const { ids, step } = _chainRunnerState;
+  if (step >= ids.length - 1) return;
+  const capture = $('#chainOutputCapture');
+  const actions  = $('#chainRunnerActions');
+  if (capture) capture.style.display = 'block';
+  if (actions)  actions.style.display  = 'none';
+};
+
+/* Save captured AI response and advance to next phase */
+window.PL_captureAndNext = function() {
+  const { ids, step } = _chainRunnerState;
+  const outputText = $('#chainPhaseOutput')?.value?.trim() || '';
+  _chainRunnerState.outputs[step] = outputText;
+  if (step < ids.length - 1) {
+    _chainRunnerState.step = step + 1;
+    renderChainRunner();
+    toast(`Phase ${_chainRunnerState.step + 1} ready`, 'info');
+  }
+};
+
+/* Skip capture and advance without saving a response */
+window.PL_skipCapture = function() {
+  const { ids, step } = _chainRunnerState;
+  _chainRunnerState.outputs[step] = '';
+  if (step < ids.length - 1) {
+    _chainRunnerState.step = step + 1;
+    renderChainRunner();
+    toast(`Phase ${_chainRunnerState.step + 1} ready`, 'info');
+  }
+};
+
+/* Backward-compat aliases */
+window.PL_nextChainStep = window.PL_showOutputCapture;
+window.PL_copyChainStep = window.PL_copyChainPhase;
+
+/* Completion summary with export option */
+window.PL_finishChain = function() {
+  const { ids, outputs } = _chainRunnerState;
+  const wrap = $('#chainRunnerWrap');
+  if (!wrap) return;
+  const phaseSummary = ids.map((id, i) => {
+    const p     = state.prompts.find(x => x.id === id);
+    const title = p ? p.title : `Prompt #${id}`;
+    const out   = outputs[i] || '';
+    const preview = out ? `<div class="chain-output-preview">${escapeHtml(out.slice(0, 200))}${out.length > 200 ? '…' : ''}</div>` : '';
+    return `
+      <div class="chain-phase-summary">
+        <div style="display:flex; align-items:center; gap:var(--sp-2); margin-bottom:var(--sp-2);">
+          <div class="chain-step-num-badge done">✓</div>
+          <div>
+            <div style="font-weight:600; font-size:var(--fs-sm);">Phase ${i + 1}: ${escapeHtml(title)}</div>
+            <div style="font-size:11px; color:${out ? 'var(--success)' : 'var(--ink-3)'};">${out ? 'AI response captured' : 'No response captured'}</div>
+          </div>
+        </div>
+        ${preview}
+      </div>`;
+  }).join('');
+  wrap.innerHTML = `
+    <div class="chain-runner">
+      <div class="chain-runner-header" style="background:var(--success-soft);">
+        <span style="color:var(--success);">
+          <span class="material-symbols-outlined" style="font-size:15px; vertical-align:-3px;">check_circle</span>
+          Chain complete — ${ids.length} phase${ids.length !== 1 ? 's' : ''}
+        </span>
+        <button class="btn btn-ghost" style="padding:4px 8px; font-size:12px;" onclick="window.PL_stopChain()">Close</button>
+      </div>
+      ${phaseSummary}
+      <div class="chain-runner-actions">
+        <button class="btn btn-accent" onclick="window.PL_exportFullChain()" style="flex:1; justify-content:center;">
+          <span class="material-symbols-outlined">content_copy</span> Copy full chain
+        </button>
+        <button class="btn btn-ghost" onclick="window.PL_stopChain()" style="padding:6px 14px;">Done</button>
+      </div>
+    </div>`;
+};
+
+/* Copy entire chain — all phases + captured responses — as a single block */
+window.PL_exportFullChain = async function() {
+  const { ids, outputs } = _chainRunnerState;
+  const divider = '\n\n' + '─'.repeat(50) + '\n\n';
+  const parts = ids.map((id, i) => {
+    const p       = state.prompts.find(x => x.id === id);
+    const title   = p ? p.title : `Prompt #${id}`;
+    const content = p ? (p.content || '') : '';
+    let section   = `=== PHASE ${i + 1}: ${title.toUpperCase()} ===\n\n${content}`;
+    if (outputs[i]) section += `\n\n--- AI Response (Phase ${i + 1}) ---\n${outputs[i]}`;
+    return section;
+  });
+  const ok = await copyToClipboard(parts.join(divider));
+  if (ok) toast('Full chain copied — paste into any AI tool or document', 'success');
+};
+
+window.PL_stopChain = function() {
+  _chainRunnerState = { ids: [], step: 0, outputs: [] };
+  const wrap   = $('#chainRunnerWrap');
+  const runBtn = $('#runChainBtn');
+  if (wrap)   wrap.style.display   = 'none';
+  if (runBtn) runBtn.style.display = 'flex';
+};
+
+async function loadAndRenderHistory(promptId) {
+  if (!state.isPremium) {
+    $('#versionList').innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">Version history is a Pro feature.</p>';
+    $('#versionEmpty').classList.add('hidden');
+    return;
+  }
+  try {
+    const versions = await api(`/prompts/${promptId}/versions`);
+    const list = $('#versionList');
+    const empty = $('#versionEmpty');
+    if (!versions.length) {
+      list.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+    list.innerHTML = versions.map(v => `
+      <div class="version-item" onclick="window.PL_restoreVersion(${promptId}, ${v.id})">
+        <span class="material-symbols-outlined" style="color: var(--ink-3);">history</span>
+        <div class="version-meta">
+          <div class="version-title">${escapeHtml(v.title || 'Untitled')}</div>
+          <div class="version-time">${relativeTime(v.saved_at)}</div>
+        </div>
+        <span class="material-symbols-outlined" style="color: var(--accent); font-size: 16px;">restore</span>
+      </div>`).join('');
+  } catch (err) {
+    console.error('loadHistory:', err);
+  }
+}
+
+async function restoreVersion(promptId, versionId) {
+  if (!confirm('Restore this version? Current text will be saved as a new version first.')) return;
+  try {
+    await api(`/prompts/${promptId}/versions/${versionId}/restore`, { method: 'POST' });
+    toast('Version restored', 'success');
+    await loadPrompts();
+    await openDetail(promptId);
+  } catch (err) {
+    toast('Could not restore version', 'error');
+  }
+}
+
+/* ============================================================================
+   STAR RATING WIDGET
+   ============================================================================ */
+function renderStars(root, value, onChange) {
+  if (!root) return;
+  root.innerHTML = '';
+  for (let i = 1; i <= 5; i++) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = i <= value ? 'on' : '';
+    btn.innerHTML = '<span class="material-symbols-outlined">star</span>';
+    btn.addEventListener('click', () => {
+      const newVal = i === value ? 0 : i;
+      renderStars(root, newVal, onChange);
+      if (onChange) onChange(newVal);
+    });
+    root.appendChild(btn);
+  }
+}
+
+async function savePromptRating(id, rating) {
+  try {
+    await api(`/prompts/${id}/rating`, { method: 'POST', body: { rating } });
+    const p = state.prompts.find(x => x.id === id);
+    if (p) p.rating = rating;
+    renderPrompts();
+  } catch (err) {
+    toast('Could not save rating', 'error');
+  }
+}
+
+/* ============================================================================
+   PROMPT ACTIONS (favourite, delete, use, copy, duplicate)
+   ============================================================================ */
+async function toggleFav(id) {
+  try {
+    await api(`/prompts/${id}/favorite`, { method: 'POST' });
+    const p = state.prompts.find(x => x.id === id);
+    if (p) p.is_favorite = p.is_favorite ? 0 : 1;
+    renderPrompts();
+    updateCounts();
+    if (state.detailId === id) {
+      const fresh = await api(`/prompts/${id}`);
+      renderDetailPanel(fresh);
+    }
+  } catch (err) {
+    toast('Could not update favourite', 'error');
+  }
+}
+
+async function deletePromptById(id) {
+  if (!confirm('Delete this prompt? This cannot be undone.')) return;
+  try {
+    await api(`/prompts/${id}`, { method: 'DELETE' });
+    if (state.detailId === id) closeDetailPanel();
+    await loadPrompts();
+    await loadFilterOptions();
+    toast('Prompt deleted', 'info');
+  } catch (err) {
+    toast('Could not delete prompt', 'error');
+  }
+}
+
+async function useFromCard(id) {
+  try {
+    const p = await api(`/prompts/${id}`);
+    const vars = detectVariables(p.content);
+    const meta = p.variable_meta || {};
+    const visible = vars.filter(v => (meta[v] || {}).visible !== false);
+    if (visible.length > 0) {
+      // Open detail to fill variables
+      await openDetail(id);
+      setTimeout(() => {
+        const first = $('#variableFields .var-input, #variableFields .var-select');
+        if (first) first.focus();
+      }, 360);
+      toast(`Fill ${visible.length} variable${visible.length !== 1 ? 's' : ''}, then copy`, 'info');
+    } else {
+      const ok = await copyToClipboard(p.content);
+      if (ok) {
+        api(`/prompts/${id}/use`, { method: 'POST' }).catch(() => {});
+        toast('Copied to clipboard', 'success');
+      }
+    }
+  } catch (err) {
+    toast('Could not load prompt', 'error');
+  }
+}
+
+async function handleCopyWithVariables() {
+  if (!state.detailId) return;
+  try {
+    const p = await api(`/prompts/${state.detailId}`);
+    const vars = detectVariables(p.content);
+    const map = {};
+    if (vars.length > 0) {
+      $$('#variableFields .var-input, #variableFields .var-select').forEach(inp => {
+        map[inp.dataset.var] = inp.value.trim() || `[${inp.dataset.var}]`;
+      });
+    }
+    const text = vars.length > 0 ? replaceVariables(p.content, map) : p.content;
+    const ok = await copyToClipboard(text);
+    if (ok) {
+      api(`/prompts/${state.detailId}/use`, { method: 'POST' }).catch(() => {});
+      toast(vars.length > 0 ? 'Copied with variables filled' : 'Copied to clipboard', 'success');
+      const useEl = $('#metaUseCount');
+      if (useEl) useEl.textContent = (parseInt(useEl.textContent.replace(/,/g, '')) + 1).toLocaleString();
+    }
+  } catch (err) {
+    toast('Could not copy', 'error');
+  }
+}
+
+function handleSinglePromptExport() {
+  if (!state.detailId) return;
+  const p = state.prompts.find(x => x.id === state.detailId);
+  if (!p) return;
+  const data = [{
+    title: p.title, description: p.description, content: p.content,
+    categories: p.categories, tags: p.tags, colour_label: p.colour_label,
+    rating: p.rating, notes: p.notes, variable_meta: p.variable_meta,
+  }];
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${p.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Prompt exported', 'success');
+}
+
+async function duplicatePrompt(id) {
+  if (!state.isPremium) { showPremiumModal(); return; }
+  try {
+    const fresh = await api(`/prompts/${id}/duplicate`, { method: 'POST' });
+    await loadPrompts();
+    toast('Prompt duplicated', 'success');
+    if (fresh && fresh.id) openDetail(fresh.id);
+  } catch (err) {
+    toast('Could not duplicate', 'error');
+  }
+}
+
+async function saveNotesAndRating() {
+  if (!state.detailId) return;
+  try {
+    const p = await api(`/prompts/${state.detailId}`);
+    const notes = $('#detailNotes').value;
+    await api(`/prompts/${state.detailId}`, {
+      method: 'PUT',
+      body: {
+        title: p.title, content: p.content, description: p.description,
+        categories: (p.categories || []).join(','),
+        tags:       (p.tags || []).join(','),
+        folder_id:  p.folder_id, colour_label: p.colour_label,
+        rating: p.rating, notes,
+        variable_meta: p.variable_meta || {},
+        chain_ids:    p.chain_ids    || [],
+        chat_turns:   p.chat_turns   || [],
+      },
+    });
+    toast('Notes saved', 'success');
+  } catch (err) {
+    toast('Could not save notes', 'error');
+  }
+}
+/* ============================================================================
+   PROMPT EDITOR MODAL
+   ============================================================================ */
+function openNewPromptModal() {
+  $('#modalTitle').textContent    = 'New prompt';
+  $('#submitBtnText').textContent = 'Create prompt';
+  $('#promptId').value = '';
+  $('#promptForm').reset();
+  $('#promptColour').value = '';
+  $('#promptRating').value = '0';
+  $('#promptChainIds').value = '[]';
+  $('#promptChatTurns').value = '[]';
+
+  // Reset colour swatches
+  $$('.swatch').forEach(s => s.classList.toggle('active', s.dataset.colour === ''));
+
+  // Reset tag chip inputs
+  resetTagInput('categoryTagInput');
+  resetTagInput('tagsTagInput');
+
+  // Reset varsbadge + previews
+  $('#varsCountBadge').hidden = true;
+  $('#editorPreview').innerHTML = '<span class="hint">Live preview...</span>';
+  $('#varMetaList').innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
+  $('#chainList').innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No steps yet.</p>';
+  $('#chatTurnsList').innerHTML = '';
+  renderStars($('#editorStars'), 0, (val) => { $('#promptRating').value = val; });
+
+  // Reset to Content tab
+  switchEditorTab('content');
+
+  updateFolderDropdown();
+  updateRoleDropdown(null);
+  updateChainSelect(null);
+
+  $('#promptModal').classList.add('active');
+  setTimeout(() => $('#promptTitle').focus(), 50);
+}
+window.PL_openNewPromptModal = openNewPromptModal;
+
+function openNewPromptInFolder(folderId) {
+  openNewPromptModal();
+  $('#promptFolder').value = folderId;
+}
+window.PL_openNewPromptInFolder = openNewPromptInFolder;
+
+function closePromptModal() {
+  $('#promptModal').classList.remove('active');
+}
+
+async function editPrompt(id) {
+  try {
+    const p = await api(`/prompts/${id}`);
+    $('#modalTitle').textContent    = 'Edit prompt';
+    $('#submitBtnText').textContent = 'Save changes';
+    $('#promptId').value      = p.id;
+    $('#promptTitle').value   = p.title || '';
+    $('#promptDesc').value    = p.description || '';
+    $('#promptContent').value = p.content || '';
+    setTagInputValues('categoryTagInput', p.categories || []);
+    setTagInputValues('tagsTagInput',     p.tags || []);
+    $('#promptColour').value   = p.colour_label || '';
+    $('#promptRating').value   = String(p.rating || 0);
+    $('#promptNotes').value    = p.notes || '';
+    $('#promptChainIds').value = JSON.stringify(p.chain_ids || []);
+    $('#promptChatTurns').value = JSON.stringify(p.chat_turns || []);
+
+    // Colour swatches
+    $$('.swatch').forEach(s => s.classList.toggle('active', s.dataset.colour === (p.colour_label || '')));
+
+    // Folder dropdown
+    updateFolderDropdown();
+    $('#promptFolder').value = p.folder_id || '';
+
+    // Role dropdown
+    await updateRoleDropdown(p.role_id || null);
+    $('#promptRoleId').value = p.role_id || '';
+
+    // Stars
+    renderStars($('#editorStars'), p.rating || 0, (val) => { $('#promptRating').value = val; });
+
+    // Live preview + var list
+    updateEditorPreview();
+    renderVarMetaList(p.variable_meta || {});
+
+    // Chain
+    renderChainEditor(p.chain_ids || []);
+    updateChainSelect(p.id);
+
+    // Chat turns
+    renderChatTurns(p.chat_turns || []);
+
+    switchEditorTab('content');
+    $('#promptModal').classList.add('active');
+  } catch (err) {
+    toast('Could not load prompt for editing', 'error');
+  }
+}
+window.PL_editPrompt = editPrompt;
+
+function switchEditorTab(name) {
+  $$('.editor-tab').forEach(t => t.classList.toggle('active', t.dataset.pane === name));
+  $$('.editor-pane').forEach(p => p.classList.toggle('active', p.id === `pane-${name}`));
+}
+
+function updateEditorPreview() {
+  const content = $('#promptContent').value || '';
+  const preview = $('#editorPreview');
+  const badge   = $('#varsCountBadge');
+  const badgeTxt = $('#varsCountText');
+
+  if (!content.trim()) {
+    preview.innerHTML = '<span class="hint">Live preview...</span>';
+    badge.hidden = true;
+    return;
+  }
+
+  preview.innerHTML = renderChips(content);
+  const vars = detectVariables(content);
+  if (vars.length > 0) {
+    badge.hidden = false;
+    badgeTxt.textContent = `${vars.length} var${vars.length !== 1 ? 's' : ''}`;
+  } else {
+    badge.hidden = true;
+  }
+  // Sync the variable meta list as you type
+  renderVarMetaList();
+}
+
+async function handlePromptSubmit(e) {
+  e.preventDefault();
+  const id = $('#promptId').value;
+  const data = {
+    title:        $('#promptTitle').value.trim(),
+    description:  $('#promptDesc').value.trim(),
+    content:      $('#promptContent').value.trim(),
+    categories:   getTagInputValues('categoryTagInput').join(','),
+    tags:         getTagInputValues('tagsTagInput').join(','),
+    folder_id:    $('#promptFolder').value || null,
+    role_id:      parseInt($('#promptRoleId').value || '0', 10) || null,
+    colour_label: $('#promptColour').value || '',
+    rating:       parseInt($('#promptRating').value || '0', 10) || 0,
+    notes:        $('#promptNotes').value || '',
+    variable_meta: collectVarMeta(),
+    chain_ids:     JSON.parse($('#promptChainIds').value || '[]'),
+    chat_turns:    JSON.parse($('#promptChatTurns').value || '[]'),
+  };
+  if (!data.title || !data.content) {
+    toast('Title and content are required', 'warning');
+    return;
+  }
+  try {
+    const url    = id ? `/prompts/${id}` : '/prompts';
+    const method = id ? 'PUT' : 'POST';
+    const result = await api(url, { method, body: data });
+    closePromptModal();
+    await loadPrompts();
+    await loadFilterOptions();
+    toast(id ? 'Prompt updated' : 'Prompt created', 'success');
+    const targetId = id ? Number(id) : (result && result.id);
+    if (targetId) openDetail(targetId);
+  } catch (err) {
+    console.error('save prompt:', err);
+    toast('Could not save prompt', 'error');
+  }
+}
+
+/* ============================================================================
+   COLOUR SWATCHES (editor)
+   ============================================================================ */
+function bindColourSwatches() {
+  const picker = $('#editorColourPicker');
+  if (!picker) return;
+  picker.addEventListener('click', (e) => {
+    const sw = e.target.closest('.swatch');
+    if (!sw) return;
+    $$('.swatch', picker).forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    $('#promptColour').value = sw.dataset.colour;
+  });
+}
+
+/* ============================================================================
+   VARIABLE META EDITOR
+   ============================================================================ */
+function renderVarMetaList(existing) {
+  const content = $('#promptContent').value || '';
+  const vars = detectVariables(content);
+  const list = $('#varMetaList');
+  if (!vars.length) {
+    list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
+    return;
+  }
+  const meta = existing || collectVarMeta();
+  list.innerHTML = vars.map(v => {
+    const m = meta[v] || {};
+    const type    = m.type || 'text';
+    const def     = m.default || '';
+    const visible = m.visible !== false;
+    const opts    = (m.options || []).join(', ');
+    return `
+      <div class="var-meta-row" data-var="${escapeAttr(v)}">
+        <div class="var-meta-head">
+          <span class="var-meta-name">${escapeHtml(v)}</span>
+          <label class="visibility-toggle">
+            <input type="checkbox" data-field="visible" ${visible ? 'checked' : ''} />
+            <span class="material-symbols-outlined" style="font-size: 14px;">visibility</span>
+            Show when filling
+          </label>
+        </div>
+        <div class="var-meta-fields">
+          <select data-field="type" onchange="window.PL_onVarTypeChange(this)">
+            <option value="text"     ${type === 'text'     ? 'selected' : ''}>Text</option>
+            <option value="number"   ${type === 'number'   ? 'selected' : ''}>Number</option>
+            <option value="date"     ${type === 'date'     ? 'selected' : ''}>Date</option>
+            <option value="dropdown" ${type === 'dropdown' ? 'selected' : ''}>Dropdown</option>
+          </select>
+          <input type="text" data-field="default" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
+        </div>
+        <div class="dropdown-options" style="display: ${type === 'dropdown' ? 'block' : 'none'};">
+          <textarea data-field="options" placeholder="Comma-separated options" rows="2"
+                    style="width: 100%; padding: 6px 10px; font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; color: var(--ink); margin-top: 4px;">${escapeHtml(opts)}</textarea>
+        </div>
+      </div>`;
+  }).join('');
+}
+window.PL_onVarTypeChange = function(sel) {
+  const row = sel.closest('.var-meta-row');
+  const opts = row.querySelector('.dropdown-options');
+  if (opts) opts.style.display = sel.value === 'dropdown' ? 'block' : 'none';
+};
+
+function collectVarMeta() {
+  const meta = {};
+  $$('#varMetaList .var-meta-row').forEach(row => {
+    const v = row.dataset.var;
+    const type    = row.querySelector('[data-field="type"]')?.value || 'text';
+    const def     = row.querySelector('[data-field="default"]')?.value || '';
+    const visible = row.querySelector('[data-field="visible"]')?.checked !== false;
+    const optsEl  = row.querySelector('[data-field="options"]');
+    const options = optsEl?.value
+      ? optsEl.value.split(',').map(o => o.trim()).filter(Boolean)
+      : [];
+    meta[v] = { type, default: def, visible, options };
+  });
+  return meta;
+}
+
+/* ============================================================================
+   CHAIN EDITOR
+   ============================================================================ */
+function updateChainSelect(currentId) {
+  const sel = $('#chainPromptSelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Select a prompt to add...</option>' +
+    state.prompts.filter(p => p.id !== currentId)
+      .map(p => `<option value="${p.id}">${escapeHtml(p.title)}</option>`).join('');
+}
+
+function addChainStep() {
+  const sel = $('#chainPromptSelect');
+  if (!sel || !sel.value) return;
+  const ids = JSON.parse($('#promptChainIds').value || '[]');
+  ids.push(parseInt(sel.value, 10));
+  $('#promptChainIds').value = JSON.stringify(ids);
+  renderChainEditor(ids);
+  sel.value = '';
+}
+
+function renderChainEditor(ids) {
+  const list = $('#chainList');
+  if (!ids.length) {
+    list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No steps yet.</p>';
+    return;
+  }
+  list.innerHTML = ids.map((id, i) => {
+    const p = state.prompts.find(x => x.id === id);
+    const title = p ? p.title : `Prompt #${id}`;
+    return `
+      <div class="chain-step">
+        <div class="chain-step-num">${i + 1}</div>
+        <div class="chain-step-body">
+          <div class="chain-step-title">${escapeHtml(title)}</div>
+        </div>
+        <div class="chain-step-actions">
+          ${i > 0 ? `<button type="button" class="icon-btn" onclick="window.PL_moveChain(${i}, -1)"><span class="material-symbols-outlined">arrow_upward</span></button>` : ''}
+          ${i < ids.length - 1 ? `<button type="button" class="icon-btn" onclick="window.PL_moveChain(${i}, 1)"><span class="material-symbols-outlined">arrow_downward</span></button>` : ''}
+          <button type="button" class="icon-btn danger" onclick="window.PL_removeChain(${i})"><span class="material-symbols-outlined">close</span></button>
+        </div>
+      </div>`;
+  }).join('');
+}
+window.PL_moveChain = function(idx, dir) {
+  const ids = JSON.parse($('#promptChainIds').value || '[]');
+  const j = idx + dir;
+  if (j < 0 || j >= ids.length) return;
+  [ids[idx], ids[j]] = [ids[j], ids[idx]];
+  $('#promptChainIds').value = JSON.stringify(ids);
+  renderChainEditor(ids);
+};
+window.PL_removeChain = function(idx) {
+  const ids = JSON.parse($('#promptChainIds').value || '[]');
+  ids.splice(idx, 1);
+  $('#promptChainIds').value = JSON.stringify(ids);
+  renderChainEditor(ids);
+};
+
+/* ============================================================================
+   CHAT TURNS EDITOR
+   ============================================================================ */
+function renderChatTurns(turns) {
+  const wrap = $('#chatTurnsList');
+  if (!turns.length) {
+    wrap.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3); margin-bottom: var(--sp-3);">No turns yet. Click <em>Add turn</em> below.</p>';
+    return;
+  }
+  wrap.innerHTML = turns.map((t, i) => `
+    <div class="chat-turn" data-idx="${i}">
+      <select onchange="window.PL_updateChatTurn(${i}, 'role', this.value)" class="form-input">
+        <option value="system"    ${t.role === 'system'    ? 'selected' : ''}>System</option>
+        <option value="user"      ${t.role === 'user'      ? 'selected' : ''}>User</option>
+        <option value="assistant" ${t.role === 'assistant' ? 'selected' : ''}>Assistant</option>
+      </select>
+      <textarea class="form-textarea" rows="2" placeholder="Message content..." oninput="window.PL_updateChatTurn(${i}, 'content', this.value)">${escapeHtml(t.content || '')}</textarea>
+      <button type="button" class="icon-btn danger" onclick="window.PL_removeChatTurn(${i})"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  `).join('');
+}
+function getChatTurns() { return JSON.parse($('#promptChatTurns').value || '[]'); }
+function setChatTurns(turns) { $('#promptChatTurns').value = JSON.stringify(turns); renderChatTurns(turns); }
+window.PL_updateChatTurn = function(i, field, value) {
+  const turns = getChatTurns();
+  turns[i][field] = value;
+  $('#promptChatTurns').value = JSON.stringify(turns);
+};
+window.PL_removeChatTurn = function(i) {
+  const turns = getChatTurns();
+  turns.splice(i, 1);
+  setChatTurns(turns);
+};
+function addChatTurn() {
+  const turns = getChatTurns();
+  const role = turns.length === 0 ? 'system' : 'user';
+  turns.push({ role, content: '' });
+  setChatTurns(turns);
+}
+
+/* ============================================================================
+   FOLDER MODAL
+   ============================================================================ */
+function openNewFolderModal() {
+  $('#folderModalTitle').textContent = 'New folder';
+  $('#folderSubmitText').textContent = 'Create folder';
+  $('#folderId').value   = '';
+  $('#folderForm').reset();
+  $('#folderModal').classList.add('active');
+  setTimeout(() => $('#folderName').focus(), 50);
+}
+function closeFolderModal() {
+  $('#folderModal').classList.remove('active');
+}
+function renameFolder(id, currentName) {
+  $('#folderModalTitle').textContent = 'Rename folder';
+  $('#folderSubmitText').textContent = 'Save';
+  $('#folderId').value   = id;
+  $('#folderName').value = currentName;
+  $('#folderModal').classList.add('active');
+  setTimeout(() => $('#folderName').focus(), 50);
+}
+window.PL_renameFolder = renameFolder;
+
+async function handleFolderSubmit(e) {
+  e.preventDefault();
+  const id   = $('#folderId').value;
+  const name = $('#folderName').value.trim();
+  if (!name) return;
+  try {
+    const url    = id ? `/folders/${id}` : '/folders';
+    const method = id ? 'PUT' : 'POST';
+    await api(url, { method, body: { name } });
+    closeFolderModal();
+    await loadFolders();
+    await loadPrompts();
+    toast(id ? 'Folder renamed' : 'Folder created', 'success');
+  } catch (err) {
+    toast('Could not save folder', 'error');
+  }
+}
+
+async function deleteFolder(id) {
+  if (!confirm('Delete this folder? Prompts inside stay; only the folder is removed.')) return;
+  try {
+    await api(`/folders/${id}`, { method: 'DELETE' });
+    if (state.view === id) setView('library');
+    await loadFolders();
+    await loadPrompts();
+    toast('Folder deleted', 'info');
+  } catch (err) {
+    toast('Could not delete folder', 'error');
+  }
+}
+window.PL_deleteFolder = deleteFolder;
+
+window.createFolderInline = function() {
+  const name = prompt('Folder name:');
+  if (!name || !name.trim()) return;
+  api('/folders', { method: 'POST', body: { name: name.trim() } }).then(async (folder) => {
+    await loadFolders();
+    if (folder && folder.id) $('#promptFolder').value = folder.id;
+    toast('Folder created', 'success');
+  }).catch(() => toast('Could not create folder', 'error'));
+};
+/* ============================================================================
+   IMPORT / EXPORT
+   ============================================================================ */
+let _importFmt = 'json';
+
+function openImportModal() {
+  $('#importForm').reset();
+  _importFmt = 'json';
+  _switchImportFmt('json');
+  $('#importModal').classList.add('active');
+}
+function closeImportModal() { $('#importModal').classList.remove('active'); }
+
+function _switchImportFmt(fmt) {
+  _importFmt = fmt;
+  $$('.import-fmt-tab').forEach(t => t.classList.toggle('active', t.dataset.fmt === fmt));
+  const panels = { json: '#importPanelJson', markdown: '#importPanelMarkdown', file: '#importPanelFile' };
+  Object.entries(panels).forEach(([f, sel]) => {
+    const el = $(sel);
+    if (el) el.style.display = f === fmt ? '' : 'none';
+  });
+}
+
+/**
+ * Parse the app's Markdown export format into an array of prompt objects.
+ * Format:
+ *   ## Title
+ *   *Description*
+ *   **Categories:** cat1, cat2
+ *   **Tags:** tag1, tag2
+ *   ```
+ *   prompt content
+ *   ```
+ *   ---
+ */
+function parseMarkdownImport(md) {
+  const prompts = [];
+  // Split on horizontal rules that separate prompts
+  const blocks = md.split(/\n---+\n/);
+  for (const block of blocks) {
+    const lines = block.split('\n');
+    let title = '', description = '', content = '', categories = '', tags = '';
+    let inCode = false;
+    const contentLines = [];
+
+    for (const line of lines) {
+      if (/^#{1,2}\s+/.test(line) && !inCode) {
+        title = line.replace(/^#{1,2}\s+/, '').trim();
+      } else if (/^\*[^*].*[^*]\*$/.test(line.trim()) && !inCode && !title === false) {
+        description = line.trim().replace(/^\*|\*$/g, '').trim();
+      } else if (/^\*\*Categories:\*\*/.test(line) && !inCode) {
+        categories = line.replace(/^\*\*Categories:\*\*/, '').trim();
+      } else if (/^\*\*Tags:\*\*/.test(line) && !inCode) {
+        tags = line.replace(/^\*\*Tags:\*\*/, '').trim();
+      } else if (line.trim() === '```') {
+        inCode = !inCode;
+      } else if (inCode) {
+        contentLines.push(line);
+      }
+    }
+    content = contentLines.join('\n').trim();
+    if (title && content) {
+      prompts.push({ title, description, content, categories, tags });
+    }
+  }
+  return prompts;
+}
+
+async function _doImport(prompts) {
+  if (!Array.isArray(prompts) || !prompts.length) {
+    toast('No valid prompts found to import', 'warning');
+    return;
+  }
+  const result = await api('/import', { method: 'POST', body: { prompts } });
+  closeImportModal();
+  await loadPrompts();
+  await loadFilterOptions();
+  toast(`Imported ${result.imported || prompts.length} prompt${prompts.length !== 1 ? 's' : ''}`, 'success');
+}
+
+async function handleImport(e) {
+  e.preventDefault();
+  try {
+    if (_importFmt === 'json') {
+      const raw = $('#importContent').value.trim();
+      let prompts;
+      try {
+        prompts = JSON.parse(raw);
+        if (!Array.isArray(prompts)) throw new Error();
+      } catch {
+        toast('Invalid JSON — paste an array of prompt objects', 'warning');
+        return;
+      }
+      await _doImport(prompts);
+
+    } else if (_importFmt === 'markdown') {
+      const raw = $('#importMdContent').value.trim();
+      if (!raw) { toast('Paste some Markdown to import', 'warning'); return; }
+      const prompts = parseMarkdownImport(raw);
+      await _doImport(prompts);
+
+    } else if (_importFmt === 'file') {
+      const fileInput = $('#importFileInput');
+      const file = fileInput?.files?.[0];
+      if (!file) { toast('Choose a file first', 'warning'); return; }
+      const text = await file.text();
+      let prompts;
+      if (file.name.endsWith('.json')) {
+        try { prompts = JSON.parse(text); if (!Array.isArray(prompts)) throw new Error(); }
+        catch { toast('Invalid JSON file', 'warning'); return; }
+      } else {
+        // Markdown file
+        prompts = parseMarkdownImport(text);
+      }
+      await _doImport(prompts);
+    }
+  } catch (err) {
+    console.error('import error:', err);
+    toast('Import failed — check the format', 'error');
+  }
+}
+
+function openExportModal() { $('#exportModal').classList.add('active'); }
+function closeExportModal() { $('#exportModal').classList.remove('active'); }
+
+async function exportJson() {
+  try {
+    const data = await api('/export');
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    triggerDownload(blob, `prompts-${new Date().toISOString().slice(0, 10)}.json`);
+    toast(`Exported ${data.length} prompts`, 'success');
+    closeExportModal();
+  } catch (err) {
+    toast('Could not export', 'error');
+  }
+}
+
+async function exportFormat(path, mime, ext) {
+  if (!state.isPremium) { showPremiumModal(); return; }
+  try {
+    const res = await fetch(API_BASE + path);
+    if (!res.ok) throw new Error();
+    const blob = await res.blob();
+    triggerDownload(blob, `prompts-${new Date().toISOString().slice(0, 10)}.${ext}`);
+    toast('Export downloaded', 'success');
+    closeExportModal();
+  } catch (err) {
+    toast('Could not export', 'error');
+  }
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ============================================================================
+   STARTER TEMPLATES (empty library)
+   ============================================================================ */
+window.PL_loadStarters = async function() {
+  try {
+    const result = await api('/starter-templates', { method: 'POST' });
+    if (result.loaded) {
+      await loadAll();
+      toast(`Loaded ${result.loaded} starter prompts`, 'success');
+    } else {
+      toast('Library is not empty - starters skipped', 'info');
+    }
+  } catch (err) {
+    toast('Could not load starters', 'error');
+  }
+};
+
+/* ============================================================================
+   VARIABLE TEMPLATES (localStorage)
+   ============================================================================ */
+function getVarTemplates() { return JSON.parse(localStorage.getItem('promptlib.varTemplates') || '[]'); }
+function setVarTemplates(t) { localStorage.setItem('promptlib.varTemplates', JSON.stringify(t)); }
+
+function openVarTemplateModal() {
+  if (!state.isPremium) { showPremiumModal(); return; }
+  const list = $('#varTemplateList');
+  const templates = getVarTemplates();
+  if (!templates.length) {
+    list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No saved templates yet.</p>';
+  } else {
+    list.innerHTML = templates.map((t, i) => `
+      <button class="export-option" type="button" onclick="window.PL_loadVarTemplate(${i})">
+        <span class="material-symbols-outlined">description</span>
+        <div class="export-option-body">
+          <div class="export-option-title">${escapeHtml(t.name)}</div>
+          <div class="export-option-desc">${Object.keys(t.meta).length} variables</div>
+        </div>
+      </button>`).join('');
+  }
+  $('#varTemplateModal').classList.add('active');
+}
+function closeVarTemplateModal() { $('#varTemplateModal').classList.remove('active'); }
+
+window.PL_loadVarTemplate = function(idx) {
+  const templates = getVarTemplates();
+  const t = templates[idx];
+  if (!t) return;
+  // Apply meta to the existing var rows
+  const content = $('#promptContent').value;
+  let updated = content;
+  Object.keys(t.meta).forEach(v => {
+    if (!content.includes(`[[${v}]]`) && !content.includes(`{{${v}}}`) && !content.includes(`((${v}))`)) {
+      updated += `\n[[${v}]]`;
+    }
+  });
+  $('#promptContent').value = updated;
+  updateEditorPreview();
+  setTimeout(() => renderVarMetaList(t.meta), 50);
+  closeVarTemplateModal();
+  toast('Template loaded', 'success');
+};
+
+function openSaveTemplateModal() {
+  if (!state.isPremium) { showPremiumModal(); return; }
+  $('#templateNameInput').value = '';
+  $('#saveTemplateModal').classList.add('active');
+}
+function closeSaveTemplateModal() { $('#saveTemplateModal').classList.remove('active'); }
+
+function saveCurrentVarTemplate() {
+  const name = $('#templateNameInput').value.trim();
+  if (!name) { toast('Give the template a name', 'warning'); return; }
+  const meta = collectVarMeta();
+  if (!Object.keys(meta).length) { toast('No variables to save', 'warning'); return; }
+  const templates = getVarTemplates();
+  templates.push({ name, meta });
+  setVarTemplates(templates);
+  closeSaveTemplateModal();
+  toast('Template saved', 'success');
+}
+
+/* ============================================================================
+   THEME TOGGLE
+   ============================================================================ */
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  state.theme = theme;
+  localStorage.setItem('promptlib.theme', theme);
+  const icon = $('#themeIcon');
+  const label = $('#themeLabel');
+  if (icon)  icon.textContent = theme === 'dark' ? 'light_mode' : 'dark_mode';
+  if (label) label.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
+}
+
+function toggleTheme() {
+  applyTheme(state.theme === 'dark' ? 'light' : 'dark');
+}
+
+function loadTheme() {
+  const saved = localStorage.getItem('promptlib.theme') || 'light';
+  applyTheme(saved);
+}
+
+/* ============================================================================
+   LICENCE / PREMIUM
+   ============================================================================ */
+function showPremiumModal() {
+  $('#licenceError').classList.remove('show');
+  $('#licenceKeyInput').value = state.licenceKey || '';
+  $('#premiumModal').classList.add('active');
+}
+function closePremiumModal() { $('#premiumModal').classList.remove('active'); }
+
+async function activateLicence() {
+  const key = $('#licenceKeyInput').value.trim();
+  if (!key) return;
+  try {
+    const result = await api('/licence/validate', { method: 'POST', body: { key } });
+    if (result.valid) {
+      state.isPremium = true;
+      state.licenceKey = key;
+      await api('/settings/licence', { method: 'POST', body: { key } });
+      applyPremiumState();
+      closePremiumModal();
+      toast('Pro unlocked - thank you!', 'success');
+    } else {
+      $('#licenceError').classList.add('show');
+    }
+  } catch (err) {
+    $('#licenceError').classList.add('show');
+  }
+}
+
+async function loadStoredLicence() {
+  try {
+    const settings = await api('/settings');
+    if (settings.licence) {
+      const result = await api('/licence/check', { method: 'POST', body: { key: settings.licence } });
+      if (result.valid) {
+        state.isPremium = true;
+        state.licenceKey = settings.licence;
+      }
+    }
+  } catch (err) {
+    console.warn('licence check failed:', err);
+  }
+  applyPremiumState();
+}
+
+function applyPremiumState() {
+  document.body.classList.toggle('is-premium', state.isPremium);
+  $('#premiumBadge').hidden = !state.isPremium;
+  const lblBtn = $('#licenceBtnLabel');
+  if (lblBtn) lblBtn.textContent = state.isPremium ? 'Pro unlocked' : 'Unlock Pro';
+  if (state.isPremium) {
+    $$('.premium-locked').forEach(el => el.classList.remove('premium-locked'));
+  }
+}
+
+/* ============================================================================
+   ANALYTICS
+   ============================================================================ */
+async function openAnalytics() {
+  if (!state.isPremium) { showPremiumModal(); return; }
+  const body = $('#analyticsBody');
+  body.innerHTML = '<p style="text-align:center; color: var(--ink-3); padding: var(--sp-7);">Loading...</p>';
+  $('#analyticsModal').classList.add('active');
+  try {
+    const data = await api('/analytics');
+    body.innerHTML = renderAnalytics(data);
+  } catch (err) {
+    body.innerHTML = '<p style="text-align:center; color: var(--danger); padding: var(--sp-7);">Could not load analytics.</p>';
+  }
+}
+function closeAnalytics() { $('#analyticsModal').classList.remove('active'); }
+
+function renderAnalytics(d) {
+  // Backend (app.py /api/analytics) returns: summary, top_prompts, recent_prompts, daily_usage, rating_dist
+  const s       = d.summary || {};
+  const top     = d.top_prompts    || [];
+  const recent  = d.recent_prompts || [];
+  const daily   = d.daily_usage    || [];
+  const ratings = d.rating_dist    || [];
+
+  const maxTop   = Math.max(1, ...top.map(t => t.use_count || 0));
+  const maxDaily = Math.max(1, ...daily.map(d => d.count || 0));
+
+  const stats = [
+    { label: 'Prompts',     value: s.total_prompts    || 0, icon: 'description' },
+    { label: 'Total uses',  value: s.total_uses       || 0, icon: 'bolt' },
+    { label: 'Favourites',  value: s.total_favourites || 0, icon: 'star' },
+    { label: 'Folders',     value: s.total_folders    || 0, icon: 'folder' },
+    { label: 'Never used',  value: s.never_used       || 0, icon: 'unpublished' },
+  ];
+
+  const ratingTotal = ratings.reduce((a, r) => a + (r.count || 0), 0) || 1;
+  const ratingBars = [5, 4, 3, 2, 1].map(stars => {
+    const found = ratings.find(r => r.rating === stars);
+    const cnt = found ? found.count : 0;
+    const pct = Math.round((cnt / ratingTotal) * 100);
+    return { stars, cnt, pct };
+  });
+
+  return `
+    <!-- STATS BAR - bordered card row -->
+    <div class="stats-bar">
+      ${stats.map(st => `
+        <div class="stats-bar-card">
+          <span class="material-symbols-outlined stats-bar-icon">${st.icon}</span>
+          <div class="stats-bar-value">${st.value.toLocaleString()}</div>
+          <div class="stats-bar-label">${st.label}</div>
+        </div>`).join('')}
+    </div>
+
+    <div class="stats-section">
+      <div class="detail-section-label" style="margin-top:0">Most-used prompts</div>
+      ${top.length === 0 ? '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No usage tracked yet.</p>' :
+        top.map(t => `
+          <div class="bar-row">
+            <div style="min-width:0">
+              <div style="font-size: var(--fs-sm); color: var(--ink); margin-bottom: 4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(t.title)}</div>
+              <div class="bar-bg"><div class="bar-fill" style="width: ${Math.round(((t.use_count || 0) / maxTop) * 100)}%;"></div></div>
+            </div>
+            <div style="font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; text-align: right;">${(t.use_count || 0).toLocaleString()} use${(t.use_count || 0) !== 1 ? 's' : ''}</div>
+          </div>`).join('')
+      }
+    </div>
+
+    ${daily.length > 0 ? `
+      <div class="stats-section">
+        <div class="detail-section-label">Last 30 days</div>
+        <div class="daily-chart" style="display:flex; align-items:flex-end; gap:2px; height: 80px; padding: 8px 0; border-bottom: 1px solid var(--line);">
+          ${daily.slice(-30).map(day => {
+            const h = Math.max(2, Math.round((day.count / maxDaily) * 70));
+            return `<div title="${escapeHtml(day.day)}: ${day.count} uses" style="flex:1; min-width:6px; height:${h}px; background:var(--accent); border-radius:2px; opacity:${0.4 + (day.count / maxDaily) * 0.6};"></div>`;
+          }).join('')}
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--ink-4); margin-top:4px; font-variant-numeric:tabular-nums;">
+          <span>${daily[0]?.day || ''}</span>
+          <span>${daily[daily.length - 1]?.day || ''}</span>
+        </div>
+      </div>` : ''
+    }
+
+    <div class="stats-section">
+      <div class="detail-section-label">Rating distribution</div>
+      ${ratingBars.map(rb => `
+        <div class="bar-row">
+          <div>
+            <div style="font-size: var(--fs-sm); color: var(--ink); margin-bottom: 4px; display:flex; align-items:center; gap:4px;">
+              <span style="color: var(--gold); letter-spacing: 1px;">${'\u2605'.repeat(rb.stars)}${'\u2606'.repeat(5 - rb.stars)}</span>
+            </div>
+            <div class="bar-bg"><div class="bar-fill" style="width: ${rb.pct}%; background: var(--gold);"></div></div>
+          </div>
+          <div style="font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; text-align: right;">${rb.cnt}</div>
+        </div>`).join('')
+      }
+    </div>
+
+    ${recent.length > 0 ? `
+      <div class="stats-section">
+        <div class="detail-section-label">Recently used</div>
+        <div class="top-list">
+          ${recent.slice(0, 8).map(r => `
+            <div class="top-list-item" onclick="window.PL_openDetail(${r.id})" style="cursor:pointer;">
+              <span class="card-rule c-${r.colour_label || ''}" style="width:3px; height:18px; border-radius:2px;"></span>
+              <span class="name">${escapeHtml(r.title)}</span>
+              <span class="count">${(r.use_count || 0)} uses</span>
+            </div>`).join('')}
+        </div>
+      </div>` : ''
+    }`;
+}
+
+/* ============================================================================
+   COMMAND PALETTE
+   ============================================================================ */
+let cmdIndex = 0;
+let cmdItems = [];   // { kind: 'prompt'|'action', ... } objects
+
+/** Static action commands. Keywords are searched alongside the label.
+ *  `action` is a function executed when the item is activated. */
+function getCommandActions() {
+  return [
+    { kind:'action', icon:'add',                label:'New prompt',              hint:'N',         keywords:'create new prompt write add',
+      action: () => { closeCmdPalette(); openNewPromptModal(); } },
+    { kind:'action', icon:'create_new_folder',  label:'New folder',              hint:'',          keywords:'create folder organise',
+      action: () => { closeCmdPalette(); openNewFolderModal(); } },
+    { kind:'action', icon:'menu_book',          label:'Go to Library',           hint:'',          keywords:'home library all prompts',
+      action: () => { closeCmdPalette(); setView('library'); } },
+    { kind:'action', icon:'star',               label:'Go to Favourites',        hint:'',          keywords:'favorites starred bookmarks',
+      action: () => { closeCmdPalette(); setView('favorites'); } },
+    { kind:'action', icon:'monitoring',         label:'Open Analytics',          hint:'Pro',       keywords:'analytics stats usage charts',
+      action: () => { closeCmdPalette(); openAnalytics(); } },
+    { kind:'action', icon:'palette',            label:'Toggle theme',            hint:'',          keywords:'theme dark light mode appearance',
+      action: () => { closeCmdPalette(); toggleTheme(); toast(`Switched to ${state.theme} mode`, 'info'); } },
+    { kind:'action', icon:'menu_open',          label:'Toggle sidebar',          hint:'',          keywords:'sidebar hide show navigation',
+      action: () => { closeCmdPalette(); document.body.classList.toggle('sidebar-hidden'); } },
+    { kind:'action', icon:'upload',             label:'Import prompts',          hint:'',          keywords:'import upload restore json',
+      action: () => { closeCmdPalette(); openImportModal(); } },
+    { kind:'action', icon:'download',           label:'Export prompts',          hint:'',          keywords:'export download backup save',
+      action: () => { closeCmdPalette(); openExportModal(); } },
+    { kind:'action', icon:'workspace_premium',  label:'Unlock Pro / enter key',  hint:'',          keywords:'premium licence pro unlock activate',
+      action: () => { closeCmdPalette(); showPremiumModal(); } },
+    { kind:'action', icon:'auto_awesome',       label:'Load starter set',        hint:'demo',      keywords:'starters templates examples demo seed',
+      action: () => { closeCmdPalette(); window.PL_loadStarters(); } },
+  ];
+}
+
+function openCmdPalette() {
+  $('#cmdPalette').classList.add('active');
+  $('#cmdInput').value = '';
+  cmdIndex = 0;
+  renderCmdResults('');
+  setTimeout(() => $('#cmdInput').focus(), 50);
+}
+function closeCmdPalette() { $('#cmdPalette').classList.remove('active'); }
+
+function renderCmdResults(query) {
+  const q = query.trim().toLowerCase();
+  const actions = getCommandActions();
+
+  const matchedActions = q
+    ? actions.filter(a =>
+        a.label.toLowerCase().includes(q) ||
+        a.keywords.toLowerCase().includes(q)
+      )
+    : actions;
+
+  const matchedPrompts = q
+    ? state.prompts.filter(p =>
+        (p.title       || '').toLowerCase().includes(q) ||
+        (p.description || '').toLowerCase().includes(q) ||
+        (p.content     || '').toLowerCase().includes(q)
+      ).slice(0, 12)
+    : state.prompts
+        .slice()
+        .sort((a, b) => (b.use_count || 0) - (a.use_count || 0))
+        .slice(0, 8);
+
+  const items = q
+    ? [...matchedActions, ...matchedPrompts.map(p => ({ kind:'prompt', prompt: p }))]
+    : [...matchedPrompts.map(p => ({ kind:'prompt', prompt: p })), ...matchedActions];
+
+  cmdItems = items;
+  cmdIndex = 0;
+
+  const root = $('#cmdResults');
+  if (!items.length) {
+    root.innerHTML = '<div class="cmd-empty">No matches. Try “new”, “theme”, or “export”.</div>';
+    return;
+  }
+
+  let lastKind = '';
+  let html = '';
+  items.forEach((item, i) => {
+    if (item.kind !== lastKind) {
+      const sectionLabel = item.kind === 'action' ? 'Commands' : 'Prompts';
+      html += `<div style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); padding: 8px 12px 4px;">${sectionLabel}</div>`;
+      lastKind = item.kind;
+    }
+    if (item.kind === 'action') {
+      html += `
+        <div class="cmd-result ${i === 0 ? 'active' : ''}" data-idx="${i}">
+          <span class="material-symbols-outlined">${item.icon}</span>
+          <span class="name">${escapeHtml(item.label)}</span>
+          ${item.hint ? `<span class="hint">${escapeHtml(item.hint)}</span>` : ''}
+        </div>`;
+    } else {
+      const p = item.prompt;
+      html += `
+        <div class="cmd-result ${i === 0 ? 'active' : ''}" data-idx="${i}">
+          <span class="material-symbols-outlined">description</span>
+          <span class="name">${escapeHtml(p.title)}</span>
+          <span class="hint">${(p.use_count || 0)} uses</span>
+        </div>`;
+    }
+  });
+  root.innerHTML = html;
+}
+
+function moveCmdSelection(dir) {
+  if (!cmdItems.length) return;
+  cmdIndex = (cmdIndex + dir + cmdItems.length) % cmdItems.length;
+  $$('.cmd-result').forEach((el, i) => el.classList.toggle('active', Number(el.dataset.idx) === cmdIndex));
+  const sel = $$('.cmd-result').find(el => Number(el.dataset.idx) === cmdIndex);
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+function activateCmdSelection() {
+  if (!cmdItems.length) return;
+  const item = cmdItems[cmdIndex];
+  if (!item) return;
+  if (item.kind === 'action') {
+    item.action();
+  } else {
+    closeCmdPalette();
+    openDetail(item.prompt.id);
+  }
+}
+
+/* ============================================================================
+   SIDEBAR FILTER ACTIONS (window-level for inline onclick)
+   ============================================================================ */
+window.PL_setView = setView;
+window.PL_openDetail = openDetail;
+window.PL_toggleFav = toggleFav;
+window.PL_useFromCard = useFromCard;
+window.PL_deletePrompt = deletePromptById;
+window.PL_restoreVersion = restoreVersion;
+
+window.PL_filterByCategory = function(value) {
+  // Switch to library view without clearing the pill we're about to set
+  if (state.view !== 'library') {
+    state.view = 'library';
+    state.search = '';
+    state.detailId = null;
+    closeDetailPanel();
+    $$('.nav-item[data-view]').forEach(el =>
+      el.classList.toggle('active', el.dataset.view === 'library'));
+    $$('.folder-item').forEach(el => el.classList.remove('active'));
+    const titleEl = $('#viewTitle');
+    if (titleEl) titleEl.textContent = 'Library';
+    const bcEl = $('#breadcrumb');
+    if (bcEl) bcEl.innerHTML = '';
+    const fvaEl = $('#folderViewActions');
+    if (fvaEl) fvaEl.style.display = 'none';
+  }
+  setFilterPill({ type: 'category', value });
+  $$('.filter-list-item').forEach(el => {
+    el.classList.toggle('active', el.querySelector('span:nth-child(2)')?.textContent === value);
+  });
+};
+window.PL_filterByTag = function(value) {
+  if (state.view !== 'library') {
+    state.view = 'library';
+    state.search = '';
+    state.detailId = null;
+    closeDetailPanel();
+    $$('.nav-item[data-view]').forEach(el =>
+      el.classList.toggle('active', el.dataset.view === 'library'));
+    $$('.folder-item').forEach(el => el.classList.remove('active'));
+    const titleEl = $('#viewTitle');
+    if (titleEl) titleEl.textContent = 'Library';
+    const bcEl = $('#breadcrumb');
+    if (bcEl) bcEl.innerHTML = '';
+    const fvaEl = $('#folderViewActions');
+    if (fvaEl) fvaEl.style.display = 'none';
+  }
+  setFilterPill({ type: 'tag', value });
+  $$('.filter-list-item').forEach(el => {
+    el.classList.toggle('active', el.querySelector('span:nth-child(2)')?.textContent === '#' + value);
+  });
+};
+/* ============================================================================
+   INIT - wire everything together
+   ============================================================================ */
+function init() {
+  loadTheme();
+  $('#themeToggleBtn')?.addEventListener('click', toggleTheme);
+
+  document.addEventListener('click', (e) => {
+    const locked = e.target.closest('[data-premium="true"].premium-locked');
+    if (!locked || state.isPremium) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    showPremiumModal();
+  }, true);
+
+  $$('.nav-item[data-view]').forEach(el => {
+    el.addEventListener('click', () => {
+      const v = el.dataset.view;
+      if (v === 'analytics') { openAnalytics(); return; }
+      if (v === 'roles') { window.openRolesWorkspace(); return; }
+      const stringViews = ['library', 'favorites'];
+      setView(stringViews.includes(v) ? v : Number(v));
+    });
+  });
+
+  $$('.nav-section-label[data-toggle]').forEach(label => {
+    label.addEventListener('click', (e) => {
+      if (e.target.closest('.nav-icon-btn')) return;
+      const name = label.dataset.toggle;
+      const content = $(`#${name}-content`);
+      const chev = label.querySelector('.chev');
+      if (!content) return;
+      const collapsed = content.classList.toggle('collapsed');
+      if (chev) chev.style.transform = collapsed ? 'rotate(-90deg)' : '';
+      label.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    });
+  });
+
+  $('#sidebarToggleBtn')?.addEventListener('click', () => {
+    document.body.classList.toggle('sidebar-hidden');
+  });
+
+  $('#newPromptBtn')?.addEventListener('click', openNewPromptModal);
+  $('#newFolderBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openNewFolderModal();
+  });
+
+  $('#closePromptModal')?.addEventListener('click', closePromptModal);
+  $('#cancelPromptBtn')?.addEventListener('click', closePromptModal);
+  $('#promptForm')?.addEventListener('submit', handlePromptSubmit);
+  $('#promptModal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closePromptModal();
+  });
+  $('#promptContent')?.addEventListener('input', updateEditorPreview);
+
+  $$('.editor-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      if (t.classList.contains('premium-locked') && !state.isPremium) {
+        showPremiumModal();
+        return;
+      }
+      switchEditorTab(t.dataset.pane);
+    });
+  });
+
+  bindColourSwatches();
+
+  $('#closeFolderModal')?.addEventListener('click', closeFolderModal);
+  $('#cancelFolderBtn')?.addEventListener('click', closeFolderModal);
+  $('#folderForm')?.addEventListener('submit', handleFolderSubmit);
+  $('#folderModal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeFolderModal();
+  });
+
+  $('#closeDetailPanel')?.addEventListener('click', closeDetailPanel);
+  $('#panelFavBtn')?.addEventListener('click', () => state.detailId && toggleFav(state.detailId));
+  $('#panelEditBtn')?.addEventListener('click', () => state.detailId && editPrompt(state.detailId));
+  $('#panelDeleteBtn')?.addEventListener('click', () => state.detailId && deletePromptById(state.detailId));
+  $('#panelDuplicateBtn')?.addEventListener('click', () => state.detailId && duplicatePrompt(state.detailId));
+  $('#copyToClipboardBtn')?.addEventListener('click', handleCopyWithVariables);
+  $('#footerExportBtn')?.addEventListener('click', handleSinglePromptExport);
+  $('#footerMdBtn')?.addEventListener('click', () => {
+    if (!state.isPremium) { showPremiumModal(); return; }
+    if (!state.detailId) return;
+    const p = state.prompts.find(x => x.id === state.detailId);
+    if (!p) return;
+    const md = `# ${p.title}\n\n${p.description ? p.description + '\n\n' : ''}${p.content}\n`;
+    const blob = new Blob([md], { type: 'text/markdown' });
+    triggerDownload(blob, `${p.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`);
+    toast('Markdown exported', 'success');
+  });
+  $('#saveNotesBtn')?.addEventListener('click', saveNotesAndRating);
+
+  $$('.detail-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      if (t.classList.contains('premium-locked') && !state.isPremium) {
+        showPremiumModal();
+        return;
+      }
+      switchDetailTab(t.dataset.tab);
+    });
+  });
+
+  $('#searchInput')?.addEventListener('input', (e) => {
+    state.search = e.target.value;
+    renderPrompts();
+    updateCounts();
+  });
+
+  $('#filterFavChip')?.addEventListener('click', () => {
+    const isActive = $('#filterFavChip').classList.toggle('active');
+    if (isActive) setFilterPill({ type: 'fav' });
+    else clearFilterPill();
+  });
+  $('#filterRatedChip')?.addEventListener('click', () => {
+    if (!state.isPremium) { showPremiumModal(); return; }
+    const isActive = $('#filterRatedChip').classList.toggle('active');
+    if (isActive) setFilterPill({ type: 'rated' });
+    else clearFilterPill();
+  });
+  $('#activeFilterPill')?.addEventListener('click', clearFilterPill);
+
+  $('#sortSelect')?.addEventListener('change', (e) => {
+    state.sortBy = e.target.value;
+    renderPrompts();
+  });
+
+  $$('#viewToggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('#viewToggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.viewMode = btn.dataset.mode;
+      renderPrompts();
+    });
+  });
+
+  $('#groupFolderBtn')?.addEventListener('click', () => {
+    state.groupByFolder = !state.groupByFolder;
+    $('#groupFolderBtn').classList.toggle('active', state.groupByFolder);
+    renderPrompts();
+  });
+
+  // Run chain
+  $('#runChainBtn')?.addEventListener('click', () => {
+    const p = state.prompts.find(x => x.id === state.detailId);
+    const chainIds = p?.chain_ids || [];
+    if (chainIds.length) startChainRunner(chainIds);
+  });
+
+  $('#importBtn')?.addEventListener('click', openImportModal);
+  $('#closeImportModal')?.addEventListener('click', closeImportModal);
+  $('#cancelImportBtn')?.addEventListener('click', closeImportModal);
+  $('#importForm')?.addEventListener('submit', handleImport);
+  $('#importModal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeImportModal();
+  });
+  // Import format tabs
+  $$('.import-fmt-tab').forEach(tab => {
+    tab.addEventListener('click', () => _switchImportFmt(tab.dataset.fmt));
+  });
+
+  $('#exportBtn')?.addEventListener('click', openExportModal);
+  $('#closeExportModal')?.addEventListener('click', closeExportModal);
+  $('#exportModal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeExportModal();
+  });
+  $('#exportJsonBtn')?.addEventListener('click', exportJson);
+  $('#exportMdBtn')?.addEventListener('click', () => exportFormat('/export/markdown', 'text/markdown', 'md'));
+  $('#exportCsvBtn')?.addEventListener('click', () => exportFormat('/export/csv', 'text/csv', 'csv'));
+  $('#exportBulkBtn')?.addEventListener('click', () => exportFormat('/export/bulk', 'application/zip', 'zip'));
+
+  $('#loadVarTemplateBtn')?.addEventListener('click', openVarTemplateModal);
+  $('#saveVarTemplateBtn')?.addEventListener('click', openSaveTemplateModal);
+  $('#closeVarTemplateModal')?.addEventListener('click', closeVarTemplateModal);
+  $('#cancelVarTemplateBtn')?.addEventListener('click', closeVarTemplateModal);
+  $('#closeSaveTemplateModal')?.addEventListener('click', closeSaveTemplateModal);
+  $('#cancelSaveTemplateBtn')?.addEventListener('click', closeSaveTemplateModal);
+  $('#confirmSaveTemplateBtn')?.addEventListener('click', saveCurrentVarTemplate);
+
+  $('#addChainBtn')?.addEventListener('click', addChainStep);
+  $('#addChatTurnBtn')?.addEventListener('click', addChatTurn);
+
+  $('#licenceBtn')?.addEventListener('click', showPremiumModal);
+  $('#closePremiumModal')?.addEventListener('click', closePremiumModal);
+  $('#premiumModal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closePremiumModal();
+  });
+  $('#activateLicenceBtn')?.addEventListener('click', activateLicence);
+  $('#licenceKeyInput')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); activateLicence(); }
+  });
+
+  $('#closeAnalyticsModal')?.addEventListener('click', closeAnalytics);
+  $('#analyticsModal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeAnalytics();
+  });
+
+  $('#cmdBtn')?.addEventListener('click', openCmdPalette);
+  $('#cmdPalette')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeCmdPalette();
+  });
+  $('#cmdInput')?.addEventListener('input', (e) => renderCmdResults(e.target.value));
+  $('#cmdInput')?.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); moveCmdSelection(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); moveCmdSelection(-1); }
+    else if (e.key === 'Enter') { e.preventDefault(); activateCmdSelection(); }
+    else if (e.key === 'Escape') { e.preventDefault(); closeCmdPalette(); }
+  });
+  $('#cmdResults')?.addEventListener('click', (e) => {
+    const r = e.target.closest('.cmd-result');
+    if (!r) return;
+    const idx = Number(r.dataset.idx);
+    cmdIndex = idx;
+    activateCmdSelection();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const tag = e.target.tagName;
+    const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable;
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      const isOpen = $('#cmdPalette').classList.contains('active');
+      isOpen ? closeCmdPalette() : openCmdPalette();
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      if ($('#cmdPalette').classList.contains('active')) { closeCmdPalette(); return; }
+      const openModal = $$('.modal-overlay.active')[0];
+      if (openModal) {
+        openModal.classList.remove('active');
+        return;
+      }
+      if ($('#detailPanel').classList.contains('open')) { closeDetailPanel(); return; }
+    }
+
+    if (isTyping) return;
+
+    if (e.key === '/') {
+      e.preventDefault();
+      $('#searchInput')?.focus();
+      return;
+    }
+    if (e.key.toLowerCase() === 'n') {
+      e.preventDefault();
+      openNewPromptModal();
+      return;
+    }
+  });
+
+  const container = $('#promptsContainer');
+  if (container) {
+    container.innerHTML = `<div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div>`;
+  }
+}
+
+
+
+/* ============================================================================
+   ROLES WORKSPACE
+   ============================================================================ */
+
+let _rolesState = {
+  roles:    [],   // all roles loaded from API
+  activeId: null, // currently open role id (null = none)
+  dirty:    false // unsaved changes flag
+};
+
+/* ── Open / close ─────────────────────────────────────────────────────────── */
+window.openRolesWorkspace = async function() {
+  const ws = $('#rolesWorkspace');
+  if (!ws) return;
+  ws.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  await loadRoles();
+};
+
+function closeRolesWorkspace() {
+  const ws = $('#rolesWorkspace');
+  if (!ws) return;
+  ws.classList.remove('open');
+  document.body.style.overflow = '';
+  _rolesState.activeId = null;
+  _rolesState.dirty    = false;
+}
+
+/* ── Load all roles from API ──────────────────────────────────────────────── */
+async function loadRoles(preserveActive) {
+  try {
+    const res  = await fetch('/api/roles');
+    const data = await res.json();
+    _rolesState.roles = data.roles || data || [];
+    renderRolesList();
+    updateRolesCount();
+    if (preserveActive && _rolesState.activeId) {
+      const still = _rolesState.roles.find(r => r.id === _rolesState.activeId);
+      if (still) openRoleInEditor(still.id);
+    }
+  } catch (e) {
+    console.error('loadRoles error', e);
+  }
+}
+
+/* ── Render left-pane list ────────────────────────────────────────────────── */
+function renderRolesList() {
+  const list    = $('#rolesList');
+  const empty   = $('#rolesListEmpty');
+  const search  = $('#rolesSearch')?.value?.toLowerCase() || '';
+  if (!list) return;
+
+  let roles = _rolesState.roles;
+  if (search) roles = roles.filter(r => r.name.toLowerCase().includes(search));
+
+  if (!roles.length) {
+    list.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  list.innerHTML = roles.map(r => `
+    <div class="role-list-item ${r.id === _rolesState.activeId ? 'active' : ''}"
+         onclick="openRoleInEditor(${r.id})">
+      <span class="role-item-icon">${escapeHtml(r.icon || '🎯')}</span>
+      <span class="role-color-dot" style="background:${escapeAttr(r.colour || '#6366f1')}"></span>
+      <span class="role-item-name">${escapeHtml(r.name)}</span>
+      <button class="role-item-fav ${r.is_favorite ? 'active' : ''} material-symbols-outlined"
+              onclick="event.stopPropagation(); window.PL_toggleRoleFav(${r.id})"
+              title="${r.is_favorite ? 'Remove favourite' : 'Mark as favourite'}"
+              aria-label="Toggle favourite">
+        ${r.is_favorite ? 'star' : 'star_border'}
+      </button>
+    </div>
+  `).join('');
+}
+
+function updateRolesCount() {
+  const el = $('#rolesCount');
+  if (el) el.textContent = _rolesState.roles.length;
+}
+
+/* ── Open a role in the editor ────────────────────────────────────────────── */
+function openRoleInEditor(id) {
+  const role = _rolesState.roles.find(r => r.id === id);
+  if (!role) return;
+
+  _rolesState.activeId = id;
+  _rolesState.dirty    = false;
+  renderRolesList(); // refresh active state
+
+  // Show form, hide empty state
+  const empty = $('#rolesEditorEmpty');
+  const form  = $('#rolesEditorForm');
+  if (empty) empty.style.display = 'none';
+  if (form)  { form.style.display = 'flex'; form.style.removeProperty('display'); form.style.display = 'flex'; }
+
+  // Populate fields
+  const set = (id, val) => { const el = $(id); if (el) el.value = val || ''; };
+  set('#roleNameInput',     role.name);
+  set('#rolePersonaInput',  role.persona);
+  set('#roleToneInput',     role.tone);
+  set('#roleExpertiseInput',role.expertise);
+  set('#roleExampleInput',  role.example_phrase);
+
+  const iconBtn = $('#roleIconBtn');
+  if (iconBtn) iconBtn.textContent = role.icon || '🎯';
+
+  const colPicker = $('#roleColourPicker');
+  if (colPicker) colPicker.value = role.colour || '#6366f1';
+
+  // Toolbar buttons state
+  const delBtn = $('#rolesDeleteBtn');
+  if (delBtn) delBtn.style.display = '';
+
+  updateRolePromptPreview();
+}
+
+/* ── Build Prompt — three formats ────────────────────────────────────────── */
+function buildRolePrompt(role, format) {
+  const name      = (role.name      || '').trim();
+  const persona   = (role.persona   || '').trim();
+  const tone      = (role.tone      || '').trim();
+  const expertise = (role.expertise || '').trim();
+  const example   = (role.example_phrase || '').trim();
+  const icon      = (role.icon      || '🎯');
+
+  if (format === 'structured') {
+    const parts = [];
+    if (name)      parts.push(`## Role\n${icon} ${name}`);
+    if (persona)   parts.push(`## Persona\n${persona}`);
+    if (tone)      parts.push(`## Tone\n${tone}`);
+    if (expertise) parts.push(`## Expertise\n${expertise}`);
+    if (example)   parts.push(`## Example phrase\n"${example}"`);
+    return parts.join('\n\n') || '';
+  }
+
+  if (format === 'xml') {
+    const parts = [`<role>`];
+    if (name)      parts.push(`  <name>${name}</name>`);
+    if (persona)   parts.push(`  <persona>${persona}</persona>`);
+    if (tone)      parts.push(`  <tone>${tone}</tone>`);
+    if (expertise) parts.push(`  <expertise>${expertise}</expertise>`);
+    if (example)   parts.push(`  <example_phrase>${example}</example_phrase>`);
+    parts.push(`</role>`);
+    return parts.join('\n');
+  }
+
+  if (format === 'prose') {
+    const bits = [];
+    if (persona)   bits.push(persona);
+    if (tone)      bits.push(`Tone: ${tone}.`);
+    if (expertise) bits.push(`Areas of expertise: ${expertise}.`);
+    if (example)   bits.push(`Example of how you speak: "${example}"`);
+    return bits.join(' ') || '';
+  }
+
+  return '';
+}
+
+/* ── Live preview ─────────────────────────────────────────────────────────── */
+function updateRolePromptPreview() {
+  const preview = $('#rolePromptPreview');
+  if (!preview) return;
+
+  const role = getRoleFromForm();
+  const text = buildRolePrompt(role, 'structured');
+
+  if (!text) {
+    preview.innerHTML = '<em>Fill in fields above to generate a formatted prompt…</em>';
+    return;
+  }
+  preview.textContent = text;
+}
+
+/* ── Read current form values into a role object ─────────────────────────── */
+function getRoleFromForm() {
+  return {
+    name:           $('#roleNameInput')?.value     || '',
+    icon:           $('#roleIconBtn')?.textContent?.trim() || '🎯',
+    colour:         $('#roleColourPicker')?.value  || '#6366f1',
+    persona:        $('#rolePersonaInput')?.value  || '',
+    tone:           $('#roleToneInput')?.value      || '',
+    expertise:      $('#roleExpertiseInput')?.value || '',
+    example_phrase: $('#roleExampleInput')?.value  || ''
+  };
+}
+
+/* ── Copy built prompt ────────────────────────────────────────────────────── */
+window.PL_copyBuiltPrompt = async function(format) {
+  const role = getRoleFromForm();
+  const text = buildRolePrompt(role, format);
+  if (!text) { toast('Fill in some fields first', 'warn'); return; }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(`Copied as ${format}`, 'success');
+  } catch {
+    toast('Copy failed', 'error');
+  }
+};
+
+/* ── Copy raw persona (system prompt) ────────────────────────────────────── */
+window.PL_copyRolePersona = async function(id) {
+  const role = _rolesState.roles.find(r => r.id === id);
+  if (!role?.persona) { toast('No persona text to copy', 'warn'); return; }
+  try {
+    await navigator.clipboard.writeText(role.persona);
+    toast('Persona copied', 'success');
+  } catch {
+    toast('Copy failed', 'error');
+  }
+};
+
+/* ── Save ─────────────────────────────────────────────────────────────────── */
+window.PL_saveRole = async function() {
+  const id   = _rolesState.activeId;
+  const body = getRoleFromForm();
+
+  if (!body.name.trim()) { toast('Role needs a name', 'warn'); return; }
+
+  try {
+    const url    = id ? `/api/roles/${id}` : '/api/roles';
+    const method = id ? 'PUT' : 'POST';
+    const res    = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('Save failed');
+    const saved = await res.json();
+    if (!id) _rolesState.activeId = saved.id;
+    _rolesState.dirty = false;
+    toast('Role saved', 'success');
+    await loadRoles(true);
+  } catch (e) {
+    toast('Save failed', 'error');
+    console.error(e);
+  }
+};
+
+/* ── New ──────────────────────────────────────────────────────────────────── */
+window.PL_newRole = function() {
+  _rolesState.activeId = null;
+  _rolesState.dirty    = false;
+
+  const empty = $('#rolesEditorEmpty');
+  const form  = $('#rolesEditorForm');
+  if (empty) empty.style.display = 'none';
+  if (form)  form.style.display  = 'flex';
+
+  // Clear all fields
+  ['#roleNameInput','#rolePersonaInput','#roleToneInput',
+   '#roleExpertiseInput','#roleExampleInput'].forEach(sel => {
+    const el = $(sel);
+    if (el) el.value = '';
+  });
+  const iconBtn = $('#roleIconBtn');
+  if (iconBtn) iconBtn.textContent = '🎯';
+  const colPicker = $('#roleColourPicker');
+  if (colPicker) colPicker.value = '#6366f1';
+
+  renderRolesList(); // clear active highlight
+  updateRolePromptPreview();
+  $('#roleNameInput')?.focus();
+};
+
+/* ── Delete ───────────────────────────────────────────────────────────────── */
+window.PL_deleteRole = async function() {
+  const id = _rolesState.activeId;
+  if (!id) return;
+
+  const role = _rolesState.roles.find(r => r.id === id);
+  if (!confirm(`Delete role "${role?.name || 'this role'}"? This cannot be undone.`)) return;
+
+  try {
+    await fetch(`/api/roles/${id}`, { method: 'DELETE' });
+    _rolesState.activeId = null;
+    toast('Role deleted', 'success');
+    await loadRoles();
+    // Show empty state
+    const empty = $('#rolesEditorEmpty');
+    const form  = $('#rolesEditorForm');
+    if (empty) empty.style.display = 'flex';
+    if (form)  form.style.display  = 'none';
+  } catch {
+    toast('Delete failed', 'error');
+  }
+};
+
+/* ── Duplicate ────────────────────────────────────────────────────────────── */
+window.PL_duplicateRole = async function() {
+  const id = _rolesState.activeId;
+  if (!id) return;
+  try {
+    const res  = await fetch(`/api/roles/${id}/duplicate`, { method: 'POST' });
+    const data = await res.json();
+    toast('Role duplicated', 'success');
+    await loadRoles();
+    openRoleInEditor(data.id);
+  } catch {
+    toast('Duplicate failed', 'error');
+  }
+};
+
+/* ── Toggle favourite ─────────────────────────────────────────────────────── */
+window.PL_toggleRoleFav = async function(id) {
+  try {
+    await fetch(`/api/roles/${id}/favorite`, { method: 'POST' });
+    await loadRoles(_rolesState.activeId === id);
+  } catch {
+    toast('Could not update favourite', 'error');
+  }
+};
+
+/* ── Wire up Roles workspace events (called from init) ───────────────────── */
+function initRolesWorkspace() {
+  // Nav button
+  const navBtn = $('#rolesNavBtn');
+  if (navBtn) navBtn.addEventListener('click', () => window.openRolesWorkspace());
+
+  // Close button
+  const closeBtn = $('#rolesCloseBtn');
+  if (closeBtn) closeBtn.addEventListener('click', closeRolesWorkspace);
+
+  // New role button
+  const newBtn = $('#rolesNewBtn');
+  if (newBtn) newBtn.addEventListener('click', window.PL_newRole);
+
+  // Save button
+  const saveBtn = $('#rolesSaveBtn');
+  if (saveBtn) saveBtn.addEventListener('click', window.PL_saveRole);
+
+  // Duplicate button
+  const dupBtn = $('#rolesDuplicateBtn');
+  if (dupBtn) dupBtn.addEventListener('click', window.PL_duplicateRole);
+
+  // Delete button
+  const delBtn = $('#rolesDeleteBtn');
+  if (delBtn) delBtn.addEventListener('click', window.PL_deleteRole);
+
+  // Search
+  const search = $('#rolesSearch');
+  if (search) search.addEventListener('input', () => renderRolesList());
+
+  // Live preview on any field change
+  const liveFields = ['#roleNameInput','#rolePersonaInput','#roleToneInput',
+                      '#roleExpertiseInput','#roleExampleInput','#roleIconBtn'];
+  liveFields.forEach(sel => {
+    const el = $(sel);
+    if (el) el.addEventListener('input', updateRolePromptPreview);
+  });
+  const colPicker = $('#roleColourPicker');
+  if (colPicker) colPicker.addEventListener('input', updateRolePromptPreview);
+
+  // Icon picker — simple emoji prompt
+  const iconBtn = $('#roleIconBtn');
+  if (iconBtn) {
+    iconBtn.addEventListener('click', () => {
+      const val = prompt('Enter an emoji for this role:', iconBtn.textContent.trim());
+      if (val) {
+        iconBtn.textContent = val.trim().charAt(0) === '' ? '🎯' : val.trim();
+        updateRolePromptPreview();
+      }
+    });
+  }
+
+  // Escape key closes workspace
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && $('#rolesWorkspace')?.classList.contains('open')) {
+      closeRolesWorkspace();
+    }
+  });
+}
+
+/* ============================================================================
+   BOOTSTRAP
+   ============================================================================ */
+document.addEventListener('DOMContentLoaded', async () => {
+  init();
+  initTagInputs();        // create tag chip widgets before any modal opens
+  initRolesWorkspace();   // wire up roles workspace events
+  await loadStoredLicence();
+  await loadAll();
+});
+
+})();                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                

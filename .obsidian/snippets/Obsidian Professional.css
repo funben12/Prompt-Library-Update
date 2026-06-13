@@ -1,0 +1,294 @@
+/* This Theme is called "Wasp" and Obsidian Theme created by Santi Younger */
+
+:root
+{
+--font-monospace: "JetBrains Mono", "Fira Code", "Cascadia Code", "Source Code Pro", monospace;
+}
+
+.theme-dark
+{
+    /* Professional, modern, and coding-friendly dark palette */
+    --button-hover-bg-color: #2d3748; /* Darker blue-gray for hover */
+    --button-hover-text-color: #f7fafc; /* Near-white text */
+    --button-bg-color: #3b4252; /* Neutral dark background */
+    --button-text-color: #e5e9f0; /* Soft white */
+    --background-primary:         #23272e; /* Deep obsidian gray */
+    --background-primary-alt:     #262a32;
+    --background-secondary:       #1a1d23; /* Even deeper gray */
+    --background-secondary-alt:   #2e3440; /* Muted blue-gray */
+    --text-normal:                #e5e9f0; /* Soft white */
+    --text-faint:                 #7e8595; /* Muted gray-blue */
+    --text-title-h1:              #88c0d0; /* Cyan for H1 */
+    --text-title-h2:              #81a1c1; /* Blue for H2 */
+    --text-title-h3:              #b48ead; /* Purple for H3 */
+    --text-title-h4:              #a3be8c; /* Green for H4 */
+    --text-title-h5:              #ebcb8b; /* Yellow for H5 */
+    --text-title-h6:              #d08770; /* Orange for H6 */
+    --text-highlight-bg:          #434c5e; /* Subtle highlight */
+    --text-link:                  #5e81ac; /* Blue link */
+    --text-a-hover:               #88c0d0; /* Cyan hover */
+    --text-accent-hover:          #b48ead; /* Purple accent hover */
+    --inline-code:                #242933; /* Slightly lighter for inline code */
+    --code-block:                 #2e3440; /* Code block background */
+    --text-a:                     #5e81ac; /* Blue link */
+    --interactive-accent:         #8fbcbb; /* Teal accent */
+    --text-accent:                #8fbcbb;
+    --text-on-accent:             #23272e;
+    --interactive-accent-rgb:     143,188,187;
+    --vim-cursor:                 #88c0d0;
+    --pre-code:                   #23272e;
+    --interactive-before:         #3b4252;
+    --background-modifier-border: #434c5e;
+    --text-selection:             #434c5e;
+    --text-white:                 #e5e9f0;
+}
+
+.theme-dark .cm-s-obsidian span.obsidian-search-match-highlight {
+    color: var(--text-normal);
+    background-color: #434c5e;
+}
+
+.theme-light
+{
+    /* Professional, modern, and coding-friendly light palette */
+    --background-primary:         #f7fafc; /* Very light gray */
+    --background-secondary:       #e5e9f0; /* Soft white */
+    --background-primary-alt:     #f1f5f9;
+    --background-secondary-alt:   #d8dee9; /* Light blue-gray */
+    --text-normal:                #23272e; /* Deep obsidian gray */
+    --text-faint:                 #7e8595; /* Muted gray-blue */
+    --text-title-h1:              #5e81ac; /* Blue for H1 */
+    --text-title-h2:              #81a1c1; /* Lighter blue for H2 */
+    --text-title-h3:              #b48ead; /* Purple for H3 */
+    --text-title-h4:              #a3be8c; /* Green for H4 */
+    --text-title-h5:              #d08770; /* Orange for H5 */
+    --text-link:                  #5e81ac; /* Blue link */
+    --text-a-hover:               #88c0d0; /* Cyan hover */
+    --text-accent-hover:          #b48ead; /* Purple accent hover */
+    --inline-code:                #e5e9f0;
+    --pre-code:                   #f7fafc;
+    --interactive-before:         #d8dee9;
+    --background-modifier-border: #b0bec5;
+    --text-a:                     #5e81ac;
+    --interactive-accent:         #8fbcbb;
+    --text-accent:                #8fbcbb;
+    --interactive-accent-rgb:     143,188,187;
+    --vim-cursor:                 #5e81ac;
+    --text-selection:             #d8dee9;
+    --text-white:                 #23272e;
+}
+
+/* Navigation Titles */
+.nav-file-title, .nav-folder-title {
+    color: var(--text-normal);
+}
+
+.nav-file-title.is-active, .nav-folder-title.is-active,
+body:not(.is-grabbing) .nav-file-title:hover,
+body:not(.is-grabbing) .nav-folder-title:hover {
+    background-color: var(--background-modifier-border);
+    color: var(--button-text-color);
+    transition: background 0.2s, color 0.2s;
+}
+
+/* CodeMirror Formatting */
+.cm-s-obsidian span.cm-formatting-link,
+.CodeMirror-guttermarker-subtle {
+    color: var(--text-normal) !important;
+}
+
+/* Buttons */
+button.mod-cta {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    font-weight: 600;
+    border-radius: 4px;
+    transition: background 0.2s, color 0.2s;
+    border: none;
+}
+
+button.mod-cta:hover, button.mod-cta:focus {
+    background-color: var(--button-hover-bg-color);
+    color: var(--button-hover-text-color);
+}
+
+/* Vertical Tabs */
+.vertical-tab-header-group-title {
+    color: var(--text-white);
+}
+
+.vertical-tab-nav-item.is-active {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    font-weight: 600;
+    transition: background 0.2s, color 0.2s;
+}
+
+.vertical-tab-nav-item.is-active:hover,
+.vertical-tab-nav-item.is-active:focus {
+    background-color: var(--button-hover-bg-color);
+    color: var(--button-hover-text-color);
+}
+
+body:not(.is-phone) .vertical-tab-nav-item.is-active {
+    --background-modifier-hover: var(--button-hover-bg-color);
+    --icon-color: var(--button-text-color);
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    font-weight: 600;
+}
+
+body:not(.is-phone) .vertical-tab-nav-item.is-active:hover,
+body:not(.is-phone) .vertical-tab-nav-item.is-active:focus {
+    background-color: var(--button-hover-bg-color);
+    color: var(--button-hover-text-color);
+}
+
+/* Checkbox */
+.checkbox-container.is-enabled {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    transition: background 0.2s, color 0.2s;
+}
+
+.checkbox-container.is-enabled:hover,
+.checkbox-container.is-enabled:focus {
+    background-color: var(--button-hover-bg-color);
+    color: var(--button-hover-text-color);
+}
+
+/* Flair */
+.flair.mod-pop {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    border-radius: 3px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.flair.mod-pop:hover, .flair.mod-pop:focus {
+    background-color: var(--button-hover-bg-color);
+    color: var(--button-hover-text-color);
+}
+
+/* Headings - Editor */
+.cm-header-1, .cm-header-2, .cm-header-3,
+.cm-header-4, .cm-header-5, .cm-header-6 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-top: 1.2em;
+    margin-bottom: 0.5em;
+}
+
+.cm-header-1 { color: var(--text-title-h1) !important; }
+.cm-header-2 { color: var(--text-title-h2) !important; }
+.cm-header-3 { color: var(--text-title-h3) !important; }
+.cm-header-4 { color: var(--text-title-h4) !important; }
+.cm-header-5 { color: var(--text-title-h5) !important; }
+.cm-header-6 { color: var(--text-title-h6) !important; }
+
+/* Headings - Preview */
+.markdown-preview-view h1,
+.markdown-preview-view h2,
+.markdown-preview-view h3,
+.markdown-preview-view h4,
+.markdown-preview-view h5,
+.markdown-preview-view h6 {
+    font-size: 20px;
+    line-height: 1.2;
+    font-weight: 700;
+    margin-top: 1.5em;
+    margin-bottom: 0.7em;
+}
+
+.markdown-preview-view h1 { color: var(--text-title-h1) !important; }
+.markdown-preview-view h2 { color: var(--text-title-h2) !important; }
+.markdown-preview-view h3 { color: var(--text-title-h3) !important; }
+.markdown-preview-view h4 { color: var(--text-title-h4) !important; }
+.markdown-preview-view h5 { color: var(--text-title-h5) !important; }
+.markdown-preview-view h6 { color: var(--text-title-h6) !important; }
+
+/* Source View Font */
+.markdown-source-view {
+    font-family: var(--font-monospace);
+}
+
+/* Fat Cursor */
+.cm-fat-cursor .CodeMirror-cursor {
+    background-color: #f8c537 !important;
+    opacity: 0.8 !important;
+    width: 9px !important;
+    visibility: visible !important;
+}
+
+/* Plugin Tabs */
+.plugin-tabs .stayopen .view-header {
+    border-bottom: 2px solid var(--interactive-accent)!important;
+}
+
+.plugin-tabs .mod-root.workspace-split.mod-vertical div.workspace-leaf:not(.stayopen) > .workspace-leaf-content > .view-header .view-header-title::before {
+    background-color: transparent!important;
+}
+
+.plugin-tabs .mod-root.workspace-split.mod-vertical .workspace-split.mod-vertical > div.workspace-leaf:not(.stayopen),
+.plugin-tabs .mod-root.workspace-split.mod-vertical > div.workspace-leaf:not(.stayopen) {
+    border-radius: 5px 5px 0 0!important;
+}
+
+.plugin-tabs .mod-root.workspace-split.mod-vertical div.workspace-leaf {
+    border-color: var(--background-secondary-alt)!important;
+    border-bottom-width: 0!important;
+    border-right-width: 0!important;
+}
+
+.theme-light.plugin-tabs .mod-root.workspace-split.mod-vertical div.workspace-leaf {
+    border-color: var(--background-secondary-alt)!important;
+    border-left-width: 3px!important;
+    border-bottom-width: 0!important;
+    border-right-width: 0!important;
+}
+
+.plugin-tabs .mod-root.workspace-split.mod-vertical > div.workspace-leaf hr.workspace-leaf-resize-handle,
+.plugin-tabs .mod-root.workspace-split.mod-vertical > .mod-vertical hr.workspace-leaf-resize-handle {
+    display: none;
+}
+
+.plugin-tabs .mod-root.workspace-split.mod-vertical div.workspace-leaf .view-header {
+    border-left-color: transparent!important;
+}
+
+.plugin-tabs .workspace-split.mod-root > .workspace-leaf:last-of-type .workspace-leaf-content,
+.plugin-tabs .workspace-split.mod-root > .workspace-leaf:first-of-type .workspace-leaf-content {
+    border-radius: 0!important;
+}
+
+.plugin-tabs .theme-dark .mod-root.workspace-split.mod-vertical .workspace-split.mod-vertical > div.workspace-leaf.mod-active,
+.plugin-tabs .theme-dark .mod-root.workspace-split.mod-vertical > div.workspace-leaf.mod-active {
+    border: 0!important;
+    border-radius: 0!important;
+}
+
+/* Horizontal Rule Styles */
+.cm-line hr,
+.markdown-preview-view hr {
+    margin-block-start: 4em;
+    margin-block-end: 4em;
+    border: none;
+    height: 0;
+    border-bottom: 1px solid;
+    border-image-slice: 1;
+    border-width: 1px;
+    border-image-source: linear-gradient(to right, transparent, var(--text-accent), transparent);
+    position: relative;
+}
+
+.cm-line hr::after,
+.markdown-preview-view hr::after {
+    /* content: '\1f41d'; */
+    display: inline-block;
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 0.5rem;
+    color: var(--text-sub-accent, var(--text-accent));
+    background-color: var(--background-primary);
+}

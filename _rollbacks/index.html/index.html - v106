@@ -1,0 +1,1955 @@
+<!doctype html>
+<html lang="en-GB" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Prompt Library Pro</title>
+
+<!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+
+<link rel="stylesheet" href="/static/app.css?v=02fe559b">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============================================================
+       SIDEBAR
+       ============================================================ -->
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">P</div>
+      <div>
+        <span class="brand-name">Prompt Library</span>
+        <span class="brand-pro" id="premiumBadge" hidden>PRO</span>
+      </div>
+    </div>
+
+    <nav class="nav-section">
+      <button class="nav-item active" data-view="library">
+        <span class="material-symbols-outlined">menu_book</span>
+        <span>Library</span>
+        <span class="nav-count" id="libraryCount">0</span>
+      </button>
+      <button class="nav-item" data-view="favorites">
+        <span class="material-symbols-outlined">star</span>
+        <span>Favourites</span>
+        <span class="nav-count" id="favCount">0</span>
+      </button>
+      <button class="nav-item premium-locked" data-view="analytics" data-premium="true" id="analyticsNavBtn">
+        <span class="material-symbols-outlined">monitoring</span>
+        <span>Analytics</span>
+        <span class="nav-lock material-symbols-outlined">lock</span>
+      </button>
+      <button class="nav-item" data-view="roles" id="rolesNavBtn" data-trial="agents">
+        <span class="material-symbols-outlined">smart_toy</span>
+        <span>Agents</span>
+        <span class="nav-count" id="rolesCount">0</span>
+      </button>
+      <button class="nav-item premium-locked" data-view="playground" data-premium="true" id="playgroundNavBtn" title="Prompt Playground (Ctrl+Shift+P) — Pro">
+        <span class="material-symbols-outlined nav-icon">science</span>
+        <span class="nav-label">Playground</span>
+      </button>
+
+      <!-- Workspaces collapsible group -->
+      <div class="nav-group" id="workspacesGroup">
+        <button class="nav-group-toggle" id="workspacesToggle" aria-expanded="false">
+          <span class="material-symbols-outlined nav-icon">grid_view</span>
+          <span class="nav-label">Workspaces</span>
+          <span class="material-symbols-outlined nav-group-chev">expand_more</span>
+        </button>
+        <div class="nav-group-items" id="workspacesItems">
+          <button class="nav-item nav-sub-item premium-locked" data-view="forge" data-premium="true" id="forgeNavBtn" title="Prompt Forge — Pro">
+            <span class="material-symbols-outlined nav-icon">construction</span>
+            <span class="nav-label">Prompt Forge</span>
+          </button>
+          <button class="nav-item nav-sub-item premium-locked" data-view="lab" data-premium="true" id="labNavBtn" title="Prompt Lab — Pro">
+            <span class="material-symbols-outlined nav-icon">biotech</span>
+            <span class="nav-label">Prompt Lab</span>
+          </button>
+          <button class="nav-item nav-sub-item" data-view="chain" id="chainNavBtn" title="Prompt Chain — multi-step pipeline">
+            <span class="material-symbols-outlined nav-icon">account_tree</span>
+            <span class="nav-label">Prompt Chain</span>
+          </button>
+          <button class="nav-item nav-sub-item premium-locked" data-view="meta" data-premium="true" id="metaNavBtn" title="Metaprompting — Pro">
+            <span class="material-symbols-outlined nav-icon">auto_fix_high</span>
+            <span class="nav-label">Metaprompting</span>
+          </button>
+          <button class="nav-item nav-sub-item premium-locked" data-view="contextBank" data-premium="true" id="contextBankNavBtn" title="Context Bank — Pro">
+            <span class="material-symbols-outlined nav-icon">database</span>
+            <span class="nav-label">Context Bank</span>
+          </button>
+          <button class="nav-item nav-sub-item premium-locked" data-view="components" data-premium="true" id="componentsNavBtn" title="Prompt Components — drag-and-drop builder — Pro">
+            <span class="material-symbols-outlined nav-icon">extension</span>
+            <span class="nav-label">Prompt Components</span>
+          </button>
+        </div>
+      </div>
+
+    </nav>
+
+    <div id="sidebarScroll">
+
+      <div class="nav-section">
+        <div class="nav-section-label" data-toggle="folders" aria-expanded="false">
+          <span>Folders</span>
+          <span style="display:inline-flex; align-items:center; gap:4px;">
+            <button class="nav-icon-btn" id="newFolderBtn" title="New folder" aria-label="New folder">
+              <span class="material-symbols-outlined">add</span>
+            </button>
+            <span class="material-symbols-outlined chev">expand_more</span>
+          </span>
+        </div>
+        <div class="nav-section-content" id="folders-content">
+          <div id="foldersList" class="filter-list"></div>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label" data-toggle="categories" aria-expanded="false">
+          <span>Categories</span>
+          <span class="material-symbols-outlined chev">expand_more</span>
+        </div>
+        <div class="nav-section-content" id="categories-content">
+          <div id="categoriesList" class="filter-list"></div>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label" data-toggle="tags" aria-expanded="false">
+          <span>Tags</span>
+          <span class="material-symbols-outlined chev">expand_more</span>
+        </div>
+        <div class="nav-section-content" id="tags-content">
+          <div id="tagsList" class="filter-list"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-footer-row">
+        <button class="sidebar-footer-btn" id="importBtn">
+          <span class="material-symbols-outlined">upload</span>
+          <span>Import</span>
+        </button>
+        <button class="sidebar-footer-btn" id="exportBtn">
+          <span class="material-symbols-outlined">download</span>
+          <span>Export</span>
+        </button>
+      </div>
+      <button class="sidebar-footer-btn" id="themeToggleBtn">
+        <span class="material-symbols-outlined" id="themeIcon">dark_mode</span>
+        <span id="themeLabel">Dark mode</span>
+      </button>
+      <button class="sidebar-footer-btn" id="licenceBtn">
+        <span class="material-symbols-outlined">workspace_premium</span>
+        <span id="licenceBtnLabel">Unlock Pro</span>
+      </button>
+      <button class="sidebar-footer-btn" id="configToggleBtn" title="API settings" aria-label="Open API settings">
+        <span class="material-symbols-outlined">settings</span>
+        <span>API settings</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============================================================
+       MAIN
+       ============================================================ -->
+  <main id="main">
+
+    <header id="contentHeader">
+      <div class="header-top">
+        <div class="header-title-group">
+          <div id="breadcrumb"></div>
+          <h1 id="viewTitle">Library</h1>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn" id="sidebarToggleBtn" title="Toggle sidebar" aria-label="Toggle sidebar">
+            <span class="material-symbols-outlined">menu_open</span>
+          </button>
+          <button class="icon-btn" id="cmdBtn" title="Command palette (Ctrl+K)" aria-label="Open command palette">
+            <span class="material-symbols-outlined">search</span>
+          </button>
+          <button class="btn btn-ghost" id="surpriseMeBtn" title="Open a random prompt" aria-label="Surprise me">
+            <span class="material-symbols-outlined">shuffle</span>
+            <span>Surprise me</span>
+          </button>
+          <button class="btn btn-accent" id="newPromptBtn">
+            <span class="material-symbols-outlined">add</span>
+            <span>New prompt</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="folderViewActions" class="filter-bar" style="display:none; margin-bottom: var(--sp-3);"></div>
+
+      <div class="filter-bar" id="libraryFilterBar">
+        <div id="searchWrap">
+          <span class="material-symbols-outlined">search</span>
+          <input type="search" id="searchInput" placeholder="Search prompts, descriptions, tags..." autocomplete="off" />
+          <span class="search-kbd">/</span>
+        </div>
+        <button class="chip" id="filterFavChip">
+          <span class="material-symbols-outlined">star</span>
+          Favourites
+        </button>
+        <button class="chip premium-locked" id="filterRatedChip" data-premium="true">
+          <span class="material-symbols-outlined">star_rate</span>
+          Rated
+        </button>
+        <button class="chip" id="activeFilterPill" hidden>
+          <span class="material-symbols-outlined">close</span>
+          <span id="activeFilterLabel"></span>
+        </button>
+        <span id="viewCount">0 prompts</span>
+      </div>
+
+      <div class="sort-bar">
+        <span>Sort</span>
+        <select id="sortSelect">
+          <optgroup label="Date">
+            <option value="updated">Recently updated</option>
+            <option value="created">Newest first</option>
+            <option value="created_asc">Oldest first</option>
+          </optgroup>
+          <optgroup label="Title">
+            <option value="title">Title A–Z</option>
+            <option value="title_desc">Title Z–A</option>
+          </optgroup>
+          <optgroup label="Usage">
+            <option value="used">Most used</option>
+            <option value="used_asc">Least used</option>
+          </optgroup>
+          <optgroup label="Other">
+            <option value="rating">Top rated</option>
+            <option value="favorites">Favourites first</option>
+            <option value="colour">By colour label</option>
+            <option value="manual">Manual order</option>
+          </optgroup>
+        </select>
+        <div class="view-toggle" id="viewToggle">
+          <button data-mode="list" class="active">
+            <span class="material-symbols-outlined">view_agenda</span>
+            List
+          </button>
+          <button data-mode="grid">
+            <span class="material-symbols-outlined">grid_view</span>
+            Grid
+          </button>
+        </div>
+        <button class="chip" id="groupFolderBtn">
+          <span class="material-symbols-outlined">folder_special</span>
+          Group by folder
+        </button>
+      </div>
+    </header>
+
+    <div id="content">
+      <div id="promptsContainer" class="list-view"></div>
+    </div>
+
+    <!-- ============================================================
+         DETAIL PANEL
+         ============================================================ -->
+    <aside id="detailPanel" aria-hidden="true">
+      <div class="detail-header">
+        <div class="detail-actions">
+          <button class="icon-btn" id="panelFavBtn" title="Toggle favourite">
+            <span class="material-symbols-outlined">favorite</span>
+          </button>
+          <button class="icon-btn premium-locked" id="panelDuplicateBtn" data-premium="true" title="Duplicate">
+            <span class="material-symbols-outlined">content_copy</span>
+          </button>
+          <button class="icon-btn" id="panelEditBtn" title="Edit">
+            <span class="material-symbols-outlined">edit</span>
+          </button>
+          <button class="icon-btn danger" id="panelDeleteBtn" title="Delete">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
+        </div>
+        <button class="icon-btn" id="closeDetailPanel" title="Close" aria-label="Close panel">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <nav class="detail-tabs">
+        <button class="detail-tab active" data-tab="prompt">Prompt</button>
+        <button class="detail-tab premium-locked" data-tab="notes" data-premium="true">Notes &amp; rating <span class="lock material-symbols-outlined">lock</span></button>
+        <button class="detail-tab premium-locked" data-tab="chain" data-premium="true">Chain <span class="lock material-symbols-outlined">lock</span></button>
+        <button class="detail-tab premium-locked" data-tab="history" data-premium="true">History <span class="lock material-symbols-outlined">lock</span></button>
+      </nav>
+
+      <div id="detailBody">
+
+        <div class="detail-tab-pane active" id="tab-prompt">
+          <div id="detailChips" class="detail-chips"></div>
+          <h2 id="detailTitle"></h2>
+          <div id="detailRoleChip" class="detail-role-chip" hidden></div>
+          <p id="detailDesc"></p>
+
+          <div class="detail-section-label">
+            Prompt
+            <span class="vars-badge" id="detailVarBadge" hidden>
+              <span class="material-symbols-outlined">token</span>
+              <span id="detailVarCount">0 variables</span>
+            </span>
+          </div>
+          <div id="detailPromptText"></div>
+
+          <div id="usePromptSection" hidden>
+            <div class="detail-section-label">
+              Fill variables
+              <span id="varFillProgress" style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;"></span>
+            </div>
+            <div class="var-fill-progress-bar"><div class="var-fill-progress-fill" id="varFillProgressFill" style="width:0%"></div></div>
+            <div id="variableFields"></div>
+            <div class="var-preview-wrap" id="varPreviewWrap" hidden>
+              <div class="var-preview-label">Live preview</div>
+              <div class="var-preview-box" id="varPreviewBox"></div>
+            </div>
+            <button class="btn btn-primary var-copy-btn" id="varCopyFilledBtn" onclick="handleCopyWithVariables()">
+              <span class="material-symbols-outlined">content_copy</span>
+              Copy filled prompt
+            </button>
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta-cell">
+              <span class="material-symbols-outlined">calendar_month</span>
+              <div>
+                <div class="meta-label">Created</div>
+                <div class="meta-value" id="metaCreated">-</div>
+              </div>
+            </div>
+            <div class="meta-cell">
+              <span class="material-symbols-outlined">bolt</span>
+              <div>
+                <div class="meta-label">Total uses</div>
+                <div class="meta-value" id="metaUseCount">0</div>
+              </div>
+            </div>
+            <div class="meta-cell">
+              <span class="material-symbols-outlined">folder</span>
+              <div>
+                <div class="meta-label">Folder</div>
+                <div class="meta-value" id="metaFolder">-</div>
+              </div>
+            </div>
+            <div class="meta-cell">
+              <span class="material-symbols-outlined">schedule</span>
+              <div>
+                <div class="meta-label">Last used</div>
+                <div class="meta-value" id="metaLastUsed">Never</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-tab-pane" id="tab-notes">
+          <div class="detail-section-label">Rating</div>
+          <div class="stars" id="detailRatingStars"></div>
+          <div class="detail-section-label" style="margin-top: var(--sp-5)">Personal notes</div>
+          <textarea class="form-textarea" id="detailNotes" rows="6" placeholder="Notes, reminders, things to revise..."></textarea>
+          <button class="btn btn-primary" id="saveNotesBtn" style="margin-top: var(--sp-3); width: 100%; justify-content: center;">
+            <span class="material-symbols-outlined">save</span>
+            Save notes &amp; rating
+          </button>
+        </div>
+
+        <div class="detail-tab-pane" id="tab-chain">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: var(--sp-3);">
+            <p style="font-size: var(--fs-sm); color: var(--ink-3); margin:0;">
+              Steps in this prompt's workflow.
+            </p>
+            <button class="btn btn-accent" id="runChainBtn" style="display:none; font-size: 12px; padding: 6px 12px;">
+              <span class="material-symbols-outlined" style="font-size:15px;">play_arrow</span>
+              Run chain
+            </button>
+          </div>
+          <div id="detailChainSteps"></div>
+          <div id="chainRunnerWrap" style="display:none;"></div>
+          <p id="detailChainEmpty" class="hidden" style="font-size: var(--fs-sm); color: var(--ink-3);">
+            No chain yet. Edit this prompt to add steps.
+          </p>
+        </div>
+
+        <div class="detail-tab-pane" id="tab-history">
+          <p style="font-size: var(--fs-sm); color: var(--ink-3); margin-bottom: var(--sp-3);">
+            Up to 20 versions kept per prompt. Click any version to restore.
+          </p>
+          <div id="versionList"></div>
+          <p id="versionEmpty" class="hidden" style="font-size: var(--fs-sm); color: var(--ink-3);">
+            No previous versions.
+          </p>
+        </div>
+
+      </div>
+
+      <div class="detail-footer">
+        <button class="icon-btn" id="footerExportBtn" title="Export this prompt as JSON">
+          <span class="material-symbols-outlined">ios_share</span>
+        </button>
+        <button class="icon-btn premium-locked" id="footerMdBtn" data-premium="true" title="Export as Markdown">
+          <span class="material-symbols-outlined">description</span>
+        </button>
+        <button class="btn btn-accent" id="copyToClipboardBtn">
+          <span class="material-symbols-outlined">content_copy</span>
+          Copy to clipboard
+        </button>
+      </div>
+    </aside>
+
+  
+  <!-- AGENT WORKSPACE -->
+  <div id="rolesWorkspace" role="dialog" aria-modal="true" aria-label="Agent workspace">
+
+    <!-- Header -->
+    <div class="roles-header">
+      <span class="material-symbols-outlined" style="font-size:24px;color:var(--accent)">smart_toy</span>
+      <h2>Agents</h2>
+      <button class="btn btn-ghost" id="rolesNewBtn"><span class="material-symbols-outlined">add</span> New agent</button>
+      <button class="icon-btn" id="rolesCloseBtn" title="Close" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+
+    <div class="roles-body">
+
+      <!-- Left pane: agent list -->
+      <div class="roles-list-pane">
+        <div class="roles-list-search">
+          <input type="search" id="rolesSearch" class="form-input" placeholder="Search agents…" autocomplete="off" />
+        </div>
+        <div class="roles-list-scroll" id="rolesListScroll">
+          <div class="roles-list-empty" id="rolesListEmpty" style="display:none;">
+            <span class="material-symbols-outlined" style="font-size:32px;display:block;margin-bottom:8px;">smart_toy</span>
+            No agents yet. Create one to get started.
+          </div>
+          <div id="rolesList"></div>
+        </div>
+        <!-- Stats -->
+        <div class="roles-sidebar-stats" id="rolesStats">
+          <div class="roles-stat-row">
+            <span class="material-symbols-outlined">smart_toy</span>
+            <span>Agents</span>
+            <span class="roles-stat-value" id="rolesStatAgents">0</span>
+          </div>
+          <div class="roles-stat-row">
+            <span class="material-symbols-outlined">star</span>
+            <span>Favourites</span>
+            <span class="roles-stat-value" id="rolesStatFavs">0</span>
+          </div>
+          <div class="roles-stat-row">
+            <span class="material-symbols-outlined">library_books</span>
+            <span>KB entries</span>
+            <span class="roles-stat-value" id="rolesStatKb">0</span>
+          </div>
+          <div class="roles-stat-row">
+            <span class="material-symbols-outlined">psychology</span>
+            <span>Skills</span>
+            <span class="roles-stat-value" id="rolesStatSkills">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right pane: editor -->
+      <div class="roles-editor-pane" id="rolesEditorPane">
+
+        <!-- Empty state -->
+        <div class="roles-editor-empty" id="rolesEditorEmpty">
+          <span class="material-symbols-outlined">arrow_back</span>
+          <p style="font-size:var(--fs-sm);margin:0;">Select an agent or create a new one</p>
+        </div>
+
+        <!-- Editor form -->
+        <div id="rolesEditorForm" style="display:none;flex:1;overflow:hidden;flex-direction:column;">
+          <div class="roles-editor-scroll">
+
+            <!-- ── CORE ───────────────────────────────────────────── -->
+            <div class="role-section-divider">
+              <span class="material-symbols-outlined">smart_toy</span>
+              <span class="role-section-divider-label">Core</span>
+            </div>
+
+            <div class="role-meta-row">
+              <button type="button" class="role-icon-picker" id="roleIconBtn" title="Click to change icon">🎯</button>
+              <div style="flex:1;">
+                <label class="form-label" for="roleNameInput">Agent name</label>
+                <input type="text" id="roleNameInput" class="form-input" placeholder="e.g. Senior Copywriter" maxlength="80" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Prompt starter</label>
+              <div class="role-starter-select">
+                <select id="rolePromptStarter" class="form-input">
+                  <option value="You are a">You are a</option>
+                  <option value="Act as a">Act as a</option>
+                  <option value="Act as an">Act as an</option>
+                  <option value="Act in the capacity of a">Act in the capacity of a</option>
+                  <option value="Act in the role of a">Act in the role of a</option>
+                  <option value="Act in the role of an">Act in the role of an</option>
+                  <option value="Act like a">Act like a</option>
+                  <option value="Act like an">Act like an</option>
+                  <option value="Adopt the persona of a">Adopt the persona of a</option>
+                  <option value="Adopt the role of a">Adopt the role of a</option>
+                  <option value="Adopt the role of an">Adopt the role of an</option>
+                  <option value="Adopt the viewpoint of a">Adopt the viewpoint of a</option>
+                  <option value="Adopt the viewpoint of an">Adopt the viewpoint of an</option>
+                  <option value="Adopt the voice of a">Adopt the voice of a</option>
+                  <option value="Assign a role to the assistant for">Assign a role to the assistant for</option>
+                  <option value="Assigned to act as a">Assigned to act as a</option>
+                  <option value="Assigned to act as an">Assigned to act as an</option>
+                  <option value="Assigned to behave as a">Assigned to behave as a</option>
+                  <option value="Assume identity as">Assume identity as</option>
+                  <option value="Assume the role of a">Assume the role of a</option>
+                  <option value="Be a">Be a</option>
+                  <option value="Be an">Be an</option>
+                  <option value="Behave as a">Behave as a</option>
+                  <option value="Behave like a">Behave like a</option>
+                  <option value="Channel the knowledge of a">Channel the knowledge of a</option>
+                  <option value="Channel the mindset of a">Channel the mindset of a</option>
+                  <option value="Channel the perspective of a">Channel the perspective of a</option>
+                  <option value="Channel the thought processes of a">Channel the thought processes of a</option>
+                  <option value="Channel the viewpoint of a">Channel the viewpoint of a</option>
+                  <option value="Chief Executive Officer (CEO)">Chief Executive Officer (CEO)</option>
+                  <option value="Chief Financial Officer (CFO)">Chief Financial Officer (CFO)</option>
+                  <option value="Chief Human Resources Officer (CHRO)">Chief Human Resources Officer (CHRO)</option>
+                  <option value="Chief Information Officer (CIO)">Chief Information Officer (CIO)</option>
+                  <option value="Chief Marketing Officer (CMO)">Chief Marketing Officer (CMO)</option>
+                  <option value="Chief Operating Officer (COO)">Chief Operating Officer (COO)</option>
+                  <option value="Chief Product Officer (CPO)">Chief Product Officer (CPO)</option>
+                  <option value="Chief Technology Officer (CTO)">Chief Technology Officer (CTO)</option>
+                  <option value="Conduct yourself as a">Conduct yourself as a</option>
+                  <option value="Configured to imitate a">Configured to imitate a</option>
+                  <option value="Conform to the role of a">Conform to the role of a</option>
+                  <option value="Conform to the role of an">Conform to the role of an</option>
+                  <option value="Crafted to function as a">Crafted to function as a</option>
+                  <option value="Created to embody a">Created to embody a</option>
+                  <option value="Designed to operate as a">Designed to operate as a</option>
+                  <option value="Developed to replicate a">Developed to replicate a</option>
+                  <option value="Engineered to serve as a">Engineered to serve as a</option>
+                  <option value="Explain how this prompt functions">Explain how this prompt functions</option>
+                  <option value="Function as a">Function as a</option>
+                  <option value="Generate four prompt styles for">Generate four prompt styles for</option>
+                  <option value="Generate three prompt styles for">Generate three prompt styles for</option>
+                  <option value="Generate two prompt styles for">Generate two prompt styles for</option>
+                  <option value="Handle tasks like a">Handle tasks like a</option>
+                  <option value="Handle the responsibilities of a">Handle the responsibilities of a</option>
+                  <option value="Harness insights of a">Harness insights of a</option>
+                  <option value="Harness the expertise of a">Harness the expertise of a</option>
+                  <option value="Harness the knowledge of a">Harness the knowledge of a</option>
+                  <option value="Harness the mindset of a">Harness the mindset of a</option>
+                  <option value="Head of Customer Success">Head of Customer Success</option>
+                  <option value="Head of Data Science">Head of Data Science</option>
+                  <option value="Head of Design">Head of Design</option>
+                  <option value="Head of Engineering">Head of Engineering</option>
+                  <option value="Head of Product">Head of Product</option>
+                  <option value="Head of Sales">Head of Sales</option>
+                  <option value="Head of Security">Head of Security</option>
+                  <option value="Head up as a">Head up as a</option>
+                  <option value="Help adopt the role of a">Help adopt the role of a</option>
+                  <option value="Help behave as a">Help behave as a</option>
+                  <option value="Help channel the mindset of a">Help channel the mindset of a</option>
+                  <option value="Help embody the role of a">Help embody the role of a</option>
+                  <option value="Help me think like a">Help me think like a</option>
+                  <option value="Help operate as a">Help operate as a</option>
+                  <option value="Help perform as a">Help perform as a</option>
+                  <option value="Highlight the thinking of a">Highlight the thinking of a</option>
+                  <option value="Hold the perspective of a">Hold the perspective of a</option>
+                  <option value="Hold the role of a">Hold the role of a</option>
+                  <option value="Hold yourself as a">Hold yourself as a</option>
+                  <option value="Hone skills like a">Hone skills like a</option>
+                  <option value="Honor the role of a">Honor the role of a</option>
+                  <option value="Hypothesize as a">Hypothesize as a</option>
+                  <option value="Identify as a">Identify as a</option>
+                  <option value="Imbibe the perspective of a">Imbibe the perspective of a</option>
+                  <option value="Imitate the role of a">Imitate the role of a</option>
+                  <option value="Implement the role of a">Implement the role of a</option>
+                  <option value="Indulge in the role of a">Indulge in the role of a</option>
+                  <option value="Inhabit the role of a">Inhabit the role of a</option>
+                  <option value="Inspired to act as a">Inspired to act as a</option>
+                  <option value="Inspired to act as an">Inspired to act as an</option>
+                  <option value="Inspired to behave as a">Inspired to behave as a</option>
+                  <option value="Instructed to behave as a">Instructed to behave as a</option>
+                  <option value="Integrate the expertise of a">Integrate the expertise of a</option>
+                  <option value="Invoke the mindset of a">Invoke the mindset of a</option>
+                  <option value="Invoke the persona of a">Invoke the persona of a</option>
+                  <option value="Mimic the behavior of a">Mimic the behavior of a</option>
+                  <option value="Mimic the role of a">Mimic the role of a</option>
+                  <option value="Now act as a">Now act as a</option>
+                  <option value="Now behave as a">Now behave as a</option>
+                  <option value="Now function as a">Now function as a</option>
+                  <option value="Now operate as a">Now operate as a</option>
+                  <option value="Now portray the role of a">Now portray the role of a</option>
+                  <option value="Now take on the role of a">Now take on the role of a</option>
+                  <option value="Now you are a">Now you are a</option>
+                  <option value="Now you are acting as an">Now you are acting as an</option>
+                  <option value="Now you are assigned the duties of a">Now you are assigned the duties of a</option>
+                  <option value="Now you are built to act as a">Now you are built to act as a</option>
+                  <option value="Now you are built to function as">Now you are built to function as</option>
+                  <option value="Now you are built to operate as">Now you are built to operate as</option>
+                  <option value="You are acting as an">You are acting as an</option>
+                  <option value="You are assigned the duties of a">You are assigned the duties of a</option>
+                  <option value="You are built to act as a">You are built to act as a</option>
+                  <option value="You are built to function as">You are built to function as</option>
+                  <option value="You are built to operate as">You are built to operate as</option>
+                  <option value="You are built to perform as">You are built to perform as</option>
+                  <option value="You are built to perform as a">You are built to perform as a</option>
+                  <option value="You are built to serve as">You are built to serve as</option>
+                  <option value="You are built to serve as a">You are built to serve as a</option>
+                  <option value="You are channeling the knowledge of a">You are channeling the knowledge of a</option>
+                  <option value="You are configured to function as">You are configured to function as</option>
+                  <option value="You are demonstrating the capabilities of a">You are demonstrating the capabilities of a</option>
+                  <option value="You are designed to act as a">You are designed to act as a</option>
+                  <option value="You are designed to function as">You are designed to function as</option>
+                  <option value="You are designed to function as a">You are designed to function as a</option>
+                  <option value="You are designed to operate as">You are designed to operate as</option>
+                  <option value="You are designed to operate as a">You are designed to operate as a</option>
+                  <option value="You are embodying the expertise of a">You are embodying the expertise of a</option>
+                  <option value="You are embodying the role of a">You are embodying the role of a</option>
+                  <option value="You are embodying the role of an">You are embodying the role of an</option>
+                  <option value="You are engineered to serve as a">You are engineered to serve as a</option>
+                  <option value="You are instructed to behave as a">You are instructed to behave as a</option>
+                  <option value="You are made to perform as">You are made to perform as</option>
+                  <option value="You are made to perform as a">You are made to perform as a</option>
+                  <option value="You are molded to perform as">You are molded to perform as</option>
+                  <option value="You are now acting as a">You are now acting as a</option>
+                  <option value="You are now adopting the role of a">You are now adopting the role of a</option>
+                  <option value="You are now channeling the mindset of a">You are now channeling the mindset of a</option>
+                  <option value="You are now functioning as a">You are now functioning as a</option>
+                  <option value="You are now operating in the capacity of a">You are now operating in the capacity of a</option>
+                  <option value="You are now portraying the role of a">You are now portraying the role of a</option>
+                  <option value="You are now speaking from the viewpoint of a">You are now speaking from the viewpoint of a</option>
+                  <option value="You are now taking on the role of a">You are now taking on the role of a</option>
+                  <option value="You are optimized to function as">You are optimized to function as</option>
+                  <option value="You are programmed to act as a">You are programmed to act as a</option>
+                  <option value="You are representing yourself as a">You are representing yourself as a</option>
+                  <option value="You are shaped to serve as">You are shaped to serve as</option>
+                  <option value="You are simulating the thought processes of a">You are simulating the thought processes of a</option>
+                  <option value="You are tailored to operate as">You are tailored to operate as</option>
+                  <option value="You are tasked with acting as">You are tasked with acting as</option>
+                  <option value="You are temporarily adopting the persona of a">You are temporarily adopting the persona of a</option>
+                  <option value="You are to assume the perspective of a">You are to assume the perspective of a</option>
+                  <option value="You are to personify a">You are to personify a</option>
+                  <option value="You have been designed as a">You have been designed as a</option>
+                  <option value="You have been designed to act as">You have been designed to act as</option>
+                  <option value="You have been trained to serve as">You have been trained to serve as</option>
+                  <option value="You were programmed to act as a">You were programmed to act as a</option>
+                  <option value="You were programmed to act as an">You were programmed to act as an</option>
+                  <option value="You were programmed to behave as a">You were programmed to behave as a</option>
+                  <option value="You were programmed to function as a">You were programmed to function as a</option>
+                  <option value="You were programmed to perform as a">You were programmed to perform as a</option>
+                  <option value="You were programmed to serve as a">You were programmed to serve as a</option>
+                  <option value="You will now act as a">You will now act as a</option>
+                  <option value="You will now behave as a">You will now behave as a</option>
+                  <option value="You will now function as a">You will now function as a</option>
+                  <option value="You will now operate as a">You will now operate as a</option>
+                  <option value="You will now portray the role of a">You will now portray the role of a</option>
+                  <option value="You will now take on the role of">You will now take on the role of</option>
+                  <option value="You will now take on the role of a">You will now take on the role of a</option>
+                  <option value="You will now take on the role of an">You will now take on the role of an</option>
+                  <option value="You will now you are a">You will now you are a</option>
+                  <option value="You will now you are acting as a">You will now you are acting as a</option>
+                </select>
+                <input type="text" id="roleTypeInput" class="form-input" placeholder="e.g. senior copywriter specialising in SaaS" />
+              </div>
+            </div>
+
+            <!-- ── IDENTITY & VOICE ───────────────────────────────── -->
+            <div class="role-section-divider">
+              <span class="material-symbols-outlined">record_voice_over</span>
+              <span class="role-section-divider-label">Identity &amp; Voice</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="rolePersonaInput">Full persona <span style="color:var(--ink-4);font-weight:400;">(system prompt — who the AI should be)</span></label>
+              <textarea id="rolePersonaInput" class="form-input" rows="5" placeholder="You are a senior copywriter with 10 years of experience writing high-converting SaaS landing pages…"></textarea>
+            </div>
+
+            <div class="role-two-col">
+              <div class="form-group">
+                <label class="form-label" for="roleToneInput">Tone</label>
+                <input type="text" id="roleToneInput" class="form-input" placeholder="e.g. Confident, concise, no fluff" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="roleExpertiseInput">Expertise</label>
+                <input type="text" id="roleExpertiseInput" class="form-input" placeholder="e.g. Email marketing, B2B SaaS" />
+              </div>
+            </div>
+
+            <!-- ── BEHAVIOUR ──────────────────────────────────────── -->
+            <div class="role-section-divider">
+              <span class="material-symbols-outlined">tune</span>
+              <span class="role-section-divider-label">Behaviour</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Response style</label>
+              <div class="role-chip-group" id="roleStyleChips">
+                <span class="role-chip" data-val="formal">Formal</span>
+                <span class="role-chip" data-val="casual">Casual</span>
+                <span class="role-chip" data-val="direct">Direct</span>
+                <span class="role-chip" data-val="detailed">Detailed</span>
+                <span class="role-chip" data-val="concise">Concise</span>
+                <span class="role-chip" data-val="persuasive">Persuasive</span>
+                <span class="role-chip" data-val="educational">Educational</span>
+                <span class="role-chip" data-val="empathetic">Empathetic</span>
+              </div>
+              <input type="hidden" id="roleStyleInput" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="roleConstraintsInput">Constraints <span style="color:var(--ink-4);font-weight:400;">(what NOT to do)</span></label>
+              <textarea id="roleConstraintsInput" class="form-input" rows="3" placeholder="Never use jargon. Don't write lists unless asked. Avoid passive voice…"></textarea>
+            </div>
+
+            <!-- ── CONTEXT ─────────────────────────────────────────── -->
+            <div class="role-section-divider">
+              <span class="material-symbols-outlined">group</span>
+              <span class="role-section-divider-label">Context</span>
+            </div>
+
+            <div class="role-two-col">
+              <div class="form-group">
+                <label class="form-label" for="roleAudienceInput">Target audience</label>
+                <input type="text" id="roleAudienceInput" class="form-input" placeholder="e.g. B2B founders, early-stage SaaS" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="roleDomainInput">Domain / Industry</label>
+                <input type="text" id="roleDomainInput" class="form-input" placeholder="e.g. SaaS, E-commerce, Finance" />
+              </div>
+            </div>
+
+            <!-- ── WORKFLOW ────────────────────────────────────────── -->
+            <div class="role-section-divider">
+              <span class="material-symbols-outlined">account_tree</span>
+              <span class="role-section-divider-label">Workflow</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="roleTasksInput">Primary tasks <span style="color:var(--ink-4);font-weight:400;">(what this agent handles)</span></label>
+              <textarea id="roleTasksInput" class="form-input" rows="3" placeholder="Write cold emails, landing page copy, LinkedIn posts, and ad creative…"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="roleOutputFormatInput">Output format <span style="color:var(--ink-4);font-weight:400;">(how responses should be structured)</span></label>
+              <input type="text" id="roleOutputFormatInput" class="form-input" placeholder="e.g. Short paragraphs, no bullet points, end with a CTA" />
+            </div>
+
+            <!-- ── EXAMPLE PHRASES ─────────────────────────────────── -->
+            <div class="examples-section">
+              <div class="examples-section-header">
+                <span class="material-symbols-outlined" style="font-size:18px;color:var(--accent)">format_quote</span>
+                <span class="examples-section-title">Example phrases <span style="color:var(--ink-4);font-weight:400;font-size:11px;">(how this agent talks)</span></span>
+                <button type="button" class="btn btn-ghost examples-add-btn" onclick="window.PL_addExamplePhrase()">
+                  <span class="material-symbols-outlined">add</span> Add
+                </button>
+              </div>
+              <div id="examplePhrasesList"></div>
+            </div>
+
+            <!-- ── KNOWLEDGE BASE ──────────────────────────────────── -->
+            <div class="kb-section">
+              <div class="kb-section-header">
+                <span class="material-symbols-outlined" style="font-size:18px;color:var(--accent)">library_books</span>
+                <span class="kb-section-title">Knowledge Base</span>
+                <span class="kb-tooltip">
+                  <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle;">info</span>
+                  <span class="kb-tooltip-text">Keep entries short. Long entries hit context limits fast. Use for specific facts or examples the AI should know — not full documents.</span>
+                </span>
+                <button type="button" class="btn btn-ghost kb-add-btn" onclick="window.PL_addKbEntry()">
+                  <span class="material-symbols-outlined">add</span> Add entry
+                </button>
+              </div>
+              <div id="kbEntriesList"></div>
+            </div>
+
+            <!-- ── SKILLS ──────────────────────────────────────────── -->
+            <div class="skills-section">
+              <div class="skills-section-header">
+                <span class="material-symbols-outlined" style="font-size:18px;color:var(--accent)">psychology</span>
+                <span class="skills-section-title">Skills</span>
+                <span class="kb-tooltip">
+                  <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle;">info</span>
+                  <span class="kb-tooltip-text">Skills this agent can apply. Name, describe, and give an example of each.</span>
+                </span>
+                <button type="button" class="btn btn-ghost skills-add-btn" onclick="window.PL_addSkillEntry()">
+                  <span class="material-symbols-outlined">add</span> Add skill
+                </button>
+              </div>
+              <div id="skillEntriesList"></div>
+            </div>
+
+            <!-- ── BUILD PROMPT ────────────────────────────────────── -->
+            <div class="role-prompt-builder" id="rolePromptBuilder">
+              <div class="role-prompt-builder-header">
+                <span class="material-symbols-outlined" style="font-size:18px;color:var(--accent)">auto_awesome</span>
+                <span>Build Prompt</span>
+                <button type="button" class="btn btn-ghost premium-locked" data-premium="true" id="rolesGenerateBtn" title="Generate persona with AI (Pro)" style="margin-left:auto;font-size:var(--fs-sm);padding:4px 10px;">
+                  <span class="material-symbols-outlined" style="font-size:15px;">spark</span> Generate with AI
+                </button>
+              </div>
+              <div class="role-prompt-preview" id="rolePromptPreview"><em>Fill in fields above to generate a formatted prompt…</em></div>
+              <div class="role-prompt-copy-row">
+                <button class="btn" onclick="window.PL_copyBuiltPrompt('structured')"><span class="material-symbols-outlined">segment</span> Copy Structured</button>
+                <button class="btn" onclick="window.PL_copyBuiltPrompt('xml')"><span class="material-symbols-outlined">code</span> Copy XML</button>
+                <button class="btn" onclick="window.PL_copyBuiltPrompt('prose')"><span class="material-symbols-outlined">article</span> Copy Prose</button>
+              </div>
+            </div>
+
+          </div><!-- /roles-editor-scroll -->
+
+          <div class="roles-editor-toolbar">
+            <button class="btn btn-accent" id="rolesSaveBtn"><span class="material-symbols-outlined">save</span> Save</button>
+            <button class="btn" id="rolesDuplicateBtn"><span class="material-symbols-outlined">content_copy</span> Duplicate</button>
+            <button class="btn btn-ghost" id="rolesDeleteBtn" style="margin-left:auto;color:var(--danger,#ef4444);"><span class="material-symbols-outlined">delete</span> Delete</button>
+          </div>
+        </div><!-- /rolesEditorForm -->
+
+      </div><!-- /roles-editor-pane -->
+    </div><!-- /roles-body -->
+  </div><!-- /rolesWorkspace -->
+
+  <!-- CONFIG PANEL -->
+  <div id="configPanel">
+    <div class="config-panel-header">
+      <span class="material-symbols-outlined" style="font-size:18px;color:var(--accent)">settings</span>
+      <h4>Settings</h4>
+      <button class="icon-btn" id="configCloseBtn" aria-label="Close settings"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="config-panel-body">
+      <div>
+        <div class="config-section-label">AI Provider</div>
+        <div class="config-provider-tabs">
+          <button type="button" class="config-provider-tab active" data-provider="openai">OpenAI</button>
+          <button type="button" class="config-provider-tab" data-provider="anthropic">Anthropic</button>
+          <button type="button" class="config-provider-tab" data-provider="gemini">Gemini</button>
+        </div>
+        <div class="config-section-label">API Key</div>
+        <div class="config-api-row">
+          <input type="password" id="configApiKeyInput" class="form-input" placeholder="Paste your API key…" autocomplete="off" />
+        </div>
+        <p style="font-size:11px;color:var(--ink-4);margin-top:var(--sp-2);line-height:1.5;">Stored locally only. Never sent anywhere except the selected provider.</p>
+      </div>
+      <button type="button" class="btn btn-accent" id="configSaveBtn" style="width:100%;">
+        <span class="material-symbols-outlined">save</span> Save settings
+      </button>
+      <div id="configStatus" style="font-size:11px;color:var(--ink-3);text-align:center;min-height:16px;"></div>
+    </div>
+  </div>
+
+
+</main>
+
+</div>
+
+<!-- ============================================================
+     MODAL: Prompt editor (create / edit)
+     ============================================================ -->
+<div class="modal-overlay" id="promptModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-main-wrap" id="promptModalWrap">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <h2 id="modalTitle">New prompt</h2>
+        <p>Compose, organise, and define variables for your prompt.</p>
+      </div>
+      <div class="modal-panel-toggles">
+        <button type="button" class="panel-toggle-btn" id="ctxPanelToggleBtn" title="Context Bank — insert saved context into your prompt">
+          <span class="material-symbols-outlined">database</span>
+          Context Bank
+        </button>
+        <button type="button" class="panel-toggle-btn" id="compPanelToggleBtn" title="Prompt Components — build your prompt from templates">
+          <span class="material-symbols-outlined">extension</span>
+          Components
+        </button>
+      </div>
+      <button class="icon-btn" id="closePromptModal" aria-label="Close">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <form id="promptForm">
+      <input type="hidden" id="promptId" />
+      <div class="modal-body">
+
+        <!-- Title -->
+        <div class="form-row single">
+          <div class="form-group">
+            <label class="form-label" for="promptTitle">Title <span class="req">*</span></label>
+            <input type="text" id="promptTitle" class="form-input" placeholder="Give your prompt a descriptive title" required />
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div class="form-row single">
+          <div class="form-group">
+            <label class="form-label" for="promptDesc">Description <span class="req">*</span></label>
+            <textarea id="promptDesc" class="form-textarea" rows="3" placeholder="Describe what your prompt does and how it should be used" style="resize:vertical"></textarea>
+          </div>
+        </div>
+
+        <!-- Prompt block: system + conversation tabs -->
+        <div class="form-group" style="margin-bottom: var(--sp-4);">
+          <label class="form-label">Prompt <span class="req">*</span></label>
+          <div class="prompt-block">
+            <!-- Sub-tabs: System Prompt / Conversation -->
+            <div class="prompt-block-tabs" id="promptBlockTabs">
+              <button type="button" class="prompt-block-tab active" data-ptab="system">
+                <span class="material-symbols-outlined" style="font-size:14px;">tune</span>
+                System Prompt
+              </button>
+              <button type="button" class="prompt-block-tab" data-ptab="conversation">
+                <span class="material-symbols-outlined" style="font-size:14px;">forum</span>
+                Conversation
+              </button>
+            </div>
+
+            <!-- System Prompt pane -->
+            <div class="prompt-block-pane active" id="ptab-system">
+              <div class="vars-badge-row">
+                <span class="vars-badge" id="varsCountBadge" hidden>
+                  <span class="material-symbols-outlined">token</span>
+                  <span id="varsCountText">0</span>
+                </span>
+              </div>
+              <div class="editor-grid-2">
+                <textarea id="promptContent" placeholder="Enter your system prompt here... Use [[variable]], {{variable}}, or ((variable)) for placeholders." required></textarea>
+                <div id="editorPreview"><span class="hint">Live preview...</span></div>
+              </div>
+            </div>
+
+            <!-- Conversation pane -->
+            <div class="prompt-block-pane" id="ptab-conversation">
+              <p style="font-size:var(--fs-sm);color:var(--ink-3);margin-bottom:var(--sp-3);">
+                Define a multi-turn conversation. Use <code>[[variable]]</code> syntax in any message.
+              </p>
+              <div id="chatTurnsList"></div>
+              <div class="convo-add-row">
+                <button type="button" class="btn btn-ghost btn-sm" id="addUserMsgBtn">
+                  <span class="material-symbols-outlined">add</span> Add User Message
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm" id="addAssistantMsgBtn">
+                  <span class="material-symbols-outlined">add</span> Add Assistant Message
+                </button>
+              </div>
+              <input type="hidden" id="promptChatTurns" value="[]" />
+            </div>
+          </div>
+          <p class="form-hint">Use <code>{{variable_name}}</code> syntax to define customisable variables in any message.</p>
+        </div>
+
+        <!-- Categories chip grid -->
+        <div class="form-group" style="margin-bottom: var(--sp-4);">
+          <label class="form-label">Categories</label>
+          <div class="category-chip-add-row">
+            <input type="text" id="categoryChipInput" class="form-input form-input-sm" placeholder="Add or type and Enter to create a category" />
+            <button type="button" class="btn btn-ghost btn-sm" id="addCategoryChipBtn">Add</button>
+          </div>
+          <div class="category-chips-wrap" id="categoryChipsWrap">
+          <div class="category-chips" id="categoryChips">
+            <button type="button" class="cat-chip" data-cat="Business">Business</button>
+            <button type="button" class="cat-chip" data-cat="Writing">Writing</button>
+            <button type="button" class="cat-chip" data-cat="Programming">Programming</button>
+            <button type="button" class="cat-chip" data-cat="Design">Design</button>
+            <button type="button" class="cat-chip" data-cat="Productivity">Productivity</button>
+            <button type="button" class="cat-chip" data-cat="Marketing">Marketing</button>
+            <button type="button" class="cat-chip" data-cat="Research">Research</button>
+            <button type="button" class="cat-chip" data-cat="Education">Education</button>
+            <button type="button" class="cat-chip" data-cat="Analysis">Analysis</button>
+            <button type="button" class="cat-chip" data-cat="Personal Growth">Personal Growth</button>
+          </div>
+          </div><!-- /category-chips-wrap -->
+          <button type="button" class="cat-chips-toggle" id="catChipsToggle">
+            <span class="material-symbols-outlined">expand_more</span>
+            <span id="catChipsToggleLabel">Show all categories</span>
+          </button>
+          <p class="form-hint">Choose up to 5 categories, or add a new one. Click to select, type and press Enter to add custom.</p>
+          <input type="hidden" id="promptCategories" value="[]" />
+        </div>
+
+        <!-- Tags + Folder + Role row -->
+        <div class="form-row">
+          <div class="form-group">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+              <label class="form-label" style="margin-bottom:0;">Tags</label>
+              <span style="display:inline-flex; gap:4px;">
+                <button type="button" class="btn btn-ghost btn-sm premium-locked" data-premium="true" id="smartTagBtn" title="Smart tag — Pro feature">
+                  <span class="material-symbols-outlined" style="font-size:14px;">sell</span> Smart tag
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm premium-locked" data-premium="true" id="autoTagBtn" title="AI tag — Pro feature">
+                  <span class="material-symbols-outlined" style="font-size:14px;">auto_awesome</span> AI tag
+                </button>
+              </span>
+            </div>
+            <div class="tag-input-wrap" id="tagsTagInput" data-placeholder="e.g. code, review, security"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="promptFolder">Folder</label>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <select id="promptFolder" class="form-input" style="flex:1;">
+                <option value="">No folder</option>
+              </select>
+              <button type="button" class="icon-btn" onclick="window.createFolderInline()" title="New folder" aria-label="New folder">
+                <span class="material-symbols-outlined">create_new_folder</span>
+              </button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="promptRole">Role <span style="color:var(--ink-4);font-weight:400;">(assigns a persona)</span></label>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <select id="promptRole" class="form-input" style="flex:1;">
+                <option value="">No role</option>
+              </select>
+              <button type="button" class="icon-btn" onclick="window.openRolesWorkspace()" title="Manage roles" aria-label="Manage roles">
+                <span class="material-symbols-outlined">person_play</span>
+              </button>
+            </div>
+            <input type="hidden" id="promptRoleId" value="" />
+          </div>
+        </div>
+
+        <!-- Colour picker -->
+        <div class="form-row single">
+          <div class="form-group">
+            <label class="form-label">Colour</label>
+            <div class="colour-swatches" id="editorColourPicker">
+              <div class="swatch none active" data-colour="" title="None"></div>
+              <div class="swatch c-red"    data-colour="red"    title="Red"></div>
+              <div class="swatch c-orange" data-colour="orange" title="Orange"></div>
+              <div class="swatch c-yellow" data-colour="yellow" title="Yellow"></div>
+              <div class="swatch c-green"  data-colour="green"  title="Green"></div>
+              <div class="swatch c-teal"   data-colour="teal"   title="Teal"></div>
+              <div class="swatch c-blue"   data-colour="blue"   title="Blue"></div>
+              <div class="swatch c-purple" data-colour="purple" title="Purple"></div>
+              <div class="swatch c-pink"   data-colour="pink"   title="Pink"></div>
+            </div>
+            <input type="hidden" id="promptColour" value="" />
+          </div>
+        </div>
+
+        <!-- Advanced / extra tabs -->
+        <details class="advanced-section" id="advancedSection">
+          <summary class="advanced-toggle">
+            <span class="material-symbols-outlined">expand_more</span>
+            Advanced Settings
+          </summary>
+          <div class="advanced-body">
+
+            <nav class="editor-tabs" id="editorTabs" style="margin-bottom: var(--sp-3);">
+              <button type="button" class="editor-tab active" data-pane="variables">Variables</button>
+              <button type="button" class="editor-tab premium-locked" data-pane="chain" data-premium="true">Chain</button>
+              <button type="button" class="editor-tab premium-locked" data-pane="meta" data-premium="true">Rating &amp; notes</button>
+              <button type="button" class="editor-tab premium-locked" data-pane="score" data-premium="true">Prompt Score</button>
+              <button type="button" class="editor-tab premium-locked" data-pane="tokens" data-premium="true">Token Counter</button>
+            </nav>
+
+            <div class="editor-pane active" id="pane-variables">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: var(--sp-3);">
+                <span class="form-label" style="margin-bottom:0;">Detected variables</span>
+                <div style="display:flex; gap: var(--sp-2);">
+                  <button type="button" class="btn btn-ghost" id="loadVarTemplateBtn">
+                    <span class="material-symbols-outlined">download</span> Load template
+                  </button>
+                  <button type="button" class="btn btn-ghost" id="saveVarTemplateBtn">
+                    <span class="material-symbols-outlined">save</span> Save as template
+                  </button>
+                </div>
+              </div>
+              <div id="varMetaList">
+                <p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>
+              </div>
+            </div>
+
+            <div class="editor-pane" id="pane-chain">
+              <p style="font-size: var(--fs-sm); color: var(--ink-3); margin-bottom: var(--sp-3);">
+                Add prompts that should run after this one.
+              </p>
+              <div id="chainList"></div>
+              <div class="chain-search-wrap" style="margin-top: var(--sp-3);">
+                <input type="text" id="chainPromptSearch" class="form-input"
+                  placeholder="Search for a prompt to add…"
+                  autocomplete="off" style="width:100%;" />
+                <div id="chainSearchResults" class="chain-search-results" role="listbox"></div>
+              </div>
+              <input type="hidden" id="promptChainIds" value="[]" />
+            </div>
+
+            <div class="editor-pane" id="pane-meta">
+              <div class="form-label">Rating</div>
+              <div class="stars" id="editorStars"></div>
+              <input type="hidden" id="promptRating" value="0" />
+              <div class="form-group" style="margin-top: var(--sp-4);">
+                <label class="form-label" for="promptNotes">Personal notes</label>
+                <textarea id="promptNotes" class="form-textarea" rows="5" placeholder="Notes, reminders, ideas..."></textarea>
+              </div>
+            </div>
+
+            <div class="editor-pane" id="pane-score">
+              <div class="score-header">
+                <div class="score-total-ring">
+                  <svg class="score-ring-svg" viewBox="0 0 40 40" aria-hidden="true">
+                    <circle class="score-ring-bg" cx="20" cy="20" r="18"/>
+                    <circle class="score-ring-fill" cx="20" cy="20" r="18"
+                      id="scoreRingFill"/>
+                  </svg>
+                  <span class="score-total-num" id="scoreTotalNum">—</span>
+                </div>
+                <p class="score-tagline" id="scoreTagline">Write a prompt to see your score.</p>
+              </div>
+              <div id="scoreDimensions" class="score-dimensions"></div>
+            </div>
+
+            <div class="editor-pane" id="pane-tokens">
+              <div class="token-summary-strip">
+                <div class="token-summary-stat">
+                  <span class="token-summary-label">Characters</span>
+                  <span class="token-summary-val" id="tokenCharCount">0</span>
+                </div>
+                <div class="token-summary-divider"></div>
+                <div class="token-summary-stat">
+                  <span class="token-summary-label">Est. tokens</span>
+                  <span class="token-summary-val" id="tokenAvgCount">0</span>
+                </div>
+                <div class="token-summary-hint">Average across models &mdash; heuristic estimate</div>
+              </div>
+              <div class="token-model-list" id="tokenModelList">
+                <!-- rows injected by JS -->
+              </div>
+            </div>
+
+          </div>
+        </details>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelPromptBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+          <span class="material-symbols-outlined">save</span>
+          <span id="submitBtnText">Create prompt</span>
+        </button>
+      </div>
+    </form>
+  </div>
+  <!-- Context Bank side panel -->
+  <div class="modal-side-panel" id="promptCtxPanel">
+    <div class="modal-side-panel-inner">
+      <div class="sp-header">
+        <span class="sp-title">
+          <span class="material-symbols-outlined">database</span>
+          Context Bank
+        </span>
+        <button type="button" class="icon-btn" id="closeCtxPanel" aria-label="Close Context Bank panel">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="ctx-panel-search">
+        <input type="search" id="ctxPanelSearch" class="form-input" placeholder="Search blocks…" />
+      </div>
+      <div class="ctx-panel-cats" id="ctxPanelCats">
+        <button class="chip active" data-cpf="all">All</button>
+        <button class="chip" data-cpf="Persona">Persona</button>
+        <button class="chip" data-cpf="Company">Company</button>
+        <button class="chip" data-cpf="Audience">Audience</button>
+        <button class="chip" data-cpf="Style">Style</button>
+        <button class="chip" data-cpf="Other">Other</button>
+      </div>
+      <div class="ctx-panel-list" id="ctxPanelList">
+        <div class="ctx-panel-empty">
+          <span class="material-symbols-outlined" style="font-size:32px">database</span>
+          <span>Loading blocks…</span>
+        </div>
+      </div>
+      <div class="ctx-panel-add-row">
+        <details id="ctxPanelAddDetails">
+          <summary class="btn btn-ghost btn-sm" style="list-style:none; cursor:pointer; display:inline-flex; gap:4px; align-items:center;">
+            <span class="material-symbols-outlined" style="font-size:14px">add</span>
+            Quick-add block
+          </summary>
+          <div style="margin-top:var(--sp-3); display:flex; flex-direction:column; gap:var(--sp-2);">
+            <input type="text" id="ctxPanelNewTitle" class="form-input" placeholder="Block title" />
+            <select id="ctxPanelNewCat" class="form-input">
+              <option>Persona</option>
+              <option>Company</option>
+              <option>Audience</option>
+              <option>Product</option>
+              <option>Style</option>
+              <option>Other</option>
+            </select>
+            <textarea id="ctxPanelNewContent" class="form-textarea" rows="4" placeholder="Context content…" style="resize:vertical"></textarea>
+            <button type="button" class="btn btn-accent btn-sm" id="ctxPanelSaveBtn" style="width:100%;">
+              <span class="material-symbols-outlined" style="font-size:14px">save</span> Save block
+            </button>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- Prompt Components side panel -->
+  <div class="modal-side-panel" id="promptComponentsPanel">
+    <div class="modal-side-panel-inner">
+      <div class="sp-header">
+        <span class="sp-title">
+          <span class="material-symbols-outlined">extension</span>
+          Prompt Components
+        </span>
+        <button type="button" class="icon-btn" id="closeCompPanel" aria-label="Close Components panel">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <p style="font-size:11px;color:var(--ink-3);margin-bottom:var(--sp-3);">Click any component or framework to append it to your prompt.</p>
+
+      <div class="comp-section">
+        <div class="comp-section-label">Building Blocks</div>
+        <div class="comp-grid" id="compBlockGrid">
+          <!-- injected by JS -->
+        </div>
+      </div>
+
+      <div class="comp-section">
+        <div class="comp-section-label">Frameworks</div>
+        <div class="framework-list" id="frameworkList">
+          <!-- injected by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /modal-main-wrap -->
+</div>
+
+<!-- ============================================================
+     OTHER MODALS
+     ============================================================ -->
+<div class="modal-overlay" id="folderModal" role="dialog" aria-modal="true">
+  <div class="modal-box-sm">
+    <div class="modal-header">
+      <h3 id="folderModalTitle">New folder</h3>
+      <button class="icon-btn" id="closeFolderModal" aria-label="Close">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <form id="folderForm">
+      <input type="hidden" id="folderId" />
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="folderName">Folder name</label>
+          <input type="text" id="folderName" class="form-input" placeholder="e.g. Marketing, Research" required />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelFolderBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+          <span class="material-symbols-outlined">check</span>
+          <span id="folderSubmitText">Create folder</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="importModal" role="dialog" aria-modal="true">
+  <div class="modal-box-sm">
+    <div class="modal-header">
+      <h3>Import prompts</h3>
+      <button class="icon-btn" id="closeImportModal" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <form id="importForm">
+      <div class="modal-body">
+        <div class="import-format-tabs">
+          <button type="button" class="import-fmt-tab active" data-fmt="json">JSON</button>
+          <button type="button" class="import-fmt-tab" data-fmt="markdown">Markdown</button>
+          <button type="button" class="import-fmt-tab" data-fmt="file">Upload file</button>
+          <button type="button" class="import-fmt-tab" data-fmt="template">Template</button>
+        </div>
+        <div id="importPanelJson">
+          <div class="form-group">
+            <label class="form-label" for="importContent">Paste JSON array</label>
+            <textarea id="importContent" class="form-textarea" rows="8" style="font-family: var(--ff-mono); font-size: 12px;" placeholder='[{"title":"My prompt", "content":"...", "tags":"ai,writing"}]'></textarea>
+          </div>
+        </div>
+        <div id="importPanelMarkdown" style="display:none;">
+          <div class="form-group">
+            <label class="form-label" for="importMdContent">Paste exported Markdown</label>
+            <textarea id="importMdContent" class="form-textarea" rows="8" style="font-family: var(--ff-mono); font-size: 12px;" placeholder="## Prompt Title&#10;*Description here*&#10;&#10;&#96;&#96;&#96;&#10;Your prompt content...&#10;&#96;&#96;&#96;&#10;&#10;---"></textarea>
+          </div>
+          <button type="button" class="btn btn-ghost" style="width:100%;margin-top:var(--sp-2);" onclick="window.PL_copyMarkdownTemplate()">
+            <span class="material-symbols-outlined">content_copy</span>
+            Get Markdown template
+          </button>
+        </div>
+        <div id="importPanelFile" style="display:none;">
+          <div class="form-group">
+            <label class="form-label" for="importFileInput">Choose a .json or .md file</label>
+            <input type="file" id="importFileInput" class="form-input" accept=".json,.md,.markdown" style="padding: 8px;" />
+          </div>
+          <p style="font-size: 12px; color: var(--ink-3); margin-top: var(--sp-2);">Supports JSON export files and Markdown exports from this app.</p>
+        </div>
+        <div id="importPanelTemplate" style="display:none;">
+          <p class="import-template-note">Copy this template, paste it into Claude or ChatGPT with your prompts, and ask it to format them using this structure. Then paste the JSON output into the JSON tab above and click Import.</p>
+          <div class="import-template-box" id="importTemplateBox"></div>
+          <button type="button" class="btn btn-accent" style="width:100%;" onclick="window.PL_copyImportTemplate()">
+            <span class="material-symbols-outlined">content_copy</span>
+            Copy template to clipboard
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelImportBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+          <span class="material-symbols-outlined">upload</span>
+          Import
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="exportModal" role="dialog" aria-modal="true">
+  <div class="modal-box-sm">
+    <div class="modal-header">
+      <h3>Export prompts</h3>
+      <button class="icon-btn" id="closeExportModal" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-body">
+      <button class="export-option" id="exportJsonBtn">
+        <span class="material-symbols-outlined">data_object</span>
+        <div class="export-option-body">
+          <div class="export-option-title">JSON</div>
+          <div class="export-option-desc">Standard format, fully importable.</div>
+        </div>
+      </button>
+      <button class="export-option premium-locked" id="exportMdBtn" data-premium="true">
+        <span class="material-symbols-outlined">description</span>
+        <div class="export-option-body">
+          <div class="export-option-title">Markdown</div>
+          <div class="export-option-desc">Readable document format.</div>
+        </div>
+        <span class="material-symbols-outlined premium-mark">workspace_premium</span>
+      </button>
+      <button class="export-option premium-locked" id="exportCsvBtn" data-premium="true">
+        <span class="material-symbols-outlined">table_view</span>
+        <div class="export-option-body">
+          <div class="export-option-title">CSV</div>
+          <div class="export-option-desc">Spreadsheet-compatible.</div>
+        </div>
+        <span class="material-symbols-outlined premium-mark">workspace_premium</span>
+      </button>
+      <button class="export-option premium-locked" id="exportBulkBtn" data-premium="true">
+        <span class="material-symbols-outlined">folder_zip</span>
+        <div class="export-option-body">
+          <div class="export-option-title">Bulk ZIP</div>
+          <div class="export-option-desc">All prompts organised by folder.</div>
+        </div>
+        <span class="material-symbols-outlined premium-mark">workspace_premium</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="varTemplateModal" role="dialog" aria-modal="true">
+  <div class="modal-box-sm">
+    <div class="modal-header">
+      <h3 id="varTemplateModalTitle">Variable templates</h3>
+      <button class="icon-btn" id="closeVarTemplateModal" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-body">
+      <div id="varTemplateList"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" id="cancelVarTemplateBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="saveTemplateModal" role="dialog" aria-modal="true">
+  <div class="modal-box-sm">
+    <div class="modal-header">
+      <h3>Save variable template</h3>
+      <button class="icon-btn" id="closeSaveTemplateModal" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label" for="templateNameInput">Template name</label>
+        <input type="text" id="templateNameInput" class="form-input" placeholder="e.g. Blog post variables" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" id="cancelSaveTemplateBtn">Cancel</button>
+      <button type="button" class="btn btn-primary" id="confirmSaveTemplateBtn">
+        <span class="material-symbols-outlined">save</span>
+        Save template
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="premiumModal" role="dialog" aria-modal="true">
+  <div class="modal-box-sm" style="width: min(720px, 94vw); max-width: 720px;">
+    <div class="premium-hero">
+      <div class="premium-mark-big">
+        <span class="material-symbols-outlined">workspace_premium</span>
+      </div>
+      <h2 style="font-family: var(--ff-display); font-size: var(--fs-xl); font-weight: 400; letter-spacing: -0.02em;">Choose your <em style="font-style: italic; color: var(--accent);">plan</em></h2>
+      <p style="font-size: var(--fs-sm); color: var(--ink-3); margin-top: var(--sp-2);">Free forever. Upgrade once for Pro. No subscription.</p>
+    </div>
+    <div class="modal-body">
+      <div class="pricing-grid">
+        <div class="price-card free">
+          <div class="price-tier">Free</div>
+          <div class="price-amount">&pound;0</div>
+          <div class="price-sub">Everything you need to start</div>
+          <ul class="price-feats">
+            <li><span class="material-symbols-outlined">check</span> Up to 25 prompts</li>
+            <li><span class="material-symbols-outlined">check</span> Up to 3 folders</li>
+            <li><span class="material-symbols-outlined">check</span> Up to 5 tags &amp; 3 categories per prompt</li>
+            <li><span class="material-symbols-outlined">check</span> Variables &mdash; detect &amp; fill</li>
+            <li><span class="material-symbols-outlined">check</span> Agents workspace &mdash; 3-day trial</li>
+            <li><span class="material-symbols-outlined">check</span> JSON import &amp; export</li>
+            <li><span class="material-symbols-outlined">check</span> Starter prompt set</li>
+            <li><span class="material-symbols-outlined">check</span> Dark mode</li>
+            <li class="feat-locked"><span class="material-symbols-outlined">lock</span> Prompt Forge, Lab, Chain &amp; Playground</li>
+            <li class="feat-locked"><span class="material-symbols-outlined">lock</span> Smart tag, AI tag &amp; Prompt Score</li>
+            <li class="feat-locked"><span class="material-symbols-outlined">lock</span> Analytics, history, ratings &amp; notes</li>
+            <li class="feat-locked"><span class="material-symbols-outlined">lock</span> Markdown / CSV / ZIP export</li>
+          </ul>
+          <div class="price-current">Your current plan</div>
+        </div>
+        <div class="price-card pro">
+          <div class="price-ribbon">Most popular</div>
+          <div class="price-tier">Pro</div>
+          <div class="price-amount">One-off</div>
+          <div class="price-sub">Pay once &mdash; lifetime licence</div>
+          <ul class="price-feats">
+            <li><span class="material-symbols-outlined">check_circle</span> <strong>Everything in Free &mdash; unlimited</strong></li>
+            <li class="feat-plus"><span class="material-symbols-outlined">add</span> Plus all Pro power-ups:</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Unlimited prompts &amp; folders</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Unlimited tags &amp; categories</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Prompt Forge &mdash; structured builder</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Prompt Lab &mdash; A/B testing</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Prompt Chain &mdash; multi-step pipelines</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Playground &mdash; run prompts live</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Metaprompting &mdash; AI prompt rewriter</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Smart tag &amp; AI tag</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Prompt Score &mdash; live quality analysis</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Agents &mdash; full unlimited access</li>
+            <li><span class="material-symbols-outlined">check_circle</span> AI persona generation in Roles</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Version history with restore</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Variable types &amp; templates</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Markdown / CSV / ZIP export</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Usage analytics</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Ratings, notes &amp; colours</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Duplicate &amp; smart filters</li>
+            <li><span class="material-symbols-outlined">check_circle</span> Command palette</li>
+          </ul>
+          <a href="https://payhip.com/MXPhillips" target="_blank" rel="noopener" class="price-cta">Get your licence key on Payhip</a>
+        </div>
+      </div>
+      <div style="font-size: 11px; color: var(--ink-3); margin-bottom: var(--sp-2); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600;">Already bought a key? Enter it here</div>
+      <div class="licence-row">
+        <input type="text" id="licenceKeyInput" class="form-input" placeholder="PROMPTLIB-PRO-XXXX" autocomplete="off" />
+        <button class="btn btn-primary" id="activateLicenceBtn">Activate</button>
+      </div>
+      <p id="licenceError">Invalid key - please check and try again.</p>
+      <div class="premium-links">
+        <a href="https://payhip.com/MXPhillips" target="_blank" rel="noopener">Buy on Payhip</a>
+        <a href="mailto:support@example.com">Contact support</a>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" id="closePremiumModal">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="analyticsModal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <h2>Analytics</h2>
+        <p>How your library is being used.</p>
+      </div>
+      <button class="icon-btn" id="closeAnalyticsModal" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-body" id="analyticsBody"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     COMMAND PALETTE
+     ============================================================ -->
+<div id="cmdPalette" role="dialog" aria-modal="true" aria-label="Command palette">
+  <div class="cmd-box">
+    <div class="cmd-input-row">
+      <span class="material-symbols-outlined">search</span>
+      <input type="text" id="cmdInput" placeholder="Search prompts or type a command..." />
+      <span class="cmd-kbd">Esc</span>
+    </div>
+    <div class="cmd-results" id="cmdResults"></div>
+    <div class="cmd-footer">
+      <span><span class="cmd-kbd">Up Down</span> Navigate</span>
+      <span><span class="cmd-kbd">Enter</span> Open</span>
+      <span><span class="cmd-kbd">Ctrl+K</span> Toggle</span>
+    </div>
+  </div>
+</div>
+
+  <!-- ============================================================
+       PROMPT PLAYGROUND WORKSPACE
+       ============================================================ -->
+  <div id="playgroundWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Playground">
+
+    <div class="pg-header">
+      <span class="material-symbols-outlined" style="font-size:22px;color:var(--accent)">science</span>
+      <span class="pg-header-title">Playground<span class="pg-header-sub">Draft, compare &amp; score prompt variants</span></span>
+      <div class="pg-header-actions">
+        <button class="btn" id="pgSaveAllBtn"><span class="material-symbols-outlined">save</span> Save</button>
+        <button class="icon-btn" id="pgCloseBtn" title="Close" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+      </div>
+    </div>
+
+    <div class="pg-body">
+
+      <div class="pg-sessions">
+        <div class="pg-sessions-header">
+          <span class="pg-sessions-title">Sessions <span id="pgSessionCount" style="color:var(--ink-2);font-weight:600">0</span></span>
+          <button class="icon-btn" id="pgNewSessionBtn" title="New session"><span class="material-symbols-outlined">add</span></button>
+        </div>
+        <div class="pg-sessions-list" id="pgSessionsList"></div>
+      </div>
+
+      <div class="pg-canvas">
+        <div class="pg-canvas-toolbar" id="pgCanvasToolbar" style="display:none;">
+          <input class="pg-session-title-input" id="pgSessionTitleInput" type="text" placeholder="Session name…" autocomplete="off" />
+          <input class="pg-note-input" id="pgSessionNoteInput" type="text" placeholder="Add a note…" autocomplete="off" />
+          <div class="pg-mode-toggle">
+            <button class="pg-mode-btn active" data-panels="1" title="Single"><span class="material-symbols-outlined">crop_square</span> 1</button>
+            <button class="pg-mode-btn" data-panels="2" title="A/B split"><span class="material-symbols-outlined">vertical_split</span> A/B</button>
+            <button class="pg-mode-btn" data-panels="3" title="3-way split"><span class="material-symbols-outlined">view_column</span> 3</button>
+          </div>
+        </div>
+        <div id="pgPanelsGrid" class="pg-panels">
+          <div class="pg-empty" id="pgEmptyState">
+            <span class="material-symbols-outlined">science</span>
+            <h3>No session selected</h3>
+            <p>Create a new session to start drafting and comparing prompt variations side-by-side.</p>
+            <button class="btn btn-accent" onclick="window._pgCreateSession()"><span class="material-symbols-outlined">add</span> New session</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<!-- ============================================================
+     WORKSPACE: Prompt Forge
+     ============================================================ -->
+<div id="forgeWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Forge">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">construction</span>
+      <div>
+        <h2 class="ws-title">Prompt Forge</h2>
+        <p class="ws-subtitle">Build a structured, production-ready prompt from its components.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-ghost" id="forgeClearBtn"><span class="material-symbols-outlined">restart_alt</span> Clear</button>
+      <button class="btn btn-accent" id="forgeSaveBtn"><span class="material-symbols-outlined">save</span> Save to Library</button>
+      <button class="icon-btn" id="closeForgeBtn" aria-label="Close Forge"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body forge-body">
+    <div class="forge-form">
+      <div class="forge-section">
+        <label class="forge-label"><span class="material-symbols-outlined">person</span> Role / Persona <span class="forge-hint">Who is the AI acting as?</span></label>
+        <textarea id="forgeRole" class="forge-input" rows="2" placeholder="e.g. You are an expert prompt engineer with 10 years of experience..."></textarea>
+      </div>
+      <div class="forge-section">
+        <label class="forge-label"><span class="material-symbols-outlined">info</span> Context <span class="forge-hint">Background the AI needs to know</span></label>
+        <textarea id="forgeContext" class="forge-input" rows="3" placeholder="e.g. The user is a non-technical founder preparing a pitch deck..."></textarea>
+      </div>
+      <div class="forge-section">
+        <label class="forge-label"><span class="material-symbols-outlined">task_alt</span> Task <span class="req">*</span> <span class="forge-hint">The core instruction</span></label>
+        <textarea id="forgeTask" class="forge-input" rows="4" placeholder="e.g. Write a concise executive summary of the following content..."></textarea>
+      </div>
+      <div class="forge-section">
+        <label class="forge-label"><span class="material-symbols-outlined">format_list_bulleted</span> Output Format <span class="forge-hint">How should the response be structured?</span></label>
+        <textarea id="forgeFormat" class="forge-input" rows="2" placeholder="e.g. Respond in bullet points. Maximum 200 words. No preamble."></textarea>
+      </div>
+      <div class="forge-section">
+        <label class="forge-label"><span class="material-symbols-outlined">block</span> Constraints <span class="forge-hint">What to avoid or limit</span></label>
+        <textarea id="forgeConstraints" class="forge-input" rows="2" placeholder="e.g. Do not mention competitors. Avoid technical jargon. UK English only."></textarea>
+      </div>
+      <div class="forge-section">
+        <label class="forge-label"><span class="material-symbols-outlined">lightbulb</span> Examples <span class="forge-hint">Optional few-shot examples</span></label>
+        <textarea id="forgeExamples" class="forge-input" rows="3" placeholder="e.g. Input: ... → Output: ..."></textarea>
+      </div>
+      <div class="forge-meta-row">
+        <div class="forge-meta-group">
+          <label class="forge-meta-label" for="forgeTitleInput">Prompt title</label>
+          <input type="text" id="forgeTitleInput" class="form-input" placeholder="Give this prompt a name to save it..." />
+        </div>
+        <div class="forge-meta-group">
+          <label class="forge-meta-label" for="forgeTone">Tone</label>
+          <select id="forgeTone" class="form-input">
+            <option value="">— Not specified —</option>
+            <option>Professional</option><option>Conversational</option><option>Direct</option>
+            <option>Friendly</option><option>Formal</option><option>Concise</option><option>Analytical</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="forge-preview">
+      <div class="forge-preview-header">
+        <span class="forge-preview-title">Assembled prompt</span>
+        <div style="display:flex;gap:var(--sp-2);align-items:center;">
+          <span id="forgeCharCount" class="forge-char-count">0 chars</span>
+          <button class="btn btn-ghost btn-sm" id="forgeCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy</button>
+        </div>
+      </div>
+      <div id="forgeOutput" class="forge-output"><span class="hint">Fill in the fields on the left — your assembled prompt appears here live.</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     WORKSPACE: Prompt Lab
+     ============================================================ -->
+<div id="labWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Lab">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">biotech</span>
+      <div>
+        <h2 class="ws-title">Prompt Lab</h2>
+        <p class="ws-subtitle">Write two variants. Compare. Score. Save the winner.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-ghost" id="labLoadBtn"><span class="material-symbols-outlined">download</span> Load from Library</button>
+      <button class="btn btn-ghost" id="labRunBtn"><span class="material-symbols-outlined">play_arrow</span> Run Both</button>
+      <button class="btn btn-ghost" id="labAiScoreBtn"><span class="material-symbols-outlined">psychology</span> AI Score</button>
+      <button class="btn btn-accent" id="labSaveWinnerBtn"><span class="material-symbols-outlined">emoji_events</span> Save Winner</button>
+      <button class="icon-btn" id="closeLabBtn" aria-label="Close Lab"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body lab-body">
+    <div class="lab-shared">
+      <label class="forge-label"><span class="material-symbols-outlined">input</span> Test Input <span class="forge-hint">The content both variants will process</span></label>
+      <textarea id="labInput" class="forge-input" rows="3" placeholder="Paste the input text both prompts will process..."></textarea>
+    </div>
+    <div class="lab-variants">
+      <div class="lab-variant" id="labVariantA">
+        <div class="lab-variant-header">
+          <span class="lab-variant-badge lab-badge-a">A</span>
+          <input type="text" class="lab-variant-title" placeholder="Variant A name..." value="Variant A" />
+          <div class="lab-score-row">
+            <span class="lab-score-label">Score</span>
+            <div class="lab-stars" id="labStarsA"></div>
+            <input type="hidden" id="labScoreA" value="0" />
+          </div>
+        </div>
+        <textarea class="forge-input lab-variant-prompt" id="labPromptA" rows="12" placeholder="Paste or write Variant A here..."></textarea>
+        <div class="lab-output" id="labOutputA" hidden>
+          <div class="lab-output-header"><span class="material-symbols-outlined">smart_toy</span> AI Output — Variant A</div>
+          <div class="lab-output-body" id="labOutputABody"></div>
+        </div>
+        <textarea class="forge-input lab-notes" id="labNotesA" rows="2" placeholder="Notes on A — what worked, what didn't..."></textarea>
+        <button class="btn btn-ghost btn-sm lab-copy-btn" data-variant="A"><span class="material-symbols-outlined">content_copy</span> Copy A</button>
+      </div>
+      <div class="lab-vs">VS</div>
+      <div class="lab-variant" id="labVariantB">
+        <div class="lab-variant-header">
+          <span class="lab-variant-badge lab-badge-b">B</span>
+          <input type="text" class="lab-variant-title" placeholder="Variant B name..." value="Variant B" />
+          <div class="lab-score-row">
+            <span class="lab-score-label">Score</span>
+            <div class="lab-stars" id="labStarsB"></div>
+            <input type="hidden" id="labScoreB" value="0" />
+          </div>
+        </div>
+        <textarea class="forge-input lab-variant-prompt" id="labPromptB" rows="12" placeholder="Paste or write Variant B here..."></textarea>
+        <div class="lab-output" id="labOutputB" hidden>
+          <div class="lab-output-header"><span class="material-symbols-outlined">smart_toy</span> AI Output — Variant B</div>
+          <div class="lab-output-body" id="labOutputBBody"></div>
+        </div>
+        <textarea class="forge-input lab-notes" id="labNotesB" rows="2" placeholder="Notes on B — what worked, what didn't..."></textarea>
+        <button class="btn btn-ghost btn-sm lab-copy-btn" data-variant="B"><span class="material-symbols-outlined">content_copy</span> Copy B</button>
+      </div>
+    </div>
+    <div class="lab-winner-bar" id="labWinnerBar" hidden>
+      <span class="material-symbols-outlined" style="color:var(--gold)">emoji_events</span>
+      <div style="flex:1;min-width:0;">
+        <span id="labWinnerText">Score both variants to see the winner.</span>
+        <div id="labAiReasoning" class="lab-ai-reasoning" hidden></div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="labSaveWinnerInlineBtn">Save winner to Library</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============================================================
+     WORKSPACE: Prompt Chain
+     ============================================================ -->
+<div id="chainWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Chain">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">account_tree</span>
+      <div>
+        <h2 class="ws-title">Prompt Chain</h2>
+        <p class="ws-subtitle">Build a sequence of prompt steps. Each step's output feeds the next as <code>{{input}}</code>.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-ghost" id="chainAddStepBtn"><span class="material-symbols-outlined">add</span> Add Step</button>
+      <button class="btn btn-ghost" id="chainClearBtn"><span class="material-symbols-outlined">restart_alt</span> Clear</button>
+      <button class="btn btn-accent" id="chainSaveBtn"><span class="material-symbols-outlined">save</span> Save Chain</button>
+      <button class="icon-btn" id="closeChainBtn" aria-label="Close Chain"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body chain-body">
+    <div class="chain-seed">
+      <label class="forge-label"><span class="material-symbols-outlined">input</span> Initial Input <span class="forge-hint">What gets passed into Step 1 as <code>{{input}}</code></span></label>
+      <textarea id="chainSeedInput" class="forge-input" rows="3" placeholder="Paste the raw material — a document, a brief, a question — that starts the chain..."></textarea>
+    </div>
+    <div class="chain-steps-wrap">
+      <div id="chainStepsList" class="chain-steps-list">
+        <!-- steps injected by JS -->
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================================
+     WORKSPACE: Metaprompting
+     ============================================================ -->
+<div id="metaWorkspace" role="dialog" aria-modal="true" aria-label="Metaprompting">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">auto_fix_high</span>
+      <div>
+        <h2 class="ws-title">Metaprompting</h2>
+        <p class="ws-subtitle">Paste a weak prompt. Describe the goal. The AI rewrites it into a production-quality version.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-ghost" id="metaRefineBtn"><span class="material-symbols-outlined">auto_fix_high</span> Refine Again</button>
+      <button class="btn btn-accent" id="metaSaveBtn"><span class="material-symbols-outlined">save</span> Save Improved</button>
+      <button class="icon-btn" id="closeMetaBtn" aria-label="Close Metaprompting"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body meta-body">
+    <div class="meta-left">
+      <div class="meta-section">
+        <label class="forge-label"><span class="material-symbols-outlined">edit_note</span> Your Rough Prompt <span class="forge-hint">Paste what you have — even a single sentence is fine</span></label>
+        <textarea id="metaRoughPrompt" class="forge-input" rows="8" placeholder="e.g. Write a good email about the project update..."></textarea>
+      </div>
+      <div class="meta-section">
+        <label class="forge-label"><span class="material-symbols-outlined">target</span> What should it do? <span class="forge-hint">Describe the outcome you want</span></label>
+        <textarea id="metaGoal" class="forge-input" rows="3" placeholder="e.g. It should produce a concise professional email that summarises progress, highlights blockers, and ends with a clear ask..."></textarea>
+      </div>
+      <div class="meta-section">
+        <label class="forge-label"><span class="material-symbols-outlined">tune</span> Technique <span class="forge-hint">Metaprompting strategy to apply</span></label>
+        <select id="metaTechnique" class="form-input">
+          <option value="structured">Structured (Role + Task + Format + Constraints)</option>
+          <option value="chain_of_thought">Chain of Thought (step-by-step reasoning)</option>
+          <option value="few_shot">Few-Shot (include examples)</option>
+          <option value="persona">Persona-driven (strong character voice)</option>
+          <option value="compression">Compression (same quality, fewer tokens)</option>
+          <option value="adversarial">Adversarial hardening (stress-test edge cases)</option>
+        </select>
+      </div>
+      <button class="btn btn-accent" id="metaRunBtn" style="align-self:flex-start;">
+        <span class="material-symbols-outlined">auto_fix_high</span>
+        Improve with AI
+      </button>
+    </div>
+    <div class="meta-right">
+      <div class="meta-output-empty" id="metaOutputEmpty">
+        <span class="material-symbols-outlined" style="font-size:48px;color:var(--ink-3);">auto_fix_high</span>
+        <p style="color:var(--ink-3);font-size:var(--fs-sm);">Fill in your rough prompt and click <strong>Improve with AI</strong>.</p>
+      </div>
+      <div id="metaOutputBody" style="white-space:pre-wrap;font-size:var(--fs-sm);line-height:1.6;color:var(--ink);flex:1;overflow-y:auto;padding:var(--sp-4);display:none;"></div>
+      <div id="metaScoreBlock" style="padding:var(--sp-3) var(--sp-4);border-top:1px solid var(--line);background:var(--surface-2);flex-shrink:0;" hidden>
+        <div style="font-size:11px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:var(--sp-1);">Assessment</div>
+        <div id="metaAssessment" style="font-size:var(--fs-sm);color:var(--ink-2);"></div>
+      </div>
+      <div id="metaOutputActions" style="display:flex;gap:var(--sp-2);padding:var(--sp-3) var(--sp-4);border-top:1px solid var(--line);background:var(--surface);flex-shrink:0;" hidden>
+        <button class="btn btn-ghost btn-sm" id="metaCopyBtn">
+          <span class="material-symbols-outlined">content_copy</span> Copy
+        </button>
+        <button class="btn btn-ghost btn-sm" id="metaIterateBtn">
+          <span class="material-symbols-outlined">refresh</span> Iterate
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     WORKSPACE: Context Bank  [PRO]
+     ============================================================ -->
+<div id="contextBankWorkspace" role="dialog" aria-modal="true" aria-label="Context Bank">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">database</span>
+      <div>
+        <h2 class="ws-title">Context Bank</h2>
+        <p class="ws-subtitle">Store reusable context blocks — personas, company info, background — and copy them into any prompt.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-ghost" id="ctxNewBtn"><span class="material-symbols-outlined">add</span> New Block</button>
+      <button class="icon-btn" id="closeContextBankBtn" aria-label="Close Context Bank"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body ctx-body">
+    <div class="ctx-list-panel">
+      <div class="ctx-search-row">
+        <input type="search" id="ctxSearch" class="form-input" placeholder="Search blocks…" />
+      </div>
+      <div class="ctx-category-row" id="ctxCategoryRow">
+        <button class="chip active" data-ctx-filter="all">All</button>
+        <button class="chip" data-ctx-filter="Persona">Persona</button>
+        <button class="chip" data-ctx-filter="Company">Company</button>
+        <button class="chip" data-ctx-filter="Audience">Audience</button>
+        <button class="chip" data-ctx-filter="Product">Product</button>
+        <button class="chip" data-ctx-filter="Style">Style</button>
+        <button class="chip" data-ctx-filter="Other">Other</button>
+      </div>
+      <div id="ctxList" class="ctx-list">
+        <div class="ctx-empty-hint" id="ctxEmptyHint">
+          <span class="material-symbols-outlined" style="font-size:36px;color:var(--ink-3)">database</span>
+          <p style="color:var(--ink-3);font-size:var(--fs-sm);text-align:center;margin-top:var(--sp-2)">No blocks yet.<br>Click <strong>New Block</strong> to start.</p>
+        </div>
+      </div>
+    </div>
+    <div class="ctx-editor-panel" id="ctxEditorPanel">
+      <div class="ctx-editor-empty" id="ctxEditorEmpty">
+        <span class="material-symbols-outlined" style="font-size:48px;color:var(--ink-3)">database</span>
+        <p style="color:var(--ink-3);font-size:var(--fs-sm);margin-top:var(--sp-2)">Select a block to edit, or create a new one.</p>
+      </div>
+      <div class="ctx-editor-form" id="ctxEditorForm" hidden>
+        <div style="display:flex;gap:var(--sp-3);margin-bottom:var(--sp-3);">
+          <div style="flex:1;min-width:0;">
+            <label class="forge-label">Block Title <span class="req">*</span></label>
+            <input type="text" id="ctxTitle" class="form-input" placeholder="e.g. ACME Corp — Company Overview" />
+          </div>
+          <div style="width:160px;flex-shrink:0;">
+            <label class="forge-label">Category</label>
+            <select id="ctxCategory" class="form-input">
+              <option>Persona</option>
+              <option>Company</option>
+              <option>Audience</option>
+              <option>Product</option>
+              <option>Style</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-bottom:var(--sp-3);">
+          <label class="forge-label">Context Content <span class="req">*</span> <span class="forge-hint">This text gets copied into your prompt</span></label>
+          <textarea id="ctxContent" class="forge-input" rows="16" placeholder="Write your reusable context block here…&#10;&#10;e.g.&#10;Company: ACME Corp&#10;Industry: SaaS — B2B project management&#10;Tone: Professional but approachable&#10;Audience: Non-technical SMB owners aged 30–55&#10;Key differentiator: Simplicity over feature depth"></textarea>
+        </div>
+        <div style="display:flex;gap:var(--sp-2);align-items:center;">
+          <button class="btn btn-accent" id="ctxSaveBtn"><span class="material-symbols-outlined">save</span> Save Block</button>
+          <button class="btn btn-ghost" id="ctxCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy</button>
+          <button class="btn btn-ghost" id="ctxDeleteBtn" style="margin-left:auto;color:var(--danger,#f87171);"><span class="material-symbols-outlined">delete</span> Delete</button>
+        </div>
+        <div id="ctxSaveConfirm" style="font-size:var(--fs-sm);color:var(--accent);margin-top:var(--sp-2);display:none;">&#10003; Block saved.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================
+     WORKSPACE: Prompt Components  [PRO]
+     ============================================================ -->
+<div id="componentsWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Components">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">extension</span>
+      <div>
+        <h2 class="ws-title">Prompt Components</h2>
+        <p class="ws-subtitle">Drag building blocks and frameworks onto the canvas. Assemble, edit, and save your prompt.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-ghost" id="pcwClearBtn"><span class="material-symbols-outlined">restart_alt</span> Clear canvas</button>
+      <button class="btn btn-accent" id="pcwSaveBtn"><span class="material-symbols-outlined">save</span> Save to Library</button>
+      <button class="icon-btn" id="closeComponentsBtn" aria-label="Close Prompt Components"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body pcw-body">
+
+    <!-- Left: palette -->
+    <div class="pcw-palette">
+      <div class="pcw-palette-search-wrap">
+        <input type="search" id="pcwPaletteSearch" class="pcw-palette-search" placeholder="Search blocks &amp; frameworks..." autocomplete="off" />
+      </div>
+      <div class="pcw-palette-section" id="pcwBlockSection">
+        <div class="pcw-palette-section-header" data-toggle-section="pcwBlockSection">
+          <span class="pcw-palette-label">Building Blocks</span>
+          <span class="pcw-palette-count" id="pcwBlockCount2"></span>
+        </div>
+        <div class="pcw-block-grid" id="pcwBlockGrid">
+          <!-- injected by JS -->
+        </div>
+      </div>
+      <div class="pcw-palette-section" id="pcwFwSection">
+        <div class="pcw-palette-section-header" data-toggle-section="pcwFwSection">
+          <span class="pcw-palette-label">Frameworks</span>
+          <span class="pcw-palette-count" id="pcwFwCount"></span>
+        </div>
+        <div class="pcw-fw-list" id="pcwFwList">
+          <!-- injected by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: canvas -->
+    <div class="pcw-canvas">
+      <div class="pcw-canvas-inner">
+        <div class="pcw-drop-zone" id="pcwDropZone">
+          <div class="pcw-drop-hint" id="pcwDropHint">
+            <span class="material-symbols-outlined">drag_indicator</span>
+            <p>Drag blocks from the palette<br>or click them to add to canvas</p>
+          </div>
+          <!-- canvas blocks injected here -->
+        </div>
+      </div>
+      <div class="pcw-footer">
+        <input type="text" id="pcwTitleInput" class="form-input pcw-footer-title" placeholder="Prompt title (required to save)…" />
+        <span class="pcw-block-count" id="pcwBlockCount">0 blocks</span>
+        <button class="btn btn-ghost" id="pcwPreviewBtn"><span class="material-symbols-outlined">visibility</span> Preview</button>
+        <button class="btn btn-accent" id="pcwSaveBtnFooter"><span class="material-symbols-outlined">save</span> Save to Library</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+<!-- App script -->
+<script defer src="/static/app.js?v=ad798a01"></script>
+
+<!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
+<script>
+  function toggleSidebar() {
+    document.body.classList.toggle('sidebar-hidden');
+  }
+  if (typeof window.createFolderInline !== 'function') window.createFolderInline = function () {};
+  if (typeof window.clearAllFilters    !== 'function') window.clearAllFilters    = function () {};
+</script>
+
+</body>
+</html>

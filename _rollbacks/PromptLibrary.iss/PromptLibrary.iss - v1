@@ -1,0 +1,233 @@
+; =============================================================================
+;  Prompt Library Pro  —  Inno Setup Installer Script
+;  Author    : MX Phillips
+;  Compiler  : Inno Setup 6.x  (https://jrsoftware.org/isinfo.php)
+; =============================================================================
+;
+;  PRE-COMPILE CHECKLIST
+;  ---------------------
+;  [ ] Run Build.bat first — it produces dist\PromptLibrary.exe
+;  [ ] Confirm icon.ico exists in the project root
+;  [ ] Update AppVersion below to match your release
+;  [ ] Open this file in Inno Setup IDE and press Ctrl+F9
+;
+;  OUTPUT
+;  ------
+;  installer\PromptLibraryPro_Setup_v{AppVersion}.exe
+;
+; =============================================================================
+
+
+; -----------------------------------------------------------------------------
+;  GLOBAL DEFINES  —  edit these and nothing else needs to change
+; -----------------------------------------------------------------------------
+#define AppName        "Prompt Library Pro"
+#define AppVersion     "1.0.0"
+#define AppPublisher   "MX Phillips"
+#define AppURL         "https://t.me/thepromptplayground"
+#define AppExeName     "PromptLibrary.exe"
+#define AppDataFolder  "Prompt Library"
+#define AppMutex       "PromptLibraryPro_RunningInstance"
+
+
+; =============================================================================
+;  [Setup]
+; =============================================================================
+[Setup]
+
+; Unique application identity — do NOT change this after first release.
+; Changing AppId breaks upgrade detection and leaves orphaned registry keys.
+AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
+
+; App metadata
+AppName={#AppName}
+AppVersion={#AppVersion}
+AppVerName={#AppName} v{#AppVersion}
+AppPublisher={#AppPublisher}
+AppPublisherURL={#AppURL}
+AppSupportURL={#AppURL}
+AppUpdatesURL={#AppURL}
+AppCopyright=Copyright (C) 2026 {#AppPublisher}
+
+; Prevents multiple instances of the installer running simultaneously
+AppMutex={#AppMutex}
+
+; Minimum supported Windows version: Windows 10 (build 17763+)
+MinVersion=10.0.17763
+
+; Per-user install — no admin rights or UAC prompt required
+PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=dialog
+
+; Install location: %LocalAppData%\Programs\Prompt Library Pro
+DefaultDirName={localappdata}\Programs\{#AppName}
+DefaultGroupName={#AppName}
+
+; Hide the Start Menu group page — shortcuts created manually below
+DisableProgramGroupPage=yes
+
+; -----------------------------------------------------------------------------
+;  Output
+; -----------------------------------------------------------------------------
+OutputDir=installer
+OutputBaseFilename=PromptLibraryPro_Setup_v{#AppVersion}
+SetupIconFile=icon.ico
+UninstallDisplayIcon={app}\{#AppExeName}
+UninstallDisplayName={#AppName}
+
+; -----------------------------------------------------------------------------
+;  Compression — maximum compression for smallest possible installer
+; -----------------------------------------------------------------------------
+Compression=lzma2/ultra64
+SolidCompression=yes
+LZMAUseSeparateProcess=yes
+LZMANumBlockThreads=4
+
+; -----------------------------------------------------------------------------
+;  Wizard UI
+; -----------------------------------------------------------------------------
+WizardStyle=modern
+WizardResizable=no
+DisableWelcomePage=no
+DisableDirPage=no
+DisableReadyPage=no
+ShowLanguageDialog=no
+
+; -----------------------------------------------------------------------------
+;  Upgrade behaviour
+; -----------------------------------------------------------------------------
+; Closes any running instance of the app before upgrading
+CloseApplications=yes
+CloseApplicationsFilter=*{#AppExeName}
+RestartApplications=no
+
+; Version info embedded in the installer exe itself
+VersionInfoVersion={#AppVersion}
+VersionInfoCompany={#AppPublisher}
+VersionInfoDescription={#AppName} Installer
+VersionInfoProductName={#AppName}
+VersionInfoProductVersion={#AppVersion}
+VersionInfoCopyright=Copyright (C) 2026 {#AppPublisher}
+
+
+; =============================================================================
+;  [Languages]
+; =============================================================================
+[Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"
+
+
+; =============================================================================
+;  [CustomMessages]  —  all user-facing strings in one place
+; =============================================================================
+[CustomMessages]
+english.LaunchAfterInstall=Launch {#AppName} now
+english.DataFolderComment=Your saved prompts and database live here
+
+
+; =============================================================================
+;  [Tasks]  —  optional steps the user can toggle during install
+; =============================================================================
+[Tasks]
+Name: "desktopicon";     Description: "Create a Desktop shortcut";           GroupDescription: "Additional shortcuts:"; Flags: unchecked
+Name: "datafoldershort"; Description: "Create a shortcut to your data folder"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
+
+
+; =============================================================================
+;  [Dirs]  —  folders to create during install
+; =============================================================================
+[Dirs]
+; Pre-create the data folder in Documents so the user can find it immediately,
+; even before launching the app for the first time.
+Name: "{userdocs}\{#AppDataFolder}"; Flags: uninsneveruninstall
+
+
+; =============================================================================
+;  [Files]  —  everything copied to the install directory
+; =============================================================================
+[Files]
+
+; Main executable (built by Build.bat via PyInstaller)
+Source: "dist\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+
+; Application icon (used by shortcuts and the uninstaller entry)
+Source: "icon.ico"; DestDir: "{app}"; Flags: ignoreversion
+
+; Optional — uncomment if these files exist in the project root
+; Source: "LICENSE.txt";   DestDir: "{app}"; Flags: ignoreversion isreadme
+; Source: "CHANGELOG.txt"; DestDir: "{app}"; Flags: ignoreversion
+
+
+; =============================================================================
+;  [Icons]  —  Start Menu and Desktop shortcuts
+; =============================================================================
+[Icons]
+
+; Start Menu
+Name: "{group}\{#AppName}";           Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\icon.ico"; Comment: "Open {#AppName}"
+Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}";      IconFilename: "{app}\icon.ico"
+
+; Desktop shortcut (only if the user ticked the task above)
+Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\icon.ico"; Tasks: desktopicon
+
+; Data folder shortcut (only if the user ticked the task above)
+Name: "{userdesktop}\{#AppName} Data"; Filename: "{userdocs}\{#AppDataFolder}"; Comment: "{cm:DataFolderComment}"; Tasks: datafoldershort
+
+
+; =============================================================================
+;  [Run]  —  actions to run immediately after install completes
+; =============================================================================
+[Run]
+Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchAfterInstall}"; Flags: nowait postinstall skipifsilent
+
+
+; =============================================================================
+;  [UninstallRun]  —  actions to run before files are removed on uninstall
+; =============================================================================
+[UninstallRun]
+; Force-close any running instance before uninstall removes the exe
+Filename: "taskkill.exe"; Parameters: "/F /IM ""{#AppExeName}"""; Flags: runhidden; RunOnceId: "KillApp"
+
+
+; =============================================================================
+;  [Code]  —  Pascal scripting
+; =============================================================================
+[Code]
+
+// ---------------------------------------------------------------------------
+//  InitializeSetup
+//  Runs before anything is shown.
+// ---------------------------------------------------------------------------
+function InitializeSetup(): Boolean;
+begin
+  Result := True;
+  // Inno Setup handles upgrades automatically via AppId.
+  // Add custom upgrade logic here if needed in future versions.
+end;
+
+
+// ---------------------------------------------------------------------------
+//  CurStepChanged
+//  Fires at each stage of the install.
+// ---------------------------------------------------------------------------
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssInstall then
+  begin
+    // Reserved for pre-install cleanup in future versions.
+  end;
+end;
+
+
+// ---------------------------------------------------------------------------
+//  InitializeUninstall
+//  Confirms the user wants to uninstall before proceeding.
+// ---------------------------------------------------------------------------
+function InitializeUninstall(): Boolean;
+begin
+  Result := MsgBox(
+    'Are you sure you want to uninstall {#AppName}?' + Chr(13) + Chr(10) + Chr(13) + Chr(10) +
+    'Your saved prompts in Documents\{#AppDataFolder} will NOT be deleted.',
+    mbConfirmation, MB_YESNO
+  ) = IDYES;
+end;

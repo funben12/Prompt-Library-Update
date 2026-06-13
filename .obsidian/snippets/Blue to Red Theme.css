@@ -1,0 +1,291 @@
+/* This Theme is called "Wasp" and Obsidian Theme created by Santi Younger */
+
+:root
+{
+--font-monospace: "JetBrains Mono", "Fira Code", "Cascadia Code", "Source Code Pro", monospace;
+}
+
+.theme-dark
+{
+    --button-hover-bg-color: #1565c0; /* Deep Blue for Hover */
+    --button-hover-text-color: #ffffff; /* White Text for Hover */
+    --button-bg-color: #d32f2f; /* Strong Red Background */
+    --button-text-color: #e3f2fd; /* Very Light Blue Text */
+    --background-primary:         #1a237e; /* Deep Blue */
+    --background-primary-alt:     #1a237e;
+    --background-secondary:       #0d1333; /* Darker Blue */
+    --background-secondary-alt:   #1976d2; /* Muted Blue */
+    --text-normal:                #ffebee; /* Soft Pink-White */
+    --text-faint:                 #90caf9; /* Faint Blue */
+    --text-title-h1:              #d32f2f; /* Vivid Red */
+    --text-title-h2:              #1976d2; /* Blue */
+    --text-title-h3:              #42a5f5; /* Light Blue */
+    --text-title-h4:              #1565c0; /* Blue */
+    --text-title-h5:              #283593; /* Deep Blue */
+    --text-title-h6:              #0d47a1; /* Dark Blue */
+    --text-highlight-bg:          #d32f2f; /* Red Highlight */
+    --text-link:                  #1976d2; /* Blue Link */
+    --text-a-hover:               #ff5252; /* Red Hover */
+    --text-accent-hover:          #1976d2; /* Blue Accent Hover */
+    --inline-code:                #d32f2f; /* Red for Inline Code */
+    --code-block:                 #1976d2; /* Blue for Code Block */
+    --text-a:                     #1976d2; /* Blue Link */
+    --interactive-accent:         #1976d2; /* Blue Accent */
+    --text-accent:                #1976d2;
+    --text-on-accent:             #fff;
+    --interactive-accent-rgb:     #1976d2;
+    --vim-cursor:                 #1976d2;
+    --pre-code:                   #283593;
+    --interactive-before:         #d32f2f;
+    --background-modifier-border: #1976d2;
+    --text-selection:             #90caf9;
+}
+
+.theme-dark .cm-s-obsidian span.obsidian-search-match-highlight {
+    color: var(--text-normal);
+    background-color: #1565c0;
+}
+
+.theme-light
+{
+    --background-primary:         #ffe3f3; /* Light Pink-Purple */
+    --background-secondary:       #f8bbd0; /* Light Pink */
+    --background-primary-alt:     #ffe3f3;
+    --background-secondary-alt:   #e1bee7; /* Light Purple */
+    --text-normal:                #3d003d; /* Deep Purple-Red */
+    --text-faint:                 #ba68c8; /* Faint Purple */
+    --text-title-h1:              #b71c1c; /* Red */
+    --text-title-h2:              #d81b60; /* Pinkish Red */
+    --text-title-h3:              #d500f9; /* Purple */
+    --text-title-h4:              #ba68c8; /* Light Purple */
+    --text-title-h5:              #f06292; /* Pink */
+    --text-link:                  #ad1457; /* Red-Purple Link */
+    --text-a-hover:               #d500f9; /* Purple Hover */
+    --text-accent-hover:          #d500f9;
+    --inline-code:                #ad1457;
+    --pre-code:                   #e1bee7;
+    --interactive-before:         #ba68c8;
+    --background-modifier-border: #d500f9;
+    --text-a:                     #ad1457;
+    --interactive-accent:         #d500f9;
+    --text-accent:                #d500f9;
+    --interactive-accent-rgb:     #d500f9;
+    --vim-cursor:                 #d500f9;
+    --text-selection:             #ea80fc;
+    --text-white:                 #ffffff;
+}
+
+/* Navigation Titles */
+.nav-file-title, .nav-folder-title {
+    color: var(--text-normal);
+}
+
+.nav-file-title.is-active, .nav-folder-title.is-active,
+body:not(.is-grabbing) .nav-file-title:hover,
+body:not(.is-grabbing) .nav-folder-title:hover {
+    background-color: var(--background-modifier-border);
+    color: var(--button-text-color);
+    transition: background 0.2s, color 0.2s;
+}
+
+/* CodeMirror Formatting */
+.cm-s-obsidian span.cm-formatting-link,
+.CodeMirror-guttermarker-subtle {
+    color: var(--text-normal) !important;
+}
+
+/* Buttons */
+button.mod-cta {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    font-weight: 600;
+    border-radius: 4px;
+    transition: background 0.2s, color 0.2s;
+    border: none;
+}
+
+button.mod-cta:hover, button.mod-cta:focus {
+    background-color: var(--button-hover-bg-color);
+    color: var(--button-hover-text-color);
+}
+
+/* Vertical Tabs */
+.vertical-tab-header-group-title {
+    color: var(--text-white);
+}
+
+.vertical-tab-nav-item.is-active {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    font-weight: 600;
+    transition: background 0.2s, color 0.2s;
+}
+
+.vertical-tab-nav-item.is-active:hover,
+.vertical-tab-nav-item.is-active:focus {
+    background-color: var(--button-hover-bg-color);
+    color: var(--button-hover-text-color);
+}
+
+body:not(.is-phone) .vertical-tab-nav-item.is-active {
+    --background-modifier-hover: var(--button-hover-bg-color);
+    --icon-color: var(--button-text-color);
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    font-weight: 600;
+}
+
+body:not(.is-phone) .vertical-tab-nav-item.is-active:hover,
+body:not(.is-phone) .vertical-tab-nav-item.is-active:focus {
+    background-color: var(--button-hover-bg-color);
+    color: var(--button-hover-text-color);
+}
+
+/* Checkbox */
+.checkbox-container.is-enabled {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    transition: background 0.2s, color 0.2s;
+}
+
+.checkbox-container.is-enabled:hover,
+.checkbox-container.is-enabled:focus {
+    background-color: var(--button-hover-bg-color);
+    color: var(--button-hover-text-color);
+}
+
+/* Flair */
+.flair.mod-pop {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    border-radius: 3px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.flair.mod-pop:hover, .flair.mod-pop:focus {
+    background-color: var(--button-hover-bg-color);
+    color: var(--button-hover-text-color);
+}
+
+/* Headings - Editor */
+.cm-header-1, .cm-header-2, .cm-header-3,
+.cm-header-4, .cm-header-5, .cm-header-6 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-top: 1.2em;
+    margin-bottom: 0.5em;
+}
+
+.cm-header-1 { color: var(--text-title-h1) !important; }
+.cm-header-2 { color: var(--text-title-h2) !important; }
+.cm-header-3 { color: var(--text-title-h3) !important; }
+.cm-header-4 { color: var(--text-title-h4) !important; }
+.cm-header-5 { color: var(--text-title-h5) !important; }
+.cm-header-6 { color: var(--text-title-h6) !important; }
+
+/* Headings - Preview */
+.markdown-preview-view h1,
+.markdown-preview-view h2,
+.markdown-preview-view h3,
+.markdown-preview-view h4,
+.markdown-preview-view h5,
+.markdown-preview-view h6 {
+    font-size: 20px;
+    line-height: 1.2;
+    font-weight: 700;
+    margin-top: 1.5em;
+    margin-bottom: 0.7em;
+}
+
+.markdown-preview-view h1 { color: var(--text-title-h1) !important; }
+.markdown-preview-view h2 { color: var(--text-title-h2) !important; }
+.markdown-preview-view h3 { color: var(--text-title-h3) !important; }
+.markdown-preview-view h4 { color: var(--text-title-h4) !important; }
+.markdown-preview-view h5 { color: var(--text-title-h5) !important; }
+.markdown-preview-view h6 { color: var(--text-title-h6) !important; }
+
+/* Source View Font */
+.markdown-source-view {
+    font-family: var(--font-monospace);
+}
+
+/* Fat Cursor */
+.cm-fat-cursor .CodeMirror-cursor {
+    background-color: #f8c537 !important;
+    opacity: 0.8 !important;
+    width: 9px !important;
+    visibility: visible !important;
+}
+
+/* Plugin Tabs */
+.plugin-tabs .stayopen .view-header {
+    border-bottom: 2px solid var(--interactive-accent)!important;
+}
+
+.plugin-tabs .mod-root.workspace-split.mod-vertical div.workspace-leaf:not(.stayopen) > .workspace-leaf-content > .view-header .view-header-title::before {
+    background-color: transparent!important;
+}
+
+.plugin-tabs .mod-root.workspace-split.mod-vertical .workspace-split.mod-vertical > div.workspace-leaf:not(.stayopen),
+.plugin-tabs .mod-root.workspace-split.mod-vertical > div.workspace-leaf:not(.stayopen) {
+    border-radius: 5px 5px 0 0!important;
+}
+
+.plugin-tabs .mod-root.workspace-split.mod-vertical div.workspace-leaf {
+    border-color: var(--background-secondary-alt)!important;
+    border-bottom-width: 0!important;
+    border-right-width: 0!important;
+}
+
+.theme-light.plugin-tabs .mod-root.workspace-split.mod-vertical div.workspace-leaf {
+    border-color: var(--background-secondary-alt)!important;
+    border-left-width: 3px!important;
+    border-bottom-width: 0!important;
+    border-right-width: 0!important;
+}
+
+.plugin-tabs .mod-root.workspace-split.mod-vertical > div.workspace-leaf hr.workspace-leaf-resize-handle,
+.plugin-tabs .mod-root.workspace-split.mod-vertical > .mod-vertical hr.workspace-leaf-resize-handle {
+    display: none;
+}
+
+.plugin-tabs .mod-root.workspace-split.mod-vertical div.workspace-leaf .view-header {
+    border-left-color: transparent!important;
+}
+
+.plugin-tabs .workspace-split.mod-root > .workspace-leaf:last-of-type .workspace-leaf-content,
+.plugin-tabs .workspace-split.mod-root > .workspace-leaf:first-of-type .workspace-leaf-content {
+    border-radius: 0!important;
+}
+
+.plugin-tabs .theme-dark .mod-root.workspace-split.mod-vertical .workspace-split.mod-vertical > div.workspace-leaf.mod-active,
+.plugin-tabs .theme-dark .mod-root.workspace-split.mod-vertical > div.workspace-leaf.mod-active {
+    border: 0!important;
+    border-radius: 0!important;
+}
+
+/* Horizontal Rule Styles */
+.cm-line hr,
+.markdown-preview-view hr {
+    margin-block-start: 4em;
+    margin-block-end: 4em;
+    border: none;
+    height: 0;
+    border-bottom: 1px solid;
+    border-image-slice: 1;
+    border-width: 1px;
+    border-image-source: linear-gradient(to right, transparent, var(--text-accent), transparent);
+    position: relative;
+}
+
+.cm-line hr::after,
+.markdown-preview-view hr::after {
+    /* content: '\1f41d'; */
+    display: inline-block;
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 0.5rem;
+    color: var(--text-sub-accent, var(--text-accent));
+    background-color: var(--background-primary);
+}

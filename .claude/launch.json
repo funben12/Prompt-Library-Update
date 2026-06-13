@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "promptlib-preview",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-c", "from app import app, init_db; init_db(); app.run(host='127.0.0.1', port=5055, debug=False, use_reloader=False)"],
+      "port": 5055
+    }
+  ]
+}

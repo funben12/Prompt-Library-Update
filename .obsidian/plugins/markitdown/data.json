@@ -1,0 +1,11 @@
+{
+  "pythonPath": "python",
+  "enablePlugins": true,
+  "pluginArgs": [],
+  "docintelEndpoint": "",
+  "outputPath": "",
+  "imageExtractionEnabled": false,
+  "imageSubfolderTemplate": "{filename}-images",
+  "enableBatchProgress": true,
+  "enableContextMenu": true
+}

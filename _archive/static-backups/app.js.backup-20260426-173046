@@ -1,0 +1,1268 @@
+/* ======================================================
+   PROMPT LIBRARY – app.js
+   Full rewrite: new design, all functions verified
+   ====================================================== */
+
+const API_BASE = 'http://localhost:5000/api';
+
+let allPrompts  = [];
+let allFolders  = [];
+let currentView = 'library';   // 'library' | 'favorites' | <folder id number>
+let currentDetailId = null;    // prompt id currently open in detail panel
+
+/* ─────────────────────────────────────────────────────
+   VARIABLE DETECTION  (all 6 bracket types)
+───────────────────────────────────────────────────── */
+function detectVariables(content) {
+    if (!content) return [];
+    const vars = new Set();
+
+    // Double-bracket variants (any content)
+    [/\[\[(.+?)\]\]/g, /\{\{(.+?)\}\}/g, /\(\((.+?)\)\)/g].forEach(re => {
+        let m; re.lastIndex = 0;
+        while ((m = re.exec(content)) !== null) {
+            const v = m[1].trim();
+            if (v && v.length < 100) vars.add(v);
+        }
+    });
+
+    // Single-bracket word-char variants
+    [/\[(\w[\w\s.]*?\w|\w)\]/g, /\{(\w[\w\s.]*?\w|\w)\}/g, /\((\w[\w\s.]*?\w|\w)\)/g].forEach(re => {
+        let m; re.lastIndex = 0;
+        while ((m = re.exec(content)) !== null) {
+            const v = m[1].trim();
+            if (v && v.length < 100) vars.add(v);
+        }
+    });
+
+    return Array.from(vars).sort();
+}
+
+/* ─────────────────────────────────────────────────────
+   VARIABLE REPLACEMENT  (regex-safe)
+───────────────────────────────────────────────────── */
+function replaceVariables(content, varMap) {
+    let out = content;
+    for (const [varName, value] of Object.entries(varMap)) {
+        const ev = varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        out = out
+            .replace(new RegExp(`\\[\\[${ev}\\]\\]`, 'g'), value)
+            .replace(new RegExp(`\\{\\{${ev}\\}\\}`, 'g'), value)
+            .replace(new RegExp(`\\(\\(${ev}\\)\\)`, 'g'), value)
+            .replace(new RegExp(`\\[${ev}\\]`,        'g'), value)
+            .replace(new RegExp(`\\{${ev}\\}`,         'g'), value)
+            .replace(new RegExp(`\\(${ev}\\)`,         'g'), value);
+    }
+    return out;
+}
+
+/* ─────────────────────────────────────────────────────
+   CHIP RENDERING  (variable → highlighted span)
+───────────────────────────────────────────────────── */
+function renderChips(content) {
+    const vars = detectVariables(content);
+    let html = escapeHtml(content);
+    vars.forEach(v => {
+        const ev   = v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const chip = `<span class="var-chip">${escapeHtml(v)}</span>`;
+        html = html
+            .replace(new RegExp(`\\[\\[${ev}\\]\\]`, 'g'), chip)
+            .replace(new RegExp(`\\{\\{${ev}\\}\\}`, 'g'), chip)
+            .replace(new RegExp(`\\(\\(${ev}\\)\\)`, 'g'), chip)
+            .replace(new RegExp(`\\[${ev}\\]`,        'g'), chip)
+            .replace(new RegExp(`\\{${ev}\\}`,         'g'), chip)
+            .replace(new RegExp(`\\(${ev}\\)`,         'g'), chip);
+    });
+    return html;
+}
+
+/* ─────────────────────────────────────────────────────
+   TOAST NOTIFICATIONS
+───────────────────────────────────────────────────── */
+function toast(msg, type = 'success') {
+    const icons = { success: 'check_circle', error: 'error', info: 'info', warning: 'warning' };
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.innerHTML = `<span class="material-symbols-outlined">${icons[type] || 'info'}</span><span>${escapeHtml(msg)}</span>`;
+    container.appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(8px)'; }, 2700);
+    setTimeout(() => el.remove(), 3000);
+}
+
+/* ─────────────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadFolders();
+    await loadPrompts();
+
+    // Prompt editor
+    document.getElementById('newPromptBtn')    .addEventListener('click',  openNewPromptModal);
+    document.getElementById('closePromptModal')?.addEventListener('click', closePromptModal);
+    document.getElementById('cancelPromptBtn') .addEventListener('click',  closePromptModal);
+    document.getElementById('promptForm')      .addEventListener('submit', handlePromptSubmit);
+    document.getElementById('promptContent')   .addEventListener('input',  updateEditorPreview);
+
+    // Prompt modal close on overlay click
+    document.getElementById('promptModal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closePromptModal();
+    });
+
+    // Folder modal
+    document.getElementById('newFolderBtn')    .addEventListener('click',  openNewFolderModal);
+    document.getElementById('closeFolderModal').addEventListener('click',  closeFolderModal);
+    document.getElementById('cancelFolderBtn') .addEventListener('click',  closeFolderModal);
+    document.getElementById('folderForm')      .addEventListener('submit', handleFolderSubmit);
+    document.getElementById('folderModal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeFolderModal();
+    });
+
+    // Import/Export
+    document.getElementById('importBtn')       .addEventListener('click', openImportModal);
+    document.getElementById('exportBtn')       .addEventListener('click', handleExport);
+    document.getElementById('closeImportModal').addEventListener('click', closeImportModal);
+    document.getElementById('cancelImportBtn') .addEventListener('click', closeImportModal);
+    document.getElementById('importForm')      .addEventListener('submit', handleImport);
+    document.getElementById('importModal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeImportModal();
+    });
+
+    // Detail panel
+    document.getElementById('closeDetailPanel').addEventListener('click', closeDetailPanel);
+    document.getElementById('panelFavBtn')     .addEventListener('click', handlePanelFavorite);
+    document.getElementById('panelEditBtn')    .addEventListener('click', handlePanelEdit);
+    document.getElementById('panelDeleteBtn')  .addEventListener('click', handlePanelDelete);
+    document.getElementById('copyToClipboardBtn').addEventListener('click', handleCopyWithVariables);
+    document.getElementById('footerExportBtn') .addEventListener('click', handleSingleExport);
+
+    // Nav items
+    document.querySelectorAll('[data-view]').forEach(el => {
+        el.addEventListener('click', e => {
+            const v = e.currentTarget.dataset.view;
+            setView(v === 'library' || v === 'favorites' ? v : Number(v));
+        });
+    });
+
+    // Search
+    document.getElementById('searchInput').addEventListener('input', e => {
+        const q = e.target.value.toLowerCase().trim();
+        renderPrompts(q ? getViewPrompts().filter(p =>
+            p.title.toLowerCase().includes(q) ||
+            p.content.toLowerCase().includes(q) ||
+            p.description.toLowerCase().includes(q) ||
+            p.categories.some(c => c.toLowerCase().includes(q)) ||
+            p.tags.some(t => t.toLowerCase().includes(q))
+        ) : getViewPrompts());
+    });
+
+    // Variable template buttons
+    document.getElementById('loadVarTemplateBtn')?.addEventListener('click', openVarTemplateModal);
+    document.getElementById('saveVarTemplateBtn')?.addEventListener('click', openSaveTemplateModal);
+    document.getElementById('addChainBtn')?.addEventListener('click', addChainStep);
+});
+
+/* ─────────────────────────────────────────────────────
+   VIEW MANAGEMENT
+───────────────────────────────────────────────────── */
+function getViewPrompts() {
+    if (currentView === 'favorites') return allPrompts.filter(p => p.is_favorite);
+    if (currentView === 'library')   return allPrompts;
+    return allPrompts.filter(p => p.folder_id === currentView);
+}
+
+function setView(view) {
+    currentView = view;
+    closeDetailPanel();
+
+    // Nav active state
+    document.querySelectorAll('[data-view]').forEach(el => {
+        el.classList.toggle('active', el.dataset.view === String(view));
+    });
+
+    // Breadcrumb + title
+    const bcEl    = document.getElementById('breadcrumb');
+    const titleEl = document.getElementById('viewTitle');
+    const fva     = document.getElementById('folderViewActions');
+    const grid    = document.getElementById('promptsGrid');
+
+    if (view === 'library') {
+        bcEl.innerHTML = '';
+        titleEl.textContent = 'Library';
+        fva.style.display = 'none';
+        grid.classList.remove('list-mode');
+    } else if (view === 'favorites') {
+        bcEl.innerHTML = '';
+        titleEl.textContent = 'Favorites';
+        fva.style.display = 'none';
+        grid.classList.remove('list-mode');
+    } else {
+        // Folder view
+        const folder = allFolders.find(f => f.id === view);
+        const name   = folder ? folder.name : 'Folder';
+        bcEl.innerHTML = `<span>Folders</span><span class="bc-sep material-symbols-outlined" style="font-size:14px">chevron_right</span><span>${escapeHtml(name)}</span>`;
+        titleEl.textContent = name;
+        grid.classList.add('list-mode');
+
+        // Folder action buttons
+        const safeName = JSON.stringify(name);
+        fva.style.display = 'flex';
+        fva.innerHTML = `
+            <button class="fva-btn" onclick="openNewPromptInFolder(${view})">
+                <span class="material-symbols-outlined">add</span> New Prompt
+            </button>
+            <button class="fva-btn" onclick="renameFolder(${view}, ${safeName})">
+                <span class="material-symbols-outlined">edit</span> Rename
+            </button>
+            <button class="fva-btn danger" onclick="deleteFolder(${view})">
+                <span class="material-symbols-outlined">delete</span> Delete
+            </button>`;
+    }
+
+    const filtered = getViewPrompts();
+    renderPrompts(filtered);
+    document.getElementById('searchInput').value = '';
+    updateCounts();
+}
+
+function updateCounts() {
+    document.getElementById('libraryCount').textContent = allPrompts.length;
+    document.getElementById('favCount').textContent     = allPrompts.filter(p => p.is_favorite).length;
+    const filtered = getViewPrompts();
+    document.getElementById('viewCount').textContent = `${filtered.length} prompt${filtered.length !== 1 ? 's' : ''}`;
+}
+
+/* ─────────────────────────────────────────────────────
+   DATA LOADING
+───────────────────────────────────────────────────── */
+async function loadPrompts() {
+    try {
+        const res = await fetch(`${API_BASE}/prompts`);
+        if (!res.ok) throw new Error('Network error');
+        allPrompts = await res.json();
+        setView(currentView);
+    } catch (err) {
+        console.error('loadPrompts:', err);
+        toast('Could not load prompts — is the server running?', 'error');
+    }
+}
+
+async function loadFolders() {
+    try {
+        const res = await fetch(`${API_BASE}/folders`);
+        if (!res.ok) throw new Error();
+        allFolders = await res.json();
+        renderFolders();
+        updateFolderDropdown();
+    } catch (err) {
+        console.error('loadFolders:', err);
+    }
+}
+
+/* ─────────────────────────────────────────────────────
+   RENDER PROMPTS
+───────────────────────────────────────────────────── */
+function renderPrompts(prompts) {
+    const grid = document.getElementById('promptsGrid');
+    document.getElementById('viewCount').textContent = `${prompts.length} prompt${prompts.length !== 1 ? 's' : ''}`;
+
+    if (!prompts || prompts.length === 0) {
+        grid.innerHTML = `
+            <div class="empty-state">
+                <span class="material-symbols-outlined">auto_awesome</span>
+                <h3>No prompts here yet</h3>
+                <p>Click <strong>New Prompt</strong> to create your first one</p>
+            </div>`;
+        return;
+    }
+
+    grid.innerHTML = prompts.map(p => {
+        const vars      = detectVariables(p.content);
+        const cats      = Array.isArray(p.categories) ? p.categories.filter(Boolean) : [];
+        const tags      = Array.isArray(p.tags)       ? p.tags.filter(Boolean)       : [];
+        const preview   = (p.content || '').substring(0, 150) + (p.content?.length > 150 ? '…' : '');
+        const timeLbl   = relativeTime(p.updated_at || p.created_at);
+        const folderObj = allFolders.find(f => f.id === p.folder_id);
+        const favStyle  = p.is_favorite ? "font-variation-settings:'FILL' 1" : '';
+
+        return `
+        <div class="prompt-card" onclick="openDetailPanel(${p.id})">
+            <div class="card-header">
+                <h3 class="card-title">${escapeHtml(p.title)}</h3>
+                <div class="card-actions">
+                    <button class="card-btn ${p.is_favorite ? 'fav-on' : ''}"
+                        onclick="event.stopPropagation(); toggleFavorite(${p.id})"
+                        title="${p.is_favorite ? 'Remove from favorites' : 'Add to favorites'}">
+                        <span class="material-symbols-outlined" style="${favStyle}">star</span>
+                    </button>
+                    <button class="card-btn" onclick="event.stopPropagation(); editPrompt(${p.id})" title="Edit">
+                        <span class="material-symbols-outlined">edit</span>
+                    </button>
+                    <button class="card-btn danger" onclick="event.stopPropagation(); deletePrompt(${p.id})" title="Delete">
+                        <span class="material-symbols-outlined">delete</span>
+                    </button>
+                </div>
+            </div>
+
+            <p class="card-content">${escapeHtml(preview)}</p>
+
+            <div class="card-chips">
+                ${vars.length > 0 ? `<span class="chip chip-vars">Variables: ${vars.length}</span>` : ''}
+                ${cats.map(c => `<span class="chip chip-cat">${escapeHtml(c)}</span>`).join('')}
+                ${tags.map(t => `<span class="chip chip-tag">${escapeHtml(t)}</span>`).join('')}
+            </div>
+
+            <div class="card-footer">
+                <div class="card-meta">
+                    ${folderObj ? `<span class="material-symbols-outlined">folder</span>${escapeHtml(folderObj.name)}` : ''}
+                    ${timeLbl ? `<span>Updated ${timeLbl}</span>` : ''}
+                </div>
+                <button class="card-use-btn" onclick="event.stopPropagation(); usePromptFromCard(${p.id})" title="Copy to clipboard">
+                    <span class="material-symbols-outlined">content_copy</span>
+                    Use
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+/* ─────────────────────────────────────────────────────
+   RENDER FOLDERS (sidebar)
+───────────────────────────────────────────────────── */
+function renderFolders() {
+    const list = document.getElementById('foldersList');
+
+    if (!allFolders.length) {
+        list.innerHTML = '<p style="font-size:11px;color:var(--text-d);padding:8px 10px">No folders yet</p>';
+        return;
+    }
+
+    list.innerHTML = allFolders.map(f => {
+        const safeName = JSON.stringify(f.name);
+        const count    = allPrompts.filter(p => p.folder_id === f.id).length;
+        const isActive = currentView === f.id;
+        return `
+        <div class="folder-item ${isActive ? 'active' : ''}" data-folder-id="${f.id}" onclick="setView(${f.id})">
+            <span class="material-symbols-outlined">folder</span>
+            <span class="folder-item-name">${escapeHtml(f.name)}</span>
+            ${count > 0 ? `<span class="folder-count">${count}</span>` : ''}
+            <div class="fi-actions">
+                <button class="fi-btn" onclick="event.stopPropagation(); renameFolder(${f.id}, ${safeName})" title="Rename">
+                    <span class="material-symbols-outlined">edit</span>
+                </button>
+                <button class="fi-btn danger" onclick="event.stopPropagation(); deleteFolder(${f.id})" title="Delete">
+                    <span class="material-symbols-outlined">delete</span>
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function updateFolderDropdown() {
+    const sel = document.getElementById('promptFolder');
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">No Folder</option>' +
+        allFolders.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+    if (current) sel.value = current;
+}
+
+/* ─────────────────────────────────────────────────────
+   VARIABLE META RENDERING
+───────────────────────────────────────────────────── */
+function renderVarMetaList() {
+    const content = document.getElementById('promptContent')?.value || '';
+    const vars    = detectVariables(content);
+    const list    = document.getElementById('varMetaList');
+
+    if (!vars.length) {
+        list.innerHTML = '<p style="font-size:12px;color:var(--text-d)">No variables detected. Add [[variable_name]] to your content.</p>';
+        return;
+    }
+
+    const existingMeta = collectVarMeta();
+
+    list.innerHTML = vars.map(v => {
+        const m    = existingMeta[v] || {};
+        const type = m.type || 'text';
+        const def  = m.default || '';
+        const opts = (m.options || []).join(', ');
+        const visible = m.visible !== false;
+
+        return `<div class="var-meta-row" data-var="${escapeHtml(v)}">
+            <div class="var-meta-header">
+                <span class="var-meta-name">${escapeHtml(v)}</span>
+                <div class="var-meta-controls">
+                    <label class="var-meta-required" title="Show when filling variables">
+                        <input type="checkbox" data-field="visible" ${visible ? 'checked' : ''} />
+                        <span class="material-symbols-outlined">visibility</span>
+                    </label>
+                </div>
+            </div>
+            <div class="var-meta-type-row">
+                <label class="var-meta-field-label">Type</label>
+                <select class="var-meta-select" data-field="type" onchange="onVarTypeChange(this)">
+                    <option value="text"     ${type === 'text'     ? 'selected' : ''}>Text</option>
+                    <option value="number"   ${type === 'number'   ? 'selected' : ''}>Number</option>
+                    <option value="date"     ${type === 'date'     ? 'selected' : ''}>Date</option>
+                    <option value="dropdown" ${type === 'dropdown' ? 'selected' : ''}>Dropdown</option>
+                </select>
+            </div>
+            <div class="var-meta-default-row">
+                <label class="var-meta-field-label">Default Value</label>
+                <input class="var-meta-default" type="text" data-field="default" placeholder="(optional)" value="${escapeHtml(def)}"/>
+            </div>
+            ${type === 'dropdown' ? `<div class="var-dropdown-opts">
+                <label class="var-meta-field-label">Dropdown Options</label>
+                <div class="var-dropdown-options-list">
+                    ${opts.split(',').filter(o => o.trim()).map((option, i) => `
+                        <div class="var-dropdown-option-item">
+                            <input type="text" class="var-dropdown-option-input" value="${escapeHtml(option.trim())}" 
+                                   data-option-index="${i}" onchange="updateDropdownOption(event)"/>
+                            <button type="button" class="var-dropdown-option-remove" onclick="removeDropdownOption(event)">
+                                <span class="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+                <button type="button" class="var-dropdown-option-add" onclick="addDropdownOption(event, '${v}')">
+                    <span class="material-symbols-outlined">add</span> Add Option
+                </button>
+                <textarea class="var-dropdown-options-textarea" data-field="options" placeholder="Comma-separated options" style="display:none">${opts}</textarea>
+            </div>` : `<textarea class="var-dropdown-options-textarea" data-field="options" placeholder="(not used for this type)" style="display:none"></textarea>`}
+        </div>`;
+    }).join('');
+}
+
+function onVarTypeChange(selectEl) {
+    const row  = selectEl.closest('.var-meta-row');
+    const type = selectEl.value;
+
+    let optsEl = row.querySelector('.var-dropdown-opts');
+    if (type === 'dropdown') {
+        if (!optsEl) {
+            const d = document.createElement('div');
+            d.className = 'var-dropdown-opts';
+            d.innerHTML = `
+                <label class="var-meta-field-label">Dropdown Options</label>
+                <div class="var-dropdown-options-list"></div>
+                <button type="button" class="var-dropdown-option-add" onclick="addDropdownOption(event, '')">
+                    <span class="material-symbols-outlined">add</span> Add Option
+                </button>
+                <textarea class="var-dropdown-options-textarea" data-field="options" placeholder="Comma-separated options"></textarea>
+            `;
+            row.appendChild(d);
+        }
+        if (optsEl) optsEl.style.display = '';
+    } else {
+        if (optsEl) optsEl.style.display = 'none';
+    }
+}
+
+function addDropdownOption(e, varName) {
+    const row = e.target.closest('.var-meta-row');
+    const list = row?.querySelector('.var-dropdown-options-list') || 
+                 document.querySelector('.var-dropdown-options-list');
+    
+    if (!list) return;
+    
+    const newOption = document.createElement('div');
+    newOption.className = 'var-dropdown-option-item';
+    newOption.innerHTML = `
+        <input type="text" class="var-dropdown-option-input" placeholder="New option" onchange="updateAllDropdownOptions()"/>
+        <button type="button" class="var-dropdown-option-remove" onclick="removeDropdownOption(event)">
+            <span class="material-symbols-outlined">close</span>
+        </button>
+    `;
+    list.appendChild(newOption);
+    const lastInput = list.querySelectorAll('input').length > 0 ? list.querySelectorAll('input')[list.querySelectorAll('input').length - 1] : null;
+    if (lastInput) lastInput.focus();
+}
+
+function removeDropdownOption(e) {
+    e.target.closest('.var-dropdown-option-item').remove();
+    updateAllDropdownOptions();
+}
+
+function updateDropdownOption(e) {
+    updateAllDropdownOptions();
+}
+
+function updateAllDropdownOptions() {
+    document.querySelectorAll('.var-dropdown-opts').forEach(opts => {
+        const inputs = opts.querySelectorAll('.var-dropdown-option-input');
+        const values = Array.from(inputs)
+            .map(i => i.value.trim())
+            .filter(v => v);
+        const textarea = opts.querySelector('.var-dropdown-options-textarea');
+        if (textarea) textarea.value = values.join(', ');
+    });
+}
+
+function collectVarMeta() {
+    const meta = {};
+    document.querySelectorAll('#varMetaList .var-meta-row').forEach(row => {
+        const v    = row.dataset.var;
+        const type = row.querySelector('[data-field="type"]')?.value || 'text';
+        const def  = row.querySelector('[data-field="default"]')?.value || '';
+        const visible = row.querySelector('[data-field="visible"]')?.checked !== false;
+        const optsEl = row.querySelector('[data-field="options"]');
+        const options = optsEl?.value
+            ? optsEl.value.split(',').map(o => o.trim()).filter(Boolean)
+            : [];
+        meta[v] = { type, default: def, visible, options };
+    });
+    return meta;
+}
+
+/* ─────────────────────────────────────────────────────
+   CHAIN SYSTEM
+───────────────────────────────────────────────────── */
+function updateChainSelect(currentId) {
+    const sel = document.getElementById('chainPromptSelect');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Select a prompt to add...</option>' +
+        allPrompts
+            .filter(p => p.id !== currentId)
+            .map(p => `<option value="${p.id}">${escapeHtml(p.title)}</option>`)
+            .join('');
+}
+
+function addChainStep() {
+    const sel = document.getElementById('chainPromptSelect');
+    const id  = sel?.value;
+    if (!id) return;
+    
+    const current = JSON.parse(document.getElementById('promptChainIds').value || '[]');
+    current.push(parseInt(id));
+    document.getElementById('promptChainIds').value = JSON.stringify(current);
+    renderChainEditor(current);
+    sel.value = '';
+}
+
+function renderChainEditor(chainIds) {
+    const list = document.getElementById('chainList');
+    if (!chainIds.length) {
+        list.innerHTML = '<p style="font-size:12px;color:var(--text-d)">No steps added yet. Build a multi-step workflow.</p>';
+        return;
+    }
+
+    list.innerHTML = chainIds.map((id, i) => {
+        const p = allPrompts.find(x => x.id === id);
+        const title = p ? escapeHtml(p.title) : `Prompt #${id}`;
+        const isLast = i === chainIds.length - 1;
+        
+        return `<div class="chain-step-wrapper">
+            <div class="chain-item">
+                <div class="chain-step-num">${i + 1}</div>
+                <div class="chain-step-content">
+                    <span class="chain-step-label">${title}</span>
+                    ${i > 0 ? `<span class="chain-step-meta">receives context from step ${i}</span>` : ''}
+                </div>
+                <div class="chain-item-actions">
+                    ${i > 0 ? `<button type="button" class="chain-move-btn" onclick="moveChainStep(${i},-1)" title="Move up">
+                        <span class="material-symbols-outlined">arrow_upward</span>
+                    </button>` : ''}
+                    ${!isLast ? `<button type="button" class="chain-move-btn" onclick="moveChainStep(${i},1)" title="Move down">
+                        <span class="material-symbols-outlined">arrow_downward</span>
+                    </button>` : ''}
+                    <button type="button" class="chain-remove-btn" onclick="removeChainStep(${i})">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+            </div>
+            ${!isLast ? `<div class="chain-arrow">
+                <span class="material-symbols-outlined">arrow_downward</span>
+                <span class="chain-arrow-label">output flows to next step</span>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function moveChainStep(index, direction) {
+    const current = JSON.parse(document.getElementById('promptChainIds').value || '[]');
+    if (index < 0 || index >= current.length) return;
+    
+    const newIdx = index + direction;
+    if (newIdx < 0 || newIdx >= current.length) return;
+    
+    [current[index], current[newIdx]] = [current[newIdx], current[index]];
+    document.getElementById('promptChainIds').value = JSON.stringify(current);
+    renderChainEditor(current);
+}
+
+function removeChainStep(index) {
+    const current = JSON.parse(document.getElementById('promptChainIds').value || '[]');
+    current.splice(index, 1);
+    document.getElementById('promptChainIds').value = JSON.stringify(current);
+    renderChainEditor(current);
+}
+
+/* ─────────────────────────────────────────────────────
+   DETAIL PANEL
+───────────────────────────────────────────────────── */
+async function openDetailPanel(id) {
+    try {
+        const res = await fetch(`${API_BASE}/prompts/${id}`);
+        if (!res.ok) throw new Error();
+        const p = await res.json();
+        currentDetailId = id;
+        renderDetailPanel(p);
+        document.getElementById('detailPanel').classList.add('open');
+    } catch (err) {
+        toast('Could not load prompt details', 'error');
+    }
+}
+
+function closeDetailPanel() {
+    document.getElementById('detailPanel').classList.remove('open');
+    currentDetailId = null;
+}
+
+function renderDetailPanel(p) {
+    const vars    = detectVariables(p.content);
+    const cats    = Array.isArray(p.categories) ? p.categories.filter(Boolean) : [];
+    const tags    = Array.isArray(p.tags)       ? p.tags.filter(Boolean)       : [];
+    const folder  = allFolders.find(f => f.id === p.folder_id);
+
+    // Favorite button
+    const favBtn  = document.getElementById('panelFavBtn');
+    const favIcon = favBtn.querySelector('.material-symbols-outlined');
+    favBtn.classList.toggle('fav-on', !!p.is_favorite);
+    favIcon.textContent = p.is_favorite ? 'favorite' : 'favorite_border';
+    if (p.is_favorite) favIcon.style.fontVariationSettings = "'FILL' 1";
+    else               favIcon.style.fontVariationSettings = "'FILL' 0";
+
+    // Chips
+    const chipsEl = document.getElementById('detailChips');
+    chipsEl.innerHTML =
+        cats.map(c => `<span class="detail-chip">${escapeHtml(c)}</span>`).join('') +
+        tags.map(t => `<span class="detail-chip plain">${escapeHtml(t)}</span>`).join('');
+
+    // Title + description
+    document.getElementById('detailTitle').textContent = p.title;
+    const descEl = document.getElementById('detailDesc');
+    descEl.textContent = p.description || '';
+    descEl.style.display = p.description ? '' : 'none';
+
+    // Prompt text with chips
+    const varBadge = document.getElementById('detailVarBadge');
+    if (vars.length > 0) {
+        varBadge.style.display = 'flex';
+        document.getElementById('detailVarCount').textContent = `${vars.length} Variable${vars.length !== 1 ? 's' : ''}`;
+    } else {
+        varBadge.style.display = 'none';
+    }
+    document.getElementById('detailPromptText').innerHTML = renderChips(p.content);
+
+    // Variable fill section with visibility control
+    const useSec = document.getElementById('usePromptSection');
+    const varMeta = p.variableMeta || {};
+    
+    if (vars.length > 0) {
+        useSec.style.display = '';
+        renderVariableFields(vars, varMeta);
+    } else {
+        useSec.style.display = 'none';
+        document.getElementById('variableFields').innerHTML = '';
+    }
+
+    // Metadata
+    document.getElementById('metaCreated').textContent  = p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}) : '—';
+    document.getElementById('metaUseCount').textContent  = (p.use_count || 0).toLocaleString();
+    document.getElementById('metaFolder').textContent    = folder ? folder.name : '—';
+    document.getElementById('metaLastUsed').textContent  = p.last_used ? relativeTime(p.last_used) : 'Never';
+}
+
+function renderVariableFields(vars, varMeta) {
+    const fields = document.getElementById('variableFields');
+    if (!vars || !vars.length) return;
+    
+    // Filter to only visible variables
+    const visibleVars = vars.filter(v => {
+        const meta = varMeta[v] || {};
+        return meta.visible !== false;
+    });
+
+    if (visibleVars.length === 0) {
+        fields.innerHTML = '<p style="font-size:11px;color:var(--text-d)">All variables are hidden.</p>';
+        return;
+    }
+
+    fields.innerHTML = visibleVars.map(v => {
+        const vm = varMeta[v] || {};
+        const type     = vm.type || 'text';
+        const defVal   = vm.default || '';
+        const options  = vm.options || [];
+
+        let inputHtml = '';
+        if (type === 'dropdown' && options.length) {
+            inputHtml = `<select class="variable-select" data-variable="${escapeHtml(v)}">
+                <option value="">Select...</option>
+                ${options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}
+            </select>`;
+        } else if (type === 'number') {
+            inputHtml = `<input type="number" class="variable-input" data-variable="${escapeHtml(v)}" placeholder="Enter value..." value="${escapeHtml(defVal)}"/>`;
+        } else if (type === 'date') {
+            inputHtml = `<input type="date" class="variable-input" data-variable="${escapeHtml(v)}" value="${escapeHtml(defVal)}"/>`;
+        } else {
+            inputHtml = `<input type="text" class="variable-input" data-variable="${escapeHtml(v)}" placeholder="Enter value..." value="${escapeHtml(defVal)}"/>`;
+        }
+
+        return `<div class="var-field-group">
+            <div class="var-field-label">
+                ${escapeHtml(v)}
+                <span class="var-field-type">${type}</span>
+            </div>
+            ${inputHtml}
+        </div>`;
+    }).join('');
+}
+
+async function handlePanelFavorite() {
+    if (!currentDetailId) return;
+    try {
+        const res = await fetch(`${API_BASE}/prompts/${currentDetailId}/favorite`, { method: 'POST' });
+        if (!res.ok) throw new Error();
+        await loadPrompts();
+        const p = allPrompts.find(p => p.id === currentDetailId);
+        if (p) renderDetailPanel(p);
+    } catch (err) {
+        toast('Error updating favorite', 'error');
+    }
+}
+
+function handlePanelEdit() {
+    if (currentDetailId) editPrompt(currentDetailId);
+}
+
+async function handlePanelDelete() {
+    if (!currentDetailId) return;
+    if (!confirm('Delete this prompt? This cannot be undone.')) return;
+    try {
+        const res = await fetch(`${API_BASE}/prompts/${currentDetailId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        closeDetailPanel();
+        await loadPrompts();
+        toast('Prompt deleted', 'info');
+    } catch (err) {
+        toast('Error deleting prompt', 'error');
+    }
+}
+
+async function handleCopyWithVariables() {
+    if (!currentDetailId) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/prompts/${currentDetailId}`);
+        if (!res.ok) throw new Error();
+        const p = await res.json();
+
+        const vars = detectVariables(p.content);
+        const varMap = {};
+        const varMeta = p.variableMeta || {};
+
+        if (vars.length > 0) {
+            document.querySelectorAll('#variableFields .variable-input, #variableFields .variable-select').forEach(input => {
+                varMap[input.dataset.variable] = input.value.trim() || `[${input.dataset.variable}]`;
+            });
+        }
+
+        const filled = vars.length > 0 ? replaceVariables(p.content, varMap) : p.content;
+        const ok = await copyToClipboard(filled);
+
+        if (ok) {
+            fetch(`${API_BASE}/prompts/${currentDetailId}/use`, { method: 'POST' }).catch(() => {});
+            toast(vars.length > 0 ? 'Copied with variables filled!' : 'Copied to clipboard!', 'success');
+            const metaUse = document.getElementById('metaUseCount');
+            if (metaUse) metaUse.textContent = (parseInt(metaUse.textContent.replace(/,/g,'')) + 1).toLocaleString();
+        }
+    } catch (err) {
+        toast('Error copying prompt', 'error');
+    }
+}
+
+function handleSingleExport() {
+    if (!currentDetailId) return;
+    const p = allPrompts.find(p => p.id === currentDetailId);
+    if (!p) return;
+    const data = [{ title: p.title, description: p.description, content: p.content, categories: p.categories, tags: p.tags }];
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `${p.title.replace(/[^a-z0-9]/gi,'_').toLowerCase()}.json`;
+    a.click(); URL.revokeObjectURL(url);
+    toast('Prompt exported', 'success');
+}
+
+/* ─────────────────────────────────────────────────────
+   USE PROMPT FROM CARD
+───────────────────────────────────────────────────── */
+async function usePromptFromCard(id) {
+    try {
+        const res = await fetch(`${API_BASE}/prompts/${id}`);
+        if (!res.ok) throw new Error();
+        const p = await res.json();
+
+        const vars = detectVariables(p.content);
+        const varMeta = p.variableMeta || {};
+        const visibleVars = vars.filter(v => {
+            const meta = varMeta[v] || {};
+            return meta.visible !== false;
+        });
+
+        if (visibleVars.length > 0) {
+            await openDetailPanel(id);
+            setTimeout(() => {
+                const first = document.querySelector('#variableFields .variable-input, #variableFields .variable-select');
+                if (first) first.focus();
+            }, 100);
+        } else {
+            await copyToClipboard(p.content);
+            fetch(`${API_BASE}/prompts/${id}/use`, { method: 'POST' }).catch(() => {});
+            toast('Copied to clipboard!', 'success');
+        }
+    } catch (err) {
+        toast('Error loading prompt', 'error');
+    }
+}
+
+/* ─────────────────────────────────────────────────────
+   PROMPT EDITOR MODAL
+───────────────────────────────────────────────────── */
+function openNewPromptModal() {
+    document.getElementById('modalTitle').textContent     = 'New Prompt';
+    document.getElementById('submitBtnText').textContent  = 'Create Prompt';
+    document.getElementById('promptId').value             = '';
+    document.getElementById('promptForm').reset();
+    document.getElementById('varsCountBadge').style.display = 'none';
+    document.getElementById('editorPreview').innerHTML    = '<span style="color:var(--text-d);font-style:italic">Preview will appear here...</span>';
+    document.getElementById('varMetaList').innerHTML      = '<p style="font-size:12px;color:var(--text-d)">No variables detected. Add [[variable_name]] to your content.</p>';
+    document.getElementById('chainList').innerHTML        = '<p style="font-size:12px;color:var(--text-d)">No steps added yet. Build a multi-step workflow.</p>';
+    document.getElementById('promptChainIds').value       = '[]';
+    updateFolderDropdown();
+    updateChainSelect(null);
+    document.getElementById('promptModal').classList.add('active');
+    setTimeout(() => document.getElementById('promptTitle').focus(), 50);
+}
+
+function openNewPromptInFolder(folderId) {
+    openNewPromptModal();
+    document.getElementById('promptFolder').value = folderId;
+}
+
+function closePromptModal() {
+    document.getElementById('promptModal').classList.remove('active');
+}
+
+async function editPrompt(id) {
+    try {
+        const res = await fetch(`${API_BASE}/prompts/${id}`);
+        if (!res.ok) throw new Error();
+        const p = await res.json();
+
+        document.getElementById('modalTitle').textContent    = 'Edit Prompt';
+        document.getElementById('submitBtnText').textContent = 'Save Changes';
+        document.getElementById('promptId').value           = p.id;
+        document.getElementById('promptTitle').value        = p.title;
+        document.getElementById('promptDesc').value         = p.description || '';
+        document.getElementById('promptContent').value      = p.content;
+        document.getElementById('promptCategory').value     = Array.isArray(p.categories) ? p.categories.join(', ') : (p.categories || '');
+        document.getElementById('promptTags').value         = Array.isArray(p.tags)       ? p.tags.join(', ')       : (p.tags || '');
+        document.getElementById('promptChainIds').value     = JSON.stringify(p.chain_ids || []);
+
+        updateFolderDropdown();
+        document.getElementById('promptFolder').value = p.folder_id || '';
+        updateEditorPreview();
+        renderVarMetaList();
+        renderChainEditor(p.chain_ids || []);
+        updateChainSelect(p.id);
+        document.getElementById('promptModal').classList.add('active');
+    } catch (err) {
+        toast('Could not load prompt for editing', 'error');
+    }
+}
+
+async function handlePromptSubmit(e) {
+    e.preventDefault();
+
+    const id = document.getElementById('promptId').value;
+    const varMeta = collectVarMeta();
+    const chainIds = JSON.parse(document.getElementById('promptChainIds').value || '[]');
+
+    const data = {
+        title:       document.getElementById('promptTitle').value.trim(),
+        description: document.getElementById('promptDesc').value.trim(),
+        content:     document.getElementById('promptContent').value.trim(),
+        categories:  document.getElementById('promptCategory').value.split(',').map(s => s.trim()).filter(Boolean).join(','),
+        tags:        document.getElementById('promptTags').value.split(',').map(s => s.trim()).filter(Boolean).join(','),
+        folder_id:   document.getElementById('promptFolder').value || null,
+        variable_meta: varMeta,
+        chain_ids: chainIds,
+    };
+
+    if (!data.title || !data.content) {
+        toast('Title and content are required', 'warning');
+        return;
+    }
+
+    try {
+        const url    = id ? `${API_BASE}/prompts/${id}` : `${API_BASE}/prompts`;
+        const method = id ? 'PUT' : 'POST';
+        const res    = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error();
+        closePromptModal();
+        await loadPrompts();
+
+        if (id && currentDetailId === parseInt(id)) {
+            const updated = allPrompts.find(p => p.id === parseInt(id));
+            if (updated) renderDetailPanel(updated);
+        }
+
+        toast(id ? 'Prompt updated' : 'Prompt created', 'success');
+    } catch (err) {
+        toast('Error saving prompt', 'error');
+    }
+}
+
+async function deletePrompt(id) {
+    if (!confirm('Delete this prompt? This cannot be undone.')) return;
+    try {
+        const res = await fetch(`${API_BASE}/prompts/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        if (currentDetailId === id) closeDetailPanel();
+        await loadPrompts();
+        toast('Prompt deleted', 'info');
+    } catch (err) {
+        toast('Error deleting prompt', 'error');
+    }
+}
+
+async function toggleFavorite(id) {
+    try {
+        const res = await fetch(`${API_BASE}/prompts/${id}/favorite`, { method: 'POST' });
+        if (!res.ok) throw new Error();
+        await loadPrompts();
+        if (currentDetailId === id) {
+            const p = allPrompts.find(p => p.id === id);
+            if (p) renderDetailPanel(p);
+        }
+    } catch (err) {
+        toast('Error updating favorite', 'error');
+    }
+}
+
+/* ─────────────────────────────────────────────────────
+   EDITOR LIVE PREVIEW + VARIABLE MANAGER
+───────────────────────────────────────────────────── */
+function updateEditorPreview() {
+    const content  = document.getElementById('promptContent')?.value || '';
+    const preview  = document.getElementById('editorPreview');
+    const badge    = document.getElementById('varsCountBadge');
+    const badgeTxt = document.getElementById('varsCountText');
+
+    if (!content.trim()) {
+        preview.innerHTML = '<span style="color:var(--text-d);font-style:italic">Preview will appear here...</span>';
+        if (badge) badge.style.display = 'none';
+        return;
+    }
+
+    const vars = detectVariables(content);
+
+    if (badge) {
+        badge.style.display = vars.length > 0 ? 'flex' : 'none';
+        if (badgeTxt) badgeTxt.textContent = `${vars.length} Variable${vars.length !== 1 ? 's' : ''}`;
+    }
+
+    preview.innerHTML = renderChips(content);
+    renderVarMetaList();
+}
+
+/* ─────────────────────────────────────────────────────
+   FOLDER MANAGEMENT
+───────────────────────────────────────────────────── */
+function openNewFolderModal() {
+    document.getElementById('folderModalTitle').textContent  = 'New Folder';
+    document.getElementById('folderSubmitText').textContent  = 'Create Folder';
+    document.getElementById('folderId').value  = '';
+    document.getElementById('folderForm').reset();
+    document.getElementById('folderModal').classList.add('active');
+    setTimeout(() => document.getElementById('folderName').focus(), 50);
+}
+
+function closeFolderModal() {
+    document.getElementById('folderModal').classList.remove('active');
+}
+
+function renameFolder(id, currentName) {
+    document.getElementById('folderModalTitle').textContent  = 'Rename Folder';
+    document.getElementById('folderSubmitText').textContent  = 'Save';
+    document.getElementById('folderId').value  = id;
+    document.getElementById('folderName').value = currentName;
+    document.getElementById('folderModal').classList.add('active');
+    setTimeout(() => document.getElementById('folderName').focus(), 50);
+}
+
+async function handleFolderSubmit(e) {
+    e.preventDefault();
+    const id   = document.getElementById('folderId').value;
+    const name = document.getElementById('folderName').value.trim();
+    if (!name) return;
+
+    try {
+        const url    = id ? `${API_BASE}/folders/${id}` : `${API_BASE}/folders`;
+        const method = id ? 'PUT' : 'POST';
+        const res    = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+        if (!res.ok) throw new Error();
+        closeFolderModal();
+        await loadFolders();
+        await loadPrompts();
+        toast(id ? 'Folder renamed' : 'Folder created', 'success');
+    } catch (err) {
+        toast('Error saving folder', 'error');
+    }
+}
+
+async function deleteFolder(id) {
+    if (!confirm('Delete this folder? Prompts inside will not be deleted.')) return;
+    try {
+        const res = await fetch(`${API_BASE}/folders/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        if (currentView === id) setView('library');
+        await loadFolders();
+        await loadPrompts();
+        toast('Folder deleted', 'info');
+    } catch (err) {
+        toast('Error deleting folder', 'error');
+    }
+}
+
+/* ─────────────────────────────────────────────────────
+   VARIABLE TEMPLATES
+───────────────────────────────────────────────────── */
+function openVarTemplateModal() {
+    const templates = JSON.parse(localStorage.getItem('varTemplates') || '[]');
+    const list = document.getElementById('varTemplateList');
+    
+    if (templates.length === 0) {
+        list.innerHTML = '<p style="font-size:12px;color:var(--text-d)">No saved templates yet.</p>';
+    } else {
+        list.innerHTML = templates.map((t, i) => `
+            <div class="var-template-item" onclick="loadVarTemplate(${i})">
+                <span class="material-symbols-outlined">description</span>
+                <span class="var-template-name">${escapeHtml(t.name)}</span>
+                <span class="var-template-count">${Object.keys(t.meta).length} variables</span>
+            </div>
+        `).join('');
+    }
+    
+    document.getElementById('varTemplateModal').classList.add('active');
+}
+
+function loadVarTemplate(index) {
+    const templates = JSON.parse(localStorage.getItem('varTemplates') || '[]');
+    if (index >= 0 && index < templates.length) {
+        // Store template meta in a data attribute for the variable meta list
+        const template = templates[index];
+        const content = document.getElementById('promptContent').value;
+        
+        // Add variables to content if they don't exist
+        let updatedContent = content;
+        Object.keys(template.meta).forEach(v => {
+            if (!content.includes(`[${v}]`) && !content.includes(`{{${v}}}`)) {
+                updatedContent += `\n[${v}]`;
+            }
+        });
+        
+        document.getElementById('promptContent').value = updatedContent;
+        updateEditorPreview();
+        
+        // Apply meta to the rendered variable list
+        setTimeout(() => {
+            Object.entries(template.meta).forEach(([v, m]) => {
+                const row = document.querySelector(`.var-meta-row[data-var="${CSS.escape(v)}"]`);
+                if (row) {
+                    const typeSelect = row.querySelector('[data-field="type"]');
+                    const defaultInput = row.querySelector('[data-field="default"]');
+                    const visibleCheckbox = row.querySelector('[data-field="visible"]');
+                    const optionsTextarea = row.querySelector('[data-field="options"]');
+                    
+                    if (typeSelect) typeSelect.value = m.type || 'text';
+                    if (defaultInput) defaultInput.value = m.default || '';
+                    if (visibleCheckbox) visibleCheckbox.checked = m.visible !== false;
+                    if (optionsTextarea && m.options) {
+                        optionsTextarea.value = m.options.join(', ');
+                        onVarTypeChange(typeSelect);
+                        // Populate dropdown options
+                        const optsList = row.querySelector('.var-dropdown-options-list');
+                        if (optsList && m.options.length > 0) {
+                            optsList.innerHTML = m.options.map((o, i) => `
+                                <div class="var-dropdown-option-item">
+                                    <input type="text" class="var-dropdown-option-input" value="${escapeHtml(o)}" 
+                                           data-option-index="${i}" onchange="updateDropdownOption(event)"/>
+                                    <button type="button" class="var-dropdown-option-remove" onclick="removeDropdownOption(event)">
+                                        <span class="material-symbols-outlined">close</span>
+                                    </button>
+                                </div>
+                            `).join('');
+                        }
+                    }
+                }
+            });
+            document.getElementById('varTemplateModal').classList.remove('active');
+        }, 100);
+    }
+}
+
+function openSaveTemplateModal() {
+    document.getElementById('templateNameInput').value = '';
+    document.getElementById('saveTemplateModal').classList.add('active');
+}
+
+document.getElementById('confirmSaveTemplateBtn')?.addEventListener('click', () => {
+    const name = document.getElementById('templateNameInput').value.trim();
+    if (!name) {
+        toast('Please enter a template name', 'warning');
+        return;
+    }
+    
+    const meta = collectVarMeta();
+    const templates = JSON.parse(localStorage.getItem('varTemplates') || '[]');
+    templates.push({ name, meta });
+    localStorage.setItem('varTemplates', JSON.stringify(templates));
+    
+    document.getElementById('saveTemplateModal').classList.remove('active');
+    toast('Variable template saved', 'success');
+});
+
+document.getElementById('closeVarTemplateModal')?.addEventListener('click', () => {
+    document.getElementById('varTemplateModal').classList.remove('active');
+});
+
+document.getElementById('cancelVarTemplateBtn')?.addEventListener('click', () => {
+    document.getElementById('varTemplateModal').classList.remove('active');
+});
+
+document.getElementById('closeSaveTemplateModal')?.addEventListener('click', () => {
+    document.getElementById('saveTemplateModal').classList.remove('active');
+});
+
+document.getElementById('cancelSaveTemplateBtn')?.addEventListener('click', () => {
+    document.getElementById('saveTemplateModal').classList.remove('active');
+});
+
+/* ─────────────────────────────────────────────────────
+   IMPORT / EXPORT
+───────────────────────────────────────────────────── */
+function openImportModal() {
+    document.getElementById('importForm').reset();
+    document.getElementById('importModal').classList.add('active');
+}
+
+function closeImportModal() {
+    document.getElementById('importModal').classList.remove('active');
+}
+
+async function handleExport() {
+    try {
+        const res     = await fetch(`${API_BASE}/export`);
+        if (!res.ok) throw new Error();
+        const prompts = await res.json();
+        const blob    = new Blob([JSON.stringify(prompts, null, 2)], { type: 'application/json' });
+        const url     = URL.createObjectURL(blob);
+        const a       = document.createElement('a');
+        a.href = url; a.download = `prompts-export-${new Date().toISOString().slice(0,10)}.json`;
+        a.click(); URL.revokeObjectURL(url);
+        toast(`Exported ${prompts.length} prompt${prompts.length !== 1 ? 's' : ''}`, 'success');
+    } catch (err) {
+        toast('Error exporting prompts', 'error');
+    }
+}
+
+async function handleImport(e) {
+    e.preventDefault();
+    const raw = document.getElementById('importContent').value.trim();
+
+    let prompts;
+    try {
+        prompts = JSON.parse(raw);
+        if (!Array.isArray(prompts)) throw new Error('Expected array');
+    } catch (err) {
+        toast('Invalid JSON — expected an array [ {...}, {...} ]', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/import`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompts })
+        });
+        if (!res.ok) throw new Error();
+        closeImportModal();
+        await loadPrompts();
+        toast(`Imported ${prompts.length} prompt${prompts.length !== 1 ? 's' : ''}`, 'success');
+    } catch (err) {
+        toast('Error importing prompts', 'error');
+    }
+}
+
+/* ─────────────────────────────────────────────────────
+   UTILITIES
+───────────────────────────────────────────────────── */
+function escapeHtml(text) {
+    if (text == null) return '';
+    const d = document.createElement('div');
+    d.textContent = String(text);
+    return d.innerHTML;
+}
+
+function CSSescape(str) {
+    return str.replace(/([!"#$%&'()*+,.\/:;<=>?@[\]^`{|}~\\])/g, '\\$1');
+}
+
+async function copyToClipboard(text) {
+    if (!text || !text.trim()) {
+        toast('Nothing to copy', 'warning');
+        return false;
+    }
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            const ta = Object.assign(document.createElement('textarea'), {
+                value: text, style: 'position:fixed;left:-9999px;top:-9999px'
+            });
+            document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
+        return true;
+    } catch (err) {
+        toast('Failed to copy to clipboard', 'error');
+        return false;
+    }
+}
+
+function relativeTime(isoStr) {
+    if (!isoStr) return '';
+    try {
+        const diff = Date.now() - new Date(isoStr).getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1)  return 'just now';
+        if (mins < 60) return `${mins}m ago`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24)  return `${hrs}h ago`;
+        const days = Math.floor(hrs / 24);
+        if (days < 7)  return `${days}d ago`;
+        return new Date(isoStr).toLocaleDateString();
+    } catch { return ''; }
+}

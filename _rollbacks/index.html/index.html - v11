@@ -1,0 +1,2737 @@
+<!doctype html>
+<html lang="en-GB" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Prompt Library Pro</title>
+
+<!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+
+<style>
+/* =============================================================
+   CSS ARCHITECTURE - explicit cascade layers, predictable order.
+   ============================================================= */
+@layer reset, tokens, base, layout, components, utilities, motion;
+
+/* =============================================================
+   LAYER: tokens - design system in OKLCH, semantic naming.
+   ============================================================= */
+@layer tokens {
+  :root {
+    --fs-xs:   clamp(0.7rem, 0.67rem + 0.17vw, 0.75rem);
+    --fs-sm:   clamp(0.75rem, 0.72rem + 0.17vw, 0.8rem);
+    --fs-base: clamp(1rem, 1rem + 0vw, 1rem);
+    --fs-md:   clamp(1.1rem, 1.06rem + 0.25vw, 1.15rem);
+    --fs-lg:   clamp(1.3rem, 1.22rem + 0.42vw, 1.5rem);
+    --fs-xl:   clamp(1.6rem, 1.45rem + 0.65vw, 2rem);
+    --fs-2xl:  clamp(2.5rem, 2rem + 1.8vw, 3rem);
+
+    --ff-display: "Fraunces", "Iowan Old Style", "Charter", Georgia, serif;
+    --ff-sans:    "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --ff-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --sp-1: 0.22rem;   /* 3.5  */
+    --sp-2: 0.4rem;    /* 6.5  */
+    --sp-3: 0.65rem;   /* 10.4 */
+    --sp-4: 0.85rem;   /* 13.6 */
+    --sp-5: 1.25rem;   /* 20 */
+    --sp-6: 1.7rem;    /* 27.2 */
+    --sp-7: 2.5rem;    /* 40 */
+    --sp-8: 3.4rem;    /* 54.4 */
+    --sp-9: 5rem;      /* 80 */
+
+    --sidebar-w: 264px;
+    --detail-w: clamp(360px, 32vw, 480px);
+    --content-max: 920px;
+
+    --r-sm: 4px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-xl: 16px;
+
+    --t-fast:   120ms;
+    --t-base:   200ms;
+    --t-slow:   320ms;
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in:        cubic-bezier(0.7, 0, 0.84, 0);
+
+    /* Teal primary (#006666), warm beige surfaces (#E7E5E4), dark blue text (#1E2938) */
+    --bg:           oklch(93.5% 0.01 70);    /* page */
+    --surface:      oklch(95.2% 0.008 70);   /* cards / panels */
+    --surface-2:    oklch(92%   0.012 70);   /* hover, sidebar */
+    --surface-3:    oklch(88.5% 0.015 70);   /* deep wells, inputs at rest */
+    --surface-sunk: oklch(91%   0.012 70);   /* recessed (search, textarea) */
+
+    --line:         oklch(85%   0.016 70);
+    --line-strong:  oklch(78%   0.020 70);
+
+    --ink:          oklch(18%   0.04  260);  /* primary text */
+    --ink-2:        oklch(32%   0.03  260);  /* body */
+    --ink-3:        oklch(50%   0.015 260);  /* muted */
+    --ink-4:        oklch(68%   0.010 260);  /* hint */
+
+    --accent:       oklch(38%   0.14  190);  /* teal primary */
+    --accent-hover: oklch(33%   0.15  190);
+    --accent-soft:  oklch(93%   0.05  190);  /* tinted background */
+    --accent-line:  oklch(80%   0.08  190);
+
+    --warn:         oklch(63%   0.18  52);   /* #FE9900 */
+    --warn-soft:    oklch(94%   0.05  52);
+    --danger:       oklch(51%   0.21  30);   /* #FF2157 */
+    --danger-soft:  oklch(94%   0.04  30);
+    --success:      oklch(54%   0.14  140);  /* #00A63D */
+    --success-soft: oklch(94%   0.04  140);
+
+    --gold:         oklch(70%   0.14  85);   /* ratings, premium */
+
+    --c-red:    oklch(60% 0.17 25);
+    --c-orange: oklch(70% 0.15 55);
+    --c-yellow: oklch(80% 0.13 90);
+    --c-green:  oklch(58% 0.13 145);
+    --c-teal:   oklch(60% 0.10 195);
+    --c-blue:   oklch(55% 0.13 245);
+    --c-purple: oklch(52% 0.16 295);
+    --c-pink:   oklch(63% 0.16 350);
+
+    --shadow-sm: 0 1px 2px oklch(18% 0.04 260 / 0.08);
+    --shadow-md: 0 6px 20px -8px oklch(18% 0.04 260 / 0.12), 0 2px 6px oklch(18% 0.04 260 / 0.06);
+    --shadow-lg: 0 20px 50px -16px oklch(18% 0.04 260 / 0.20), 0 6px 14px oklch(18% 0.04 260 / 0.09);
+    --ring:      0 0 0 3px oklch(38% 0.14 190 / 0.20);
+
+    /* Neuromorphic shadows — warm light source from top-left */
+    --neu-raised:
+      5px 5px 10px oklch(83% 0.016 70 / 0.70),
+      -5px -5px 10px oklch(99.5% 0.004 70 / 0.55);
+    --neu-raised-sm:
+      3px 3px 6px oklch(83% 0.016 70 / 0.55),
+      -3px -3px 6px oklch(99.5% 0.004 70 / 0.42);
+    --neu-inset:
+      inset 2px 2px 5px oklch(83% 0.016 70 / 0.55),
+      inset -2px -2px 5px oklch(99.5% 0.004 70 / 0.40);
+    --neu-pressed:
+      inset 3px 3px 7px oklch(80% 0.016 70 / 0.65),
+      inset -2px -2px 5px oklch(99.5% 0.004 70 / 0.35);
+
+    --z-sidebar: 10;
+    --z-detail:  20;
+    --z-overlay: 50;
+    --z-modal:   60;
+    --z-toast:   80;
+    --z-palette: 90;
+  }
+
+  :root[data-theme="dark"] {
+    --bg:           oklch(16%   0.012 70);
+    --surface:      oklch(20%   0.014 70);
+    --surface-2:    oklch(24%   0.016 70);
+    --surface-3:    oklch(28%   0.018 70);
+    --surface-sunk: oklch(14%   0.012 70);
+
+    --line:         oklch(30%   0.016 70);
+    --line-strong:  oklch(38%   0.018 70);
+
+    --ink:          oklch(93%   0.015 260);
+    --ink-2:        oklch(80%   0.015 260);
+    --ink-3:        oklch(62%   0.012 260);
+    --ink-4:        oklch(48%   0.010 260);
+
+    --accent:       oklch(72%   0.14  190);
+    --accent-hover: oklch(78%   0.14  190);
+    --accent-soft:  oklch(26%   0.08  190);
+    --accent-line:  oklch(38%   0.12  190);
+
+    --warn:         oklch(78%   0.17  52);
+    --warn-soft:    oklch(26%   0.08  52);
+    --danger:       oklch(74%   0.19  30);
+    --danger-soft:  oklch(26%   0.08  30);
+    --success:      oklch(74%   0.14  140);
+    --success-soft: oklch(24%   0.06  140);
+
+    --gold:         oklch(80%   0.14  85);
+
+    --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.5);
+    --shadow-md: 0 8px 24px -10px oklch(0% 0 0 / 0.65), 0 2px 8px oklch(0% 0 0 / 0.4);
+    --shadow-lg: 0 24px 60px -20px oklch(0% 0 0 / 0.80), 0 8px 18px oklch(0% 0 0 / 0.5);
+    --ring:      0 0 0 3px oklch(72% 0.14 190 / 0.35);
+
+    /* Neuromorphic shadows — dark mode */
+    --neu-raised:
+      5px 5px 10px oklch(10% 0.010 70 / 0.80),
+      -5px -5px 10px oklch(28% 0.016 70 / 0.50);
+    --neu-raised-sm:
+      3px 3px 6px oklch(10% 0.010 70 / 0.65),
+      -3px -3px 6px oklch(28% 0.016 70 / 0.40);
+    --neu-inset:
+      inset 2px 2px 5px oklch(10% 0.010 70 / 0.65),
+      inset -2px -2px 5px oklch(28% 0.016 70 / 0.40);
+    --neu-pressed:
+      inset 3px 3px 7px oklch(10% 0.010 70 / 0.75),
+      inset -2px -2px 5px oklch(28% 0.016 70 / 0.30);
+
+    --c-red:    oklch(72% 0.17 25);
+    --c-orange: oklch(80% 0.15 55);
+    --c-yellow: oklch(88% 0.13 90);
+    --c-green:  oklch(72% 0.14 140);
+    --c-teal:   oklch(70% 0.10 190);
+    --c-blue:   oklch(70% 0.14 190);
+    --c-purple: oklch(70% 0.16 295);
+    --c-pink:   oklch(76% 0.16 350);
+  }
+}
+/* =============================================================
+   LAYER: reset - minimal modern.
+   ============================================================= */
+@layer reset {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  html, body, #app { height: 100%; }
+  body { overflow: hidden; }
+  img, svg { display: block; max-width: 100%; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  input, textarea, select { font: inherit; color: inherit; }
+  textarea { resize: vertical; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 2px; }
+  ::selection { background: var(--accent-soft); color: var(--ink); }
+  :focus { outline: none; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+}
+
+/* =============================================================
+   LAYER: base - typography, root surface.
+   ============================================================= */
+@layer base {
+  body {
+    font-family: var(--ff-sans);
+    font-size: var(--fs-base);
+    line-height: 1.55;
+    color: var(--ink);
+    background: var(--bg);
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--ff-display);
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    font-variation-settings: "opsz" 32, "SOFT" 30;
+  }
+  h1 { font-size: var(--fs-2xl); font-variation-settings: "opsz" 96, "SOFT" 40; letter-spacing: -0.025em; }
+  h2 { font-size: var(--fs-xl); }
+  h3 { font-size: var(--fs-lg); }
+  h4 { font-size: var(--fs-md); font-weight: 600; }
+
+  p, li { color: var(--ink-2); }
+
+  /* Material symbols default sizing */
+  .material-symbols-outlined {
+    font-size: 18px;
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 20;
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  .eyebrow {
+    font-family: var(--ff-sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  /* Pull-quote styled prompt content rendering */
+  .serif { font-family: var(--ff-display); font-weight: 400; }
+  .mono  { font-family: var(--ff-mono); font-feature-settings: "ss01"; }
+}
+
+/* =============================================================
+   LAYER: layout - app shell.
+   ============================================================= */
+@layer layout {
+  #app {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+    height: 100vh;
+    background: var(--bg);
+    overflow: hidden; /* clip sidebar when collapsed */
+  }
+
+  body.sidebar-hidden #app { grid-template-columns: 0 minmax(0, 1fr); }
+  body.sidebar-hidden #sidebar {
+    transform: translateX(calc(-1 * var(--sidebar-w)));
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  #sidebar {
+    grid-column: 1;
+    width: var(--sidebar-w);   /* explicit width — makes translateX(-sidebar-w) work */
+    background: var(--surface-2);
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    transition: transform var(--t-base) var(--ease-out-quart),
+                opacity var(--t-fast) linear;
+    z-index: var(--z-sidebar);
+  }
+
+  #main {
+    grid-column: 2;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    min-width: 0;
+    min-height: 0;
+    position: relative;
+  }
+
+  #content {
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: var(--sp-5) clamp(var(--sp-5), 4vw, var(--sp-7)) var(--sp-7);
+    scroll-padding-top: var(--sp-5);
+  }
+  #content > * + * { margin-top: var(--sp-5); }
+
+  #detailPanel {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: var(--detail-w);
+    background: var(--surface);
+    border-left: 1px solid var(--line);
+    box-shadow: var(--shadow-lg);
+    transform: translateX(100%);
+    transition: transform var(--t-slow) var(--ease-out-expo);
+    z-index: var(--z-detail);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  #detailPanel.open { transform: translateX(0); }
+}
+
+/* =============================================================
+   LAYER: components - reusable UI pieces.
+   ============================================================= */
+@layer components {
+
+  .brand {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-5) var(--sp-5) var(--sp-4);
+  }
+  .brand-mark {
+    width: 32px; height: 32px;
+    border-radius: var(--r-sm);
+    display: grid; place-items: center;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: var(--ff-display);
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: -0.02em;
+    font-variation-settings: "opsz" 24, "SOFT" 50;
+  }
+  .brand-name {
+    font-family: var(--ff-display);
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    font-variation-settings: "opsz" 32, "SOFT" 40;
+  }
+  .brand-pro {
+    font-family: var(--ff-sans);
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.16em;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 2px 6px; border-radius: 4px;
+    margin-left: 4px;
+  }
+
+  .nav-section {
+    padding: 0 var(--sp-3);
+    margin-top: var(--sp-2);
+  }
+  .nav-section + .nav-section { margin-top: var(--sp-4); }
+
+  .nav-section-label {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--sp-2) var(--sp-3);
+    color: var(--ink-3);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+    cursor: pointer;
+    user-select: none;
+  }
+  .nav-section-label:hover { color: var(--ink-2); }
+  .nav-section-label .chev { transition: transform var(--t-base) var(--ease-out-quart); }
+  .nav-section-content.collapsed { display: none; }
+  .nav-section-content.collapsed ~ .chev,
+  .nav-section-label[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+
+  .nav-icon-btn {
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    border-radius: 4px;
+    color: var(--ink-3);
+    transition: color var(--t-fast), background var(--t-fast);
+  }
+  .nav-icon-btn:hover { color: var(--ink); background: var(--surface-3); }
+  .nav-icon-btn .material-symbols-outlined { font-size: 16px; }
+
+  .nav-item {
+    width: 100%;
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: 7px var(--sp-3);
+    border-radius: var(--r-sm);
+    color: var(--ink-2);
+    font-size: var(--fs-sm); font-weight: 500;
+    text-align: left;
+    transition: background var(--t-fast), color var(--t-fast);
+  }
+  .nav-item:hover { background: var(--surface-3); color: var(--ink); }
+  .nav-item.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .nav-item .material-symbols-outlined { font-size: 18px; }
+  .nav-count {
+    margin-left: auto;
+    font-size: 11px; font-weight: 600;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .nav-item.active .nav-count { color: var(--accent); }
+  .nav-lock { font-size: 14px !important; color: var(--ink-4); margin-left: auto; }
+
+  /* Folder list items in sidebar */
+  .folder-item {
+    width: 100%;
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: 6px var(--sp-3);
+    border-radius: var(--r-sm);
+    color: var(--ink-2);
+    font-size: var(--fs-sm);
+    cursor: pointer;
+    transition: background var(--t-fast);
+    position: relative;
+  }
+  .folder-item:hover { background: var(--surface-3); }
+  .folder-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .folder-item .folder-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .folder-item .folder-count {
+    font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums;
+  }
+  .folder-item .material-symbols-outlined { font-size: 16px; color: var(--ink-3); }
+  .folder-item.active .material-symbols-outlined { color: var(--accent); }
+  .folder-actions {
+    display: none; gap: 2px;
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    background: var(--surface-2);
+    padding-left: 6px;
+  }
+  .folder-item:hover .folder-actions { display: flex; }
+  .folder-item:hover .folder-count { display: none; }
+  .folder-mini-btn {
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    display: grid; place-items: center;
+    color: var(--ink-3);
+    transition: background var(--t-fast), color var(--t-fast);
+  }
+  .folder-mini-btn:hover { background: var(--surface-3); color: var(--ink); }
+  .folder-mini-btn.danger:hover { color: var(--danger); }
+  .folder-mini-btn .material-symbols-outlined { font-size: 14px; }
+
+  /* Filter list (categories, tags) */
+  .filter-list {
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .filter-list-item {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: 5px var(--sp-3);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-sm);
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: background var(--t-fast);
+  }
+  .filter-list-item:hover { background: var(--surface-3); }
+  .filter-list-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .filter-list-item .filter-count {
+    margin-left: auto;
+    font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums;
+  }
+  .filter-list-empty {
+    font-size: 12px; color: var(--ink-4);
+    padding: var(--sp-2) var(--sp-3);
+    font-style: italic;
+  }
+
+  /* Sidebar scroll area */
+  #sidebarScroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: var(--sp-3);
+  }
+
+  .sidebar-footer {
+    padding: var(--sp-3);
+    border-top: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .sidebar-footer-row { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+  .sidebar-footer-btn {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: 7px var(--sp-3);
+    border-radius: var(--r-sm);
+    color: var(--ink-2);
+    font-size: var(--fs-sm);
+    transition: background var(--t-fast), color var(--t-fast);
+    justify-content: flex-start;
+  }
+  .sidebar-footer-btn:hover { background: var(--surface-3); color: var(--ink); }
+  .sidebar-footer-btn .material-symbols-outlined { font-size: 16px; color: var(--ink-3); }
+  .sidebar-footer-btn:hover .material-symbols-outlined { color: var(--ink); }
+
+  #contentHeader {
+    grid-row: 1;
+    padding: var(--sp-5) clamp(var(--sp-5), 4vw, var(--sp-7)) var(--sp-4);
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+    position: sticky; top: 0;
+    z-index: 5;
+  }
+  .header-top {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: var(--sp-5);
+    margin-bottom: var(--sp-5);
+  }
+  .header-title-group { min-width: 0; flex: 1; }
+  #breadcrumb {
+    display: flex; align-items: center; gap: var(--sp-2);
+    color: var(--ink-3);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+    margin-bottom: var(--sp-2);
+    min-height: 14px;
+  }
+  #breadcrumb .bc-sep { font-size: 12px; color: var(--ink-4); }
+
+  .header-actions {
+    display: flex; align-items: center; gap: var(--sp-2);
+    flex-shrink: 0;
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: var(--sp-2);
+    padding: 8px 14px;
+    border-radius: var(--r-sm);
+    font-family: var(--ff-sans);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: var(--neu-raised-sm);
+    transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast),
+                transform var(--t-fast), box-shadow var(--t-fast);
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface-2); border-color: var(--line-strong); }
+  .btn:active { transform: scale(0.98); box-shadow: var(--neu-pressed); }
+  .btn .material-symbols-outlined { font-size: 16px; }
+
+  .btn-primary {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+  .btn-primary:hover { background: var(--accent); border-color: var(--accent); }
+
+  .btn-accent {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .btn-accent:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+  .btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--ink-2);
+  }
+  .btn-ghost:hover { background: var(--surface-2); color: var(--ink); }
+
+  .btn-danger { color: var(--danger); border-color: var(--line); background: var(--surface); }
+  .btn-danger:hover { background: var(--danger-soft); border-color: var(--danger); }
+
+  .icon-btn {
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    border-radius: var(--r-sm);
+    color: var(--ink-2);
+    background: transparent;
+    border: 1px solid transparent;
+    transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+  }
+  .icon-btn:hover { background: var(--surface-2); color: var(--ink); border-color: var(--line); }
+  .icon-btn.danger:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
+  .icon-btn .material-symbols-outlined { font-size: 18px; }
+
+  #searchWrap {
+    flex: 1 1 320px;
+    min-width: 240px;
+    max-width: 520px;
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: 8px var(--sp-4);
+    background: var(--surface-sunk);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    box-shadow: var(--neu-inset);
+    transition: border-color var(--t-fast), box-shadow var(--t-fast);
+  }
+  #searchWrap:focus-within { border-color: var(--accent); box-shadow: var(--ring), var(--neu-inset); }
+  #searchWrap .material-symbols-outlined { color: var(--ink-3); font-size: 18px; }
+  #searchInput { flex: 1; background: transparent; border: 0; outline: 0; font-size: var(--fs-sm); color: var(--ink); }
+  #searchInput::placeholder { color: var(--ink-4); }
+
+  .search-kbd {
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  .filter-bar {
+    display: flex; align-items: center; gap: var(--sp-3);
+    flex-wrap: wrap;
+  }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 12px; font-weight: 500;
+    color: var(--ink-2);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+    white-space: nowrap;
+  }
+  .chip:hover { background: var(--surface-3); color: var(--ink); }
+  .chip.active {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+  .chip .material-symbols-outlined { font-size: 14px; }
+
+  .chip-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid var(--accent-line);
+    font-weight: 600;
+  }
+  .chip-pill .material-symbols-outlined { font-size: 13px; }
+
+  .sort-bar {
+    display: flex; align-items: center; gap: var(--sp-3);
+    margin-top: var(--sp-3);
+    color: var(--ink-3);
+    font-size: var(--fs-sm);
+  }
+  .sort-bar select {
+    padding: 5px 28px 5px 10px;
+    background: var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='%2378716c' d='M6 9 1.5 4.5h9z'/%3E%3C/svg%3E") no-repeat right 8px center;
+    background-size: 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    appearance: none;
+    color: var(--ink);
+    font-size: var(--fs-sm);
+    cursor: pointer;
+  }
+  .sort-bar select:hover { border-color: var(--line-strong); }
+
+  .view-toggle {
+    display: inline-flex;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    padding: 2px;
+  }
+  .view-toggle button {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    color: var(--ink-3);
+    font-size: 12px; font-weight: 500;
+    transition: background var(--t-fast), color var(--t-fast);
+  }
+  .view-toggle button:hover { color: var(--ink); }
+  .view-toggle button.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+  .view-toggle .material-symbols-outlined { font-size: 14px; }
+
+  #viewCount {
+    margin-left: auto;
+    color: var(--ink-3);
+    font-size: 12px; font-variant-numeric: tabular-nums;
+  }
+}
+@layer components {
+  #promptsContainer { container-type: inline-size; }
+
+  /* List view: editorial rows. Each row = a manuscript page. */
+  #promptsContainer.list-view .prompt-card {
+    display: grid;
+    grid-template-columns: 4px 1fr auto;
+    gap: var(--sp-5);
+    align-items: stretch;
+    padding: var(--sp-5) var(--sp-5) var(--sp-5) 0;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    cursor: pointer;
+    transition: background var(--t-fast);
+  }
+  #promptsContainer.list-view .prompt-card:hover { background: var(--surface-2); }
+  #promptsContainer.list-view .prompt-card.active { background: var(--accent-soft); }
+  #promptsContainer.list-view .card-rule { width: 4px; border-radius: 2px; }
+  #promptsContainer.list-view .card-actions {
+    align-self: flex-start;
+    opacity: 0;
+    transition: opacity var(--t-fast);
+  }
+  #promptsContainer.list-view .prompt-card:hover .card-actions { opacity: 1; }
+
+  /* Grid view: cards. */
+  #promptsContainer.grid-view {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+    gap: var(--sp-4);
+  }
+  #promptsContainer.grid-view .prompt-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    padding: var(--sp-4) var(--sp-5);
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: 4px 1fr;
+    gap: var(--sp-4);
+    box-shadow: var(--neu-raised);
+    transition: border-color var(--t-fast), background var(--t-fast),
+                transform var(--t-fast), box-shadow var(--t-fast);
+  }
+  #promptsContainer.grid-view .prompt-card:hover {
+    border-color: var(--line-strong);
+    background: var(--surface-2);
+    transform: translateY(-2px);
+    box-shadow: var(--neu-raised), 0 4px 12px oklch(18% 0.04 260 / 0.08);
+  }
+  #promptsContainer.grid-view .prompt-card.active { border-color: var(--accent); background: var(--accent-soft); }
+  #promptsContainer.grid-view .card-rule { width: 4px; border-radius: 2px; }
+  #promptsContainer.grid-view .card-actions { display: none; }
+
+  .prompt-card .card-rule { background: var(--line-strong); }
+  .prompt-card .card-rule.c-red    { background: var(--c-red); }
+  .prompt-card .card-rule.c-orange { background: var(--c-orange); }
+  .prompt-card .card-rule.c-yellow { background: var(--c-yellow); }
+  .prompt-card .card-rule.c-green  { background: var(--c-green); }
+  .prompt-card .card-rule.c-teal   { background: var(--c-teal); }
+  .prompt-card .card-rule.c-blue   { background: var(--c-blue); }
+  .prompt-card .card-rule.c-purple { background: var(--c-purple); }
+  .prompt-card .card-rule.c-pink   { background: var(--c-pink); }
+
+  .card-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .card-title-row { display: flex; align-items: baseline; gap: var(--sp-3); }
+  .card-title {
+    font-family: var(--ff-display);
+    font-size: var(--fs-md);
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    font-variation-settings: "opsz" 36, "SOFT" 50;
+    overflow: hidden; text-overflow: ellipsis;
+    /* standard property for compatibility */
+    line-clamp: 1;
+    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+    flex: 1; min-width: 0;
+  }
+  .card-fav { color: var(--gold); font-size: 16px; }
+  .card-rating { color: var(--gold); font-size: 12px; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
+
+  .card-desc {
+    font-size: var(--fs-sm);
+    color: var(--ink-3);
+    overflow: hidden; text-overflow: ellipsis;
+    /* standard property for compatibility */
+    line-clamp: 2;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+  .card-meta {
+    display: flex; align-items: center; gap: var(--sp-3);
+    font-size: 12px; color: var(--ink-3);
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+  .card-meta-item { display: inline-flex; align-items: center; gap: 4px; }
+  .card-meta-item .material-symbols-outlined { font-size: 13px; }
+  .card-meta-sep { color: var(--ink-4); }
+
+  .card-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .card-tag {
+    font-size: 11px; padding: 2px 8px;
+    background: var(--surface-2);
+    color: var(--ink-3);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  .card-tag.cat { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-line); }
+
+  .card-actions { display: flex; gap: 2px; }
+  .card-actions .icon-btn { width: 30px; height: 30px; }
+  .card-actions .icon-btn .material-symbols-outlined { font-size: 16px; }
+  .card-actions .icon-btn.fav-on { color: var(--gold); }
+  .card-actions .icon-btn.fav-on .material-symbols-outlined { font-variation-settings: "FILL" 1; }
+
+  /* Folder grouping headers */
+  .folder-group-header {
+    display: flex; align-items: baseline; gap: var(--sp-3);
+    padding: var(--sp-5) 0 var(--sp-2) 0;
+    margin-top: var(--sp-3);
+    border-bottom: 1px solid var(--line);
+  }
+  .folder-group-header:first-child { margin-top: 0; padding-top: 0; }
+  .folder-group-header h3 {
+    font-family: var(--ff-display);
+    font-size: var(--fs-lg); font-weight: 500;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+  }
+  .folder-group-header .count { color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+  .empty {
+    text-align: left;
+    padding: var(--sp-8) var(--sp-5);
+    max-width: 480px;
+  }
+  .empty .empty-eyebrow { color: var(--ink-3); font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: var(--sp-3); }
+  .empty h2 {
+    font-family: var(--ff-display);
+    font-size: clamp(1.75rem, 1.5rem + 1vw, 2.5rem);
+    font-weight: 400;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin-bottom: var(--sp-3);
+    font-variation-settings: "opsz" 96, "SOFT" 30;
+  }
+  .empty h2 em { font-style: italic; color: var(--accent); font-variation-settings: "opsz" 96, "SOFT" 80; }
+  .empty p { font-size: var(--fs-md); color: var(--ink-2); margin-bottom: var(--sp-5); max-width: 52ch; line-height: 1.6; }
+  .empty .empty-actions { display: flex; gap: var(--sp-3); flex-wrap: wrap; }
+
+  .detail-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--line);
+    flex-shrink: 0;
+  }
+  .detail-actions { display: flex; gap: 2px; }
+  .detail-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--line);
+    padding: 0 var(--sp-4);
+    flex-shrink: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .detail-tabs::-webkit-scrollbar { display: none; }
+  .detail-tab {
+    padding: 12px 14px;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: var(--ink-3);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    white-space: nowrap;
+    transition: color var(--t-fast), border-color var(--t-fast);
+  }
+  .detail-tab:hover { color: var(--ink); }
+  .detail-tab.active { color: var(--ink); border-color: var(--accent); font-weight: 600; }
+  .detail-tab .lock { font-size: 12px; opacity: 0.6; margin-left: 4px; vertical-align: -2px; }
+
+  #detailBody {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--sp-5);
+  }
+  .detail-tab-pane { display: none; }
+  .detail-tab-pane.active { display: block; }
+
+  .detail-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: var(--sp-3); }
+  #detailTitle {
+    font-family: var(--ff-display);
+    font-size: var(--fs-xl);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: var(--ink);
+    margin-bottom: var(--sp-2);
+    font-variation-settings: "opsz" 72, "SOFT" 40;
+  }
+  #detailDesc { font-size: var(--fs-sm); color: var(--ink-3); margin-bottom: var(--sp-5); }
+
+  .detail-section-label {
+    display: flex; align-items: center; justify-content: space-between;
+    color: var(--ink-3);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+    margin: var(--sp-5) 0 var(--sp-2);
+  }
+  .detail-section-label:first-child { margin-top: 0; }
+
+  #detailPromptText {
+    font-family: var(--ff-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink);
+    background: var(--surface-sunk);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    padding: var(--sp-4);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+  }
+
+  .var-chip {
+    display: inline-block;
+    padding: 1px 7px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid var(--accent-line);
+    border-radius: 4px;
+    font-family: var(--ff-mono);
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0 2px;
+    line-height: 1.4;
+  }
+
+  /* Variable fill section */
+  #usePromptSection { margin-top: var(--sp-5); }
+  .var-field {
+    display: flex; flex-direction: column; gap: 4px;
+    margin-bottom: var(--sp-3);
+  }
+  .var-field-label {
+    display: flex; align-items: center; gap: var(--sp-2);
+    font-size: 12px; font-weight: 600; color: var(--ink-2);
+    font-family: var(--ff-mono);
+  }
+  .var-field-type {
+    font-size: 10px;
+    color: var(--ink-3);
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .var-input, .var-select {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--surface-sunk);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-sm);
+    color: var(--ink);
+    transition: border-color var(--t-fast), box-shadow var(--t-fast);
+  }
+  .var-input:focus, .var-select:focus { border-color: var(--accent); box-shadow: var(--ring); }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-3);
+    margin-top: var(--sp-5);
+    padding-top: var(--sp-5);
+    border-top: 1px solid var(--line);
+  }
+  .meta-cell {
+    display: flex; gap: var(--sp-3); align-items: flex-start;
+  }
+  .meta-cell .material-symbols-outlined {
+    color: var(--ink-3); font-size: 16px; margin-top: 2px;
+  }
+  .meta-label { font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+  .meta-value { font-size: var(--fs-sm); color: var(--ink); margin-top: 1px; font-variant-numeric: tabular-nums; }
+
+  /* Star rating */
+  .stars { display: inline-flex; gap: 2px; }
+  .stars button {
+    color: var(--ink-4);
+    transition: color var(--t-fast), transform var(--t-fast);
+    padding: 2px;
+    border-radius: 4px;
+  }
+  .stars button .material-symbols-outlined { font-size: 22px; }
+  .stars button:hover { color: var(--gold); transform: scale(1.1); }
+  .stars button.on { color: var(--gold); }
+  .stars button.on .material-symbols-outlined { font-variation-settings: "FILL" 1; }
+
+  /* Notes textarea */
+  .form-textarea, .form-input {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--surface-sunk);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    font-family: var(--ff-sans);
+    font-size: var(--fs-sm);
+    color: var(--ink);
+    box-shadow: var(--neu-inset);
+    transition: border-color var(--t-fast), box-shadow var(--t-fast);
+  }
+  .form-textarea:focus, .form-input:focus {
+    border-color: var(--accent);
+    box-shadow: var(--ring), var(--neu-inset);
+  }
+
+  /* Chain steps */
+  .chain-step {
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    gap: var(--sp-3);
+    align-items: center;
+    padding: var(--sp-3);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    margin-bottom: var(--sp-2);
+  }
+  .chain-step-num {
+    width: 28px; height: 28px;
+    display: grid; place-items: center;
+    background: var(--accent);
+    color: white;
+    border-radius: 50%;
+    font-family: var(--ff-display);
+    font-size: 13px; font-weight: 600;
+    font-variation-settings: "opsz" 24;
+  }
+  .chain-step-body { min-width: 0; }
+  .chain-step-title { font-size: var(--fs-sm); font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chain-step-meta { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+  .chain-step-actions { display: flex; gap: 2px; }
+
+  /* Version history list */
+  .version-item {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-3);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    margin-bottom: var(--sp-2);
+    cursor: pointer;
+    transition: background var(--t-fast), border-color var(--t-fast);
+  }
+  .version-item:hover { background: var(--surface-3); border-color: var(--line-strong); }
+  .version-meta { flex: 1; min-width: 0; }
+  .version-title { font-size: var(--fs-sm); font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .version-time { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+
+  /* Detail footer */
+  .detail-footer {
+    flex-shrink: 0;
+    padding: var(--sp-3) var(--sp-4);
+    border-top: 1px solid var(--line);
+    display: flex; gap: var(--sp-2);
+    align-items: center;
+  }
+  .detail-footer #copyToClipboardBtn { flex: 1; justify-content: center; }
+
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: oklch(15% 0.012 75 / 0.4);
+    backdrop-filter: blur(2px);
+    display: none;
+    z-index: var(--z-overlay);
+    opacity: 0;
+    transition: opacity var(--t-base) var(--ease-out-quart);
+  }
+  .modal-overlay.active { display: grid; place-items: center; opacity: 1; }
+  :root[data-theme="dark"] .modal-overlay { background: oklch(0% 0 0 / 0.55); }
+
+  .modal-box, .modal-box-sm {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-lg), var(--neu-raised);
+    width: min(900px, 92vw);
+    max-height: 88vh;
+    display: flex; flex-direction: column;
+    min-height: 0;
+    transform: scale(0.97) translateY(8px);
+    transition: transform var(--t-base) var(--ease-out-quart);
+    overflow: hidden;
+  }
+  /* The form inside the modal must also be flex column so its body scrolls
+     while the footer stays pinned visible. */
+  .modal-box form {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .modal-box-sm { width: min(440px, 92vw); }
+  .modal-overlay.active .modal-box,
+  .modal-overlay.active .modal-box-sm { transform: scale(1) translateY(0); }
+
+  .modal-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: var(--sp-4);
+    padding: var(--sp-5) var(--sp-5) var(--sp-3);
+  }
+  .modal-header h2 {
+    font-family: var(--ff-display);
+    font-size: var(--fs-xl);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    font-variation-settings: "opsz" 64, "SOFT" 40;
+  }
+  .modal-header h3 { font-family: var(--ff-display); font-size: var(--fs-lg); font-weight: 500; letter-spacing: -0.015em; }
+  .modal-header p { font-size: var(--fs-sm); color: var(--ink-3); margin-top: 2px; }
+  .modal-body { padding: var(--sp-2) var(--sp-5) var(--sp-5); overflow-y: auto; flex: 1 1 auto; min-height: 0; }
+  .modal-footer { flex: 0 0 auto; }
+  .modal-footer {
+    display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2);
+    padding: var(--sp-4) var(--sp-5);
+    border-top: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); margin-bottom: var(--sp-4); }
+  .form-row.single { grid-template-columns: 1fr; }
+  .form-group label.form-label {
+    display: block;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 6px;
+  }
+  .form-label .req { color: var(--danger); }
+
+  .colour-swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+  .swatch {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 2px solid var(--line);
+    cursor: pointer;
+    transition: transform var(--t-fast), border-color var(--t-fast);
+  }
+  .swatch:hover { transform: scale(1.12); }
+  .swatch.active { border-color: var(--ink); transform: scale(1.12); }
+  .swatch.none { background: repeating-linear-gradient(45deg, var(--surface-3) 0 4px, var(--surface-2) 4px 8px); }
+  .swatch.c-red    { background: var(--c-red); }
+  .swatch.c-orange { background: var(--c-orange); }
+  .swatch.c-yellow { background: var(--c-yellow); }
+  .swatch.c-green  { background: var(--c-green); }
+  .swatch.c-teal   { background: var(--c-teal); }
+  .swatch.c-blue   { background: var(--c-blue); }
+  .swatch.c-purple { background: var(--c-purple); }
+  .swatch.c-pink   { background: var(--c-pink); }
+
+  /* Editor tabs (inside the prompt modal) */
+  .editor-tabs {
+    display: flex; gap: 2px;
+    border-bottom: 1px solid var(--line);
+    margin: var(--sp-4) 0 var(--sp-4);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .editor-tabs::-webkit-scrollbar { display: none; }
+  .editor-tab {
+    padding: 8px 12px;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: var(--ink-3);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    white-space: nowrap;
+    transition: color var(--t-fast), border-color var(--t-fast);
+  }
+  .editor-tab:hover { color: var(--ink); }
+  .editor-tab.active { color: var(--ink); border-color: var(--accent); font-weight: 600; }
+  .editor-pane { display: none; }
+  .editor-pane.active { display: block; }
+
+  .editor-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-3);
+    min-height: 320px;
+  }
+  .editor-grid-2 textarea {
+    font-family: var(--ff-mono);
+    font-size: 13px;
+    line-height: 1.65;
+    padding: var(--sp-3);
+    background: var(--surface-sunk);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    color: var(--ink);
+    min-height: 320px;
+    resize: vertical;
+  }
+  .editor-grid-2 textarea:focus { border-color: var(--accent); box-shadow: var(--ring); outline: none; }
+  #editorPreview {
+    padding: var(--sp-3);
+    background: var(--surface-2);
+    border: 1px dashed var(--line);
+    border-radius: var(--r-sm);
+    font-family: var(--ff-mono);
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--ink);
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    min-height: 320px;
+  }
+  #editorPreview .hint { color: var(--ink-4); font-style: italic; font-family: var(--ff-sans); }
+
+  .vars-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 600; color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-line);
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin-left: var(--sp-2);
+  }
+  .vars-badge .material-symbols-outlined { font-size: 13px; }
+
+  /* Variable meta editor row */
+  .var-meta-row {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    padding: var(--sp-3);
+    margin-bottom: var(--sp-2);
+  }
+  .var-meta-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: var(--sp-2);
+  }
+  .var-meta-name {
+    font-family: var(--ff-mono);
+    font-size: 13px; font-weight: 600;
+    color: var(--accent);
+  }
+  .var-meta-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+  .var-meta-fields select, .var-meta-fields input {
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--ink);
+  }
+  .var-meta-fields select:focus, .var-meta-fields input:focus { border-color: var(--accent); box-shadow: var(--ring); outline: none; }
+  .visibility-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-3); cursor: pointer; }
+
+  .dropdown-options { margin-top: var(--sp-2); display: flex; flex-direction: column; gap: 4px; }
+  .dropdown-option-row { display: flex; gap: 4px; }
+  .dropdown-option-row input { flex: 1; padding: 5px 8px; font-size: 12px; }
+
+  /* Chat turns (system/user/assistant) */
+  .chat-turn {
+    display: grid;
+    grid-template-columns: 100px 1fr auto;
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-2);
+    align-items: flex-start;
+  }
+  .chat-turn select { width: 100%; padding: 6px 8px; font-size: 12px; }
+  .chat-turn textarea { min-height: 60px; font-size: 13px; }
+  .chat-turn-add {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--accent);
+    font-size: 12px; font-weight: 600;
+    padding: 6px 10px;
+    border-radius: var(--r-sm);
+  }
+  .chat-turn-add:hover { background: var(--accent-soft); }
+
+  /* Export modal options */
+  .export-option {
+    width: 100%;
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    margin-bottom: var(--sp-2);
+    text-align: left;
+    color: var(--ink);
+    transition: background var(--t-fast), border-color var(--t-fast);
+    cursor: pointer;
+  }
+  .export-option:hover { background: var(--surface-2); border-color: var(--line-strong); }
+  .export-option .material-symbols-outlined { color: var(--ink-3); font-size: 22px; }
+  .export-option-body { flex: 1; min-width: 0; }
+  .export-option-title { font-size: var(--fs-sm); font-weight: 600; color: var(--ink); }
+  .export-option-desc { font-size: 11.5px; color: var(--ink-3); margin-top: 1px; }
+  .export-option .premium-mark { color: var(--gold); font-size: 16px; margin-left: auto; }
+
+  .premium-hero {
+    text-align: center;
+    padding: var(--sp-7) var(--sp-5) var(--sp-5);
+    background:
+      radial-gradient(circle at 20% 0%, oklch(80% 0.13 85 / 0.18), transparent 50%),
+      radial-gradient(circle at 80% 0%, oklch(72% 0.13 245 / 0.15), transparent 50%);
+  }
+  .premium-mark-big {
+    width: 56px; height: 56px;
+    margin: 0 auto var(--sp-4);
+    border-radius: var(--r-md);
+    background: var(--ink);
+    color: var(--gold);
+    display: grid; place-items: center;
+  }
+  .premium-mark-big .material-symbols-outlined { font-size: 30px; font-variation-settings: "FILL" 1; }
+
+  .feature-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-2) var(--sp-3);
+    margin-bottom: var(--sp-5);
+  }
+  .feature-item {
+    display: flex; align-items: flex-start; gap: var(--sp-2);
+    font-size: var(--fs-sm);
+    color: var(--ink-2);
+  }
+  .feature-item .material-symbols-outlined {
+    font-size: 18px;
+    color: var(--success);
+    flex-shrink: 0;
+    font-variation-settings: "FILL" 1;
+  }
+
+  .licence-row {
+    display: flex; gap: var(--sp-2);
+    margin-bottom: var(--sp-3);
+  }
+  .licence-row input { flex: 1; }
+  #licenceError {
+    font-size: 12px; color: var(--danger);
+    display: none;
+    margin-bottom: var(--sp-3);
+  }
+  #licenceError.show { display: block; }
+
+  .premium-links {
+    display: flex; gap: var(--sp-4);
+    padding-top: var(--sp-3);
+    border-top: 1px solid var(--line);
+    font-size: 12px;
+  }
+
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-5);
+  }
+  .stats-bar-card {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    padding: var(--sp-4) var(--sp-4) var(--sp-3);
+    transition: border-color var(--t-fast), background var(--t-fast);
+    position: relative;
+  }
+  .stats-bar-card:hover { border-color: var(--line-strong); background: var(--surface-3); }
+  .stats-bar-icon {
+    color: var(--ink-3);
+    font-size: 18px !important;
+    margin-bottom: var(--sp-3);
+    display: block;
+  }
+  .stats-bar-value {
+    font-family: var(--ff-display);
+    font-size: clamp(1.5rem, 1.3rem + 0.8vw, 2rem);
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    font-variation-settings: "opsz" 64, "SOFT" 30;
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 4px;
+  }
+  .stats-bar-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-5);
+  }
+  .stat-cell {
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+  }
+  .stat-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+  .stat-value {
+    font-family: var(--ff-display);
+    font-size: clamp(1.6rem, 1.4rem + 1vw, 2.25rem);
+    font-weight: 400;
+    color: var(--ink);
+    margin-top: 4px;
+    letter-spacing: -0.02em;
+    font-variation-settings: "opsz" 72, "SOFT" 30;
+    font-variant-numeric: tabular-nums;
+  }
+  .stats-section { margin-bottom: var(--sp-5); }
+  .stats-section h3 { font-family: var(--ff-display); font-size: var(--fs-md); font-weight: 500; letter-spacing: -0.015em; margin-bottom: var(--sp-3); }
+  .top-list { display: flex; flex-direction: column; gap: var(--sp-2); }
+  .top-list-item {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--surface-2);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-sm);
+  }
+  .top-list-item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+  .top-list-item .count { font-variant-numeric: tabular-nums; color: var(--ink-3); font-size: 12px; }
+  .bar-row { display: grid; grid-template-columns: 1fr 60px; gap: var(--sp-3); align-items: center; padding: 4px 0; }
+  .bar-bg { height: 8px; background: var(--surface-3); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width var(--t-slow) var(--ease-out-expo); }
+
+  #cmdPalette {
+    position: fixed; inset: 0;
+    z-index: var(--z-palette);
+    display: none;
+    background: oklch(15% 0.012 75 / 0.4);
+    backdrop-filter: blur(2px);
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 12vh;
+  }
+  #cmdPalette.active { display: flex; }
+  :root[data-theme="dark"] #cmdPalette { background: oklch(0% 0 0 / 0.55); }
+  .cmd-box {
+    width: min(620px, 92vw);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+  .cmd-input-row {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-4);
+    border-bottom: 1px solid var(--line);
+  }
+  .cmd-input-row .material-symbols-outlined { color: var(--ink-3); font-size: 20px; }
+  #cmdInput {
+    flex: 1; background: transparent; border: 0; outline: 0;
+    font-family: var(--ff-display);
+    font-size: var(--fs-md);
+    color: var(--ink);
+    font-variation-settings: "opsz" 24, "SOFT" 40;
+  }
+  #cmdInput::placeholder { color: var(--ink-4); }
+  .cmd-results {
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: var(--sp-2);
+  }
+  .cmd-result {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .cmd-result .material-symbols-outlined { color: var(--ink-3); font-size: 18px; }
+  .cmd-result:hover, .cmd-result.active { background: var(--surface-2); }
+  .cmd-result .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); font-weight: 500; }
+  .cmd-result .hint { font-size: 11px; color: var(--ink-3); }
+  .cmd-empty { padding: var(--sp-5); text-align: center; color: var(--ink-3); font-size: var(--fs-sm); }
+  .cmd-footer {
+    display: flex; gap: var(--sp-4);
+    padding: var(--sp-3) var(--sp-4);
+    border-top: 1px solid var(--line);
+    background: var(--surface-2);
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+  .cmd-kbd {
+    font-family: var(--ff-mono);
+    font-size: 10.5px;
+    color: var(--ink-2);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 1px 5px;
+    margin-right: 4px;
+  }
+
+  #toastContainer {
+    position: fixed;
+    bottom: var(--sp-5);
+    right: var(--sp-5);
+    display: flex;
+    flex-direction: column-reverse;
+    gap: var(--sp-2);
+    z-index: var(--z-toast);
+    pointer-events: none;
+  }
+  .toast {
+    pointer-events: auto;
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: 10px var(--sp-4);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-md);
+    font-size: var(--fs-sm); color: var(--ink);
+    animation: toast-in var(--t-base) var(--ease-out-quart);
+    min-width: 240px;
+    max-width: 380px;
+  }
+  .toast.success { border-color: var(--success); }
+  .toast.success .material-symbols-outlined { color: var(--success); }
+  .toast.error   { border-color: var(--danger); }
+  .toast.error   .material-symbols-outlined { color: var(--danger); }
+  .toast.warning { border-color: var(--warn); }
+  .toast.warning .material-symbols-outlined { color: var(--warn); }
+  .toast.info    .material-symbols-outlined { color: var(--accent); }
+
+  /* Skeleton loading */
+  .skeleton {
+    background: linear-gradient(90deg,
+      var(--surface-2) 0%,
+      var(--surface-3) 50%,
+      var(--surface-2) 100%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.6s infinite linear;
+    border-radius: var(--r-sm);
+  }
+  .skeleton-card { height: 90px; margin-bottom: var(--sp-3); }
+}
+
+/* =============================================================
+   LAYER: motion - keyframes and reduced-motion override.
+   ============================================================= */
+@layer motion {
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes skeleton-shimmer {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+  }
+  @keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+    #detailPanel, .modal-box, .modal-box-sm { transition: none !important; }
+  }
+}
+
+/* =============================================================
+   TAG CHIP INPUT COMPONENT
+   ============================================================= */
+@layer components {
+  .tag-input-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: center;
+    padding: 5px 10px;
+    background: var(--surface-sunk);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    min-height: 40px;
+    cursor: text;
+    box-shadow: var(--neu-inset);
+    transition: border-color var(--t-fast), box-shadow var(--t-fast);
+    position: relative;
+  }
+  .tag-input-wrap:focus-within {
+    border-color: var(--accent);
+    box-shadow: var(--ring), var(--neu-inset);
+  }
+  .tag-chip-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px 2px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid var(--accent-line);
+    white-space: nowrap;
+    user-select: none;
+    line-height: 1.4;
+  }
+  .tag-chip-item.is-cat {
+    background: var(--surface-3);
+    color: var(--ink-2);
+    border-color: var(--line-strong);
+  }
+  .tag-chip-x {
+    width: 16px; height: 16px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    cursor: pointer;
+    opacity: 0.65;
+    transition: opacity var(--t-fast), background var(--t-fast);
+    flex-shrink: 0;
+  }
+  .tag-chip-x:hover { opacity: 1; background: oklch(0% 0 0 / 0.12); }
+  .tag-chip-x .material-symbols-outlined { font-size: 11px; }
+  .tag-input-field {
+    border: 0; outline: 0;
+    background: transparent;
+    color: var(--ink);
+    font-size: var(--fs-sm);
+    font-family: var(--ff-sans);
+    min-width: 80px;
+    flex: 1;
+    padding: 2px 0;
+  }
+  .tag-input-field::placeholder { color: var(--ink-4); }
+  .tag-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: var(--z-overlay);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-md), var(--neu-raised);
+    max-height: 180px;
+    overflow-y: auto;
+    min-width: 180px;
+    width: 100%;
+  }
+  .tag-dropdown-item {
+    padding: 7px 12px;
+    font-size: var(--fs-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    transition: background var(--t-fast);
+  }
+  .tag-dropdown-item:hover, .tag-dropdown-item.kbd-active {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .tag-dropdown-item .td-count { font-size: 11px; color: var(--ink-4); }
+  .tag-dropdown-create {
+    font-style: italic;
+    color: var(--accent);
+    border-top: 1px solid var(--line);
+  }
+
+  /* Chain run UX in detail panel */
+  .chain-runner {
+    margin-top: var(--sp-3);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    box-shadow: var(--neu-raised-sm);
+  }
+  .chain-runner-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line);
+    font-size: var(--fs-sm); font-weight: 600;
+  }
+  .chain-runner-step {
+    padding: var(--sp-4);
+    border-bottom: 1px solid var(--line);
+  }
+  .chain-runner-step:last-child { border-bottom: 0; }
+  .chain-runner-step.current { background: var(--accent-soft); }
+  .chain-runner-step.done { opacity: 0.5; }
+  .chain-step-num-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--surface-3);
+    color: var(--ink-3);
+    font-size: 11px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .chain-step-num-badge.current { background: var(--accent); color: white; }
+  .chain-step-num-badge.done { background: var(--success); color: white; }
+  /* Phase context carry-forward indicator */
+  .chain-phase-context {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-4);
+    background: var(--accent-soft);
+    border-top: 1px solid var(--line);
+    font-size: 11px; font-weight: 600; color: var(--accent);
+  }
+  /* AI response capture area between phases */
+  .chain-output-capture {
+    padding: var(--sp-4);
+    border-top: 1px solid var(--line);
+    background: var(--surface);
+  }
+  /* Per-phase summary row shown at completion */
+  .chain-phase-summary {
+    padding: var(--sp-4);
+    border-bottom: 1px solid var(--line);
+  }
+  .chain-phase-summary:last-child { border-bottom: 0; }
+  /* Clipped preview of captured AI response */
+  .chain-output-preview {
+    margin-top: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--surface-2);
+    border-radius: var(--r-sm);
+    font-size: 11px; color: var(--ink-2);
+    border-left: 3px solid var(--success);
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .chain-runner-actions {
+    display: flex; gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--surface-2);
+    border-top: 1px solid var(--line);
+  }
+
+  /* Import format tabs */
+  .import-format-tabs {
+    display: flex; gap: 2px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    padding: 3px;
+    margin-bottom: var(--sp-3);
+  }
+  .import-fmt-tab {
+    flex: 1;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: var(--fs-sm); font-weight: 500;
+    color: var(--ink-3);
+    text-align: center;
+    transition: background var(--t-fast), color var(--t-fast);
+  }
+  .import-fmt-tab.active {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+/* =============================================================
+   LAYER: utilities - final overrides.
+   ============================================================= */
+@layer utilities {
+  .hidden { display: none !important; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+  .premium-locked {
+    opacity: 0.72;
+    position: relative;
+    cursor: pointer;
+  }
+  .premium-locked:hover {
+    opacity: 1;
+    color: var(--accent);
+  }
+  .premium-locked .nav-lock,
+  .premium-locked .lock { display: inline-flex; }
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 8px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-4); }
+::-webkit-scrollbar-track { background: transparent; }
+@layer utilities {
+  #content {
+    background:
+      linear-gradient(90deg, transparent 0, transparent calc(100% - 1px), var(--line) calc(100% - 1px)) 0 0 / min(100%, 920px) 100% no-repeat;
+  }
+
+  #promptsContainer.list-view {
+    max-width: var(--content-max);
+  }
+
+  #promptsContainer.list-view .prompt-card {
+    min-height: 116px;
+    padding-right: var(--sp-4);
+  }
+
+  #promptsContainer.list-view .card-actions {
+    opacity: 1;
+    background: color-mix(in oklch, var(--bg), transparent 6%);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    padding: 2px;
+  }
+
+  .card-title,
+  h1, h2, h3, h4 {
+    letter-spacing: 0;
+  }
+
+  .empty {
+    max-width: min(860px, 100%);
+    padding: clamp(var(--sp-7), 9vh, var(--sp-9)) 0;
+  }
+  .empty-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.75fr);
+    gap: clamp(var(--sp-6), 5vw, var(--sp-8));
+    align-items: start;
+  }
+  .empty h2 {
+    max-width: 12ch;
+    letter-spacing: 0;
+  }
+  .empty-proof {
+    border-left: 1px solid var(--line);
+    padding-left: var(--sp-5);
+    display: grid;
+    gap: var(--sp-3);
+    color: var(--ink-3);
+    font-size: var(--fs-sm);
+  }
+  .empty-proof-item {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    gap: var(--sp-3);
+    align-items: start;
+  }
+  .empty-proof-item .material-symbols-outlined {
+    color: var(--accent);
+    font-size: 18px;
+  }
+
+  .premium-hero {
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  }
+
+  .modal-box {
+    width: min(980px, 92vw);
+  }
+
+  .editor-grid-2 {
+    grid-template-columns: minmax(320px, 1fr) minmax(300px, 0.85fr);
+  }
+
+  .modal-overlay.active .modal-box,
+  .modal-overlay.active .modal-box-sm {
+    box-shadow: var(--shadow-lg);
+  }
+
+  @media (max-width: 980px) {
+    .empty-shell {
+      grid-template-columns: 1fr;
+    }
+    .empty-proof {
+      border-left: 0;
+      border-top: 1px solid var(--line);
+      padding-left: 0;
+      padding-top: var(--sp-5);
+    }
+    .editor-grid-2 {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+  /* ============================================================
+     ROLES WORKSPACE
+     ============================================================ */
+  #rolesWorkspace {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal, 100);
+    background: var(--surface);
+    flex-direction: column;
+  }
+  #rolesWorkspace.open { display: flex; }
+  .roles-header {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-4) var(--sp-5);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface); flex-shrink: 0;
+  }
+  .roles-header h2 { font-size: var(--fs-lg); font-weight: 700; color: var(--ink); margin: 0; flex: 1; }
+  .roles-body { display: grid; grid-template-columns: 280px 1fr; flex: 1; overflow: hidden; }
+  .roles-list-pane { border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; }
+  .roles-list-search { padding: var(--sp-3); border-bottom: 1px solid var(--line); flex-shrink: 0; }
+  .roles-list-scroll { flex: 1; overflow-y: auto; padding: var(--sp-2); }
+  .role-list-item {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3); border-radius: var(--radius);
+    cursor: pointer; transition: background var(--t-base); position: relative;
+  }
+  .role-list-item:hover { background: var(--surface-3); }
+  .role-list-item.active { background: var(--accent-soft); }
+  .role-list-item.active .role-item-name { color: var(--accent); font-weight: 600; }
+  .role-color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .role-item-icon { font-size: 18px; line-height: 1; }
+  .role-item-name { font-size: var(--fs-sm); color: var(--ink); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .role-item-fav {
+    font-size: 14px; color: var(--ink-4); cursor: pointer; padding: 2px;
+    border-radius: 4px; background: none; border: none; transition: color var(--t-base);
+  }
+  .role-item-fav:hover { color: var(--warning, #f59e0b); }
+  .role-item-fav.active { color: var(--warning, #f59e0b); }
+  .roles-list-empty { text-align: center; padding: var(--sp-8) var(--sp-4); color: var(--ink-3); font-size: var(--fs-sm); }
+  .roles-editor-pane { display: flex; flex-direction: column; overflow: hidden; }
+  .roles-editor-empty {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; flex: 1; gap: var(--sp-3); color: var(--ink-3);
+  }
+  .roles-editor-empty .material-symbols-outlined { font-size: 48px; }
+  .roles-editor-scroll { flex: 1; overflow-y: auto; padding: var(--sp-5); }
+  .roles-editor-toolbar {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-5); border-top: 1px solid var(--line);
+    background: var(--surface); flex-shrink: 0;
+  }
+  .role-meta-row {
+    display: grid; grid-template-columns: auto 60px 1fr;
+    gap: var(--sp-3); align-items: center; margin-bottom: var(--sp-4);
+  }
+  .role-icon-picker {
+    font-size: 28px; cursor: pointer; padding: var(--sp-2);
+    border-radius: var(--radius); border: 1px solid var(--line);
+    background: var(--surface-2); transition: background var(--t-base);
+    text-align: center; line-height: 1.2; min-width: 48px;
+  }
+  .role-icon-picker:hover { background: var(--surface-3); }
+  .role-color-swatch { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; flex-shrink: 0; }
+  .role-prompt-builder { margin-top: var(--sp-5); border: 1px solid var(--line); border-radius: var(--radius-lg, 10px); overflow: hidden; }
+  .role-prompt-builder-header {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4); background: var(--surface-2); border-bottom: 1px solid var(--line);
+  }
+  .role-prompt-builder-header span { font-size: var(--fs-sm); font-weight: 600; color: var(--ink); }
+  .role-prompt-preview {
+    padding: var(--sp-4); font-size: var(--fs-sm); color: var(--ink-2);
+    white-space: pre-wrap; font-family: monospace; min-height: 120px;
+    background: var(--surface); line-height: 1.6;
+  }
+  .role-prompt-preview em { color: var(--ink-4); font-style: italic; }
+  .role-prompt-copy-row {
+    display: flex; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4);
+    border-top: 1px solid var(--line); background: var(--surface-2); flex-wrap: wrap;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============================================================
+       SIDEBAR
+       ============================================================ -->
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">P</div>
+      <div>
+        <span class="brand-name">Prompt Library</span>
+        <span class="brand-pro" id="premiumBadge" hidden>PRO</span>
+      </div>
+    </div>
+
+    <nav class="nav-section">
+      <button class="nav-item active" data-view="library">
+        <span class="material-symbols-outlined">menu_book</span>
+        <span>Library</span>
+        <span class="nav-count" id="libraryCount">0</span>
+      </button>
+      <button class="nav-item" data-view="favorites">
+        <span class="material-symbols-outlined">star</span>
+        <span>Favourites</span>
+        <span class="nav-count" id="favCount">0</span>
+      </button>
+      <button class="nav-item premium-locked" data-view="analytics" data-premium="true" id="analyticsNavBtn">
+        <span class="material-symbols-outlined">monitoring</span>
+        <span>Analytics</span>
+        <span class="nav-lock material-symbols-outlined">lock</span>
+      </button>
+      <button class="nav-item" data-view="roles" id="rolesNavBtn">
+        <span class="material-symbols-outlined">person_play</span>
+        <span>Roles</span>
+        <span class="nav-count" id="rolesCount">0</span>
+      </button>
+    </nav>
+
+    <div id="sidebarScroll">
+
+      <div class="nav-section">
+        <div class="nav-section-label" data-toggle="folders" aria-expanded="true">
+          <span>Folders</span>
+          <span style="display:inline-flex; align-items:center; gap:4px;">
+            <button class="nav-icon-btn" id="newFolderBtn" title="New folder" aria-label="New folder">
+              <span class="material-symbols-outlined">add</span>
+            </button>
+            <span class="material-symbols-outlined chev">expand_more</span>
+          </span>
+        </div>
+        <div class="nav-section-content" id="folders-content">
+          <div id="foldersList" class="filter-list"></div>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label" data-toggle="categories" aria-expanded="true">
+          <span>Categories</span>
+          <span class="material-symbols-outlined chev">expand_more</span>
+        </div>
+        <div class="nav-section-content" id="categories-content">
+          <div id="categoriesList" class="filter-list"></div>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label" data-toggle="tags" aria-expanded="true">
+          <span>Tags</span>
+          <span class="material-symbols-outlined chev">expand_more</span>
+        </div>
+        <div class="nav-section-content" id="tags-content">
+          <div id="tagsList" class="filter-list"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-footer-row">
+        <button class="sidebar-footer-btn" id="importBtn">
+          <span class="material-symbols-outlined">upload</span>
+          <span>Import</span>
+        </button>
+        <button class="sidebar-footer-btn" id="exportBtn">
+          <span class="material-symbols-outlined">download</span>
+          <span>Export</span>
+        </button>
+      </div>
+      <button class="sidebar-footer-btn" id="themeToggleBtn">
+        <span class="material-symbols-outlined" id="themeIcon">dark_mode</span>
+        <span id="themeLabel">Dark mode</span>
+      </button>
+      <button class="sidebar-footer-btn" id="licenceBtn">
+        <span class="material-symbols-outlined">workspace_premium</span>
+        <span id="licenceBtnLabel">Unlock Pro</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============================================================
+       MAIN
+       ============================================================ -->
+  <main id="main">
+
+    <header id="contentHeader">
+      <div class="header-top">
+        <div class="header-title-group">
+          <div id="breadcrumb"></div>
+          <h1 id="viewTitle">Library</h1>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn" id="sidebarToggleBtn" title="Toggle sidebar" aria-label="Toggle sidebar">
+            <span class="material-symbols-outlined">menu_open</span>
+          </button>
+          <button class="icon-btn" id="cmdBtn" title="Command palette (Ctrl+K)" aria-label="Open command palette">
+            <span class="material-symbols-outlined">search</span>
+          </button>
+          <button class="btn btn-accent" id="newPromptBtn">
+            <span class="material-symbols-outlined">add</span>
+            <span>New prompt</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="folderViewActions" class="filter-bar" style="display:none; margin-bottom: var(--sp-3);"></div>
+
+      <div class="filter-bar" id="libraryFilterBar">
+        <div id="searchWrap">
+          <span class="material-symbols-outlined">search</span>
+          <input type="search" id="searchInput" placeholder="Search prompts, descriptions, tags..." autocomplete="off" />
+          <span class="search-kbd">/</span>
+        </div>
+        <button class="chip" id="filterFavChip">
+          <span class="material-symbols-outlined">star</span>
+          Favourites
+        </button>
+        <button class="chip premium-locked" id="filterRatedChip" data-premium="true">
+          <span class="material-symbols-outlined">star_rate</span>
+          Rated
+        </button>
+        <button class="chip" id="activeFilterPill" hidden>
+          <span class="material-symbols-outlined">close</span>
+          <span id="activeFilterLabel"></span>
+        </button>
+        <span id="viewCount">0 prompts</span>
+      </div>
+
+      <div class="sort-bar">
+        <span>Sort</span>
+        <select id="sortSelect">
+          <option value="updated">Recently updated</option>
+          <option value="created">Date created</option>
+          <option value="title">Title A-Z</option>
+          <option value="used">Most used</option>
+          <option value="rating">Top rated</option>
+        </select>
+        <div class="view-toggle" id="viewToggle">
+          <button data-mode="list" class="active">
+            <span class="material-symbols-outlined">view_agenda</span>
+            List
+          </button>
+          <button data-mode="grid">
+            <span class="material-symbols-outlined">grid_view</span>
+            Grid
+          </button>
+        </div>
+        <button class="chip" id="groupFolderBtn">
+          <span class="material-symbols-outlined">folder_special</span>
+          Group by folder
+        </button>
+      </div>
+    </header>
+
+    <div id="content">
+      <div id="promptsContainer" class="list-view"></div>
+    </div>
+
+    <!-- ============================================================
+         DETAIL PANEL
+         ============================================================ -->
+    <aside id="detailPanel" aria-hidden="true">
+      <div class="detail-header">
+        <div class="detail-actions">
+          <button class="icon-btn" id="panelFavBtn" title="Toggle favourite">
+            <span class="material-symbols-outlined">favorite</span>
+          </button>
+          <button class="icon-btn premium-locked" id="panelDuplicateBtn" data-premium="true" title="Duplicate">
+            <span class="material-symbols-outlined">content_copy</span>
+          </button>
+          <button class="icon-btn" id="panelEditBtn" title="Edit">
+            <span class="material-symbols-outlined">edit</span>
+          </button>
+          <button class="icon-btn danger" id="panelDeleteBtn" title="Delete">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
+        </div>
+        <button class="icon-btn" id="closeDetailPanel" title="Close" aria-label="Close panel">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <nav class="detail-tabs">
+        <button class="detail-tab active" data-tab="prompt">Prompt</button>
+        <button class="detail-tab premium-locked" data-tab="notes" data-premium="true">Notes &amp; rating <span class="lock material-symbols-outlined">lock</span></button>
+        <button class="detail-tab premium-locked" data-tab="chain" data-premium="true">Chain <span class="lock material-symbols-outlined">lock</span></button>
+        <button class="detail-tab premium-locked" data-tab="history" data-premium="true">History <span class="lock material-symbols-outlined">lock</span></button>
+      </nav>
+
+      <div id="detailBody">
+
+        <div class="detail-tab-pane active" id="tab-prompt">
+          <div id="detailChips" class="detail-chips"></div>
+          <h2 id="detailTitle"></h2>
+          <p id="detailDesc"></p>
+
+          <div class="detail-section-label">
+            Prompt
+            <span class="vars-badge" id="detailVarBadge" hidden>
+              <span class="material-symbols-outlined">token</span>
+              <span id="detailVarCount">0 variables</span>
+            </span>
+          </div>
+          <div id="detailPromptText"></div>
+
+          <div id="usePromptSection" hidden>
+            <div class="detail-section-label">Fill variables</div>
+            <div id="variableFields"></div>
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta-cell">
+              <span class="material-symbols-outlined">calendar_month</span>
+              <div>
+                <div class="meta-label">Created</div>
+                <div class="meta-value" id="metaCreated">-</div>
+              </div>
+            </div>
+            <div class="meta-cell">
+              <span class="material-symbols-outlined">bolt</span>
+              <div>
+                <div class="meta-label">Total uses</div>
+                <div class="meta-value" id="metaUseCount">0</div>
+              </div>
+            </div>
+            <div class="meta-cell">
+              <span class="material-symbols-outlined">folder</span>
+              <div>
+                <div class="meta-label">Folder</div>
+                <div class="meta-value" id="metaFolder">-</div>
+              </div>
+            </div>
+            <div class="meta-cell">
+              <span class="material-symbols-outlined">schedule</span>
+              <div>
+                <div class="meta-label">Last used</div>
+                <div class="meta-value" id="metaLastUsed">Never</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-tab-pane" id="tab-notes">
+          <div class="detail-section-label">Rating</div>
+          <div class="stars" id="detailRatingStars"></div>
+          <div class="detail-section-label" style="margin-top: var(--sp-5)">Personal notes</div>
+          <textarea class="form-textarea" id="detailNotes" rows="6" placeholder="Notes, reminders, things to revise..."></textarea>
+          <button class="btn btn-primary" id="saveNotesBtn" style="margin-top: var(--sp-3); width: 100%; justify-content: center;">
+            <span class="material-symbols-outlined">save</span>
+            Save notes &amp; rating
+          </button>
+        </div>
+
+        <div class="detail-tab-pane" id="tab-chain">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: var(--sp-3);">
+            <p style="font-size: var(--fs-sm); color: var(--ink-3); margin:0;">
+              Steps in this prompt's workflow.
+            </p>
+            <button class="btn btn-accent" id="runChainBtn" style="display:none; font-size: 12px; padding: 6px 12px;">
+              <span class="material-symbols-outlined" style="font-size:15px;">play_arrow</span>
+              Run chain
+            </button>
+          </div>
+          <div id="detailChainSteps"></div>
+          <div id="chainRunnerWrap" style="display:none;"></div>
+          <p id="detailChainEmpty" class="hidden" style="font-size: var(--fs-sm); color: var(--ink-3);">
+            No chain yet. Edit this prompt to add steps.
+          </p>
+        </div>
+
+        <div class="detail-tab-pane" id="tab-history">
+          <p style="font-size: var(--fs-sm); color: var(--ink-3); margin-bottom: var(--sp-3);">
+            Up to 20 versions kept per prompt. Click any version to restore.
+          </p>
+          <div id="versionList"></div>
+          <p id="versionEmpty" class="hidden" style="font-size: var(--fs-sm); color: var(--ink-3);">
+            No previous versions.
+          </p>
+        </div>
+
+      </div>
+
+      <div class="detail-footer">
+        <button class="icon-btn" id="footerExportBtn" title="Export this prompt as JSON">
+          <span class="material-symbols-outlined">ios_share</span>
+        </button>
+        <button class="icon-btn premium-locked" id="footerMdBtn" data-premium="true" title="Export as Markdown">
+          <span class="material-symbols-outlined">description</span>
+        </button>
+        <button class="btn btn-accent" id="copyToClipboardBtn">
+          <span class="material-symbols-outlined">content_copy</span>
+          Copy to clipboard
+        </button>
+      </div>
+    </aside>
+
+  
+  <!-- ROLES WORKSPACE -->
+  <div id="rolesWorkspace" role="dialog" aria-modal="true" aria-label="Roles workspace">
+    <div class="roles-header">
+      <span class="material-symbols-outlined" style="font-size:24px;color:var(--accent)">person_play</span>
+      <h2>Roles</h2>
+      <button class="btn btn-ghost" id="rolesNewBtn"><span class="material-symbols-outlined">add</span> New role</button>
+      <button class="icon-btn" id="rolesCloseBtn" title="Close" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="roles-body">
+      <div class="roles-list-pane">
+        <div class="roles-list-search">
+          <input type="search" id="rolesSearch" class="form-input" placeholder="Search roles…" autocomplete="off" />
+        </div>
+        <div class="roles-list-scroll" id="rolesListScroll">
+          <div class="roles-list-empty" id="rolesListEmpty" style="display:none;">
+            <span class="material-symbols-outlined" style="font-size:32px;display:block;margin-bottom:8px;">person_off</span>
+            No roles yet. Create one to get started.
+          </div>
+          <div id="rolesList"></div>
+        </div>
+      </div>
+      <div class="roles-editor-pane" id="rolesEditorPane">
+        <div class="roles-editor-empty" id="rolesEditorEmpty">
+          <span class="material-symbols-outlined">arrow_back</span>
+          <p style="font-size:var(--fs-sm);margin:0;">Select a role or create a new one</p>
+        </div>
+        <div id="rolesEditorForm" style="display:none;flex:1;overflow:hidden;flex-direction:column;">
+          <div class="roles-editor-scroll">
+            <div class="role-meta-row">
+              <button type="button" class="role-icon-picker" id="roleIconBtn" title="Click to change icon">🎯</button>
+              <input type="color" id="roleColourPicker" class="role-color-swatch" value="#6366f1" title="Role colour" />
+              <div>
+                <label class="form-label" for="roleNameInput">Role name</label>
+                <input type="text" id="roleNameInput" class="form-input" placeholder="e.g. Senior Copywriter" maxlength="80" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rolePersonaInput">Persona <span style="color:var(--ink-4);font-weight:400;">(system prompt / who the AI should be)</span></label>
+              <textarea id="rolePersonaInput" class="form-input" rows="5" placeholder="You are a senior copywriter with 10 years of experience…"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="roleToneInput">Tone</label>
+              <input type="text" id="roleToneInput" class="form-input" placeholder="e.g. Confident, concise, no fluff" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="roleExpertiseInput">Expertise</label>
+              <input type="text" id="roleExpertiseInput" class="form-input" placeholder="e.g. Email marketing, SaaS landing pages, B2B sales copy" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="roleExampleInput">Example phrase <span style="color:var(--ink-4);font-weight:400;">(how this role talks)</span></label>
+              <input type="text" id="roleExampleInput" class="form-input" placeholder="e.g. Let me be direct — here's what actually works." />
+            </div>
+            <div class="role-prompt-builder" id="rolePromptBuilder">
+              <div class="role-prompt-builder-header">
+                <span class="material-symbols-outlined" style="font-size:18px;color:var(--accent)">auto_awesome</span>
+                <span>Build Prompt</span>
+                <span style="color:var(--ink-4);font-size:12px;margin-left:auto;">Live preview — copy in your preferred format</span>
+              </div>
+              <div class="role-prompt-preview" id="rolePromptPreview"><em>Fill in fields above to generate a formatted prompt…</em></div>
+              <div class="role-prompt-copy-row">
+                <button class="btn" onclick="window.PL_copyBuiltPrompt('structured')"><span class="material-symbols-outlined">segment</span> Copy Structured</button>
+                <button class="btn" onclick="window.PL_copyBuiltPrompt('xml')"><span class="material-symbols-outlined">code</span> Copy XML</button>
+                <button class="btn" onclick="window.PL_copyBuiltPrompt('prose')"><span class="material-symbols-outlined">article</span> Copy Prose</button>
+              </div>
+            </div>
+          </div>
+          <div class="roles-editor-toolbar">
+            <button class="btn btn-accent" id="rolesSaveBtn"><span class="material-symbols-outlined">save</span> Save</button>
+            <button class="btn" id="rolesDuplicateBtn"><span class="material-symbols-outlined">content_copy</span> Duplicate</button>
+            <button class="btn btn-ghost" id="rolesDeleteBtn" style="margin-left:auto;color:var(--danger,#ef4444);"><span class="material-symbols-outlined">delete</span> Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+</div>
+
+<!-- ============================================================
+     MODAL: Prompt editor (create / edit)
+     ============================================================ -->
+<div class="modal-overlay" id="promptModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <h2 id="modalTitle">New prompt</h2>
+        <p>Compose, organise, and define variables for your prompt.</p>
+      </div>
+      <button class="icon-btn" id="closePromptModal" aria-label="Close">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <form id="promptForm">
+      <input type="hidden" id="promptId" />
+      <div class="modal-body">
+
+        <div class="form-row single">
+          <div class="form-group">
+            <label class="form-label" for="promptTitle">Title <span class="req">*</span></label>
+            <input type="text" id="promptTitle" class="form-input" placeholder="e.g. Code quality reviewer" required />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="promptDesc">Description</label>
+            <textarea id="promptDesc" class="form-textarea" rows="2" placeholder="One line on what it does..." style="resize:none"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Categories</label>
+            <div class="tag-input-wrap" id="categoryTagInput" data-placeholder="e.g. Development, Marketing"></div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Tags</label>
+            <div class="tag-input-wrap" id="tagsTagInput" data-placeholder="e.g. code, review, security"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="promptFolder">Folder</label>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <select id="promptFolder" class="form-input" style="flex:1;">
+                <option value="">No folder</option>
+              </select>
+              <button type="button" class="icon-btn" onclick="window.createFolderInline()" title="New folder" aria-label="New folder">
+                <span class="material-symbols-outlined">create_new_folder</span>
+              </button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="promptRole">Role <span style="color:var(--ink-4);font-weight:400;">(assigns a persona to this prompt)</span></label>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <select id="promptRole" class="form-input" style="flex:1;">
+                <option value="">No role</option>
+              </select>
+              <button type="button" class="icon-btn" onclick="window.openRolesWorkspace()" title="Manage roles" aria-label="Manage roles">
+                <span class="material-symbols-outlined">person_play</span>
+              </button>
+            </div>
+            <input type="hidden" id="promptRoleId" value="" />
+          </div>
+        </div>
+
+        <div class="form-row single">
+          <div class="form-group">
+            <label class="form-label">Colour</label>
+            <div class="colour-swatches" id="editorColourPicker">
+              <div class="swatch none active" data-colour="" title="None"></div>
+              <div class="swatch c-red"    data-colour="red"    title="Red"></div>
+              <div class="swatch c-orange" data-colour="orange" title="Orange"></div>
+              <div class="swatch c-yellow" data-colour="yellow" title="Yellow"></div>
+              <div class="swatch c-green"  data-colour="green"  title="Green"></div>
+              <div class="swatch c-teal"   data-colour="teal"   title="Teal"></div>
+              <div class="swatch c-blue"   data-colour="blue"   title="Blue"></div>
+              <div class="swatch c-purple" data-colour="purple" title="Purple"></div>
+              <div class="swatch c-pink"   data-colour="pink"   title="Pink"></div>
+            </div>
+            <input type="hidden" id="promptColour" value="" />
+          </div>
+        </div>
+
+        <nav class="editor-tabs" id="editorTabs">
+          <button type="button" class="editor-tab active" data-pane="content">Content</button>
+          <button type="button" class="editor-tab" data-pane="variables">Variables</button>
+          <button type="button" class="editor-tab premium-locked" data-pane="chain" data-premium="true">Chain</button>
+          <button type="button" class="editor-tab premium-locked" data-pane="chat" data-premium="true">Chat format</button>
+          <button type="button" class="editor-tab premium-locked" data-pane="meta" data-premium="true">Rating &amp; notes</button>
+        </nav>
+
+        <div class="editor-pane active" id="pane-content">
+          <div class="form-label" style="display:flex; align-items:center; justify-content:space-between;">
+            <span>Prompt text <span class="req">*</span></span>
+            <span class="vars-badge" id="varsCountBadge" hidden>
+              <span class="material-symbols-outlined">token</span>
+              <span id="varsCountText">0</span>
+            </span>
+          </div>
+          <div class="editor-grid-2">
+            <textarea id="promptContent" placeholder="Write your prompt. Use [[variable]], {{variable}}, or ((variable)) for placeholders..." required></textarea>
+            <div id="editorPreview"><span class="hint">Live preview...</span></div>
+          </div>
+        </div>
+
+        <div class="editor-pane" id="pane-variables">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: var(--sp-3);">
+            <span class="form-label" style="margin-bottom:0;">Detected variables</span>
+            <div style="display:flex; gap: var(--sp-2);">
+              <button type="button" class="btn btn-ghost" id="loadVarTemplateBtn">
+                <span class="material-symbols-outlined">download</span> Load template
+              </button>
+              <button type="button" class="btn btn-ghost" id="saveVarTemplateBtn">
+                <span class="material-symbols-outlined">save</span> Save as template
+              </button>
+            </div>
+          </div>
+          <div id="varMetaList">
+            <p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>
+          </div>
+        </div>
+
+        <div class="editor-pane" id="pane-chain">
+          <p style="font-size: var(--fs-sm); color: var(--ink-3); margin-bottom: var(--sp-3);">
+            Add prompts that should run after this one.
+          </p>
+          <div id="chainList"></div>
+          <div style="display:flex; gap: var(--sp-2); margin-top: var(--sp-3);">
+            <select id="chainPromptSelect" class="form-input" style="flex:1;">
+              <option value="">Select a prompt to add...</option>
+            </select>
+            <button type="button" class="btn btn-primary" id="addChainBtn">
+              <span class="material-symbols-outlined">add</span> Add step
+            </button>
+          </div>
+          <input type="hidden" id="promptChainIds" value="[]" />
+        </div>
+
+        <div class="editor-pane" id="pane-chat">
+          <p style="font-size: var(--fs-sm); color: var(--ink-3); margin-bottom: var(--sp-3);">
+            Define a multi-turn conversation: system instructions, sample user messages, assistant responses.
+          </p>
+          <div id="chatTurnsList"></div>
+          <button type="button" class="chat-turn-add" id="addChatTurnBtn">
+            <span class="material-symbols-outlined">add</span> Add turn
+          </button>
+          <input type="hidden" id="promptChatTurns" value="[]" />
+        </div>
+
+        <div class="editor-pane" id="pane-meta">
+          <div class="form-label">Rating</div>
+          <div class="stars" id="editorStars"></div>
+          <input type="hidden" id="promptRating" value="0" />
+          <div class="form-group" style="margin-top: var(--sp-4);">
+            <label class="form-label" for="promptNotes">Personal notes</label>
+            <textarea id="promptNotes" class="form-textarea" rows="5" placeholder="Notes, reminders, ideas..."></textarea>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelPromptBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+          <span class="material-symbols-outlined">save</span>
+          <span id="submitBtnText">Create prompt</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============================================================
+     OTHER MODALS
+     ============================================================ -->
+<div class="modal-overlay" id="folderModal" role="dialog" aria-modal="true">
+  <div class="modal-box-sm">
+    <div class="modal-header">
+      <h3 id="folderModalTitle">New folder</h3>
+      <button class="icon-btn" id="closeFolderModal" aria-label="Close">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <form id="folderForm">
+      <input type="hidden" id="folderId" />
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="folderName">Folder name</label>
+          <input type="text" id="folderName" class="form-input" placeholder="e.g. Marketing, Research" required />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelFolderBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+          <span class="material-symbols-outlined">check</span>
+          <span id="folderSubmitText">Create folder</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="importModal" role="dialog" aria-modal="true">
+  <div class="modal-box-sm">
+    <div class="modal-header">
+      <h3>Import prompts</h3>
+      <button class="icon-btn" id="closeImportModal" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <form id="importForm">
+      <div class="modal-body">
+        <div class="import-format-tabs">
+          <button type="button" class="import-fmt-tab active" data-fmt="json">JSON</button>
+          <button type="button" class="import-fmt-tab" data-fmt="markdown">Markdown</button>
+          <button type="button" class="import-fmt-tab" data-fmt="file">Upload file</button>
+        </div>
+        <div id="importPanelJson">
+          <div class="form-group">
+            <label class="form-label" for="importContent">Paste JSON array</label>
+            <textarea id="importContent" class="form-textarea" rows="8" style="font-family: var(--ff-mono); font-size: 12px;" placeholder='[{"title":"My prompt", "content":"...", "tags":"ai,writing"}]'></textarea>
+          </div>
+        </div>
+        <div id="importPanelMarkdown" style="display:none;">
+          <div class="form-group">
+            <label class="form-label" for="importMdContent">Paste exported Markdown</label>
+            <textarea id="importMdContent" class="form-textarea" rows="8" style="font-family: var(--ff-mono); font-size: 12px;" placeholder="## Prompt Title&#10;*Description here*&#10;&#10;&#96;&#96;&#96;&#10;Your prompt content...&#10;&#96;&#96;&#96;&#10;&#10;---"></textarea>
+          </div>
+        </div>
+        <div id="importPanelFile" style="display:none;">
+          <div class="form-group">
+            <label class="form-label" for="importFileInput">Choose a .json or .md file</label>
+            <input type="file" id="importFileInput" class="form-input" accept=".json,.md,.markdown" style="padding: 8px;" />
+          </div>
+          <p style="font-size: 12px; color: var(--ink-3); margin-top: var(--sp-2);">Supports JSON export files and Markdown exports from this app.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelImportBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+          <span class="material-symbols-outlined">upload</span>
+          Import
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="exportModal" role="dialog" aria-modal="true">
+  <div class="modal-box-sm">
+    <div class="modal-header">
+      <h3>Export prompts</h3>
+      <button class="icon-btn" id="closeExportModal" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-body">
+      <button class="export-option" id="exportJsonBtn">
+        <span class="material-symbols-outlined">data_object</span>
+        <div class="export-option-body">
+          <div class="export-option-title">JSON</div>
+          <div class="export-option-desc">Standard format, fully importable.</div>
+        </div>
+      </button>
+      <button class="export-option premium-locked" id="exportMdBtn" data-premium="true">
+        <span class="material-symbols-outlined">description</span>
+        <div class="export-option-body">
+          <div class="export-option-title">Markdown</div>
+          <div class="export-option-desc">Readable document format.</div>
+        </div>
+        <span class="material-symbols-outlined premium-mark">workspace_premium</span>
+      </button>
+      <button class="export-option premium-locked" id="exportCsvBtn" data-premium="true">
+        <span class="material-symbols-outlined">table_view</span>
+        <div class="export-option-body">
+          <div class="export-option-title">CSV</div>
+          <div class="export-option-desc">Spreadsheet-compatible.</div>
+        </div>
+        <span class="material-symbols-outlined premium-mark">workspace_premium</span>
+      </button>
+      <button class="export-option premium-locked" id="exportBulkBtn" data-premium="true">
+        <span class="material-symbols-outlined">folder_zip</span>
+        <div class="export-option-body">
+          <div class="export-option-title">Bulk ZIP</div>
+          <div class="export-option-desc">All prompts organised by folder.</div>
+        </div>
+        <span class="material-symbols-outlined premium-mark">workspace_premium</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="varTemplateModal" role="dialog" aria-modal="true">
+  <div class="modal-box-sm">
+    <div class="modal-header">
+      <h3 id="varTemplateModalTitle">Variable templates</h3>
+      <button class="icon-btn" id="closeVarTemplateModal" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-body">
+      <div id="varTemplateList"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" id="cancelVarTemplateBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="saveTemplateModal" role="dialog" aria-modal="true">
+  <div class="modal-box-sm">
+    <div class="modal-header">
+      <h3>Save variable template</h3>
+      <button class="icon-btn" id="closeSaveTemplateModal" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label" for="templateNameInput">Template name</label>
+        <input type="text" id="templateNameInput" class="form-input" placeholder="e.g. Blog post variables" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" id="cancelSaveTemplateBtn">Cancel</button>
+      <button type="button" class="btn btn-primary" id="confirmSaveTemplateBtn">
+        <span class="material-symbols-outlined">save</span>
+        Save template
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="premiumModal" role="dialog" aria-modal="true">
+  <div class="modal-box-sm" style="width: min(540px, 92vw); max-width: 540px;">
+    <div class="premium-hero">
+      <div class="premium-mark-big">
+        <span class="material-symbols-outlined">workspace_premium</span>
+      </div>
+      <h2 style="font-family: var(--ff-display); font-size: var(--fs-xl); font-weight: 400; letter-spacing: -0.02em;">Unlock <em style="font-style: italic; color: var(--accent);">Pro</em></h2>
+      <p style="font-size: var(--fs-sm); color: var(--ink-3); margin-top: var(--sp-2);">A one-off donation of any amount. Lifetime licence.</p>
+    </div>
+    <div class="modal-body">
+      <div class="feature-list">
+        <div class="feature-item"><span class="material-symbols-outlined">check_circle</span> Variable types &amp; templates</div>
+        <div class="feature-item"><span class="material-symbols-outlined">check_circle</span> Markdown / CSV / ZIP export</div>
+        <div class="feature-item"><span class="material-symbols-outlined">check_circle</span> Version history with restore</div>
+        <div class="feature-item"><span class="material-symbols-outlined">check_circle</span> Usage analytics</div>
+        <div class="feature-item"><span class="material-symbols-outlined">check_circle</span> Prompt chaining</div>
+        <div class="feature-item"><span class="material-symbols-outlined">check_circle</span> Ratings, notes, colours</div>
+        <div class="feature-item"><span class="material-symbols-outlined">check_circle</span> Duplicate &amp; smart filters</div>
+        <div class="feature-item"><span class="material-symbols-outlined">check_circle</span> Command palette</div>
+      </div>
+      <div style="font-size: 11px; color: var(--ink-3); margin-bottom: var(--sp-2); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600;">Already donated? Enter your key</div>
+      <div class="licence-row">
+        <input type="text" id="licenceKeyInput" class="form-input" placeholder="PROMPTLIB-PRO-XXXX" autocomplete="off" />
+        <button class="btn btn-primary" id="activateLicenceBtn">Activate</button>
+      </div>
+      <p id="licenceError">Invalid key - please check and try again.</p>
+      <div class="premium-links">
+        <a href="https://ko-fi.com" target="_blank" rel="noopener">Donate on Ko-fi</a>
+        <a href="mailto:support@example.com">Contact support</a>
+      </div>
+    </div>
+    <di

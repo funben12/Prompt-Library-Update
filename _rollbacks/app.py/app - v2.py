@@ -1,0 +1,1748 @@
+from flask import Flask, request, jsonify, send_from_directory, Response
+from flask_cors import CORS
+import sqlite3
+import re
+import hashlib
+from datetime import datetime, timedelta
+import json
+import csv
+import io
+import zipfile
+import sys
+import os
+import threading
+
+def _hash_key(k):
+    return hashlib.sha256(k.strip().upper().encode()).hexdigest()
+
+app = Flask(__name__)
+CORS(app)
+
+
+def get_data_dir():
+    """
+    Data lives in Documents/PromptLibrary when frozen (visible, writable, no admin needed).
+    Falls back to next to app.py when running from source.
+    """
+    if getattr(sys, 'frozen', False):
+        docs = os.path.join(os.path.expanduser('~'), 'Documents', 'PromptLibrary')
+        path = docs
+    else:
+        path = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(path, exist_ok=True)
+    return path
+
+def get_static_dir():
+    """Locate the static folder whether running from source or a bundle."""
+    if getattr(sys, 'frozen', False):
+        return os.path.join(sys._MEIPASS, 'static')
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+
+DATABASE   = os.path.join(get_data_dir(),   'PromptLibrary.db')
+STATIC_DIR = get_static_dir()
+
+
+def get_setting(key):
+    """Read a single setting value from the DB. Returns None if not found."""
+    conn = None
+    try:
+        conn = get_db()
+        row  = conn.execute('SELECT value FROM settings WHERE key = ?', (key,)).fetchone()
+        return row['value'] if row else None
+    except Exception:
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+def set_setting(key, value):
+    """Write a setting into the DB, creating or replacing as needed."""
+    conn = get_db()
+    try:
+        conn.execute(
+            'INSERT INTO settings (key, value) VALUES (?, ?) '
+            'ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+            (key, value)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+def delete_setting(key):
+    """Remove a setting from the DB."""
+    conn = get_db()
+    try:
+        conn.execute('DELETE FROM settings WHERE key = ?', (key,))
+        conn.commit()
+    finally:
+        conn.close()
+
+# Keys are stored as SHA-256 hashes - never plaintext in the bundle.
+# To add a new key: compute sha256(KEY.strip().upper()) and add the hex digest below.
+_RAW_KEYS = [
+    'PROMPTLIB-PRO-2026',
+    'Eugene',
+    '1234',
+    'QROW93705',
+    'WARRIOR-007',
+    'X9F7-8K2M',
+    'NorthCarolina357',
+    'PROMPTLIB-PRO-AND-001',
+    'PROMPTLIB-PRO-MASS-002',
+    'PROMPTLIB-PRO-DICE-003',
+    'PROMPTLIB-PRO-EA-004',
+    'PROMPTLIB-PRO-THOMAS-005',
+]
+PREMIUM_KEYS = {_hash_key(k) for k in _RAW_KEYS}
+del _RAW_KEYS  # Don't keep plaintext in memory after startup
+
+
+def get_db():
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    conn.execute('PRAGMA foreign_keys = ON')
+    return conn
+
+def init_db():
+    conn = get_db()
+    c = conn.cursor()
+
+
+    c.execute('''CREATE TABLE IF NOT EXISTS settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS folders (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS prompts (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        title        TEXT NOT NULL,
+        description  TEXT,
+        content      TEXT NOT NULL,
+        categories   TEXT,
+        tags         TEXT,
+        folder_id    INTEGER,
+        colour_label TEXT,
+        rating       INTEGER DEFAULT 0,
+        notes        TEXT,
+        chain_ids    TEXT,
+        variable_meta TEXT,
+        chat_turns   TEXT,
+        created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_used    TIMESTAMP,
+        use_count    INTEGER DEFAULT 0,
+        is_favorite  INTEGER DEFAULT 0,
+        FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+    )''')
+
+
+    c.execute('''CREATE TABLE IF NOT EXISTS prompt_versions (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        prompt_id  INTEGER NOT NULL,
+        title      TEXT NOT NULL,
+        content    TEXT NOT NULL,
+        description TEXT,
+        saved_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE CASCADE
+    )''')
+
+    # Handle existing DBs where prompt_versions was created with created_at instead of saved_at
+    c.execute('PRAGMA table_info(prompt_versions)')
+    ver_cols = {row[1] for row in c.fetchall()}
+    if 'saved_at' not in ver_cols and 'created_at' in ver_cols:
+        # Rename the table, recreate with correct column, copy data, drop old
+        c.execute('ALTER TABLE prompt_versions RENAME TO prompt_versions_old')
+        c.execute('''CREATE TABLE prompt_versions (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            prompt_id   INTEGER NOT NULL,
+            title       TEXT NOT NULL,
+            content     TEXT NOT NULL,
+            description TEXT,
+            saved_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+        c.execute('''INSERT INTO prompt_versions (id, prompt_id, title, content, description, saved_at)
+                     SELECT id, prompt_id, title, content, NULL, created_at FROM prompt_versions_old''')
+        c.execute('DROP TABLE prompt_versions_old')
+    elif 'saved_at' not in ver_cols:
+        c.execute('ALTER TABLE prompt_versions ADD COLUMN saved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS variable_templates (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        name        TEXT NOT NULL,
+        description TEXT,
+        variables   TEXT NOT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS usage_log (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        prompt_id  INTEGER NOT NULL,
+        used_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE CASCADE
+    )''')
+
+    # Standalone chain workflows. Independent of prompts.
+    c.execute('''CREATE TABLE IF NOT EXISTS chains (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        name         TEXT NOT NULL,
+        description  TEXT,
+        nodes        TEXT NOT NULL DEFAULT '[]',
+        layout       TEXT DEFAULT '{}',
+        tags         TEXT,
+        colour_label TEXT,
+        is_favorite  INTEGER DEFAULT 0,
+        created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # Reusable meta-prompt blueprints. Prompts that generate prompts.
+    c.execute('''CREATE TABLE IF NOT EXISTS meta_blueprints (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        name          TEXT NOT NULL,
+        description   TEXT,
+        template      TEXT NOT NULL DEFAULT '',
+        system        TEXT,
+        variables     TEXT DEFAULT '[]',
+        output_format TEXT DEFAULT 'text',
+        tags          TEXT,
+        is_favorite   INTEGER DEFAULT 0,
+        created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # AI persona / role system prompts
+    c.execute('''CREATE TABLE IF NOT EXISTS roles (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        name           TEXT NOT NULL,
+        icon           TEXT DEFAULT '🎯',
+        colour         TEXT DEFAULT '#6366f1',
+        persona        TEXT NOT NULL DEFAULT '',
+        tone           TEXT,
+        expertise      TEXT,
+        example_phrase TEXT,
+        is_favorite    INTEGER DEFAULT 0,
+        created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+
+    c.execute('PRAGMA table_info(prompts)')
+    existing = {row[1] for row in c.fetchall()}
+
+    migrations = [
+        ('description',    'ALTER TABLE prompts ADD COLUMN description TEXT'),
+        ('categories',     'ALTER TABLE prompts ADD COLUMN categories TEXT'),
+        ('tags',           'ALTER TABLE prompts ADD COLUMN tags TEXT'),
+        ('folder_id',      'ALTER TABLE prompts ADD COLUMN folder_id INTEGER'),
+        ('use_count',      'ALTER TABLE prompts ADD COLUMN use_count INTEGER DEFAULT 0'),
+        ('is_favorite',    'ALTER TABLE prompts ADD COLUMN is_favorite INTEGER DEFAULT 0'),
+        ('last_used',      'ALTER TABLE prompts ADD COLUMN last_used TIMESTAMP'),
+        ('colour_label',   'ALTER TABLE prompts ADD COLUMN colour_label TEXT'),
+        ('rating',         'ALTER TABLE prompts ADD COLUMN rating INTEGER DEFAULT 0'),
+        ('notes',          'ALTER TABLE prompts ADD COLUMN notes TEXT'),
+        ('chain_ids',      'ALTER TABLE prompts ADD COLUMN chain_ids TEXT'),
+        ('variable_meta',  'ALTER TABLE prompts ADD COLUMN variable_meta TEXT'),
+        ('chat_turns',      'ALTER TABLE prompts ADD COLUMN chat_turns TEXT'),
+        ('role_id',        'ALTER TABLE prompts ADD COLUMN role_id INTEGER'),
+    ]
+
+    # Knowledge base entries for roles (JSON array)
+    c.execute('PRAGMA table_info(roles)')
+    role_cols = {row[1] for row in c.fetchall()}
+    if 'knowledge_base' not in role_cols:
+        c.execute("ALTER TABLE roles ADD COLUMN knowledge_base TEXT DEFAULT '[]'")
+    if 'skills' not in role_cols:
+        c.execute("ALTER TABLE roles ADD COLUMN skills TEXT DEFAULT '[]'")
+    for col, sql in migrations:
+        if col not in existing:
+            c.execute(sql)
+
+    conn.commit()
+    conn.close()
+
+
+def _json_body():
+    return request.get_json(silent=True) or {}
+
+def _normalise_list(value):
+    """Return a clean string list from DB strings, API arrays, or JSON strings."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        items = value
+    elif isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return []
+        if raw.startswith('['):
+            try:
+                parsed = json.loads(raw)
+                items = parsed if isinstance(parsed, list) else raw.split(',')
+            except (TypeError, ValueError):
+                items = raw.split(',')
+        else:
+            items = raw.split(',')
+    else:
+        items = [value]
+
+    cleaned = []
+    seen = set()
+    for item in items:
+        text = str(item).strip()
+        key = text.lower()
+        if text and key not in seen:
+            cleaned.append(text)
+            seen.add(key)
+    return cleaned
+
+def _list_for_db(value):
+    return ','.join(_normalise_list(value))
+
+def _json_value(value, default):
+    if value is None or value == '':
+        return default
+    if isinstance(value, (list, dict)):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except (TypeError, ValueError):
+            return default
+        if isinstance(default, list) and isinstance(parsed, list):
+            return parsed
+        if isinstance(default, dict) and isinstance(parsed, dict):
+            return parsed
+    return default
+
+def _json_for_db(value, default):
+    return json.dumps(_json_value(value, default))
+
+def _int_between(value, low, high, default=0):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return max(low, min(high, parsed))
+
+def _folder_id(value):
+    if value in ('', None):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+def _prompt_payload(data):
+    rid = data.get('role_id')
+    try:
+        rid = int(rid) if rid not in (None, '', 'null') else None
+    except (TypeError, ValueError):
+        rid = None
+    return {
+        'title': (data.get('title') or 'Untitled').strip() or 'Untitled',
+        'description': data.get('description') or '',
+        'content': data.get('content') or '',
+        'categories': _list_for_db(data.get('categories', '')),
+        'tags': _list_for_db(data.get('tags', '')),
+        'folder_id': _folder_id(data.get('folder_id')),
+        'colour_label': data.get('colour_label') or '',
+        'rating': _int_between(data.get('rating', 0), 0, 5),
+        'notes': data.get('notes') or '',
+        'chain_ids': _json_for_db(data.get('chain_ids', []), []),
+        'variable_meta': _json_for_db(data.get('variable_meta', {}), {}),
+        'chat_turns': _json_for_db(data.get('chat_turns', []), []),
+        'role_id': rid,
+    }
+
+def detect_variables(content):
+    """Detect [[var]], {{var}}, ((var)) patterns - in sync with the frontend JS."""
+    if not content:
+        return []
+    variables = set()
+    for pattern in [r'\[\[(.+?)\]\]', r'\{\{(.+?)\}\}', r'\(\((.+?)\)\)']:
+        for m in re.finditer(pattern, content):
+            v = m.group(1).strip()
+            if v and len(v) < 100:
+                variables.add(v)
+    return sorted(list(variables))
+
+
+def serialize_prompt(row):
+    p = dict(row)
+    p['variables']     = detect_variables(p.get('content', ''))
+    p['description']   = p.get('description') or ''
+    # Fall back to legacy 'category' column if 'categories' is empty
+    p['categories']    = _normalise_list(p.get('categories') or p.get('category') or '')
+    p['tags']          = _normalise_list(p.get('tags') or '')
+    p['colour_label']  = p.get('colour_label') or ''
+    p['rating']        = p.get('rating') or 0
+    p['notes']         = p.get('notes') or ''
+    p['chain_ids']     = _json_value(p.get('chain_ids'), [])
+    p['variable_meta'] = _json_value(p.get('variable_meta'), {})
+    p['chat_turns']    = _json_value(p.get('chat_turns'), [])
+    p.setdefault('folder_id',   None)
+    p.setdefault('is_favorite', 0)
+    p.setdefault('use_count',   0)
+    p.setdefault('role_id',     None)
+    return p
+
+
+@app.route('/')
+def index():
+    return send_from_directory(STATIC_DIR, 'index.html')
+
+@app.route('/static/<path:path>')
+def send_static(path):
+    response = send_from_directory(STATIC_DIR, path)
+    # Prevent pywebview/WebView2 caching stale JS between restarts
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma']        = 'no-cache'
+    response.headers['Expires']       = '0'
+    return response
+
+
+@app.route('/api/licence/validate', methods=['POST'])
+def validate_licence():
+    data = request.json or {}
+    key  = _hash_key(data.get('key') or '')
+    if key in PREMIUM_KEYS:
+        return jsonify({'valid': True, 'message': 'Premium unlocked!'})
+    return jsonify({'valid': False, 'message': 'Invalid licence key. Please try again.'}), 400
+
+@app.route('/api/licence/check', methods=['POST'])
+def check_licence():
+    """Called on app load to re-verify a stored key is still valid."""
+    data = request.json or {}
+    key  = _hash_key(data.get('key') or '')
+    return jsonify({'valid': key in PREMIUM_KEYS})
+
+
+@app.route('/api/settings', methods=['GET'])
+def get_settings():
+    """Return persisted settings, including the saved licence key."""
+    licence = get_setting('licence')
+    return jsonify({'licence': licence} if licence else {})
+
+@app.route('/api/settings/licence', methods=['POST'])
+def set_licence_setting():
+    """Persist the validated licence key into prompts.db so it survives restarts."""
+    data = request.json or {}
+    key  = (data.get('key') or '').strip()
+    if key:
+        set_setting('licence', key)
+    else:
+        delete_setting('licence')
+    return jsonify({'ok': True})
+
+
+@app.route('/api/folders', methods=['GET'])
+def get_folders():
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM folders ORDER BY name').fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+@app.route('/api/folders', methods=['POST'])
+def create_folder():
+    data = request.json
+    conn = get_db()
+    cur  = conn.execute('INSERT INTO folders (name) VALUES (?)', (data['name'],))
+    fid  = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return jsonify({'id': fid, 'name': data['name']})
+
+@app.route('/api/folders/<int:fid>', methods=['PUT'])
+def update_folder(fid):
+    data = request.json
+    conn = get_db()
+    conn.execute('UPDATE folders SET name=? WHERE id=?', (data['name'], fid))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/folders/<int:fid>', methods=['DELETE'])
+def delete_folder(fid):
+    conn = get_db()
+    conn.execute('UPDATE prompts SET folder_id=NULL WHERE folder_id=?', (fid,))
+    conn.execute('DELETE FROM folders WHERE id=?', (fid,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+def _cats(data):
+    return _list_for_db(data.get('categories', ''))
+
+def _tags(data):
+    return _list_for_db(data.get('tags', ''))
+
+@app.route('/api/prompts', methods=['GET'])
+def get_prompts():
+    conn   = get_db()
+    search = request.args.get('search', '')
+    fid    = request.args.get('folder_id', '')
+    favs   = request.args.get('favorites', '0')
+    colour = request.args.get('colour_label', '')
+    rating = request.args.get('min_rating', '')
+
+    q, params = 'SELECT * FROM prompts WHERE 1=1', []
+
+    if search:
+        q += ' AND (title LIKE ? OR content LIKE ? OR description LIKE ? OR tags LIKE ?)'
+        params.extend([f'%{search}%'] * 4)
+    if fid:
+        q += ' AND folder_id=?'; params.append(int(fid))
+    if favs == '1':
+        q += ' AND is_favorite=1'
+    if colour:
+        q += ' AND colour_label=?'; params.append(colour)
+    if rating:
+        q += ' AND rating>=?'; params.append(int(rating))
+
+    q += ' ORDER BY updated_at DESC'
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return jsonify([serialize_prompt(r) for r in rows])
+
+@app.route('/api/prompts/filters', methods=['GET'])
+def get_filter_options():
+    conn = get_db()
+    rows = conn.execute('SELECT categories, tags FROM prompts').fetchall()
+    # Also try legacy category column
+    try:
+        cat_rows = conn.execute('SELECT category FROM prompts').fetchall()
+    except Exception:
+        cat_rows = []
+    conn.close()
+    # Frontend expects [{value, count}] shape so the sidebar can show counts.
+    cat_counts, tag_counts = {}, {}
+    for r in rows:
+        for c in _normalise_list(r['categories']):
+            cat_counts[c] = cat_counts.get(c, 0) + 1
+        for t in _normalise_list(r['tags']):
+            tag_counts[t] = tag_counts.get(t, 0) + 1
+    for r in cat_rows:
+        for c in _normalise_list(r[0]):
+            cat_counts[c] = cat_counts.get(c, 0) + 1
+    return jsonify({
+        'categories': [{'value': c, 'count': n}
+                       for c, n in sorted(cat_counts.items(), key=lambda kv: (-kv[1], kv[0]))],
+        'tags':       [{'value': t, 'count': n}
+                       for t, n in sorted(tag_counts.items(), key=lambda kv: (-kv[1], kv[0]))],
+    })
+
+@app.route('/api/prompts/<int:pid>', methods=['GET'])
+def get_prompt(pid):
+    conn = get_db()
+    row  = conn.execute('SELECT * FROM prompts WHERE id=?', (pid,)).fetchone()
+    conn.close()
+    if not row:
+        return jsonify({'error': 'Not found'}), 404
+    return jsonify(serialize_prompt(row))
+
+@app.route('/api/prompts', methods=['POST'])
+def create_prompt():
+    data = _prompt_payload(_json_body())
+    if not data['content'].strip():
+        return jsonify({'error': 'Prompt content is required'}), 400
+    conn = get_db()
+    try:
+        cur  = conn.execute('''
+            INSERT INTO prompts
+                (title, description, content, categories, tags, folder_id,
+                 colour_label, rating, notes, chain_ids, variable_meta, chat_turns, role_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ''', (
+            data['title'], data['description'], data['content'],
+            data['categories'], data['tags'], data['folder_id'],
+            data['colour_label'], data['rating'], data['notes'],
+            data['chain_ids'], data['variable_meta'], data['chat_turns'],
+            data['role_id'],
+        ))
+        pid = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'id': pid})
+
+@app.route('/api/prompts/<int:pid>', methods=['PUT'])
+def update_prompt(pid):
+    data = _prompt_payload(_json_body())
+    if not data['content'].strip():
+        return jsonify({'error': 'Prompt content is required'}), 400
+    conn = get_db()
+    try:
+
+        # Save version snapshot before overwriting
+        old = conn.execute('SELECT title, content, description FROM prompts WHERE id=?', (pid,)).fetchone()
+        if not old:
+            return jsonify({'error': 'Not found'}), 404
+        conn.execute('''
+                INSERT INTO prompt_versions (prompt_id, title, content, description)
+                VALUES (?,?,?,?)
+            ''', (pid, old['title'], old['content'], old['description'] or ''))
+            # Keep only last 20 versions
+        conn.execute('''
+                DELETE FROM prompt_versions WHERE prompt_id=? AND id NOT IN (
+                    SELECT id FROM prompt_versions WHERE prompt_id=?
+                    ORDER BY saved_at DESC LIMIT 20
+                )
+            ''', (pid, pid))
+
+        conn.execute('''
+            UPDATE prompts SET
+                title=?, description=?, content=?, categories=?, tags=?,
+                folder_id=?, colour_label=?, rating=?, notes=?,
+                chain_ids=?, variable_meta=?, chat_turns=?, role_id=?,
+                updated_at=CURRENT_TIMESTAMP
+            WHERE id=?
+        ''', (
+            data['title'], data['description'], data['content'],
+            data['categories'], data['tags'], data['folder_id'],
+            data['colour_label'], data['rating'], data['notes'],
+            data['chain_ids'], data['variable_meta'], data['chat_turns'],
+            data['role_id'], pid,
+        ))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/prompts/<int:pid>', methods=['DELETE'])
+def delete_prompt(pid):
+    conn = get_db()
+    conn.execute('DELETE FROM prompts WHERE id=?', (pid,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/prompts/<int:pid>/favorite', methods=['POST'])
+def toggle_favorite(pid):
+    conn = get_db()
+    row  = conn.execute('SELECT is_favorite FROM prompts WHERE id=?', (pid,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    nv = 0 if row['is_favorite'] else 1
+    conn.execute('UPDATE prompts SET is_favorite=? WHERE id=?', (nv, pid))
+    conn.commit()
+    conn.close()
+    return jsonify({'is_favorite': nv})
+
+@app.route('/api/prompts/<int:pid>/use', methods=['POST'])
+def use_prompt(pid):
+    conn = get_db()
+    conn.execute('UPDATE prompts SET use_count=use_count+1, last_used=CURRENT_TIMESTAMP WHERE id=?', (pid,))
+    conn.execute('INSERT INTO usage_log (prompt_id) VALUES (?)', (pid,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/prompts/<int:pid>/duplicate', methods=['POST'])
+def duplicate_prompt(pid):
+    conn = get_db()
+    try:
+        row  = conn.execute('SELECT * FROM prompts WHERE id=?', (pid,)).fetchone()
+        if not row:
+            return jsonify({'error': 'Not found'}), 404
+        p = serialize_prompt(row)
+        cur = conn.execute('''
+            INSERT INTO prompts
+                (title, description, content, categories, tags, folder_id,
+                 colour_label, rating, notes, chain_ids, variable_meta, chat_turns, role_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ''', (
+            p['title'] + ' (Copy)',
+            p['description'], p['content'],
+            _list_for_db(p['categories']), _list_for_db(p['tags']), p['folder_id'],
+            p['colour_label'], 0, '',
+            json.dumps(p['chain_ids']),
+            json.dumps(p['variable_meta']),
+            json.dumps(p['chat_turns']),
+            p.get('role_id'),
+        ))
+        new_id = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'id': new_id})
+
+
+@app.route('/api/prompts/<int:pid>/rating', methods=['POST'])
+def set_rating(pid):
+    data   = request.json
+    rating = max(0, min(5, int(data.get('rating', 0))))
+    notes  = data.get('notes', None)
+    conn   = get_db()
+    if notes is not None:
+        conn.execute('UPDATE prompts SET rating=?, notes=? WHERE id=?', (rating, notes, pid))
+    else:
+        conn.execute('UPDATE prompts SET rating=? WHERE id=?', (rating, pid))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/prompts/<int:pid>/colour', methods=['POST'])
+def set_colour(pid):
+    data   = request.json
+    colour = data.get('colour', '')
+    conn   = get_db()
+    conn.execute('UPDATE prompts SET colour_label=? WHERE id=?', (colour, pid))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/prompts/<int:pid>/versions', methods=['GET'])
+def get_versions(pid):
+    conn  = get_db()
+    rows  = conn.execute('''
+        SELECT * FROM prompt_versions WHERE prompt_id=?
+        ORDER BY saved_at DESC
+    ''', (pid,)).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+@app.route('/api/prompts/<int:pid>/versions/<int:vid>/restore', methods=['POST'])
+def restore_version(pid, vid):
+    conn = get_db()
+    ver  = conn.execute('SELECT * FROM prompt_versions WHERE id=? AND prompt_id=?', (vid, pid)).fetchone()
+    if not ver:
+        conn.close()
+        return jsonify({'error': 'Version not found'}), 404
+
+    # Snapshot current before restoring
+    old = conn.execute('SELECT title, content, description FROM prompts WHERE id=?', (pid,)).fetchone()
+    if old:
+        conn.execute('INSERT INTO prompt_versions (prompt_id, title, content, description) VALUES (?,?,?,?)',
+                     (pid, old['title'], old['content'], old['description'] or ''))
+
+    conn.execute('''
+        UPDATE prompts SET title=?, content=?, description=?, updated_at=CURRENT_TIMESTAMP
+        WHERE id=?
+    ''', (ver['title'], ver['content'], ver['description'] or '', pid))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/variable-templates', methods=['GET'])
+def get_var_templates():
+    conn  = get_db()
+    try:
+        rows  = conn.execute('SELECT * FROM variable_templates ORDER BY name').fetchall()
+    finally:
+        conn.close()
+    result = []
+    for r in rows:
+        d = dict(r)
+        d['variables'] = _json_value(d.get('variables'), [])
+        result.append(d)
+    return jsonify(result)
+
+@app.route('/api/variable-templates', methods=['POST'])
+def create_var_template():
+    data = _json_body()
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Template name is required'}), 400
+    conn = get_db()
+    try:
+        cur  = conn.execute(
+            'INSERT INTO variable_templates (name, description, variables) VALUES (?,?,?)',
+            (name, data.get('description', ''), _json_for_db(data.get('variables', []), []))
+        )
+        tid = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'id': tid})
+
+@app.route('/api/variable-templates/<int:tid>', methods=['DELETE'])
+def delete_var_template(tid):
+    conn = get_db()
+    conn.execute('DELETE FROM variable_templates WHERE id=?', (tid,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+# ============================================================
+# CHAINS — standalone chain workflows
+# ============================================================
+
+def serialize_chain(row):
+    c = dict(row)
+    c['nodes']  = _json_value(c.get('nodes'), [])
+    c['layout'] = _json_value(c.get('layout'), {})
+    c['tags']   = _normalise_list(c.get('tags') or '')
+    c['colour_label'] = c.get('colour_label') or ''
+    c.setdefault('is_favorite', 0)
+    return c
+
+def _chain_payload(data):
+    return {
+        'name':         (data.get('name') or 'Untitled chain').strip() or 'Untitled chain',
+        'description':  data.get('description') or '',
+        'nodes':        _json_for_db(data.get('nodes', []), []),
+        'layout':       _json_for_db(data.get('layout', {}), {}),
+        'tags':         _list_for_db(data.get('tags', '')),
+        'colour_label': data.get('colour_label') or '',
+    }
+
+@app.route('/api/chains', methods=['GET'])
+def list_chains():
+    conn = get_db()
+    favs = request.args.get('favorites', '0')
+    q, params = 'SELECT * FROM chains WHERE 1=1', []
+    if favs == '1':
+        q += ' AND is_favorite=1'
+    q += ' ORDER BY updated_at DESC'
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return jsonify([serialize_chain(r) for r in rows])
+
+@app.route('/api/chains/<int:cid>', methods=['GET'])
+def get_chain(cid):
+    conn = get_db()
+    row  = conn.execute('SELECT * FROM chains WHERE id=?', (cid,)).fetchone()
+    conn.close()
+    if not row:
+        return jsonify({'error': 'Not found'}), 404
+    return jsonify(serialize_chain(row))
+
+@app.route('/api/chains', methods=['POST'])
+def create_chain():
+    p = _chain_payload(_json_body())
+    conn = get_db()
+    try:
+        cur = conn.execute('''
+            INSERT INTO chains (name, description, nodes, layout, tags, colour_label)
+            VALUES (?,?,?,?,?,?)
+        ''', (p['name'], p['description'], p['nodes'], p['layout'], p['tags'], p['colour_label']))
+        cid = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'id': cid})
+
+@app.route('/api/chains/<int:cid>', methods=['PUT'])
+def update_chain(cid):
+    p = _chain_payload(_json_body())
+    conn = get_db()
+    try:
+        conn.execute('''
+            UPDATE chains
+               SET name=?, description=?, nodes=?, layout=?, tags=?, colour_label=?,
+                   updated_at=CURRENT_TIMESTAMP
+             WHERE id=?
+        ''', (p['name'], p['description'], p['nodes'], p['layout'], p['tags'], p['colour_label'], cid))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/chains/<int:cid>', methods=['DELETE'])
+def delete_chain(cid):
+    conn = get_db()
+    conn.execute('DELETE FROM chains WHERE id=?', (cid,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/chains/<int:cid>/duplicate', methods=['POST'])
+def duplicate_chain(cid):
+    conn = get_db()
+    try:
+        row = conn.execute('SELECT * FROM chains WHERE id=?', (cid,)).fetchone()
+        if not row:
+            return jsonify({'error': 'Not found'}), 404
+        c = serialize_chain(row)
+        cur = conn.execute('''
+            INSERT INTO chains (name, description, nodes, layout, tags, colour_label)
+            VALUES (?,?,?,?,?,?)
+        ''', (
+            c['name'] + ' (Copy)',
+            c.get('description', ''),
+            json.dumps(c['nodes']),
+            json.dumps(c['layout']),
+            _list_for_db(c['tags']),
+            c['colour_label'],
+        ))
+        new_id = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'id': new_id})
+
+@app.route('/api/chains/<int:cid>/favorite', methods=['POST'])
+def toggle_chain_favorite(cid):
+    conn = get_db()
+    row  = conn.execute('SELECT is_favorite FROM chains WHERE id=?', (cid,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    nv = 0 if row['is_favorite'] else 1
+    conn.execute('UPDATE chains SET is_favorite=? WHERE id=?', (nv, cid))
+    conn.commit()
+    conn.close()
+    return jsonify({'is_favorite': nv})
+
+
+# ============================================================
+# META BLUEPRINTS — prompts that generate prompts
+# ============================================================
+
+def serialize_blueprint(row):
+    b = dict(row)
+    b['variables']     = _json_value(b.get('variables'), [])
+    b['tags']          = _normalise_list(b.get('tags') or '')
+    b['system']        = b.get('system') or ''
+    b['output_format'] = b.get('output_format') or 'text'
+    b.setdefault('is_favorite', 0)
+    return b
+
+def _blueprint_payload(data):
+    return {
+        'name':          (data.get('name') or 'Untitled blueprint').strip() or 'Untitled blueprint',
+        'description':   data.get('description') or '',
+        'template':      data.get('template') or '',
+        'system':        data.get('system') or '',
+        'variables':     _json_for_db(data.get('variables', []), []),
+        'output_format': data.get('output_format') or 'text',
+        'tags':          _list_for_db(data.get('tags', '')),
+    }
+
+@app.route('/api/meta', methods=['GET'])
+def list_blueprints():
+    conn = get_db()
+    favs = request.args.get('favorites', '0')
+    q, params = 'SELECT * FROM meta_blueprints WHERE 1=1', []
+    if favs == '1':
+        q += ' AND is_favorite=1'
+    q += ' ORDER BY updated_at DESC'
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return jsonify([serialize_blueprint(r) for r in rows])
+
+@app.route('/api/meta/<int:bid>', methods=['GET'])
+def get_blueprint(bid):
+    conn = get_db()
+    row  = conn.execute('SELECT * FROM meta_blueprints WHERE id=?', (bid,)).fetchone()
+    conn.close()
+    if not row:
+        return jsonify({'error': 'Not found'}), 404
+    return jsonify(serialize_blueprint(row))
+
+@app.route('/api/meta', methods=['POST'])
+def create_blueprint():
+    p = _blueprint_payload(_json_body())
+    conn = get_db()
+    try:
+        cur = conn.execute('''
+            INSERT INTO meta_blueprints
+                (name, description, template, system, variables, output_format, tags)
+            VALUES (?,?,?,?,?,?,?)
+        ''', (p['name'], p['description'], p['template'], p['system'],
+              p['variables'], p['output_format'], p['tags']))
+        bid = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'id': bid})
+
+@app.route('/api/meta/<int:bid>', methods=['PUT'])
+def update_blueprint(bid):
+    p = _blueprint_payload(_json_body())
+    conn = get_db()
+    try:
+        conn.execute('''
+            UPDATE meta_blueprints
+               SET name=?, description=?, template=?, system=?, variables=?,
+                   output_format=?, tags=?, updated_at=CURRENT_TIMESTAMP
+             WHERE id=?
+        ''', (p['name'], p['description'], p['template'], p['system'],
+              p['variables'], p['output_format'], p['tags'], bid))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/meta/<int:bid>', methods=['DELETE'])
+def delete_blueprint(bid):
+    conn = get_db()
+    conn.execute('DELETE FROM meta_blueprints WHERE id=?', (bid,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/meta/<int:bid>/duplicate', methods=['POST'])
+def duplicate_blueprint(bid):
+    conn = get_db()
+    try:
+        row = conn.execute('SELECT * FROM meta_blueprints WHERE id=?', (bid,)).fetchone()
+        if not row:
+            return jsonify({'error': 'Not found'}), 404
+        b = serialize_blueprint(row)
+        cur = conn.execute('''
+            INSERT INTO meta_blueprints
+                (name, description, template, system, variables, output_format, tags)
+            VALUES (?,?,?,?,?,?,?)
+        ''', (
+            b['name'] + ' (Copy)',
+            b.get('description', ''),
+            b.get('template', ''),
+            b.get('system', ''),
+            json.dumps(b['variables']),
+            b['output_format'],
+            _list_for_db(b['tags']),
+        ))
+        new_id = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'id': new_id})
+
+@app.route('/api/meta/<int:bid>/favorite', methods=['POST'])
+def toggle_blueprint_favorite(bid):
+    conn = get_db()
+    row  = conn.execute('SELECT is_favorite FROM meta_blueprints WHERE id=?', (bid,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    nv = 0 if row['is_favorite'] else 1
+    conn.execute('UPDATE meta_blueprints SET is_favorite=? WHERE id=?', (nv, bid))
+    conn.commit()
+    conn.close()
+    return jsonify({'is_favorite': nv})
+
+
+@app.route('/api/analytics', methods=['GET'])
+def get_analytics():
+    conn = get_db()
+
+    total   = conn.execute('SELECT COUNT(*) as n FROM prompts').fetchone()['n']
+    favs    = conn.execute('SELECT COUNT(*) as n FROM prompts WHERE is_favorite=1').fetchone()['n']
+    folders = conn.execute('SELECT COUNT(*) as n FROM folders').fetchone()['n']
+    total_uses = conn.execute('SELECT SUM(use_count) as n FROM prompts').fetchone()['n'] or 0
+
+    # Top 5 most used
+    top = conn.execute('''
+        SELECT id, title, use_count, colour_label FROM prompts
+        ORDER BY use_count DESC LIMIT 5
+    ''').fetchall()
+
+    # Never used
+    never = conn.execute('''
+        SELECT COUNT(*) as n FROM prompts WHERE use_count=0
+    ''').fetchone()['n']
+
+    # 30-day daily usage from log
+    thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+    daily_raw = conn.execute('''
+        SELECT DATE(used_at) as day, COUNT(*) as cnt
+        FROM usage_log WHERE used_at >= ?
+        GROUP BY day ORDER BY day
+    ''', (thirty_days_ago,)).fetchall()
+
+    # Recent 10 used
+    recent = conn.execute('''
+        SELECT p.id, p.title, p.use_count, p.last_used, p.colour_label
+        FROM prompts p WHERE p.last_used IS NOT NULL
+        ORDER BY p.last_used DESC LIMIT 10
+    ''').fetchall()
+
+    # Rating distribution
+    ratings = conn.execute('''
+        SELECT rating, COUNT(*) as cnt FROM prompts
+        GROUP BY rating ORDER BY rating
+    ''').fetchall()
+
+    conn.close()
+
+    return jsonify({
+        'summary': {
+            'total_prompts': total,
+            'total_favourites': favs,
+            'total_folders': folders,
+            'total_uses': total_uses,
+            'never_used': never,
+        },
+        'top_prompts':    [dict(r) for r in top],
+        'recent_prompts': [dict(r) for r in recent],
+        'daily_usage':    [{'day': r['day'], 'count': r['cnt']} for r in daily_raw],
+        'rating_dist':    [{'rating': r['rating'], 'count': r['cnt']} for r in ratings],
+    })
+
+
+@app.route('/api/export', methods=['GET'])
+def export_json():
+    conn  = get_db()
+    try:
+        rows  = conn.execute('SELECT * FROM prompts ORDER BY title').fetchall()
+    finally:
+        conn.close()
+    out = [serialize_prompt(r) for r in rows]
+    return jsonify(out)
+
+@app.route('/api/export/markdown', methods=['GET'])
+def export_markdown():
+    conn = get_db()
+    try:
+        rows = conn.execute('SELECT * FROM prompts ORDER BY title').fetchall()
+    finally:
+        conn.close()
+    lines = ['# Prompt Library Export\n', f'*Exported: {datetime.now().strftime("%Y-%m-%d %H:%M")}*\n\n---\n']
+    for r in rows:
+        p = serialize_prompt(r)
+        lines.append(f"## {p['title']}\n")
+        if p.get('description'):
+            lines.append(f"*{p['description']}*\n")
+        if p.get('categories'):
+            lines.append(f"**Categories:** {', '.join(p['categories'])}\n")
+        if p.get('tags'):
+            lines.append(f"**Tags:** {', '.join(p['tags'])}\n")
+        lines.append(f"\n```\n{p['content']}\n```\n\n---\n")
+    md = '\n'.join(lines)
+    return Response(md, mimetype='text/markdown',
+                    headers={'Content-Disposition': 'attachment; filename=prompts-export.md'})
+
+@app.route('/api/export/csv', methods=['GET'])
+def export_csv():
+    conn = get_db()
+    try:
+        rows = conn.execute('SELECT * FROM prompts ORDER BY title').fetchall()
+    finally:
+        conn.close()
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=[
+        'id','title','description','content','categories','tags',
+        'colour_label','rating','use_count','is_favorite',
+        'created_at','updated_at','last_used'
+    ])
+    writer.writeheader()
+    for r in rows:
+        p = serialize_prompt(r)
+        writer.writerow({
+            'id':           p.get('id'),
+            'title':        p.get('title', ''),
+            'description':  p.get('description', ''),
+            'content':      p.get('content', ''),
+            'categories':   ','.join(p.get('categories', [])),
+            'tags':         ','.join(p.get('tags', [])),
+            'colour_label': p.get('colour_label', ''),
+            'rating':       p.get('rating', 0),
+            'use_count':    p.get('use_count', 0),
+            'is_favorite':  p.get('is_favorite', 0),
+            'created_at':   p.get('created_at', ''),
+            'updated_at':   p.get('updated_at', ''),
+            'last_used':    p.get('last_used', ''),
+        })
+    return Response(buf.getvalue(), mimetype='text/csv',
+                    headers={'Content-Disposition': 'attachment; filename=prompts-export.csv'})
+
+
+@app.route('/api/import', methods=['POST'])
+def import_json():
+    """Import a previously exported list of prompts. Body: {prompts: [...]}."""
+    data = _json_body()
+    items = data.get('prompts') if isinstance(data, dict) else data
+    if not isinstance(items, list):
+        return jsonify({'error': 'Expected a list of prompts'}), 400
+    conn = get_db()
+    imported = 0
+    try:
+        for raw_p in items:
+            if not isinstance(raw_p, dict): continue
+            p = _prompt_payload(raw_p)
+            if not p['content'].strip(): continue
+            conn.execute('''
+                INSERT INTO prompts
+                    (title, description, content, categories, tags, folder_id,
+                     colour_label, rating, notes, chain_ids, variable_meta, chat_turns)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+            ''', (
+                p['title'], p['description'], p['content'],
+                p['categories'], p['tags'], p['folder_id'],
+                p['colour_label'], p['rating'], p['notes'],
+                p['chain_ids'], p['variable_meta'], p['chat_turns'],
+            ))
+            imported += 1
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'imported': imported})
+
+# ============================================================
+#  ROLES  –  AI persona / system prompt manager
+# ============================================================
+
+def serialize_role(row):
+    r = dict(row)
+    r.setdefault('icon',           '🎯')
+    r.setdefault('colour',         '#6366f1')
+    r.setdefault('persona',        '')
+    r.setdefault('tone',           '')
+    r.setdefault('expertise',      '')
+    r.setdefault('example_phrase', '')
+    r.setdefault('is_favorite',    0)
+    # knowledge_base is a JSON array of {name, when_to_use, content, include} objects
+    raw_kb = r.get('knowledge_base') or '[]'
+    try:
+        r['knowledge_base'] = json.loads(raw_kb) if isinstance(raw_kb, str) else raw_kb
+    except Exception:
+        r['knowledge_base'] = []
+    # skills is a JSON array of {name, description, example} objects
+    raw_sk = r.get('skills') or '[]'
+    try:
+        r['skills'] = json.loads(raw_sk) if isinstance(raw_sk, str) else raw_sk
+    except Exception:
+        r['skills'] = []
+    return r
+
+def _role_payload(data):
+    raw_kb = data.get('knowledge_base') or []
+    if isinstance(raw_kb, str):
+        try:
+            raw_kb = json.loads(raw_kb)
+        except Exception:
+            raw_kb = []
+    # Sanitise each KB entry
+    kb = [
+        {
+            'name':         str(e.get('name', '')).strip(),
+            'when_to_use':  str(e.get('when_to_use', '')).strip(),
+            'content':      str(e.get('content', '')).strip(),
+            'include':      bool(e.get('include', True)),
+        }
+        for e in raw_kb if isinstance(e, dict)
+    ]
+
+    raw_sk = data.get('skills') or []
+    if isinstance(raw_sk, str):
+        try:
+            raw_sk = json.loads(raw_sk)
+        except Exception:
+            raw_sk = []
+    # Sanitise each skill entry
+    skills = [
+        {
+            'name':        str(e.get('name', '')).strip(),
+            'description': str(e.get('description', '')).strip(),
+            'example':     str(e.get('example', '')).strip(),
+        }
+        for e in raw_sk if isinstance(e, dict)
+    ]
+
+    return {
+        'name':           (data.get('name') or 'Untitled role').strip() or 'Untitled role',
+        'icon':           data.get('icon') or '🎯',
+        'colour':         data.get('colour') or '#6366f1',
+        'persona':        data.get('persona') or '',
+        'tone':           data.get('tone') or '',
+        'expertise':      data.get('expertise') or '',
+        'example_phrase': data.get('example_phrase') or '',
+        'knowledge_base': json.dumps(kb),
+        'skills':         json.dumps(skills),
+    }
+
+@app.route('/api/roles', methods=['GET'])
+def list_roles():
+    conn  = get_db()
+    favs  = request.args.get('favorites', '0')
+    q     = 'SELECT * FROM roles WHERE 1=1'
+    params = []
+    if favs == '1':
+        q += ' AND is_favorite=1'
+    q += ' ORDER BY updated_at DESC'
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return jsonify([serialize_role(r) for r in rows])
+
+@app.route('/api/roles/<int:rid>', methods=['GET'])
+def get_role(rid):
+    conn = get_db()
+    row  = conn.execute('SELECT * FROM roles WHERE id=?', (rid,)).fetchone()
+    conn.close()
+    if not row:
+        return jsonify({'error': 'Not found'}), 404
+    return jsonify(serialize_role(row))
+
+@app.route('/api/roles', methods=['POST'])
+def create_role():
+    p = _role_payload(_json_body())
+    conn = get_db()
+    try:
+        cur = conn.execute('''
+            INSERT INTO roles (name, icon, colour, persona, tone, expertise, example_phrase, knowledge_base, skills)
+            VALUES (?,?,?,?,?,?,?,?,?)
+        ''', (p['name'], p['icon'], p['colour'], p['persona'],
+              p['tone'], p['expertise'], p['example_phrase'], p['knowledge_base'], p['skills']))
+        rid = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'id': rid})
+
+@app.route('/api/roles/<int:rid>', methods=['PUT'])
+def update_role(rid):
+    p = _role_payload(_json_body())
+    conn = get_db()
+    try:
+        conn.execute('''
+            UPDATE roles
+               SET name=?, icon=?, colour=?, persona=?, tone=?, expertise=?,
+                   example_phrase=?, knowledge_base=?, skills=?, updated_at=CURRENT_TIMESTAMP
+             WHERE id=?
+        ''', (p['name'], p['icon'], p['colour'], p['persona'],
+              p['tone'], p['expertise'], p['example_phrase'], p['knowledge_base'], p['skills'], rid))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/roles/<int:rid>', methods=['DELETE'])
+def delete_role(rid):
+    conn = get_db()
+    conn.execute('DELETE FROM roles WHERE id=?', (rid,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/roles/<int:rid>/duplicate', methods=['POST'])
+def duplicate_role(rid):
+    conn = get_db()
+    try:
+        row = conn.execute('SELECT * FROM roles WHERE id=?', (rid,)).fetchone()
+        if not row:
+            return jsonify({'error': 'Not found'}), 404
+        r = serialize_role(row)
+        kb_json = json.dumps(r.get('knowledge_base', []))
+        sk_json = json.dumps(r.get('skills', []))
+        cur = conn.execute(
+            'INSERT INTO roles (name, icon, colour, persona, tone, expertise, example_phrase, knowledge_base, skills) VALUES (?,?,?,?,?,?,?,?,?)',
+            (r['name'] + ' (Copy)', r['icon'], r['colour'], r['persona'],
+             r['tone'], r['expertise'], r['example_phrase'], kb_json, sk_json)
+        )
+        new_id = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'id': new_id})
+
+@app.route('/api/roles/<int:rid>/favorite', methods=['POST'])
+def toggle_role_favorite(rid):
+    conn = get_db()
+    row  = conn.execute('SELECT is_favorite FROM roles WHERE id=?', (rid,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    nv = 0 if row['is_favorite'] else 1
+    conn.execute('UPDATE roles SET is_favorite=? WHERE id=?', (nv, rid))
+    conn.commit()
+    conn.close()
+    return jsonify({'is_favorite': nv})
+
+# ============================================================
+#  ROLE ATTACHMENT  —  attach/detach a role to/from a prompt
+# ============================================================
+
+@app.route('/api/prompts/<int:pid>/role', methods=['PATCH'])
+def set_prompt_role(pid):
+    """Set or clear the role_id on a prompt."""
+    data = _json_body()
+    rid = data.get('role_id')
+    try:
+        rid = int(rid) if rid not in (None, '', 'null') else None
+    except (TypeError, ValueError):
+        rid = None
+    conn = get_db()
+    try:
+        conn.execute('UPDATE prompts SET role_id=? WHERE id=?', (rid, pid))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'success': True, 'role_id': rid})
+
+
+@app.route('/api/roles/<int:rid>/prompt-count', methods=['GET'])
+def role_prompt_count(rid):
+    """Return count of prompts using this role."""
+    conn = get_db()
+    try:
+        row = conn.execute('SELECT COUNT(*) as n FROM prompts WHERE role_id=?', (rid,)).fetchone()
+    finally:
+        conn.close()
+    return jsonify({'count': row['n'] if row else 0})
+
+
+# ============================================================
+#  SETTINGS — author name + role chip display
+# ============================================================
+
+@app.route('/api/settings/author', methods=['GET'])
+def get_author_name():
+    stored = get_setting('author_name')
+    if stored:
+        return jsonify({'author_name': stored})
+    try:
+        default = os.getlogin()
+    except Exception:
+        default = ''
+    return jsonify({'author_name': default})
+
+@app.route('/api/settings/author', methods=['POST'])
+def set_author_name():
+    data = _json_body()
+    name = (data.get('author_name') or '').strip()
+    if name:
+        set_setting('author_name', name)
+    else:
+        delete_setting('author_name')
+    return jsonify({'ok': True})
+
+
+@app.route('/api/settings/role-chips-always', methods=['GET'])
+def get_role_chips_setting():
+    val = get_setting('role_chips_always_visible')
+    return jsonify({'enabled': val == '1'})
+
+@app.route('/api/settings/role-chips-always', methods=['POST'])
+def set_role_chips_setting():
+    data = _json_body()
+    set_setting('role_chips_always_visible', '1' if data.get('enabled') else '0')
+    return jsonify({'ok': True})
+
+
+
+# ============================================================
+#  PACK IMPORT — parse and preview a .plp ZIP
+# ============================================================
+
+def _parse_plp_bytes(raw_bytes):
+    """
+    Parse raw .plp ZIP bytes and return a Flask JSON response with
+    { manifest, prompts, roles } — conflict flags included.
+    Shared by import_pack (file upload) and import_pack_from_path (local path).
+    """
+    try:
+        buf = io.BytesIO(raw_bytes)
+        with zipfile.ZipFile(buf, 'r') as zf:
+            names = zf.namelist()
+            if 'manifest.json' not in names:
+                return jsonify({'error': 'Invalid .plp file: missing manifest'}), 400
+            manifest = json.loads(zf.read('manifest.json'))
+            prompts  = json.loads(zf.read('prompts.json')) if 'prompts.json' in names else []
+            roles    = json.loads(zf.read('roles.json'))   if 'roles.json'   in names else []
+    except zipfile.BadZipFile:
+        return jsonify({'error': 'File appears corrupt or is not a valid .plp pack'}), 400
+    except (json.JSONDecodeError, KeyError) as e:
+        return jsonify({'error': f'Malformed pack data: {str(e)}'}), 400
+
+    if not isinstance(prompts, list) or not isinstance(roles, list):
+        return jsonify({'error': 'Invalid pack structure'}), 400
+    if not prompts and not roles:
+        return jsonify({'error': 'This pack contains no prompts or roles'}), 400
+
+    conn = get_db()
+    try:
+        existing_titles = {r[0].lower() for r in conn.execute('SELECT title FROM prompts').fetchall()}
+        existing_names  = {r[0].lower() for r in conn.execute('SELECT name  FROM roles').fetchall()}
+    finally:
+        conn.close()
+
+    for p in prompts:
+        p['_conflict'] = (p.get('title') or '').lower() in existing_titles
+    for r in roles:
+        r['_conflict'] = (r.get('name') or '').lower() in existing_names
+
+    return jsonify({'manifest': manifest, 'prompts': prompts, 'roles': roles})
+
+
+@app.route('/api/packs/import', methods=['POST'])
+def import_pack():
+    """Parse uploaded .plp — returns manifest + prompts + roles for preview. No DB writes."""
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'error': 'No file uploaded'}), 400
+    return _parse_plp_bytes(f.read())
+
+
+@app.route('/api/packs/commit', methods=['POST'])
+def commit_pack():
+    """Import selected prompts and roles from a parsed pack preview."""
+    data    = _json_body()
+    prompts = data.get('prompts') or []
+    roles   = data.get('roles')   or []
+    attach  = data.get('roleAttachments') or {}
+
+    conn = get_db()
+    try:
+        role_id_map = {}
+        roles_added = 0
+        for i, r in enumerate(roles):
+            if not isinstance(r, dict): continue
+            cur = conn.execute(
+                'INSERT INTO roles (name, icon, colour, persona, tone, expertise, example_phrase) VALUES (?,?,?,?,?,?,?)',
+                (
+                    (r.get('name') or 'Imported Role').strip(),
+                    r.get('icon') or '0x1F3AF',
+                    r.get('colour') or '#6366f1',
+                    r.get('persona') or '',
+                    r.get('tone') or '',
+                    r.get('expertise') or '',
+                    r.get('example_phrase') or '',
+                )
+            )
+            role_id_map[str(r.get('id', i))] = cur.lastrowid
+            role_id_map[str(i)] = cur.lastrowid
+            roles_added += 1
+
+        prompts_added = 0
+        for i, raw_p in enumerate(prompts):
+            if not isinstance(raw_p, dict): continue
+            p = _prompt_payload(raw_p)
+            if not (raw_p.get('content') or '').strip(): continue
+
+            new_role_id = None
+            attach_key = str(i)
+            if attach_key in attach:
+                new_role_id = role_id_map.get(str(attach[attach_key]))
+            elif raw_p.get('role_id') is not None:
+                new_role_id = role_id_map.get(str(raw_p['role_id']))
+
+            conn.execute('''
+                INSERT INTO prompts
+                    (title, description, content, categories, tags, folder_id,
+                     colour_label, rating, notes, chain_ids, variable_meta, chat_turns, role_id)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ''', (
+                p['title'], p['description'], p['content'],
+                p['categories'], p['tags'], p['folder_id'],
+                p['colour_label'], p['rating'], p['notes'],
+                p['chain_ids'], p['variable_meta'], p['chat_turns'],
+                new_role_id,
+            ))
+            prompts_added += 1
+
+        conn.commit()
+    finally:
+        conn.close()
+
+    return jsonify({'promptsAdded': prompts_added, 'rolesAdded': roles_added})
+
+
+# ============================================================
+#  PENDING IMPORT — temp flag file for single-instance .plp launch
+# ============================================================
+
+@app.route('/api/pending-import', methods=['GET'])
+def get_pending_import():
+    flag_path = os.path.join(get_data_dir(), 'pending_import.plp_path')
+    if os.path.exists(flag_path):
+        try:
+            with open(flag_path, 'r', encoding='utf-8') as fh:
+                plp_path = fh.read().strip()
+            os.remove(flag_path)
+            return jsonify({'pending': True, 'path': plp_path})
+        except Exception:
+            pass
+    return jsonify({'pending': False})
+
+@app.route('/api/pending-import', methods=['POST'])
+def set_pending_import():
+    data = _json_body()
+    plp_path = data.get('path') or ''
+    if plp_path:
+        flag_path = os.path.join(get_data_dir(), 'pending_import.plp_path')
+        try:
+            with open(flag_path, 'w', encoding='utf-8') as fh:
+                fh.write(plp_path)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    return jsonify({'ok': True})
+
+
+# ============================================================
+#  IMPORT FROM PATH — parse a .plp file on local disk (used by
+#  the single-instance pending-import flow)
+# ============================================================
+
+@app.route('/api/packs/import-from-path', methods=['POST'])
+def import_pack_from_path():
+    """
+    Accepts { "path": "/absolute/path/to/file.plp" } and returns the same
+    preview payload as POST /api/packs/import (multipart upload).
+    The .plp file is read directly from disk — no upload needed.
+    """
+    data = _json_body()
+    plp_path = (data.get('path') or '').strip()
+
+    if not plp_path:
+        return jsonify({'error': 'No path provided'}), 400
+    if not os.path.isfile(plp_path):
+        return jsonify({'error': f'File not found: {plp_path}'}), 404
+    if not plp_path.lower().endswith('.plp'):
+        return jsonify({'error': 'File is not a .plp pack'}), 400
+
+    try:
+        with open(plp_path, 'rb') as fh:
+            raw = fh.read()
+    except OSError as e:
+        return jsonify({'error': str(e)}), 500
+
+    # Delegate to the shared parser used by the multipart import endpoint
+    return _parse_plp_bytes(raw)
+
+
+# ============================================================
+# STARTER TEMPLATES
+# ============================================================
+@app.route('/api/starter-templates', methods=['POST'])
+def load_starter_templates():
+    """Seed the library with starter prompts if empty. Returns {loaded: N}."""
+    conn = get_db()
+    count = conn.execute('SELECT COUNT(*) FROM prompts').fetchone()[0]
+    if count > 0:
+        conn.close()
+        return jsonify({'loaded': 0, 'skipped': 'Library already has prompts'})
+
+    starters = [
+        ('Cold Email Outreach',
+         'Personalised cold email for a prospect.',
+         'Write a short cold email to [[prospect_name]] at [[company_name]]. They work in [[industry]]. The email should be friendly, under 100 words, and end with a clear call to action. Do not use corporate buzzwords.',
+         'Copywriting', 'email,outreach,sales'),
+        ('Summarise an Article',
+         'Condense any article to its core points.',
+         'Summarise the following article in 5 bullet points. Each bullet should be one sentence. Focus on the most actionable insights for [[audience]].\n\n[[article_text]]',
+         'Research', 'summary,reading,research'),
+        ('Rewrite for Clarity',
+         'Simplify dense or jargon-heavy text.',
+         'Rewrite the following text so it is clear, direct, and easy to understand. Target reading level: [[reading_level]]. Keep the meaning identical. Cut anything that does not add value.\n\n[[original_text]]',
+         'Editing', 'rewrite,clarity,editing'),
+        ('LinkedIn Post',
+         'Write a LinkedIn post from a topic or idea.',
+         'Write a LinkedIn post about [[topic]]. Tone: [[tone]]. Length: 150-200 words. Open with a hook. No hashtags in the body - add 3 relevant hashtags at the end only. Do not start with "I".',
+         'Copywriting', 'linkedin,social,content'),
+        ('Meeting Agenda',
+         'Generate a structured meeting agenda.',
+         'Create a meeting agenda for a [[duration]]-minute meeting on [[topic]] with [[attendees]]. Include: goal of the meeting, 4-5 agenda items with time allocations, and a clear next-steps slot at the end.',
+         'Productivity', 'meeting,agenda,planning'),
+        ('Explain Like I\'m 10',
+         'Break down a complex concept simply.',
+         'Explain [[concept]] as if talking to a 10-year-old. Use a simple analogy if helpful. Keep it under 150 words. Avoid technical terms - if you must use one, explain it immediately.',
+         'Research', 'explainer,learning,simplify'),
+        ('Weekly Reflection',
+         'Structured end-of-week review prompt.',
+         'Help me reflect on my week. Ask me these questions one at a time:\n1. What did I accomplish this week that I am proud of?\n2. What did I leave unfinished and why?\n3. What one thing, if done next week, would make the most difference?\n4. What should I stop doing?',
+         'Productivity', 'reflection,planning,weekly'),
+        ('Product Description',
+         'Write a compelling product description.',
+         'Write a product description for [[product_name]]. Key features: [[features]]. Target customer: [[target_customer]]. Tone: [[tone]]. Length: 80-120 words. Focus on benefits over features. End with a single clear CTA.',
+         'Copywriting', 'ecommerce,product,marketing'),
+        ('Bug Report',
+         'Structured prompt for reporting a technical bug.',
+         'Write a clear bug report:\n\nIssue: [[issue_description]]\nSteps to reproduce: [[steps]]\nExpected: [[expected]]\nActual: [[actual]]\nEnvironment: [[environment]]\n\nFormat it for a GitHub issue. Keep it factual and concise.',
+         'Development', 'dev,bug,github'),
+        ('Cover Letter',
+         'Write a focused cover letter for a job application.',
+         'Write a cover letter for a [[job_title]] role at [[company_name]]. My background: [[background]]. Key skills: [[skills]]. Keep it to 3 short paragraphs. Confident tone. No generic phrases.',
+         'Career', 'career,job,cover-letter'),
+    ]
+
+    loaded = 0
+    for title, desc, body, cats, tags in starters:
+        try:
+            conn.execute(
+                'INSERT INTO prompts (title, description, content, categories, tags) VALUES (?,?,?,?,?)',
+                (title, desc, body, cats, tags)
+            )
+            loaded += 1
+        except Exception:
+            pass
+    conn.commit()
+    conn.close()
+    return jsonify({'loaded': loaded})
+
+
+# ============================================================
+#  SAVE FILE — opens a native Save As dialog via tkinter
+#  and writes the export content to the chosen path.
+# ============================================================
+
+@app.route('/api/save-file', methods=['POST'])
+def save_file_dialog():
+    """
+    Accepts { "filename": "prompts-2026-05-23.json", "content": "...", "mime": "application/json" }
+    Opens a native Save As dialog using tkinter.filedialog (available on Windows with Python).
+    Returns { "saved": true, "path": "C:\\Users\\...\\Downloads\\prompts.json" } or
+            { "saved": false } if the user cancelled.
+    """
+    data     = _json_body()
+    filename = data.get('filename') or 'export.json'
+    content  = data.get('content') or ''
+    mime     = data.get('mime') or 'application/json'
+
+    ext_map = {
+        'application/json': [('JSON files', '*.json'), ('All files', '*.*')],
+        'text/markdown':    [('Markdown files', '*.md'), ('All files', '*.*')],
+        'text/csv':         [('CSV files', '*.csv'), ('All files', '*.*')],
+        'application/zip':  [('ZIP archives', '*.zip'), ('All files', '*.*')],
+    }
+    filetypes = ext_map.get(mime, [('All files', '*.*')])
+
+    downloads = os.path.join(os.path.expanduser('~'), 'Downloads')
+    result = {}
+    done   = threading.Event()
+
+    def _run_dialog():
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes('-topmost', True)
+            path = filedialog.asksaveasfilename(
+                parent=root,
+                initialdir=downloads,
+                initialfile=filename,
+                filetypes=filetypes,
+                defaultextension=os.path.splitext(filename)[1] or '.json',
+                title='Save export as…',
+            )
+            root.destroy()
+            result['path'] = path
+        except Exception as e:
+            result['error'] = str(e)
+        finally:
+            done.set()
+
+    t = threading.Thread(target=_run_dialog, daemon=True)
+    t.start()
+    done.wait(timeout=120)
+
+    chosen = result.get('path', '')
+    if not chosen:
+        return jsonify({'saved': False})
+
+    try:
+        if mime == 'application/zip':
+            import base64
+            raw_bytes = base64.b64decode(content)
+            with open(chosen, 'wb') as fh:
+                fh.write(raw_bytes)
+        else:
+            with open(chosen, 'w', encoding='utf-8') as fh:
+                fh.write(content)
+        return jsonify({'saved': True, 'path': chosen})
+    except Exception as e:
+        return jsonify({'saved': False, 'error': str(e)})

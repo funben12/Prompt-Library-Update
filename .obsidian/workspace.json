@@ -1,0 +1,203 @@
+{
+  "main": {
+    "id": "ac4652be7aafceef",
+    "type": "split",
+    "children": [
+      {
+        "id": "e59a9b0ba80a11ff",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "ec5e30ffe697cb6e",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "04-06-2026 - churn-analysis-and-improvements.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "04-06-2026 - churn-analysis-and-improvements"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "147e2b2d2aa6732e",
+    "type": "split",
+    "children": [
+      {
+        "id": "7d8e306b56d2cb6e",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "ca69a885c4b8a9f0",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "2c37bc54286fc132",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "af5d016132ea1306",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "0103d2676ef0d2ec",
+    "type": "split",
+    "children": [
+      {
+        "id": "9da575b20440acd6",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "fbddba72f90f23d7",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "CLAUDE.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for CLAUDE"
+            }
+          },
+          {
+            "id": "d02c64f78d366e35",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "CLAUDE.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from CLAUDE"
+            }
+          },
+          {
+            "id": "ae5a59f50dc78967",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "a966c7125d2fb77c",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "394989484b5e5c5b",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "CLAUDE.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of CLAUDE"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "markitdown:Convert to Markdown": false,
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "ec5e30ffe697cb6e",
+  "lastOpenFiles": [
+    "static/index.html.tmp",
+    "__pycache__/app.cpython-310.pyc.126201105127376",
+    "__pycache__/app.cpython-310.pyc.131148266756048",
+    "static/index.html.tmp.18784.d5848583c508",
+    "static/index.html.tmp.18784.ae432d288cdd",
+    "_rollbacks/app.css/app.css - v13",
+    "_rollbacks/app.js/app.js - v65",
+    "_rollbacks/index.html/index.html - v108",
+    "PROMPT_LIBRARY_PRO_SPEC.md",
+    "03-06-2026 - prompt-library-ux-strategy.md",
+    "CLAUDE.md",
+    "MEMORY.md",
+    "app-icon.png"
+  ]
+}

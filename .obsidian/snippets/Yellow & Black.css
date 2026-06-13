@@ -1,0 +1,292 @@
+/* This Theme is called "Wasp" and Obsidian Theme created by Santi Younger */
+
+:root
+{
+--font-monospace: "JetBrains Mono", "Fira Code", "Cascadia Code", "Source Code Pro", monospace;
+}
+
+.theme-dark
+{
+    --button-hover-bg-color: #ffd600; /* Bright Yellow for Hover */
+    --button-hover-text-color: #000000; /* Black Text for Hover */
+    --button-bg-color: #ffeb3b; /* Yellow Background */
+    --button-text-color: #000000; /* Black Text */
+    --background-primary:         #111111; /* Almost Black */
+    --background-primary-alt:     #181818;
+    --background-secondary:       #222222; /* Dark Gray */
+    --background-secondary-alt:   #333333; /* Lighter Gray */
+    --text-normal:                #fffde7; /* Very Light Yellow */
+    --text-faint:                 #fff9c4; /* Faint Yellow */
+    --text-title-h1:              #ffd600; /* Bright Yellow */
+    --text-title-h2:              #fff176; /* Lighter Yellow */
+    --text-title-h3:              #ffe082; /* Pale Yellow */
+    --text-title-h4:              #fffde7; /* Very Light Yellow */
+    --text-title-h5:              #fff9c4; /* Faint Yellow */
+    --text-title-h6:              #fbc02d; /* Deep Yellow */
+    --text-highlight-bg:          #ffd600; /* Bright Yellow Highlight */
+    --text-link:                  #ffd600; /* Yellow Link */
+    --text-a-hover:               #fff176; /* Lighter Yellow Hover */
+    --text-accent-hover:          #fffde7; /* Very Light Yellow Accent Hover */
+    --inline-code:                #fff176; /* Lighter Yellow for Inline Code */
+    --code-block:                 #333333; /* Dark Gray for Code Block */
+    --text-a:                     #ffd600; /* Yellow Link */
+    --interactive-accent:         #ffd600; /* Yellow Accent */
+    --text-accent:                #ffd600;
+    --text-on-accent:             #000000;
+    --interactive-accent-rgb:     255, 214, 0;
+    --vim-cursor:                 #ffd600;
+    --pre-code:                   #222222;
+    --interactive-before:         #ffeb3b;
+    --background-modifier-border: #ffd600;
+    --text-selection:             #fffde7;
+    --text-white:                 #ffffff;
+}
+
+.theme-dark .cm-s-obsidian span.obsidian-search-match-highlight {
+    color: var(--text-normal);
+    background-color: #ffd600;
+}
+
+.theme-light
+{
+    --background-primary:         #fffde7; /* Very Light Yellow */
+    --background-secondary:       #fff9c4; /* Faint Yellow */
+    --background-primary-alt:     #fffde7;
+    --background-secondary-alt:   #fff176; /* Lighter Yellow */
+    --text-normal:                #111111; /* Almost Black */
+    --text-faint:                 #333333; /* Dark Gray */
+    --text-title-h1:              #ffd600; /* Bright Yellow */
+    --text-title-h2:              #fff176; /* Lighter Yellow */
+    --text-title-h3:              #ffe082; /* Pale Yellow */
+    --text-title-h4:              #fffde7; /* Very Light Yellow */
+    --text-title-h5:              #fff9c4; /* Faint Yellow */
+    --text-link:                  #ffd600; /* Yellow Link */
+    --text-a-hover:               #fbc02d; /* Deep Yellow Hover */
+    --text-accent-hover:          #fff176;
+    --inline-code:                #fff176;
+    --pre-code:                   #fff9c4;
+    --interactive-before:         #ffd600;
+    --background-modifier-border: #ffd600;
+    --text-a:                     #ffd600;
+    --interactive-accent:         #ffd600;
+    --text-accent:                #ffd600;
+    --interactive-accent-rgb:     255, 214, 0;
+    --vim-cursor:                 #ffd600;
+    --text-selection:             #fffde7;
+    --text-white:                 #000000;
+}
+
+/* Navigation Titles */
+.nav-file-title, .nav-folder-title {
+    color: var(--text-normal);
+}
+
+.nav-file-title.is-active, .nav-folder-title.is-active,
+body:not(.is-grabbing) .nav-file-title:hover,
+body:not(.is-grabbing) .nav-folder-title:hover {
+    background-color: var(--background-modifier-border);
+    color: var(--button-text-color);
+    transition: background 0.2s, color 0.2s;
+}
+
+/* CodeMirror Formatting */
+.cm-s-obsidian span.cm-formatting-link,
+.CodeMirror-guttermarker-subtle {
+    color: var(--text-normal) !important;
+}
+
+/* Buttons */
+button.mod-cta {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    font-weight: 600;
+    border-radius: 4px;
+    transition: background 0.2s, color 0.2s;
+    border: none;
+}
+
+button.mod-cta:hover, button.mod-cta:focus {
+    background-color: var(--button-hover-bg-color);
+    color: var(--button-hover-text-color);
+}
+
+/* Vertical Tabs */
+.vertical-tab-header-group-title {
+    color: var(--text-white);
+}
+
+.vertical-tab-nav-item.is-active {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    font-weight: 600;
+    transition: background 0.2s, color 0.2s;
+}
+
+.vertical-tab-nav-item.is-active:hover,
+.vertical-tab-nav-item.is-active:focus {
+    background-color: var(--button-hover-bg-color);
+    color: var(--button-hover-text-color);
+}
+
+body:not(.is-phone) .vertical-tab-nav-item.is-active {
+    --background-modifier-hover: var(--button-hover-bg-color);
+    --icon-color: var(--button-text-color);
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    font-weight: 600;
+}
+
+body:not(.is-phone) .vertical-tab-nav-item.is-active:hover,
+body:not(.is-phone) .vertical-tab-nav-item.is-active:focus {
+    background-color: var(--button-hover-bg-color);
+    color: var(--button-hover-text-color);
+}
+
+/* Checkbox */
+.checkbox-container.is-enabled {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    transition: background 0.2s, color 0.2s;
+}
+
+.checkbox-container.is-enabled:hover,
+.checkbox-container.is-enabled:focus {
+    background-color: var(--button-hover-bg-color);
+    color: var(--button-hover-text-color);
+}
+
+/* Flair */
+.flair.mod-pop {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    border-radius: 3px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.flair.mod-pop:hover, .flair.mod-pop:focus {
+    background-color: var(--button-hover-bg-color);
+    color: var(--button-hover-text-color);
+}
+
+/* Headings - Editor */
+.cm-header-1, .cm-header-2, .cm-header-3,
+.cm-header-4, .cm-header-5, .cm-header-6 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-top: 1.2em;
+    margin-bottom: 0.5em;
+}
+
+.cm-header-1 { color: var(--text-title-h1) !important; }
+.cm-header-2 { color: var(--text-title-h2) !important; }
+.cm-header-3 { color: var(--text-title-h3) !important; }
+.cm-header-4 { color: var(--text-title-h4) !important; }
+.cm-header-5 { color: var(--text-title-h5) !important; }
+.cm-header-6 { color: var(--text-title-h6) !important; }
+
+/* Headings - Preview */
+.markdown-preview-view h1,
+.markdown-preview-view h2,
+.markdown-preview-view h3,
+.markdown-preview-view h4,
+.markdown-preview-view h5,
+.markdown-preview-view h6 {
+    font-size: 20px;
+    line-height: 1.2;
+    font-weight: 700;
+    margin-top: 1.5em;
+    margin-bottom: 0.7em;
+}
+
+.markdown-preview-view h1 { color: var(--text-title-h1) !important; }
+.markdown-preview-view h2 { color: var(--text-title-h2) !important; }
+.markdown-preview-view h3 { color: var(--text-title-h3) !important; }
+.markdown-preview-view h4 { color: var(--text-title-h4) !important; }
+.markdown-preview-view h5 { color: var(--text-title-h5) !important; }
+.markdown-preview-view h6 { color: var(--text-title-h6) !important; }
+
+/* Source View Font */
+.markdown-source-view {
+    font-family: var(--font-monospace);
+}
+
+/* Fat Cursor */
+.cm-fat-cursor .CodeMirror-cursor {
+    background-color: #f8c537 !important;
+    opacity: 0.8 !important;
+    width: 9px !important;
+    visibility: visible !important;
+}
+
+/* Plugin Tabs */
+.plugin-tabs .stayopen .view-header {
+    border-bottom: 2px solid var(--interactive-accent)!important;
+}
+
+.plugin-tabs .mod-root.workspace-split.mod-vertical div.workspace-leaf:not(.stayopen) > .workspace-leaf-content > .view-header .view-header-title::before {
+    background-color: transparent!important;
+}
+
+.plugin-tabs .mod-root.workspace-split.mod-vertical .workspace-split.mod-vertical > div.workspace-leaf:not(.stayopen),
+.plugin-tabs .mod-root.workspace-split.mod-vertical > div.workspace-leaf:not(.stayopen) {
+    border-radius: 5px 5px 0 0!important;
+}
+
+.plugin-tabs .mod-root.workspace-split.mod-vertical div.workspace-leaf {
+    border-color: var(--background-secondary-alt)!important;
+    border-bottom-width: 0!important;
+    border-right-width: 0!important;
+}
+
+.theme-light.plugin-tabs .mod-root.workspace-split.mod-vertical div.workspace-leaf {
+    border-color: var(--background-secondary-alt)!important;
+    border-left-width: 3px!important;
+    border-bottom-width: 0!important;
+    border-right-width: 0!important;
+}
+
+.plugin-tabs .mod-root.workspace-split.mod-vertical > div.workspace-leaf hr.workspace-leaf-resize-handle,
+.plugin-tabs .mod-root.workspace-split.mod-vertical > .mod-vertical hr.workspace-leaf-resize-handle {
+    display: none;
+}
+
+.plugin-tabs .mod-root.workspace-split.mod-vertical div.workspace-leaf .view-header {
+    border-left-color: transparent!important;
+}
+
+.plugin-tabs .workspace-split.mod-root > .workspace-leaf:last-of-type .workspace-leaf-content,
+.plugin-tabs .workspace-split.mod-root > .workspace-leaf:first-of-type .workspace-leaf-content {
+    border-radius: 0!important;
+}
+
+.plugin-tabs .theme-dark .mod-root.workspace-split.mod-vertical .workspace-split.mod-vertical > div.workspace-leaf.mod-active,
+.plugin-tabs .theme-dark .mod-root.workspace-split.mod-vertical > div.workspace-leaf.mod-active {
+    border: 0!important;
+    border-radius: 0!important;
+}
+
+/* Horizontal Rule Styles */
+.cm-line hr,
+.markdown-preview-view hr {
+    margin-block-start: 4em;
+    margin-block-end: 4em;
+    border: none;
+    height: 0;
+    border-bottom: 1px solid;
+    border-image-slice: 1;
+    border-width: 1px;
+    border-image-source: linear-gradient(to right, transparent, var(--text-accent), transparent);
+    position: relative;
+}
+
+.cm-line hr::after,
+.markdown-preview-view hr::after {
+    /* content: '\1f41d'; */
+    display: inline-block;
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 0.5rem;
+    color: var(--text-sub-accent, var(--text-accent));
+    background-color: var(--background-primary);
+}
