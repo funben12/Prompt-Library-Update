@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
 
-<link rel="stylesheet" href="/static/app.css?v=7a523c4b">
+<link rel="stylesheet" href="/static/app.css?v=b14dc5ac">
 </head>
 <body>
 
@@ -31,7 +31,7 @@
     </div>
 
     <nav class="nav-section">
-      <button class="nav-item active" data-view="library">
+      <button class="nav-item active" data-view="library" title="Library">
         <span class="material-symbols-outlined">menu_book</span>
         <span>Library</span>
         <span class="nav-count" id="libraryCount">0</span>
@@ -64,6 +64,10 @@
           <span class="material-symbols-outlined nav-group-chev">expand_more</span>
         </button>
         <div class="nav-group-items" id="workspacesItems">
+          <button class="nav-item nav-sub-item premium-locked" data-view="components" data-premium="true" id="componentsNavBtn" title="Prompt Components — drag-and-drop builder — Pro">
+            <span class="material-symbols-outlined nav-icon">extension</span>
+            <span class="nav-label">Prompt Components</span>
+          </button>
           <button class="nav-item nav-sub-item premium-locked" data-view="forge" data-premium="true" id="forgeNavBtn" title="Prompt Forge — Pro">
             <span class="material-symbols-outlined nav-icon">construction</span>
             <span class="nav-label">Prompt Forge</span>
@@ -83,10 +87,6 @@
           <button class="nav-item nav-sub-item premium-locked" data-view="contextBank" data-premium="true" id="contextBankNavBtn" title="Context Bank — Pro">
             <span class="material-symbols-outlined nav-icon">database</span>
             <span class="nav-label">Context Bank</span>
-          </button>
-          <button class="nav-item nav-sub-item premium-locked" data-view="components" data-premium="true" id="componentsNavBtn" title="Prompt Components — drag-and-drop builder — Pro">
-            <span class="material-symbols-outlined nav-icon">extension</span>
-            <span class="nav-label">Prompt Components</span>
           </button>
         </div>
       </div>
@@ -154,6 +154,10 @@
       <button class="sidebar-footer-btn" id="configToggleBtn" title="API settings" aria-label="Open API settings">
         <span class="material-symbols-outlined">settings</span>
         <span>API settings</span>
+      </button>
+      <button class="sidebar-footer-btn" id="tutorialBtn" title="How to use Prompt Library" aria-label="Open tutorial" onclick="window.PL_startTutorial()">
+        <span class="material-symbols-outlined">help_outline</span>
+        <span>How to use</span>
       </button>
     </div>
   </aside>
@@ -666,11 +670,6 @@
               <span class="role-section-divider-label">Identity &amp; Voice</span>
             </div>
 
-            <div class="form-group">
-              <label class="form-label" for="rolePersonaInput">Full persona <span style="color:var(--ink-4);font-weight:400;">(system prompt — who the AI should be)</span></label>
-              <textarea id="rolePersonaInput" class="form-input" rows="5" placeholder="You are a senior copywriter with 10 years of experience writing high-converting SaaS landing pages…"></textarea>
-            </div>
-
             <div class="role-two-col">
               <div class="form-group">
                 <label class="form-label" for="roleToneInput">Tone</label>
@@ -679,6 +678,31 @@
               <div class="form-group">
                 <label class="form-label" for="roleExpertiseInput">Expertise</label>
                 <input type="text" id="roleExpertiseInput" class="form-input" placeholder="e.g. Email marketing, B2B SaaS" />
+              </div>
+            </div>
+
+            <!-- ── GOALS & PURPOSE ───────────────────────────────── -->
+            <div class="role-section-divider">
+              <span class="material-symbols-outlined">flag</span>
+              <span class="role-section-divider-label">Goals & Purpose</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="roleGoalInput">Primary objective <span style="color:var(--ink-4);font-weight:400;">(what this agent is built to do)</span></label>
+              <input type="text" id="roleGoalInput" class="form-input" placeholder="e.g. Convert cold leads into discovery calls with high-quality outreach copy" />
+            </div>
+
+            <div class="role-two-col">
+              <div class="form-group">
+                <label class="form-label" for="roleOutcomeInput">Success looks like</label>
+                <input type="text" id="roleOutcomeInput" class="form-input" placeholder="e.g. Clear, concise output the user can send immediately" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="roleColourPicker">Agent colour</label>
+                <div class="role-colour-row">
+                  <input type="color" id="roleColourPicker" class="role-colour-input" value="#6366f1" />
+                  <span class="role-colour-label" id="roleColourLabel">#6366f1</span>
+                </div>
               </div>
             </div>
 
@@ -691,14 +715,14 @@
             <div class="form-group">
               <label class="form-label">Response style</label>
               <div class="role-chip-group" id="roleStyleChips">
-                <span class="role-chip" data-val="formal">Formal</span>
-                <span class="role-chip" data-val="casual">Casual</span>
-                <span class="role-chip" data-val="direct">Direct</span>
-                <span class="role-chip" data-val="detailed">Detailed</span>
-                <span class="role-chip" data-val="concise">Concise</span>
-                <span class="role-chip" data-val="persuasive">Persuasive</span>
-                <span class="role-chip" data-val="educational">Educational</span>
-                <span class="role-chip" data-val="empathetic">Empathetic</span>
+                <button type="button" class="role-chip" data-val="formal">Formal</button>
+                <button type="button" class="role-chip" data-val="casual">Casual</button>
+                <button type="button" class="role-chip" data-val="direct">Direct</button>
+                <button type="button" class="role-chip" data-val="detailed">Detailed</button>
+                <button type="button" class="role-chip" data-val="concise">Concise</button>
+                <button type="button" class="role-chip" data-val="persuasive">Persuasive</button>
+                <button type="button" class="role-chip" data-val="educational">Educational</button>
+                <button type="button" class="role-chip" data-val="empathetic">Empathetic</button>
               </div>
               <input type="hidden" id="roleStyleInput" />
             </div>
@@ -706,6 +730,23 @@
             <div class="form-group">
               <label class="form-label" for="roleConstraintsInput">Constraints <span style="color:var(--ink-4);font-weight:400;">(what NOT to do)</span></label>
               <textarea id="roleConstraintsInput" class="form-input" rows="3" placeholder="Never use jargon. Don't write lists unless asked. Avoid passive voice…"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Behaviour flags <span style="color:var(--ink-4);font-weight:400;">(rules this agent always follows)</span></label>
+              <div class="role-chip-group role-flag-chips" id="roleFlagChips">
+                <button type="button" class="role-chip role-flag-chip" data-val="no_hedging">No hedging</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="cite_sources">Cite sources</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="ask_clarify">Ask to clarify</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="step_by_step">Step-by-step</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="no_preamble">No preamble</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="show_reasoning">Show reasoning</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="use_examples">Use examples</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="stay_on_topic">Stay on topic</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="structured_output">Structured output</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="no_repetition">No repetition</button>
+              </div>
+              <input type="hidden" id="roleFlagsInput" />
             </div>
 
             <!-- ── CONTEXT ─────────────────────────────────────────── -->
@@ -725,6 +766,40 @@
               </div>
             </div>
 
+            <!-- ── OUTPUT CONTROL ────────────────────────────────── -->
+            <div class="role-section-divider">
+              <span class="material-symbols-outlined">output</span>
+              <span class="role-section-divider-label">Output Control</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Response depth</label>
+              <div class="role-chip-group role-single-select" id="roleDepthChips">
+                <button type="button" class="role-chip" data-val="quick">Quick</button>
+                <button type="button" class="role-chip" data-val="balanced">Balanced</button>
+                <button type="button" class="role-chip" data-val="deep_dive">Deep-dive</button>
+                <button type="button" class="role-chip" data-val="adaptive">Adaptive</button>
+              </div>
+              <input type="hidden" id="roleComplexityInput" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Format preference</label>
+              <div class="role-chip-group role-single-select" id="roleFormatModeChips">
+                <button type="button" class="role-chip" data-val="prose">Prose</button>
+                <button type="button" class="role-chip" data-val="bullets">Bullet-heavy</button>
+                <button type="button" class="role-chip" data-val="numbered">Numbered lists</button>
+                <button type="button" class="role-chip" data-val="headers">Sections & headers</button>
+                <button type="button" class="role-chip" data-val="code_blocks">Code blocks</button>
+              </div>
+              <input type="hidden" id="roleFormatModeInput" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="roleOutputFormatInput2">Custom output instructions <span style="color:var(--ink-4);font-weight:400;">(override format above)</span></label>
+              <input type="text" id="roleOutputFormatInput2" class="form-input" placeholder="e.g. Always end with a numbered action list. Use bold for key terms." />
+            </div>
+
             <!-- ── WORKFLOW ────────────────────────────────────────── -->
             <div class="role-section-divider">
               <span class="material-symbols-outlined">account_tree</span>
@@ -739,6 +814,33 @@
             <div class="form-group">
               <label class="form-label" for="roleOutputFormatInput">Output format <span style="color:var(--ink-4);font-weight:400;">(how responses should be structured)</span></label>
               <input type="text" id="roleOutputFormatInput" class="form-input" placeholder="e.g. Short paragraphs, no bullet points, end with a CTA" />
+            </div>
+
+            <!-- ── ADVANCED ──────────────────────────────────────── -->
+            <div class="role-section-divider">
+              <span class="material-symbols-outlined">settings_suggest</span>
+              <span class="role-section-divider-label">Advanced</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="roleInitInput">Opening message <span style="color:var(--ink-4);font-weight:400;">(what the agent says when first activated)</span></label>
+              <input type="text" id="roleInitInput" class="form-input" placeholder="e.g. Hi! Share what you're working on and I'll help craft the perfect copy." />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="roleMemoryInput">Persistent context <span style="color:var(--ink-4);font-weight:400;">(facts this agent always carries)</span></label>
+              <textarea id="roleMemoryInput" class="form-input" rows="3" placeholder="e.g. This agent always assumes the user is a B2B founder selling to mid-market. Product names are always capitalised." ></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="roleProcTypeInput">Interaction mode</label>
+              <div class="role-chip-group role-single-select" id="roleProcTypeChips">
+                <button type="button" class="role-chip" data-val="reactive">Reactive</button>
+                <button type="button" class="role-chip" data-val="proactive">Proactive</button>
+                <button type="button" class="role-chip" data-val="clarify_first">Clarify first</button>
+                <button type="button" class="role-chip" data-val="auto_proceed">Auto-proceed</button>
+              </div>
+              <input type="hidden" id="roleProcTypeInput" />
             </div>
 
             <!-- ── EXAMPLE PHRASES ─────────────────────────────────── -->
@@ -840,6 +942,7 @@
         <span class="material-symbols-outlined">save</span> Save settings
       </button>
       <div id="configStatus" style="font-size:11px;color:var(--ink-3);text-align:center;min-height:16px;"></div>
+    
     </div>
   </div>
 
@@ -989,16 +1092,11 @@
             <div class="tag-input-wrap" id="tagsTagInput" data-placeholder="e.g. code, review, security"></div>
           </div>
           <div class="form-group">
-            <label class="form-label" for="folderPickerInput">Folder</label>
+            <label class="form-label" for="promptFolder">Folder</label>
             <div style="display:flex; gap:6px; align-items:center;">
-              <div class="folder-picker-wrap" id="folderPickerWrap" style="flex:1; position:relative;">
-                <input type="text" id="folderPickerInput" class="form-input"
-                       placeholder="Search or select a folder…" autocomplete="off"
-                       aria-label="Folder" aria-autocomplete="list"
-                       aria-expanded="false" aria-controls="folderPickerDropdown" />
-                <input type="hidden" id="promptFolder" value="" />
-                <div class="folder-picker-dropdown" id="folderPickerDropdown" role="listbox" aria-label="Folders"></div>
-              </div>
+              <select id="promptFolder" class="form-input" style="flex:1;">
+                <option value="">No folder</option>
+              </select>
               <button type="button" class="icon-btn" onclick="window.createFolderInline()" title="New folder" aria-label="New folder">
                 <span class="material-symbols-outlined">create_new_folder</span>
               </button>
@@ -1023,15 +1121,24 @@
           <div class="form-group">
             <label class="form-label">Colour</label>
             <div class="colour-swatches" id="editorColourPicker">
-              <div class="swatch none active" data-colour="" title="None"></div>
-              <div class="swatch c-red"    data-colour="red"    title="Red"></div>
-              <div class="swatch c-orange" data-colour="orange" title="Orange"></div>
-              <div class="swatch c-yellow" data-colour="yellow" title="Yellow"></div>
-              <div class="swatch c-green"  data-colour="green"  title="Green"></div>
-              <div class="swatch c-teal"   data-colour="teal"   title="Teal"></div>
-              <div class="swatch c-blue"   data-colour="blue"   title="Blue"></div>
-              <div class="swatch c-purple" data-colour="purple" title="Purple"></div>
-              <div class="swatch c-pink"   data-colour="pink"   title="Pink"></div>
+              <div class="swatch none active"     data-colour=""        title="None"></div>
+              <div class="swatch c-red"          data-colour="red"      title="Red"></div>
+              <div class="swatch c-orange"       data-colour="orange"   title="Orange"></div>
+              <div class="swatch c-amber"        data-colour="amber"    title="Amber"></div>
+              <div class="swatch c-yellow"       data-colour="yellow"   title="Yellow"></div>
+              <div class="swatch c-lime"         data-colour="lime"     title="Lime"></div>
+              <div class="swatch c-green"        data-colour="green"    title="Green"></div>
+              <div class="swatch c-teal"         data-colour="teal"     title="Teal"></div>
+              <div class="swatch c-cyan"         data-colour="cyan"     title="Cyan"></div>
+              <div class="swatch c-blue"         data-colour="blue"     title="Blue"></div>
+              <div class="swatch c-indigo"       data-colour="indigo"   title="Indigo"></div>
+              <div class="swatch c-violet"       data-colour="violet"   title="Violet"></div>
+              <div class="swatch c-purple"       data-colour="purple"   title="Purple"></div>
+              <div class="swatch c-magenta"      data-colour="magenta"  title="Magenta"></div>
+              <div class="swatch c-fuchsia"      data-colour="fuchsia"  title="Fuchsia"></div>
+              <div class="swatch c-pink"         data-colour="pink"     title="Pink"></div>
+              <div class="swatch c-rose"         data-colour="rose"     title="Rose"></div>
+              <div class="swatch c-lavender"     data-colour="lavender" title="Lavender"></div>
             </div>
             <input type="hidden" id="promptColour" value="" />
           </div>
@@ -1207,20 +1314,11 @@
           <span class="material-symbols-outlined">close</span>
         </button>
       </div>
-      <p style="font-size:11px;color:var(--ink-3);margin-bottom:var(--sp-3);">Click any component or framework to append it to your prompt.</p>
-
-      <div class="comp-section">
-        <div class="comp-section-label">Building Blocks</div>
-        <div class="comp-grid" id="compBlockGrid">
-          <!-- injected by JS -->
-        </div>
+      <div class="cp-panel-search">
+        <input type="search" id="compPanelSearch" class="form-input" placeholder="Search blocks…" autocomplete="off" />
       </div>
-
-      <div class="comp-section">
-        <div class="comp-section-label">Frameworks</div>
-        <div class="framework-list" id="frameworkList">
-          <!-- injected by JS -->
-        </div>
+      <div class="cp-panel-body" id="compPanelBody">
+        <!-- injected by _compPanelRender() -->
       </div>
     </div>
   </div>
@@ -1467,6 +1565,15 @@
       </div>
     </div>
     <div class="modal-footer">
+              <h3 style="font-family:var(--ff-display);font-size:var(--fs-lg);font-weight:400;margin-bottom:var(--sp-2);">My Gift to You</h3>
+        <p style="font-size:var(--fs-sm);font-weight:600;margin-bottom:var(--sp-1);">Lisa, Riley &amp; Ryan &mdash; Your AI Companions</p>
+        <p style="font-size:var(--fs-xs);color:var(--ink-3);margin-bottom:var(--sp-3);line-height:1.6;">Three sprite companions walk your library ready to help. Try them free for 14 days &mdash; no API key needed. After your trial, unlock unlimited chat with your own Claude API key.</p>
+        <div style="display:flex;justify-content:center;gap:var(--sp-4);flex-wrap:wrap;font-size:var(--fs-xs);">
+          <span>&#129504; <strong>Lisa</strong> &mdash; Prompt precision</span>
+          <span>&#127912; <strong>Riley</strong> &mdash; Creative strategy</span>
+          <span>&#128202; <strong>Ryan</strong> &mdash; Business &amp; ROI</span>
+        </div>
+      </div>
       <button type="button" class="btn btn-ghost" id="closePremiumModal">Close</button>
     </div>
   </div>
@@ -1652,7 +1759,7 @@
       <div class="lab-variant" id="labVariantA">
         <div class="lab-variant-header">
           <span class="lab-variant-badge lab-badge-a">A</span>
-          <input type="text" class="lab-variant-title" placeholder="Variant A name..." value="Variant A" />
+          <input type="text" class="lab-variant-title" placeholder="Variant A name..." value="Variant A" aria-label="Variant A name" />
           <div class="lab-score-row">
             <span class="lab-score-label">Score</span>
             <div class="lab-stars" id="labStarsA"></div>
@@ -1671,7 +1778,7 @@
       <div class="lab-variant" id="labVariantB">
         <div class="lab-variant-header">
           <span class="lab-variant-badge lab-badge-b">B</span>
-          <input type="text" class="lab-variant-title" placeholder="Variant B name..." value="Variant B" />
+          <input type="text" class="lab-variant-title" placeholder="Variant B name..." value="Variant B" aria-label="Variant B name" />
           <div class="lab-score-row">
             <span class="lab-score-label">Score</span>
             <div class="lab-stars" id="labStarsB"></div>
@@ -1708,7 +1815,7 @@
       <span class="material-symbols-outlined ws-header-icon">account_tree</span>
       <div>
         <h2 class="ws-title">Prompt Chain</h2>
-        <p class="ws-subtitle">Build a sequence of prompt steps. Each step's output feeds the next as <code>{{input}}</code>.</p>
+        <p class="ws-subtitle">Build a sequence of steps. Each step's output feeds the next as <code>{{input}}</code>.</p>
       </div>
     </div>
     <div class="ws-header-actions">
@@ -1720,14 +1827,18 @@
     </div>
   </div>
   <div class="ws-body chain-body">
-    <div class="chain-seed">
-      <label class="forge-label"><span class="material-symbols-outlined">input</span> Initial Input <span class="forge-hint">What gets passed into Step 1 as <code>{{input}}</code></span></label>
+    <!-- Step 0: Seed input -->
+    <div class="chain-seed" id="chainSeedWrap">
+      <div class="chain-seed-label">
+        <span class="material-symbols-outlined">input</span>
+        Initial Input
+        <span class="forge-hint" style="font-weight:400;color:var(--ink-3);">Passed into Step 1 as <code>{{input}}</code></span>
+      </div>
       <textarea id="chainSeedInput" class="forge-input" rows="3" placeholder="Paste the raw material — a document, a brief, a question — that starts the chain..."></textarea>
     </div>
+    <!-- Steps rendered by JS -->
     <div class="chain-steps-wrap">
-      <div id="chainStepsList" class="chain-steps-list">
-        <!-- steps injected by JS -->
-      </div>
+      <div id="chainStepsList" class="chain-steps-list"></div>
       <button class="chain-add-inline" id="chainAddInlineBtn" type="button">
         <span class="material-symbols-outlined">add_circle</span> Add Step
       </button>
@@ -1753,7 +1864,6 @@
         </div>
       </div>
     </div>
-
   </div>
 </div>
 
@@ -1824,7 +1934,9 @@
 </div>
 
 <!-- ============================================================
-     WORKSPACE: Context Bank  [PRO]
+     WORKSPACE: Context Bank
+     Reusable context blocks — personas, company info, style guides.
+     data-view="contextBank"
      ============================================================ -->
 <div id="contextBankWorkspace" role="dialog" aria-modal="true" aria-label="Context Bank">
   <div class="ws-header">
@@ -1832,57 +1944,77 @@
       <span class="material-symbols-outlined ws-header-icon">database</span>
       <div>
         <h2 class="ws-title">Context Bank</h2>
-        <p class="ws-subtitle">Store reusable context blocks — personas, company info, background — and copy them into any prompt.</p>
+        <p class="ws-subtitle">Reusable context blocks — paste into any prompt instantly.</p>
       </div>
     </div>
     <div class="ws-header-actions">
-      <button class="btn btn-ghost" id="ctxNewBtn"><span class="material-symbols-outlined">add</span> New Block</button>
-      <button class="icon-btn" id="closeContextBankBtn" aria-label="Close Context Bank"><span class="material-symbols-outlined">close</span></button>
+      <button class="btn btn-accent" id="ctxNewBtn">
+        <span class="material-symbols-outlined">add</span> New block
+      </button>
+      <button class="icon-btn" id="closeContextBankBtn" aria-label="Close Context Bank">
+        <span class="material-symbols-outlined">close</span>
+      </button>
     </div>
   </div>
+
   <div class="ws-body ctx-body">
+
+    <!-- Left: list panel -->
     <div class="ctx-list-panel">
+      <!-- Search -->
       <div class="ctx-search-row">
-        <input type="search" id="ctxSearch" class="form-input" placeholder="Search blocks…" />
+        <span class="material-symbols-outlined ctx-search-icon">search</span>
+        <input type="search" id="ctxSearch" class="ctx-search-input" placeholder="Search blocks…" autocomplete="off" />
       </div>
-      <div class="ctx-category-row" id="ctxCategoryRow">
-        <button class="chip active" data-ctx-filter="all">All</button>
-        <button class="chip" data-ctx-filter="Persona">Persona</button>
-        <button class="chip" data-ctx-filter="Company">Company</button>
-        <button class="chip" data-ctx-filter="Audience">Audience</button>
-        <button class="chip" data-ctx-filter="Product">Product</button>
-        <button class="chip" data-ctx-filter="Style">Style</button>
-        <button class="chip" data-ctx-filter="Other">Other</button>
+
+      <!-- Category pills -->
+      <div class="ctx-cat-row" id="ctxCategoryRow">
+        <button class="ctx-pill active" data-ctx-filter="all">All</button>
+        <button class="ctx-pill" data-ctx-filter="Persona">Persona</button>
+        <button class="ctx-pill" data-ctx-filter="Company">Company</button>
+        <button class="ctx-pill" data-ctx-filter="Audience">Audience</button>
+        <button class="ctx-pill" data-ctx-filter="Product">Product</button>
+        <button class="ctx-pill" data-ctx-filter="Style">Style</button>
+        <button class="ctx-pill" data-ctx-filter="Other">Other</button>
       </div>
+
+      <!-- Stats row -->
       <div class="ctx-meta-row">
         <span class="ctx-meta-stat"><span id="ctxStatBlocks">0</span> blocks</span>
         <span class="ctx-meta-sep">·</span>
         <span class="ctx-meta-stat"><span id="ctxStatCats">0</span> categories</span>
       </div>
-      <div id="ctxList" class="ctx-list">
-        <div class="ctx-empty-hint" id="ctxEmptyHint">
-          <span class="material-symbols-outlined" style="font-size:36px;color:var(--ink-3)">database</span>
-          <p style="color:var(--ink-3);font-size:var(--fs-sm);text-align:center;margin-top:var(--sp-2)">No blocks yet.<br>Click <strong>New Block</strong> to start.</p>
+
+      <!-- Block list -->
+      <div class="ctx-list" id="ctxList">
+        <div class="ctx-empty" id="ctxEmptyHint">
+          <span class="material-symbols-outlined">inventory_2</span>
+          <p>No blocks yet.<br>Click <strong>New block</strong> to start.</p>
         </div>
       </div>
     </div>
+
+    <!-- Right: editor panel -->
     <div class="ctx-editor-panel" id="ctxEditorPanel">
+      <!-- Empty state -->
       <div class="ctx-editor-empty" id="ctxEditorEmpty">
-        <span class="material-symbols-outlined" style="font-size:48px;color:var(--ink-3)">database</span>
-        <p style="color:var(--ink-3);font-size:var(--fs-sm);margin-top:var(--sp-2)">Select a block to edit, or create a new one.</p>
+        <span class="material-symbols-outlined">touch_app</span>
+        <p>Select a block to edit<br>or click <strong>New block</strong></p>
       </div>
+
+      <!-- Form -->
       <div class="ctx-editor-form" id="ctxEditorForm" hidden>
         <div class="ctx-editor-top">
           <span class="ctx-editor-eyebrow" id="ctxEditorHeading">New block</span>
         </div>
-        <div style="display:flex;gap:var(--sp-3);margin-bottom:var(--sp-3);">
-          <div style="flex:1;min-width:0;">
-            <label class="forge-label">Block Title <span class="req">*</span></label>
-            <input type="text" id="ctxTitle" class="form-input" placeholder="e.g. ACME Corp — Company Overview" />
+        <div class="ctx-editor-scroll">
+          <div class="ctx-field">
+            <label class="ctx-label">Title <span class="ctx-req">*</span></label>
+            <input type="text" id="ctxTitle" class="ctx-input" placeholder="e.g. ACME Corp — Company Overview" />
           </div>
-          <div style="width:160px;flex-shrink:0;">
-            <label class="forge-label">Category</label>
-            <select id="ctxCategory" class="form-input">
+          <div class="ctx-field">
+            <label class="ctx-label">Category</label>
+            <select id="ctxCategory" class="ctx-input ctx-select">
               <option>Persona</option>
               <option>Company</option>
               <option>Audience</option>
@@ -1891,21 +2023,31 @@
               <option>Other</option>
             </select>
           </div>
+          <div class="ctx-field ctx-field-grow">
+            <label class="ctx-label">
+              Content <span class="ctx-req">*</span>
+              <span class="ctx-label-hint">This text gets copied into your prompt</span>
+            </label>
+            <textarea id="ctxContent" class="ctx-textarea" rows="14"
+              placeholder="Write your reusable context block here…&#10;&#10;e.g.&#10;Company: ACME Corp&#10;Industry: SaaS — B2B project management&#10;Tone: Professional but approachable&#10;Audience: Non-technical SMB owners aged 30–55&#10;Key differentiator: Simplicity over feature depth"></textarea>
+          </div>
+          <div class="ctx-save-confirm" id="ctxSaveConfirm">&#10003; Saved</div>
         </div>
-        <div style="margin-bottom:var(--sp-3);">
-          <label class="forge-label">Context Content <span class="req">*</span> <span class="forge-hint">This text gets copied into your prompt</span></label>
-          <textarea id="ctxContent" class="forge-input" rows="16" placeholder="Write your reusable context block here…&#10;&#10;e.g.&#10;Company: ACME Corp&#10;Industry: SaaS — B2B project management&#10;Tone: Professional but approachable&#10;Audience: Non-technical SMB owners aged 30–55&#10;Key differentiator: Simplicity over feature depth"></textarea>
+        <div class="ctx-editor-footer">
+          <button class="btn btn-accent" id="ctxSaveBtn">
+            <span class="material-symbols-outlined">save</span> Save
+          </button>
+          <button class="btn btn-ghost" id="ctxCopyBtn">
+            <span class="material-symbols-outlined">content_copy</span> Copy
+          </button>
+          <button class="btn btn-ghost ctx-delete-btn" id="ctxDeleteBtn" style="margin-left:auto">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
         </div>
-        <div style="display:flex;gap:var(--sp-2);align-items:center;">
-          <button class="btn btn-accent" id="ctxSaveBtn"><span class="material-symbols-outlined">save</span> Save Block</button>
-          <button class="btn btn-ghost" id="ctxCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy</button>
-          <button class="btn btn-ghost" id="ctxDeleteBtn" style="margin-left:auto;color:var(--danger,#f87171);"><span class="material-symbols-outlined">delete</span> Delete</button>
-        </div>
-        <div id="ctxSaveConfirm" style="font-size:var(--fs-sm);color:var(--accent);margin-top:var(--sp-2);display:none;">&#10003; Block saved.</div>
       </div>
     </div>
+
   </div>
-</div>
 </div>
 
 <!-- ============================================================
@@ -1933,24 +2075,22 @@
       <div class="pcw-palette-search-wrap">
         <input type="search" id="pcwPaletteSearch" class="pcw-palette-search" placeholder="Search blocks &amp; frameworks..." autocomplete="off" />
       </div>
-      <div class="pcw-palette-section" id="pcwBlockSection">
-        <div class="pcw-palette-section-header" data-toggle-section="pcwBlockSection">
-          <span class="pcw-palette-label">Building Blocks</span>
-          <span class="pcw-palette-count" id="pcwBlockCount2"></span>
+      <div class="pcw-cat-toolbar">
+        <div class="pcw-cat-dropdown-wrap">
+          <button class="pcw-cat-dropdown-btn" id="pcwCatDropdownBtn" onclick="window._pcwToggleCatDropdown()">
+            <span class="material-symbols-outlined" style="font-size:14px;">filter_list</span>
+            <span id="pcwActiveCatLabel">All</span>
+            <span class="material-symbols-outlined pcw-cat-chevron" id="pcwCatChevron">expand_more</span>
+          </button>
+          <div class="pcw-cat-dropdown" id="pcwCatDropdown">
+            <div class="pcw-cat-pills" id="pcwCatPills"><!-- injected by JS --></div>
+          </div>
         </div>
-        <div class="pcw-block-grid" id="pcwBlockGrid">
-          <!-- injected by JS -->
-        </div>
+        <button class="pcw-expand-all-btn" id="pcwExpandAllBtn" onclick="window._pcwToggleAllSections()" title="Expand / Collapse all">
+          <span class="material-symbols-outlined" id="pcwExpandIcon">unfold_more</span>
+        </button>
       </div>
-      <div class="pcw-palette-section" id="pcwFwSection">
-        <div class="pcw-palette-section-header" data-toggle-section="pcwFwSection">
-          <span class="pcw-palette-label">Frameworks</span>
-          <span class="pcw-palette-count" id="pcwFwCount"></span>
-        </div>
-        <div class="pcw-fw-list" id="pcwFwList">
-          <!-- injected by JS -->
-        </div>
-      </div>
+      <div id="pcwPaletteBody"><!-- injected by JS --></div>
     </div>
 
     <!-- Right: canvas -->
@@ -1967,6 +2107,7 @@
       <div class="pcw-footer">
         <input type="text" id="pcwTitleInput" class="form-input pcw-footer-title" placeholder="Prompt title (required to save)…" />
         <span class="pcw-block-count" id="pcwBlockCount">0 blocks</span>
+        <button id="pcwCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy</button>
         <button class="btn btn-ghost" id="pcwPreviewBtn"><span class="material-symbols-outlined">visibility</span> Preview</button>
         <button class="btn btn-accent" id="pcwSaveBtnFooter"><span class="material-symbols-outlined">save</span> Save to Library</button>
       </div>
@@ -1975,10 +2116,41 @@
   </div>
 </div>
 
+
+
+
+
+
+
+
+<!-- Tutorial Overlay -->
+<div id="tutorialOverlay" aria-hidden="true"></div>
+<div id="tutorialHighlight" aria-hidden="true"></div>
+<div id="tutorialCard" role="dialog" aria-label="Tutorial step" aria-modal="true">
+  <div class="tour-progress" id="tourProgress"></div>
+  <div class="tour-card-body">
+    <div class="tour-icon" id="tourIcon"></div>
+    <h3 class="tour-title" id="tourTitle"></h3>
+    <div class="tour-body" id="tourBody"></div>
+  </div>
+  <div class="tour-footer">
+    <button class="btn btn-ghost tour-skip" id="tourSkipBtn" onclick="window.PL_endTutorial()">Skip tour</button>
+    <div class="tour-nav">
+      <button class="btn btn-ghost tour-back" id="tourBackBtn" onclick="window.PL_tutorialBack()">
+        <span class="material-symbols-outlined">arrow_back</span> Back
+      </button>
+      <button class="btn btn-accent tour-next" id="tourNextBtn" onclick="window.PL_tutorialNext()">
+        Next <span class="material-symbols-outlined">arrow_forward</span>
+      </button>
+    </div>
+  </div>
+  <div class="tour-arrow" id="tourArrow"></div>
+</div>
+
 <div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=b5968966"></script>
+<script defer src="/static/app.js?v=c4fae198"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>
@@ -1988,6 +2160,82 @@
   if (typeof window.createFolderInline !== 'function') window.createFolderInline = function () {};
   if (typeof window.clearAllFilters    !== 'function') window.clearAllFilters    = function () {};
 </script>
+
+
+
+  <div id="promptViewer" aria-modal="true" aria-label="Prompt viewer" role="dialog">
+    <div class="pv-header">
+      <button class="pv-back-btn" id="pvCloseBtn" title="Back to library">
+        <span class="material-symbols-outlined">arrow_back</span>
+        Back
+      </button>
+      <div class="pv-header-title" id="pvTitle"></div>
+      <div class="pv-header-chips" id="pvChips"></div>
+      <button class="icon-btn" id="pvEditBtn" title="Edit prompt">
+        <span class="material-symbols-outlined">edit</span>
+      </button>
+      <button class="icon-btn" id="pvFavBtn" title="Toggle favourite">
+        <span class="material-symbols-outlined">favorite</span>
+      </button>
+    </div>
+    <div class="pv-body">
+      <div class="pv-main">
+        <div class="pv-desc" id="pvDesc" hidden></div>
+        <div>
+          <div class="pv-prompt-label">
+            <span class="material-symbols-outlined" style="font-size:14px">code</span>
+            Prompt
+          </div>
+          <div class="pv-prompt-block" id="pvPromptBlock"></div>
+        </div>
+        <div class="pv-meta-strip" id="pvMetaStrip"></div>
+      </div>
+      <aside class="pv-sidebar">
+        <div>
+          <div class="pv-section-label">Actions</div>
+          <button class="btn btn-accent pv-copy-btn" id="pvCopyBtn">
+            <span class="material-symbols-outlined">content_copy</span>
+            Copy to clipboard
+          </button>
+        </div>
+        <div id="pvVarSection" hidden>
+          <div class="pv-section-label">Fill variables</div>
+          <div class="pv-var-fields" id="pvVarFields"></div>
+          <button class="btn btn-primary pv-copy-btn" id="pvCopyFilledBtn" style="margin-top:8px;">
+            <span class="material-symbols-outlined">content_copy</span>
+            Copy filled prompt
+          </button>
+        </div>
+        <div id="pvTagsSection" hidden>
+          <div class="pv-section-label">Tags</div>
+          <div id="pvTags" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+<!-- ============================================================
+     ONBOARDING SPOTLIGHT TOUR
+     13 steps. localStorage key: promptlib.tourDone
+     Replay via #tourBtn in sidebar footer.
+     ============================================================ -->
+<div id="onboardingOverlay" aria-modal="true" role="dialog" aria-label="App tour">
+  <div id="onboardingSpotlight"></div>
+  <div id="onboardingCard">
+    <div id="obProgressBar"><div id="obProgressFill"></div></div>
+    <div id="obIconWrap">
+      <span class="material-symbols-outlined" id="obIcon">auto_awesome</span>
+    </div>
+    <div id="obEyebrow"></div>
+    <div id="obTitle"></div>
+    <p id="obDesc"></p>
+    <div id="obDots"></div>
+    <div id="obActions">
+      <button class="btn btn-ghost" id="obSkipBtn" onclick="window.PL_skipOnboarding()">Skip tour</button>
+      <button class="btn btn-accent" id="obNextBtn" onclick="window.PL_onboardNext()">Next</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

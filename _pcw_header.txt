@@ -1,0 +1,27 @@
+(function initComponentsWorkspace() {
+
+  const CATEGORIES = [
+    { id: 'all',         label: 'All' },
+    { id: 'core',        label: 'Core Blocks' },
+    { id: 'control',     label: 'Control Flow' },
+    { id: 'guardrails',  label: 'Guardrails' },
+    { id: 'persona',     label: 'Persona & Identity' },
+    { id: 'reasoning',   label: 'Reasoning' },
+    { id: 'meta',        label: 'Meta Prompting' },
+    { id: 'prompt-eng',  label: 'Prompt Engineering' },
+    { id: 'improvement', label: 'Prompt Improvement' },
+    { id: 'generation',  label: 'Prompt Generation' },
+    { id: 'use-case',    label: 'Use Case Components' },
+    { id: 'quality',     label: 'Prompt Quality' },
+    { id: 'output',      label: 'Output Formats' },
+    { id: 'research',    label: 'Research & Analysis' },
+    { id: 'creative',    label: 'Creative Writing' },
+    { id: 'business',    label: 'Business & Strategy' },
+    { id: 'coding',      label: 'Code & Dev' },
+    { id: 'content',     label: 'Content & Copy' },
+    { id: 'decision',    label: 'Decision Making' },
+    { id: 'iteration',   label: 'Iteration & Refinement' },
+  ];
+
+  let _activeCat = 'all';
+
