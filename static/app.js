@@ -4281,6 +4281,36 @@ function initRolesWorkspace() {
   });
 }
 
+/* ── Tooltip helper — positions .kb-tooltip-text as fixed so it escapes overflow:hidden ancestors ── */
+(function initKbTooltips() {
+  var active = null;
+  document.addEventListener('mouseover', function(e) {
+    var trigger = e.target.closest('.kb-tooltip');
+    if (!trigger) return;
+    var tip = trigger.querySelector('.kb-tooltip-text');
+    if (!tip) return;
+    var rect = trigger.getBoundingClientRect();
+    tip.style.display = 'block';
+    var tipW = tip.offsetWidth  || 240;
+    var tipH = tip.offsetHeight || 40;
+    var left = rect.left + rect.width / 2 - tipW / 2;
+    var top  = rect.top - tipH - 8;
+    // Keep within viewport
+    left = Math.max(8, Math.min(left, window.innerWidth - tipW - 8));
+    if (top < 8) top = rect.bottom + 8; // flip below if no room above
+    tip.style.left = left + 'px';
+    tip.style.top  = top  + 'px';
+    active = tip;
+  });
+  document.addEventListener('mouseout', function(e) {
+    var trigger = e.target.closest('.kb-tooltip');
+    if (!trigger) return;
+    var tip = trigger.querySelector('.kb-tooltip-text');
+    if (tip) tip.style.display = '';
+    active = null;
+  });
+})();
+
 /* ── Update sidebar stats panel ──────────────────────────────────────────── */
 function updateAgentBuilderStats() {
   const roles = _rolesState.roles;

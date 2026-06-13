@@ -2242,8 +2242,8 @@
   }
 
   /* Skills section */
-  .skills-section { margin-top: var(--sp-5); border: 1px solid var(--line); border-radius: var(--radius-lg, 10px); overflow: hidden; }
-  .skills-section-header { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); background: var(--surface-2); border-bottom: 1px solid var(--line); }
+  .skills-section { margin-top: var(--sp-5); border: 1px solid var(--line); border-radius: var(--radius-lg, 10px); overflow: visible; position: relative; }
+  .skills-section-header { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); background: var(--surface-2); border-bottom: 1px solid var(--line); border-radius: var(--radius-lg, 10px) var(--radius-lg, 10px) 0 0; overflow: visible; }
   .skills-section-title { font-size: var(--fs-sm); font-weight: 600; color: var(--ink); flex: 1; }
   .skills-add-btn { margin-left: auto; font-size: var(--fs-sm); padding: 4px 10px; }
   .skill-empty { font-size: var(--fs-sm); color: var(--ink-4); padding: var(--sp-4); margin: 0; font-style: italic; }
@@ -2272,13 +2272,13 @@
   .example-remove-btn:hover { opacity: 1; }
 
   /* Knowledge Base section */
-  .kb-section { margin-top: var(--sp-5); border: 1px solid var(--line); border-radius: var(--radius-lg, 10px); overflow: hidden; }
-  .kb-section-header { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); background: var(--surface-2); border-bottom: 1px solid var(--line); }
+  .kb-section { margin-top: var(--sp-5); border: 1px solid var(--line); border-radius: var(--radius-lg, 10px); overflow: visible; position: relative; }
+  .kb-section-header { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); background: var(--surface-2); border-bottom: 1px solid var(--line); border-radius: var(--radius-lg, 10px) var(--radius-lg, 10px) 0 0; overflow: visible; }
   .kb-section-title { font-size: var(--fs-sm); font-weight: 600; color: var(--ink); flex: 1; }
   .kb-add-btn { margin-left: auto; font-size: var(--fs-sm); padding: 4px 10px; }
   .kb-tooltip { position: relative; cursor: default; color: var(--ink-4); display: flex; align-items: center; }
-  .kb-tooltip-text { display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface); font-size: 11px; line-height: 1.4; padding: 6px 10px; border-radius: 6px; white-space: normal; width: 240px; z-index: 200; pointer-events: none; text-align: left; }
-  .kb-tooltip:hover .kb-tooltip-text { display: block; }
+  .kb-tooltip-text { display: none; position: fixed; background: var(--ink); color: var(--surface); font-size: 11px; line-height: 1.4; padding: 6px 10px; border-radius: 6px; white-space: normal; width: 240px; z-index: 9999; pointer-events: none; text-align: left; }
+  /* .kb-tooltip-text visibility driven by JS (initKbTooltips) for overflow-escape positioning */
   .kb-empty { font-size: var(--fs-sm); color: var(--ink-4); padding: var(--sp-4); margin: 0; font-style: italic; }
   .kb-entry-card { border-bottom: 1px solid var(--line); padding: var(--sp-3) var(--sp-4); }
   .kb-entry-card:last-child { border-bottom: none; }
