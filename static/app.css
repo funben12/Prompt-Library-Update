@@ -119,6 +119,11 @@
     --z-modal:   60;
     --z-toast:   80;
     --z-palette: 90;
+
+    /* Compatibility aliases — components that use non-standard names */
+    --surface-1: var(--surface);
+    --border:    var(--line);
+    --ink-1:     var(--ink);
   }
 
   :root[data-theme="dark"] {
@@ -186,6 +191,11 @@
     --c-fuchsia:  oklch(63% 0.21 316);
     --c-rose:     oklch(67% 0.18 10);
     --c-lavender: oklch(78% 0.09 290);
+
+    /* Compatibility aliases — dark mode */
+    --surface-1: var(--surface);
+    --border:    var(--line);
+    --ink-1:     var(--ink);
   }
 
   /* ── Neumorphic depth utilities ──────────────────────────────────────
@@ -6233,9 +6243,10 @@
   position: fixed;
   z-index: 9995;
   background: var(--surface-1);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--accent-line);
   border-radius: 14px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.25), 0 4px 16px rgba(0,0,0,0.12);
+  box-shadow: 0 28px 72px rgba(0,0,0,0.40), 0 8px 24px rgba(0,0,0,0.22),
+              0 0 0 1px var(--border);
   width: 340px;
   max-width: calc(100vw - 32px);
   padding: 0;
@@ -6294,7 +6305,7 @@
   font-size: var(--fs-lg);
   font-weight: 400;
   letter-spacing: -0.02em;
-  color: var(--ink-1);
+  color: var(--ink);
   margin-bottom: var(--sp-2);
 }
 

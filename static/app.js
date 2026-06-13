@@ -2664,6 +2664,7 @@ async function activateLicence() {
       applyPremiumState();
       closePremiumModal();
       toast('Pro unlocked - thank you!', 'success');
+      setTimeout(function() { window.PL_startPremiumTour && window.PL_startPremiumTour(); }, 600);
     } else {
       $('#licenceError').classList.add('show');
     }
@@ -7977,7 +7978,7 @@ function _tokenRow(model, est) {
       target: null,
       icon: 'waving_hand',
       title: 'Welcome to Prompt Library',
-      html: '<p>This quick tour shows you how to build powerful AI prompts — in about 2 minutes.</p>' +
+      html: '<p>This quick tour shows you the essentials — building, saving, and reusing AI prompts — in about 2 minutes.</p>' +
             '<div class="tour-prompt-flow">' +
               '<div class="tour-block-chip role"><span class="material-symbols-outlined">person</span>Role</div>' +
               '<span class="tour-flow-plus material-symbols-outlined">add</span>' +
@@ -7995,30 +7996,52 @@ function _tokenRow(model, est) {
       target: '#promptsContainer',
       icon: 'library_books',
       title: 'Your Prompt Library',
-      html: '<p>Every prompt you create lives here. Click any prompt to view it, copy the text, or edit it.</p>' +
+      html: '<p>Every prompt you create lives here. Click any card to open it, copy the text, or edit it.</p>' +
             '<p>Use the sidebar to filter by folder, tags, or categories. The search bar finds prompts instantly.</p>' +
-            '<div class="tour-tip"><span class="material-symbols-outlined">info</span>Start with the <strong>Starter Prompts</strong> already in your library to see what a finished prompt looks like.</div>',
+            '<div class="tour-tip"><span class="material-symbols-outlined">info</span>The <strong>Starter Prompts</strong> already in your library show what a finished prompt looks like — open one to explore.</div>',
       position: 'right'
     },
-    // 2 — Components nav button
+    // 2 — Add a Prompt
+    {
+      target: '#newPromptBtn',
+      icon: 'add_circle',
+      title: 'Add Your First Prompt',
+      html: '<p>Click <strong>+ New Prompt</strong> to open the editor and write any prompt from scratch.</p>' +
+            '<p>Give it a title, write the prompt body, add optional tags to keep it organised, then hit <strong>Save</strong>. It appears in your library instantly.</p>' +
+            '<div class="tour-tip"><span class="material-symbols-outlined">info</span>Good titles are specific — <em>"Cold email — SaaS founder"</em> beats <em>"Email"</em> every time.</div>',
+      position: 'right'
+    },
+    // 3 — Variables
+    {
+      target: null,
+      icon: 'token',
+      title: 'Make Prompts Reusable with Variables',
+      html: '<p>Put <strong><code>[[placeholders]]</code></strong> anywhere in a prompt to make it dynamic. When you open that prompt the app shows fill-in fields — complete them, then copy the finished version.</p>' +
+            '<div class="tour-prompt-flow" style="flex-direction:column;align-items:flex-start;gap:6px;text-align:left;">' +
+              '<span style="font-size:11px;font-weight:600;color:var(--ink-3);letter-spacing:.05em;text-transform:uppercase;">Example</span>' +
+              '<code style="font-size:12px;line-height:1.6;color:var(--ink-2);">Write a cold email to [[company]] from the perspective of a [[role]]. Keep it under [[word_count]] words.</code>' +
+            '</div>' +
+            '<div class="tour-tip"><span class="material-symbols-outlined">info</span>All three formats work: <code>[[double brackets]]</code>, <code>{{curly braces}}</code>, and <code>((parentheses))</code>.</div>',
+      position: 'center'
+    },
+    // 4 — Components nav button
     {
       target: '.nav-item[data-view="components"]',
       icon: 'extension',
       title: 'The Component Builder',
-      html: '<p>This is the main event. The <strong>Component Builder</strong> lets you assemble prompts from reusable building blocks — like LEGO bricks for AI.</p>' +
-            '<p>Instead of writing prompts from scratch, you pick pre-written blocks and combine them. Faster, more consistent, and easier to improve over time.</p>',
+      html: '<p>The <strong>Component Builder</strong> lets you assemble prompts from pre-written building blocks — like LEGO for AI instructions.</p>' +
+            '<p>Instead of writing from scratch, you pick blocks by category and combine them. Faster, more consistent, and easier to improve over time.</p>',
       position: 'right',
       onNext: function() {
-        // Navigate to components workspace before advancing
         setView('components');
       }
     },
-    // 3 — Category dropdown
+    // 5 — Category dropdown
     {
       target: '#pcwCatDropdownBtn',
       icon: 'filter_list',
       title: 'Filter by Category',
-      html: '<p>Every block is organised into categories. Click this button to open the category filter and pick what type of block you need:</p>' +
+      html: '<p>Every block is organised into categories. Use this dropdown to narrow down what you\'re looking for:</p>' +
             '<ul>' +
               '<li><strong>Core</strong> — Role, Task, Context, Goal</li>' +
               '<li><strong>Output</strong> — Format, Length, JSON, Step-by-step</li>' +
@@ -8028,13 +8051,13 @@ function _tokenRow(model, est) {
             '</ul>',
       position: 'right'
     },
-    // 4 — Palette / block list
+    // 6 — Palette / block list
     {
       target: '#pcwPaletteBody',
       icon: 'widgets',
       title: 'Click Any Block to Add It',
-      html: '<p>Each card in this panel is a prompt building block. <strong>Click once</strong> to add it to your canvas.</p>' +
-            '<p>Try this order for a solid first prompt:</p>' +
+      html: '<p>Each card is a prompt block. <strong>Click once</strong> to add it to your canvas on the right.</p>' +
+            '<p>A solid first prompt uses this order:</p>' +
             '<div class="tour-prompt-flow" style="margin-top:0">' +
               '<div class="tour-block-chip role"><span class="material-symbols-outlined">person</span>1. Role</div>' +
               '<span class="tour-flow-plus material-symbols-outlined">add</span>' +
@@ -8042,50 +8065,51 @@ function _tokenRow(model, est) {
               '<span class="tour-flow-plus material-symbols-outlined">add</span>' +
               '<div class="tour-block-chip format"><span class="material-symbols-outlined">format_align_left</span>3. Format</div>' +
             '</div>' +
-            '<div class="tour-tip"><span class="material-symbols-outlined">info</span>Use the <strong>Expand / Collapse All</strong> button next to the category dropdown to scan the full block library at a glance.</div>',
+            '<div class="tour-tip"><span class="material-symbols-outlined">info</span>Use <strong>Expand/Collapse All</strong> to scan the full block library at a glance.</div>',
       position: 'right'
     },
-    // 5 — Canvas
+    // 7 — Canvas
     {
       target: '#pcwDropZone',
       icon: 'space_dashboard',
       title: 'Your Prompt Canvas',
-      html: '<p>When you click a block, it lands here on the canvas. Your blocks stack up <strong>top to bottom</strong> — and that order matters, because the AI reads your prompt in sequence.</p>' +
-            '<p><strong>Drag any block</strong> up or down to reorder it. <strong>Click the ✕</strong> to remove a block you don\'t need.</p>' +
-            '<div class="tour-tip"><span class="material-symbols-outlined">info</span>A good rule: put Role and Context at the top, then Task in the middle, then Output Format at the bottom.</div>',
+      html: '<p>Blocks you add land here, stacking <strong>top to bottom</strong>. The AI reads your prompt in that sequence — so order matters.</p>' +
+            '<p><strong>Drag any block</strong> to reorder it. <strong>Click ✕</strong> to remove one you don\'t need.</p>' +
+            '<div class="tour-tip"><span class="material-symbols-outlined">info</span>Rule of thumb: Role and Context at the top, Task in the middle, Output Format at the bottom.</div>',
       position: 'left'
     },
-    // 6 — Preview button
+    // 8 — Preview button
     {
       target: '#pcwPreviewBtn',
       icon: 'visibility',
-      title: 'Preview Your Assembled Prompt',
-      html: '<p>Once you\'ve added a few blocks, click <strong>Preview</strong> to see them merged into a single piece of text.</p>' +
-            '<p>This is exactly what gets sent to the AI — you\'ll see how your blocks flow together and spot anything that needs adjusting before you save.</p>',
+      title: 'Preview Before You Save',
+      html: '<p>Click <strong>Preview</strong> to see all your blocks merged into a single prompt — exactly what gets sent to the AI.</p>' +
+            '<p>Spot anything that needs adjusting, tweak your blocks, preview again until it reads right.</p>',
       position: 'top'
     },
-    // 7 — Title + save
+    // 9 — Title + save
     {
       target: '#pcwTitleInput',
       icon: 'save',
       title: 'Name It and Save It',
-      html: '<p>Type a clear, descriptive name for your prompt here — something that tells you exactly what it does when you see it in your library.</p>' +
-            '<p>Then click <strong>Save to Library</strong>. Your prompt is saved instantly and appears in the library, ready to copy and use in any AI tool.</p>' +
+      html: '<p>Give your prompt a clear, descriptive name — something that tells you exactly what it does when you see it in your library.</p>' +
+            '<p>Then click <strong>Save to Library</strong>. Saved instantly, ready to copy and use in any AI tool.</p>' +
             '<div class="tour-tip"><span class="material-symbols-outlined">info</span>Good names are specific: <em>"Blog intro — SaaS product"</em> is better than <em>"Blog post"</em>.</div>',
       position: 'top'
     },
-    // 8 — Done
+    // 10 — Done
     {
       target: null,
       icon: 'rocket_launch',
       title: "You're ready to build",
-      html: '<p>That\'s everything you need to know. Here\'s a quick cheat sheet:</p>' +
+      html: '<p>That\'s the core of Prompt Library. Quick cheat sheet:</p>' +
             '<div class="tour-quick-tips">' +
-              '<div class="tour-quick-tip"><span class="material-symbols-outlined">filter_list</span><span>Use the <strong>Category dropdown</strong> to find the right type of block fast</span></div>' +
-              '<div class="tour-quick-tip"><span class="material-symbols-outlined">unfold_more</span><span><strong>Expand/Collapse All</strong> to scan the full block library at once</span></div>' +
-              '<div class="tour-quick-tip"><span class="material-symbols-outlined">drag_indicator</span><span><strong>Drag blocks</strong> to reorder them — sequence matters</span></div>' +
-              '<div class="tour-quick-tip"><span class="material-symbols-outlined">visibility</span><span><strong>Preview</strong> before saving to check how your prompt reads</span></div>' +
-              '<div class="tour-quick-tip"><span class="material-symbols-outlined">help_outline</span><span>Reopen this tour from <strong>How to use</strong> in the sidebar</span></div>' +
+              '<div class="tour-quick-tip"><span class="material-symbols-outlined">add_circle</span><span><strong>+ New Prompt</strong> to write any prompt from scratch</span></div>' +
+              '<div class="tour-quick-tip"><span class="material-symbols-outlined">token</span><span>Use <strong>[[variables]]</strong> to make prompts reusable</span></div>' +
+              '<div class="tour-quick-tip"><span class="material-symbols-outlined">filter_list</span><span><strong>Category dropdown</strong> to find the right block type fast</span></div>' +
+              '<div class="tour-quick-tip"><span class="material-symbols-outlined">drag_indicator</span><span><strong>Drag blocks</strong> to reorder — sequence matters</span></div>' +
+              '<div class="tour-quick-tip"><span class="material-symbols-outlined">visibility</span><span><strong>Preview</strong> before saving to check how it reads</span></div>' +
+              '<div class="tour-quick-tip"><span class="material-symbols-outlined">help_outline</span><span>Re-open this tour from <strong>How to use</strong> in the sidebar</span></div>' +
             '</div>',
       position: 'center',
       isLast: true
@@ -8278,6 +8302,251 @@ function _tokenRow(model, est) {
   if (!localStorage.getItem('pl_tutorial_seen')) {
     setTimeout(window.PL_startTutorial, 1400);
   }
+
+})();
+
+/* ============================================================================
+   PREMIUM TOUR — shown once after a user activates their licence key.
+   Triggered by activateLicence() after successful validation.
+   localStorage key: pl_premium_tour_seen
+   ============================================================================ */
+(function initPremiumTour() {
+
+  var PREMIUM_STEPS = [
+    // 0 — Welcome to Pro (centred)
+    {
+      target: null,
+      icon: 'workspace_premium',
+      title: 'Welcome to Prompt Library Pro',
+      html: '<p>Your licence is active. Here\'s a quick look at everything that just unlocked — six powerful workspaces on top of the core library.</p>' +
+            '<div class="tour-tip"><span class="material-symbols-outlined">info</span>All of these are now in your sidebar. This tour points to each one so you know what\'s there.</div>',
+      position: 'center'
+    },
+    // 1 — Component Builder
+    {
+      target: '#componentsNavBtn',
+      icon: 'extension',
+      title: 'Component Builder',
+      html: '<p>Assemble prompts from reusable building blocks — like LEGO bricks for AI instructions. Over 100 blocks across 15 categories.</p>' +
+            '<p>Pick blocks, arrange them on the canvas, preview the merged prompt, then save it to your library.</p>',
+      position: 'right'
+    },
+    // 2 — Prompt Forge
+    {
+      target: '#forgeNavBtn',
+      icon: 'bolt',
+      title: 'Prompt Forge',
+      html: '<p><strong>Prompt Forge</strong> lets AI draft a prompt for you. Describe what you want the prompt to do, and the Forge generates a structured, ready-to-use version.</p>' +
+            '<p>Great for getting a strong starting point that you can then refine yourself.</p>',
+      position: 'right'
+    },
+    // 3 — Metaprompting
+    {
+      target: '#metaNavBtn',
+      icon: 'psychology',
+      title: 'Metaprompting',
+      html: '<p><strong>Metaprompting</strong> takes it further — you describe a task in plain language, and the workspace generates an optimised, expert-level prompt automatically.</p>' +
+            '<p>It\'s the fastest path from an idea to a production-quality prompt.</p>',
+      position: 'right'
+    },
+    // 4 — Context Bank
+    {
+      target: '#contextBankNavBtn',
+      icon: 'database',
+      title: 'Context Bank',
+      html: '<p>Store reusable pieces of context — your company info, writing style guide, product descriptions — and inject them into any prompt with one click.</p>' +
+            '<p>No more copying and pasting the same background into every conversation.</p>',
+      position: 'right'
+    },
+    // 5 — Playground
+    {
+      target: '#playgroundNavBtn',
+      icon: 'science',
+      title: 'Prompt Playground',
+      html: '<p>Test two prompts side-by-side to see which performs better. Tweak wording, compare outputs, and iterate fast without leaving the app.</p>',
+      position: 'right'
+    },
+    // 6 — Analytics
+    {
+      target: '#analyticsNavBtn',
+      icon: 'bar_chart',
+      title: 'Analytics',
+      html: '<p>See which prompts you use most, how your library has grown, and your usage over time. Useful for spotting gaps and deciding what to build next.</p>',
+      position: 'right'
+    },
+    // 7 — Done
+    {
+      target: null,
+      icon: 'check_circle',
+      title: "You're all set",
+      html: '<p>That\'s your Pro toolkit. Everything is in the sidebar whenever you need it.</p>' +
+            '<div class="tour-quick-tips">' +
+              '<div class="tour-quick-tip"><span class="material-symbols-outlined">extension</span><span><strong>Component Builder</strong> — assemble prompts from blocks</span></div>' +
+              '<div class="tour-quick-tip"><span class="material-symbols-outlined">bolt</span><span><strong>Prompt Forge</strong> — let AI draft a prompt for you</span></div>' +
+              '<div class="tour-quick-tip"><span class="material-symbols-outlined">psychology</span><span><strong>Metaprompting</strong> — auto-generate expert prompts</span></div>' +
+              '<div class="tour-quick-tip"><span class="material-symbols-outlined">database</span><span><strong>Context Bank</strong> — reusable context snippets</span></div>' +
+              '<div class="tour-quick-tip"><span class="material-symbols-outlined">science</span><span><strong>Playground</strong> — compare prompts side-by-side</span></div>' +
+            '</div>',
+      position: 'center',
+      isLast: true
+    }
+  ];
+
+  var _pStep = 0;
+  var _pRunning = false;
+
+  function _el(id) { return document.getElementById(id); }
+
+  function _getRect(selector) {
+    if (!selector) return null;
+    var el = document.querySelector(selector);
+    if (!el) return null;
+    var r = el.getBoundingClientRect();
+    return (r.width === 0 && r.height === 0) ? null : r;
+  }
+
+  function _positionHighlight(rect) {
+    var h = _el('tutorialHighlight');
+    if (!h) return;
+    if (!rect) {
+      h.classList.remove('active');
+      h.style.width = '0'; h.style.height = '0';
+      h.style.top = '-9999px'; h.style.left = '-9999px';
+      return;
+    }
+    var pad = 6;
+    h.style.top    = (rect.top    - pad) + 'px';
+    h.style.left   = (rect.left   - pad) + 'px';
+    h.style.width  = (rect.width  + pad * 2) + 'px';
+    h.style.height = (rect.height + pad * 2) + 'px';
+    h.classList.add('active');
+  }
+
+  function _positionCard(rect, position) {
+    var card  = _el('tutorialCard');
+    var arrow = _el('tourArrow');
+    if (!card) return;
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var cw = 340, GAP = 18;
+    if (arrow) { arrow.style.display = 'none'; arrow.className = 'tour-arrow'; }
+    if (!rect || position === 'center') {
+      card.style.top  = ((vh - card.offsetHeight) / 2) + 'px';
+      card.style.left = ((vw - cw) / 2) + 'px';
+      return;
+    }
+    var ch = card.offsetHeight || 300;
+    var top, left;
+    if (position === 'right') {
+      left = Math.min(rect.right + GAP, vw - cw - 8);
+      top  = Math.max(8, Math.min(rect.top + (rect.height / 2) - (ch / 2), vh - ch - 8));
+      if (arrow) { arrow.style.display = 'block'; arrow.style.top = (Math.min(rect.top + rect.height / 2, top + ch - 20) - top) + 'px'; arrow.classList.add('left'); }
+    } else if (position === 'left') {
+      left = Math.max(8, rect.left - cw - GAP);
+      top  = Math.max(8, Math.min(rect.top + (rect.height / 2) - (ch / 2), vh - ch - 8));
+      if (arrow) { arrow.style.display = 'block'; arrow.style.top = (Math.min(rect.top + rect.height / 2, top + ch - 20) - top) + 'px'; arrow.classList.add('right'); }
+    } else if (position === 'top') {
+      top  = Math.max(8, rect.top - ch - GAP);
+      left = Math.max(8, Math.min(rect.left + (rect.width / 2) - (cw / 2), vw - cw - 8));
+      if (arrow) { arrow.style.display = 'block'; arrow.style.left = (rect.left + rect.width / 2 - left - 6) + 'px'; arrow.classList.add('bottom'); }
+    } else {
+      top  = Math.min(rect.bottom + GAP, vh - ch - 8);
+      left = Math.max(8, Math.min(rect.left + (rect.width / 2) - (cw / 2), vw - cw - 8));
+      if (arrow) { arrow.style.display = 'block'; arrow.style.left = (rect.left + rect.width / 2 - left - 6) + 'px'; arrow.classList.add('top'); }
+    }
+    card.style.top  = Math.max(8, top)  + 'px';
+    card.style.left = Math.max(8, left) + 'px';
+  }
+
+  function _renderPremiumProgress() {
+    var el = _el('tourProgress');
+    if (!el) return;
+    el.innerHTML = PREMIUM_STEPS.map(function(_, i) {
+      var cls = i < _pStep ? 'tour-dot done' : i === _pStep ? 'tour-dot active' : 'tour-dot';
+      return '<div class="' + cls + '"></div>';
+    }).join('');
+  }
+
+  function _renderPremiumStep(n) {
+    var step = PREMIUM_STEPS[n];
+    if (!step) return;
+    var iconEl  = _el('tourIcon');
+    var titleEl = _el('tourTitle');
+    var bodyEl  = _el('tourBody');
+    var skipBtn = _el('tourSkipBtn');
+    var backBtn = _el('tourBackBtn');
+    var nextBtn = _el('tourNextBtn');
+    if (iconEl)  iconEl.innerHTML   = '<span class="material-symbols-outlined">' + step.icon + '</span>';
+    if (titleEl) titleEl.textContent = step.title;
+    if (bodyEl)  bodyEl.innerHTML   = step.html;
+    if (skipBtn) skipBtn.style.display = step.isLast ? 'none' : '';
+    if (backBtn) backBtn.style.display = n === 0 ? 'none' : '';
+    if (nextBtn) nextBtn.innerHTML = step.isLast
+      ? '<span class="material-symbols-outlined">check</span> Done'
+      : 'Next <span class="material-symbols-outlined">arrow_forward</span>';
+    _renderPremiumProgress();
+    var rect = _getRect(step.target);
+    _positionHighlight(rect);
+    requestAnimationFrame(function() { _positionCard(rect, step.position); });
+  }
+
+  function _pShow() {
+    var overlay = _el('tutorialOverlay');
+    var card    = _el('tutorialCard');
+    if (overlay) overlay.classList.add('active');
+    if (card)    card.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    _pRunning = true;
+  }
+
+  function _pHide() {
+    var overlay   = _el('tutorialOverlay');
+    var card      = _el('tutorialCard');
+    var highlight = _el('tutorialHighlight');
+    if (overlay)   overlay.classList.remove('active');
+    if (card)      card.classList.remove('active');
+    if (highlight) highlight.classList.remove('active');
+    document.body.style.overflow = '';
+    _pRunning = false;
+    localStorage.setItem('pl_premium_tour_seen', '1');
+  }
+
+  window.PL_startPremiumTour = function() {
+    if (localStorage.getItem('pl_premium_tour_seen')) return;
+    _pStep = 0;
+    _pShow();
+    setTimeout(function() { _renderPremiumStep(0); }, 80);
+  };
+
+  // Override Next/Back/End while premium tour is running
+  var _origNext = window.PL_tutorialNext;
+  var _origBack = window.PL_tutorialBack;
+  var _origEnd  = window.PL_endTutorial;
+
+  window.PL_tutorialNext = function() {
+    if (_pRunning) {
+      var step = PREMIUM_STEPS[_pStep];
+      if (step && step.isLast) { _pHide(); return; }
+      _pStep = Math.min(_pStep + 1, PREMIUM_STEPS.length - 1);
+      setTimeout(function() { _renderPremiumStep(_pStep); }, 80);
+      return;
+    }
+    _origNext && _origNext();
+  };
+
+  window.PL_tutorialBack = function() {
+    if (_pRunning) {
+      if (_pStep === 0) return;
+      _pStep--;
+      setTimeout(function() { _renderPremiumStep(_pStep); }, 60);
+      return;
+    }
+    _origBack && _origBack();
+  };
+
+  window.PL_endTutorial = function() {
+    if (_pRunning) { _pHide(); return; }
+    _origEnd && _origEnd();
+  };
 
 })();
 
