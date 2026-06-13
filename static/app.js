@@ -6062,16 +6062,64 @@ function initModalSidePanels() {
       });
     }
 
-    // Preview button (kept for backward compat — also copies)
+    // Preview button — opens the assembled-prompt preview sheet
     if ($('#pcwPreviewBtn')) {
       $('#pcwPreviewBtn').addEventListener('click', function() {
         var text = assemblePrompt();
-        if (!text) { toast('Canvas is empty', 'warning'); return; }
+        if (!text) { toast('Canvas is empty — add some blocks first', 'warning'); return; }
+        var sheet    = $('#pcwPreviewSheet');
+        var textEl   = $('#pcwPreviewText');
+        var countEl  = $('#pcwPreviewWordCount');
+        if (!sheet || !textEl) return;
+        textEl.textContent = text;
+        var words = text.trim().split(/\s+/).filter(Boolean).length;
+        var chars = text.length;
+        if (countEl) countEl.textContent = words + ' words · ' + chars + ' chars';
+        sheet.classList.add('open');
+        sheet.setAttribute('aria-hidden', 'false');
+      });
+    }
+
+    // Preview sheet — copy button
+    if ($('#pcwPreviewCopyBtn')) {
+      $('#pcwPreviewCopyBtn').addEventListener('click', function() {
+        var text = $('#pcwPreviewText') ? $('#pcwPreviewText').textContent : '';
+        if (!text) return;
         navigator.clipboard && navigator.clipboard.writeText(text).then(function() {
-          toast('Assembled prompt copied to clipboard', 'success');
+          toast('Prompt copied to clipboard', 'success');
+          var btn = $('#pcwPreviewCopyBtn');
+          if (btn) {
+            btn.innerHTML = '<span class="material-symbols-outlined">check</span> Copied!';
+            setTimeout(function() {
+              btn.innerHTML = '<span class="material-symbols-outlined">content_copy</span> Copy to clipboard';
+            }, 1800);
+          }
         });
       });
     }
+
+    // Preview sheet — save button (pre-fills title if empty, triggers save)
+    if ($('#pcwPreviewSaveBtn')) {
+      $('#pcwPreviewSaveBtn').addEventListener('click', function() {
+        var sheet = $('#pcwPreviewSheet');
+        if (sheet) { sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
+        saveToLibrary();
+      });
+    }
+
+    // Preview sheet — close button + Escape
+    function closePcwPreviewSheet() {
+      var sheet = $('#pcwPreviewSheet');
+      if (sheet) { sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
+    }
+    if ($('#pcwPreviewClose')) {
+      $('#pcwPreviewClose').addEventListener('click', closePcwPreviewSheet);
+    }
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && $('#pcwPreviewSheet') && $('#pcwPreviewSheet').classList.contains('open')) {
+        closePcwPreviewSheet();
+      }
+    });
 
     // Tile click: open preview modal or add directly
     ws.addEventListener('click', function(e) {

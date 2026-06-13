@@ -6505,3 +6505,97 @@
 .role-section-divider + .form-group {
   margin-top: var(--sp-3);
 }
+
+
+/* ── PCW Assembled Prompt Preview Sheet ─────────────────────────────────── */
+
+.pcw-preview-sheet {
+  position: absolute;
+  inset: 0;
+  background: var(--surface-1);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  border-top: 1px solid var(--border);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+}
+
+.pcw-preview-sheet.open {
+  transform: translateY(0);
+}
+
+.pcw-preview-sheet-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.pcw-preview-sheet-title {
+  font-family: var(--ff-display);
+  font-size: var(--fs-base);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--ink-1);
+}
+
+.pcw-preview-sheet-count {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  margin-left: var(--sp-2);
+}
+
+.pcw-preview-close {
+  margin-left: auto;
+}
+
+.pcw-preview-sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-4) var(--sp-5);
+}
+
+.pcw-preview-text {
+  font-family: var(--ff-mono, 'Fira Code', monospace);
+  font-size: var(--fs-sm);
+  line-height: 1.75;
+  color: var(--ink-1);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  background: transparent;
+}
+
+.pcw-preview-sheet-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Make .pcw-canvas position:relative so the sheet overlays it */
+.pcw-canvas {
+  position: relative;
+  overflow: hidden;
+}
+
+
+/* Fallback for Material Symbols if Google font unavailable (offline mode) */
+@font-face {
+  font-family: 'Material Symbols Outlined Fallback';
+  src: local('system-ui');
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined', 'Material Symbols Outlined Fallback', system-ui;
+  font-display: swap;
+}
