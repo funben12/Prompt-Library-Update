@@ -1012,7 +1012,7 @@ function renderVariableFields(vars, meta) {
     return;
   }
 
-  const typeIcon = { text: 'abc', number: 'tag', date: 'event', dropdown: 'arrow_drop_down' };
+  const typeIcon = { text: 'abc', number: 'tag', date: 'event', dropdown: 'arrow_drop_down', email: 'email', url: 'link', phone: 'phone', textarea: 'wrap_text', paragraph: 'subject', password: 'lock', checkbox: 'check_box', slider: 'linear_scale', rating: 'star', color: 'palette', time: 'schedule', code: 'code' };
 
   wrap.innerHTML = visible.map(v => {
     const m    = meta[v] || {};
@@ -1030,6 +1030,38 @@ function renderVariableFields(vars, meta) {
       input = `<input type="number" class="var-input" data-var="${escapeAttr(v)}" placeholder="Number" value="${escapeAttr(def)}" />`;
     } else if (type === 'date') {
       input = `<input type="date" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
+    } else if (type === 'time') {
+      input = `<input type="time" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
+    } else if (type === 'email') {
+      input = `<input type="email" class="var-input" data-var="${escapeAttr(v)}" placeholder="email@example.com" value="${escapeAttr(def)}" />`;
+    } else if (type === 'url') {
+      input = `<input type="url" class="var-input" data-var="${escapeAttr(v)}" placeholder="https://..." value="${escapeAttr(def)}" />`;
+    } else if (type === 'phone') {
+      input = `<input type="tel" class="var-input" data-var="${escapeAttr(v)}" placeholder="+1 555 000 0000" value="${escapeAttr(def)}" />`;
+    } else if (type === 'password') {
+      input = `<input type="password" class="var-input" data-var="${escapeAttr(v)}" placeholder="Password" value="${escapeAttr(def)}" />`;
+    } else if (type === 'color') {
+      input = `<input type="color" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def) || '#000000'}" style="width:48px;height:32px;padding:2px;cursor:pointer;" />`;
+    } else if (type === 'textarea') {
+      input = `<textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter text…" rows="3" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>`;
+    } else if (type === 'paragraph') {
+      input = `<textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter paragraph…" rows="6" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>`;
+    } else if (type === 'code') {
+      input = `<textarea class="var-input var-code" data-var="${escapeAttr(v)}" placeholder="Enter code…" rows="4" style="width:100%;resize:vertical;font-family:monospace;font-size:12px;">${escapeHtml(def)}</textarea>`;
+    } else if (type === 'checkbox') {
+      const isChecked = def === 'true' || def === 'Yes';
+      input = `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" class="var-checkbox" data-var="${escapeAttr(v)}" ${isChecked ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;" />
+        <span style="font-size:13px;color:var(--ink-2);">Yes / No</span>
+      </label>`;
+    } else if (type === 'slider') {
+      const sliderDef = def || '50';
+      input = `<div style="display:flex;align-items:center;gap:10px;">
+        <input type="range" class="var-input" data-var="${escapeAttr(v)}" min="0" max="100" value="${escapeAttr(sliderDef)}" style="flex:1;" oninput="this.nextElementSibling.textContent=this.value" />
+        <span style="min-width:28px;text-align:right;font-size:13px;font-weight:600;color:var(--ink-1);">${escapeHtml(sliderDef)}</span>
+      </div>`;
+    } else if (type === 'rating') {
+      input = `<input type="number" class="var-input" data-var="${escapeAttr(v)}" min="1" max="5" placeholder="1–5" value="${escapeAttr(def)}" style="width:80px;" />`;
     } else {
       input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter value…" value="${escapeAttr(def)}" />`;
     }
@@ -1045,7 +1077,7 @@ function renderVariableFields(vars, meta) {
   }).join('');
 
   // Wire live preview listeners now that the DOM nodes exist
-  $$('#variableFields .var-input, #variableFields .var-select').forEach(inp => {
+  $$('#variableFields .var-input, #variableFields .var-select, #variableFields .var-checkbox').forEach(inp => {
     inp.addEventListener('input', _updateVarLivePreview);
     inp.addEventListener('change', _updateVarLivePreview);
   });
@@ -1061,7 +1093,7 @@ function _updateVarLivePreview() {
   const progressFill = $('#varFillProgressFill');
   const progressLabel = $('#varFillProgress');
 
-  const fields = $$('#variableFields .var-input, #variableFields .var-select');
+  const fields = $$('#variableFields .var-input, #variableFields .var-select, #variableFields .var-checkbox');
   if (!fields.length) { if (previewWrap) previewWrap.hidden = true; return; }
 
   // Collect current values and update filled-state on each card
@@ -1069,7 +1101,7 @@ function _updateVarLivePreview() {
   const map = {};
   fields.forEach(inp => {
     const v   = inp.dataset.var;
-    const val = inp.value.trim();
+    const val = inp.type === 'checkbox' ? (inp.checked ? 'Yes' : 'No') : inp.value.trim();
     map[v] = val;
     const card = inp.closest('.var-field');
     if (card) card.classList.toggle('is-filled', val.length > 0);
@@ -1948,10 +1980,28 @@ function renderVarMetaList(existing) {
         </div>
         <div class="var-meta-fields">
           <select data-field="type" onchange="window.PL_onVarTypeChange(this)">
-            <option value="text"     ${type === 'text'     ? 'selected' : ''}>Text</option>
-            <option value="number"   ${type === 'number'   ? 'selected' : ''}>Number</option>
-            <option value="date"     ${type === 'date'     ? 'selected' : ''}>Date</option>
-            <option value="dropdown" ${type === 'dropdown' ? 'selected' : ''}>Dropdown</option>
+            <optgroup label="Text">
+            <option value="text"      ${type === 'text'      ? 'selected' : ''}>Text</option>
+            <option value="textarea"  ${type === 'textarea'  ? 'selected' : ''}>Textarea</option>
+            <option value="paragraph" ${type === 'paragraph' ? 'selected' : ''}>Paragraph</option>
+            <option value="code"      ${type === 'code'      ? 'selected' : ''}>Code</option>
+            <option value="password"  ${type === 'password'  ? 'selected' : ''}>Password</option>
+            </optgroup>
+            <optgroup label="Contact">
+            <option value="email"     ${type === 'email'     ? 'selected' : ''}>Email</option>
+            <option value="url"       ${type === 'url'       ? 'selected' : ''}>URL</option>
+            <option value="phone"     ${type === 'phone'     ? 'selected' : ''}>Phone</option>
+            </optgroup>
+            <optgroup label="Input">
+            <option value="number"    ${type === 'number'    ? 'selected' : ''}>Number</option>
+            <option value="date"      ${type === 'date'      ? 'selected' : ''}>Date</option>
+            <option value="time"      ${type === 'time'      ? 'selected' : ''}>Time</option>
+            <option value="color"     ${type === 'color'     ? 'selected' : ''}>Color</option>
+            <option value="slider"    ${type === 'slider'    ? 'selected' : ''}>Slider</option>
+            <option value="rating"    ${type === 'rating'    ? 'selected' : ''}>Rating (1–5)</option>
+            <option value="dropdown"  ${type === 'dropdown'  ? 'selected' : ''}>Dropdown</option>
+            <option value="checkbox"  ${type === 'checkbox'  ? 'selected' : ''}>Checkbox</option>
+            </optgroup>
           </select>
           <input type="text" data-field="default" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
         </div>
