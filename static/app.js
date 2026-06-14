@@ -1027,7 +1027,10 @@ function renderVariableFields(vars, meta) {
         ${opts.map(o => `<option value="${escapeAttr(o)}"${def===o?' selected':''}>${escapeHtml(o)}</option>`).join('')}
       </select>`;
     } else if (type === 'number') {
-      input = `<input type="number" class="var-input" data-var="${escapeAttr(v)}" placeholder="Number" value="${escapeAttr(def)}" />`;
+      const numMin  = m.min  !== '' && m.min  != null ? ` min="${Number(m.min)}"` : '';
+      const numMax  = m.max  !== '' && m.max  != null ? ` max="${Number(m.max)}"` : '';
+      const numStep = m.step !== '' && m.step != null ? ` step="${Number(m.step)}"` : '';
+      input = `<input type="number" class="var-input" data-var="${escapeAttr(v)}" placeholder="Number"${numMin}${numMax}${numStep} value="${escapeAttr(def)}" />`;
     } else if (type === 'date') {
       input = `<input type="date" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
     } else if (type === 'time') {
@@ -1047,21 +1050,29 @@ function renderVariableFields(vars, meta) {
     } else if (type === 'paragraph') {
       input = `<textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter paragraph…" rows="6" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>`;
     } else if (type === 'code') {
-      input = `<textarea class="var-input var-code" data-var="${escapeAttr(v)}" placeholder="Enter code…" rows="4" style="width:100%;resize:vertical;font-family:monospace;font-size:12px;">${escapeHtml(def)}</textarea>`;
+      const codeLang = m.language || '';
+      const codePlaceholder = codeLang ? `Enter ${codeLang} code…` : 'Enter code…';
+      input = `<textarea class="var-input var-code" data-var="${escapeAttr(v)}" data-lang="${escapeAttr(codeLang)}" placeholder="${escapeAttr(codePlaceholder)}" rows="4" style="width:100%;resize:vertical;font-family:monospace;font-size:12px;">${escapeHtml(def)}</textarea>`;
     } else if (type === 'checkbox') {
-      const isChecked = def === 'true' || def === 'Yes';
+      const chkYes = m.checkedLabel || 'Yes';
+      const chkNo  = m.uncheckedLabel || 'No';
+      const isChecked = def === 'true' || def === chkYes;
       input = `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-        <input type="checkbox" class="var-checkbox" data-var="${escapeAttr(v)}" ${isChecked ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;" />
-        <span style="font-size:13px;color:var(--ink-2);">Yes / No</span>
+        <input type="checkbox" class="var-checkbox" data-var="${escapeAttr(v)}" data-checked-label="${escapeAttr(chkYes)}" data-unchecked-label="${escapeAttr(chkNo)}" ${isChecked ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;" />
+        <span style="font-size:13px;color:var(--ink-2);">${escapeHtml(chkYes)} / ${escapeHtml(chkNo)}</span>
       </label>`;
     } else if (type === 'slider') {
-      const sliderDef = def || '50';
+      const sliderMin = m.min !== '' && m.min != null ? Number(m.min) : 0;
+      const sliderMax = m.max !== '' && m.max != null ? Number(m.max) : 100;
+      const sliderStep = m.step !== '' && m.step != null ? Number(m.step) : 1;
+      const sliderDef = def || String(sliderMin);
       input = `<div style="display:flex;align-items:center;gap:10px;">
-        <input type="range" class="var-input" data-var="${escapeAttr(v)}" min="0" max="100" value="${escapeAttr(sliderDef)}" style="flex:1;" oninput="this.nextElementSibling.textContent=this.value" />
+        <input type="range" class="var-input" data-var="${escapeAttr(v)}" min="${sliderMin}" max="${sliderMax}" step="${sliderStep}" value="${escapeAttr(sliderDef)}" style="flex:1;" oninput="this.nextElementSibling.textContent=this.value" />
         <span style="min-width:28px;text-align:right;font-size:13px;font-weight:600;color:var(--ink-1);">${escapeHtml(sliderDef)}</span>
       </div>`;
     } else if (type === 'rating') {
-      input = `<input type="number" class="var-input" data-var="${escapeAttr(v)}" min="1" max="5" placeholder="1–5" value="${escapeAttr(def)}" style="width:80px;" />`;
+      const rMax = m.maxStars !== '' && m.maxStars != null ? Number(m.maxStars) : 5;
+      input = `<input type="number" class="var-input" data-var="${escapeAttr(v)}" min="1" max="${rMax}" placeholder="1–${rMax}" value="${escapeAttr(def)}" style="width:80px;" />`;
     } else {
       input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter value…" value="${escapeAttr(def)}" />`;
     }
@@ -2005,17 +2016,72 @@ function renderVarMetaList(existing) {
           </select>
           <input type="text" data-field="default" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
         </div>
-        <div class="dropdown-options" style="display: ${type === 'dropdown' ? 'block' : 'none'};">
-          <textarea data-field="options" placeholder="Comma-separated options" rows="2"
-                    style="width: 100%; padding: 6px 10px; font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; color: var(--ink); margin-top: 4px;">${escapeHtml(opts)}</textarea>
+        <div class="var-config-dropdown" style="display: ${type === 'dropdown' ? 'block' : 'none'}; margin-top: 4px;">
+          <textarea data-field="options" placeholder="Comma-separated options e.g. Red, Green, Blue" rows="2"
+                    style="width: 100%; padding: 6px 10px; font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; color: var(--ink);">${escapeHtml(opts)}</textarea>
+        </div>
+        <div class="var-config-checkbox" style="display: ${type === 'checkbox' ? 'block' : 'none'}; margin-top: 4px;">
+          <div style="display:flex;gap:8px;">
+            <input type="text" data-field="checkedLabel" placeholder="Checked label (e.g. Yes)"
+                   value="${escapeAttr(m.checkedLabel || '')}"
+                   style="flex:1;padding:6px 10px;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:4px;color:var(--ink);" />
+            <input type="text" data-field="uncheckedLabel" placeholder="Unchecked label (e.g. No)"
+                   value="${escapeAttr(m.uncheckedLabel || '')}"
+                   style="flex:1;padding:6px 10px;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:4px;color:var(--ink);" />
+          </div>
+        </div>
+        <div class="var-config-slider" style="display: ${type === 'slider' ? 'block' : 'none'}; margin-top: 4px;">
+          <div style="display:flex;gap:8px;">
+            <input type="number" data-field="min" placeholder="Min (0)"
+                   value="${escapeAttr(m.min != null ? String(m.min) : '')}"
+                   style="flex:1;padding:6px 10px;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:4px;color:var(--ink);" />
+            <input type="number" data-field="max" placeholder="Max (100)"
+                   value="${escapeAttr(m.max != null ? String(m.max) : '')}"
+                   style="flex:1;padding:6px 10px;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:4px;color:var(--ink);" />
+            <input type="number" data-field="step" placeholder="Step (1)"
+                   value="${escapeAttr(m.step != null ? String(m.step) : '')}"
+                   style="flex:1;padding:6px 10px;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:4px;color:var(--ink);" />
+          </div>
+        </div>
+        <div class="var-config-rating" style="display: ${type === 'rating' ? 'block' : 'none'}; margin-top: 4px;">
+          <input type="number" data-field="maxStars" placeholder="Max stars (5)" min="1" max="10"
+                 value="${escapeAttr(m.maxStars != null ? String(m.maxStars) : '')}"
+                 style="width:120px;padding:6px 10px;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:4px;color:var(--ink);" />
+        </div>
+        <div class="var-config-code" style="display: ${type === 'code' ? 'block' : 'none'}; margin-top: 4px;">
+          <select data-field="language"
+                  style="width:160px;padding:6px 10px;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:4px;color:var(--ink);">
+            <option value=""       ${!m.language                ? 'selected' : ''}>Plain text</option>
+            <option value="html"   ${m.language === 'html'      ? 'selected' : ''}>HTML</option>
+            <option value="css"    ${m.language === 'css'       ? 'selected' : ''}>CSS</option>
+            <option value="js"     ${m.language === 'js'        ? 'selected' : ''}>JavaScript</option>
+            <option value="python" ${m.language === 'python'    ? 'selected' : ''}>Python</option>
+            <option value="sql"    ${m.language === 'sql'       ? 'selected' : ''}>SQL</option>
+            <option value="json"   ${m.language === 'json'      ? 'selected' : ''}>JSON</option>
+            <option value="bash"   ${m.language === 'bash'      ? 'selected' : ''}>Bash</option>
+          </select>
+        </div>
+        <div class="var-config-number" style="display: ${type === 'number' ? 'block' : 'none'}; margin-top: 4px;">
+          <div style="display:flex;gap:8px;">
+            <input type="number" data-field="min" placeholder="Min"
+                   value="${escapeAttr(m.min != null ? String(m.min) : '')}"
+                   style="flex:1;padding:6px 10px;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:4px;color:var(--ink);" />
+            <input type="number" data-field="max" placeholder="Max"
+                   value="${escapeAttr(m.max != null ? String(m.max) : '')}"
+                   style="flex:1;padding:6px 10px;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:4px;color:var(--ink);" />
+            <input type="number" data-field="step" placeholder="Step"
+                   value="${escapeAttr(m.step != null ? String(m.step) : '')}"
+                   style="flex:1;padding:6px 10px;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:4px;color:var(--ink);" />
+          </div>
         </div>
       </div>`;
   }).join('');
 }
 window.PL_onVarTypeChange = function(sel) {
   const row = sel.closest('.var-meta-row');
-  const opts = row.querySelector('.dropdown-options');
-  if (opts) opts.style.display = sel.value === 'dropdown' ? 'block' : 'none';
+  row.querySelectorAll('[class^="var-config-"]').forEach(d => { d.style.display = 'none'; });
+  const cfg = row.querySelector('.var-config-' + sel.value);
+  if (cfg) cfg.style.display = 'block';
 };
 
 function collectVarMeta() {
@@ -2029,7 +2095,16 @@ function collectVarMeta() {
     const options = optsEl?.value
       ? optsEl.value.split(',').map(o => o.trim()).filter(Boolean)
       : [];
-    meta[v] = { type, default: def, visible, options };
+    meta[v] = {
+      type, default: def, visible, options,
+      checkedLabel:   row.querySelector('[data-field="checkedLabel"]')?.value  || '',
+      uncheckedLabel: row.querySelector('[data-field="uncheckedLabel"]')?.value || '',
+      min:      row.querySelector('[data-field="min"]')?.value      || '',
+      max:      row.querySelector('[data-field="max"]')?.value      || '',
+      step:     row.querySelector('[data-field="step"]')?.value     || '',
+      maxStars: row.querySelector('[data-field="maxStars"]')?.value || '',
+      language: row.querySelector('[data-field="language"]')?.value || '',
+    };
   });
   return meta;
 }
@@ -7710,81 +7785,126 @@ function _tokenRow(model, est) {
       target: null
     },
     {
-      eyebrow: 'Step 1 of 12',
+      eyebrow: 'Step 1 of 16',
       title: 'Your <em>library</em>',
       desc: 'Every prompt you save lives here. Search, filter by folder, tag, or category. The list updates instantly as you type.',
       icon: 'library_books',
-      target: '#promptList'
+      target: '#promptList',
+      onEnter: () => setTimeout(() => window._escapeToLibrary && window._escapeToLibrary(), 120)
     },
     {
-      eyebrow: 'Step 2 of 12',
+      eyebrow: 'Step 2 of 16',
       title: 'Save your first <em>prompt</em>',
       desc: 'Click the + button or press Ctrl+N. Give it a title, paste your prompt, and save. It\'s searchable and ready to copy in one click from that moment on.',
       icon: 'edit_note',
       target: '#newPromptBtn'
     },
     {
-      eyebrow: 'Step 3 of 12',
+      eyebrow: 'Step 3 of 16',
       title: 'Dynamic <em>variables</em>',
       desc: 'Wrap any word in double brackets — [[client]], [[topic]], [[tone]] — and it becomes a fillable field. When you copy, a form lets you fill it in seconds.',
       icon: 'data_object',
       target: '#promptList'
     },
     {
-      eyebrow: 'Step 4 of 12',
+      eyebrow: 'Step 4 of 16',
       title: 'Organise with <em>folders</em>',
       desc: 'Create folders to group prompts by project, client, or workflow. Drag-and-drop or assign in the editor. Use the folder filter in the sidebar to narrow the list.',
       icon: 'folder_open',
       target: '#folderList'
     },
     {
-      eyebrow: 'Step 5 of 12',
+      eyebrow: 'Step 5 of 16',
       title: 'Tags and <em>categories</em>',
       desc: 'Add tags for flexible cross-folder search. Assign a category (Writing, Research, Product…) for quick chip-filter access at the top of the library.',
       icon: 'label',
       target: '#categoryFilterRow'
     },
     {
-      eyebrow: 'Step 6 of 12',
-      title: 'Build <em>AI agents</em>',
-      desc: 'The Agents workspace lets you define full role profiles — identity, voice, knowledge base, skills — and copy them as structured text, XML, or prose into any AI tool.',
-      icon: 'smart_toy',
-      target: '#rolesNavBtn'
-    },
-    {
-      eyebrow: 'Step 7 of 12',
-      title: 'Power <em>workspaces</em>',
-      desc: 'The workspace nav (below) gives you Prompt Forge, Lab, Context Bank, Prompt Components, and more. Each is a dedicated tool built around your saved prompts.',
-      icon: 'workspaces',
-      target: '#workspacesToggleBtn'
-    },
-    {
-      eyebrow: 'Step 8 of 12',
+      eyebrow: 'Step 6 of 16',
       title: 'The <em>detail panel</em>',
       desc: 'Click any prompt to open the right panel. Fill variables, view version history, add notes and ratings, run a chain, or copy in any format — all without leaving the library.',
       icon: 'side_navigation',
       target: '#detailPanel'
     },
     {
-      eyebrow: 'Step 9 of 12',
-      title: 'Context <em>Bank</em>',
-      desc: 'Save reusable context blocks — company info, persona, style guide — and inject them into any prompt with one click. No more retyping the same background text.',
-      icon: 'database',
-      target: '#contextBankNavBtn'
-    },
-    {
-      eyebrow: 'Step 10 of 12',
+      eyebrow: 'Step 7 of 16',
       title: 'Import and <em>Export</em>',
       desc: 'Share your library as a .plp pack, export individual prompts as Markdown or CSV, or import a colleague\'s pack. Everything travels as a single file.',
       icon: 'import_export',
       target: '#exportBtn'
     },
     {
-      eyebrow: 'Step 11 of 12',
+      eyebrow: 'Step 8 of 16',
+      title: 'Prompt <em>Chain</em>',
+      desc: 'Run prompts in sequence — the output of one becomes the input of the next. Build multi-step AI pipelines without writing a single line of code.',
+      icon: 'account_tree',
+      target: '#chainWorkspace',
+      onEnter: () => setTimeout(() => window.openChainWorkspace && window.openChainWorkspace(), 120)
+    },
+    {
+      eyebrow: 'Step 9 of 16',
+      title: 'Prompt <em>Forge</em>',
+      desc: 'Engineer better prompts fast. Paste a rough idea and Forge rewrites, sharpens, and structures it into a production-ready prompt you can save directly to your library.',
+      icon: 'construction',
+      target: '#forgeWorkspace',
+      onEnter: () => setTimeout(() => window.openForgeWorkspace && window.openForgeWorkspace(), 120)
+    },
+    {
+      eyebrow: 'Step 10 of 16',
+      title: 'Prompt <em>Lab</em>',
+      desc: 'Compare two prompt variations side by side. Write Prompt A and Prompt B, run both, and see which performs better — perfect for iterating on tone, structure, or instruction clarity.',
+      icon: 'science',
+      target: '#labWorkspace',
+      onEnter: () => setTimeout(() => window.openLabWorkspace && window.openLabWorkspace(), 120)
+    },
+    {
+      eyebrow: 'Step 11 of 16',
+      title: 'Build <em>AI Agents</em>',
+      desc: 'Define full role profiles — identity, voice, knowledge base, skills — and export them as structured text, XML, or prose into any AI tool. Your agents live here, not in the cloud.',
+      icon: 'smart_toy',
+      target: '#rolesWorkspace',
+      onEnter: () => setTimeout(() => window.openRolesWorkspace && window.openRolesWorkspace(), 120)
+    },
+    {
+      eyebrow: 'Step 12 of 16',
+      title: 'Context <em>Bank</em>',
+      desc: 'Save reusable context blocks — company info, persona, style guide — and inject them into any prompt with one click. No more retyping the same background text.',
+      icon: 'database',
+      target: '#contextBankWorkspace',
+      onEnter: () => setTimeout(() => window.openContextBankWorkspace && window.openContextBankWorkspace(), 120)
+    },
+    {
+      eyebrow: 'Step 13 of 16',
+      title: 'Prompt <em>Components</em>',
+      desc: 'Build prompts from reusable blocks — intros, instructions, personas, formats. Drag components into a canvas and assemble complex prompts without starting from scratch every time.',
+      icon: 'widgets',
+      target: '#componentsWorkspace',
+      onEnter: () => setTimeout(() => window.openComponentsWorkspace && window.openComponentsWorkspace(), 120)
+    },
+    {
+      eyebrow: 'Step 14 of 16',
+      title: '<em>Metaprompting</em>',
+      desc: 'Describe what you want a prompt to do and the Meta workspace generates it for you. Use it to bootstrap new prompts or to improve ones that aren\'t quite landing.',
+      icon: 'auto_fix_high',
+      target: '#metaWorkspace',
+      onEnter: () => setTimeout(() => window.openMetaWorkspace && window.openMetaWorkspace(), 120)
+    },
+    {
+      eyebrow: 'Step 15 of 16',
+      title: '<em>Playground</em>',
+      desc: 'Test any prompt live in a chat-style interface. Iterate, adjust variables, and compare responses — all inside the app before you commit a prompt to your library.',
+      icon: 'sports_esports',
+      target: '#playgroundWorkspace',
+      onEnter: () => setTimeout(() => window.openPlaygroundWorkspace && window.openPlaygroundWorkspace(), 120)
+    },
+    {
+      eyebrow: 'Step 16 of 16',
       title: 'Pro <em>features</em>',
-      desc: 'Unlock version history, analytics, chat format export, and the Tone Calibrator workspace with a Pro licence. Your data stays local either way.',
+      desc: 'Unlock version history, analytics, chat format export, and the Tone Calibrator with a Pro licence. Every workspace, unlimited prompts, your data stays local.',
       icon: 'workspace_premium',
-      target: '#licenceBtn'
+      target: '#licenceBtn',
+      onEnter: () => setTimeout(() => window._escapeToLibrary && window._escapeToLibrary(), 120)
     },
     {
       eyebrow: 'You\'re set',
@@ -7862,6 +7982,11 @@ function _tokenRow(model, est) {
     }
 
     _spotlightOn(s.target);
+    if (s.onEnter) {
+      s.onEnter();
+      // Re-position spotlight after workspace finishes opening (workspaces use a 120ms open delay)
+      if (s.target) setTimeout(function() { _spotlightOn(s.target); }, 200);
+    }
   }
 
   window.PL_startOnboarding = function() {
@@ -8381,8 +8506,8 @@ function _tokenRow(model, est) {
     requestAnimationFrame(function() { _positionCard(rect, step.position); });
   });
 
-  // Auto-show on first launch (delay so app finishes loading)
-  if (!localStorage.getItem('pl_tutorial_seen')) {
+  // Auto-show only after the new spotlight tour is complete, to avoid z-index conflict (9990 vs 9000)
+  if (!localStorage.getItem('pl_tutorial_seen') && localStorage.getItem('promptlib.tourDone')) {
     setTimeout(window.PL_startTutorial, 1400);
   }
 
