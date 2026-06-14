@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" media="print" onload="this.media='all'">
 
-<link rel="stylesheet" href="/static/app.css?v=d4c55886">
+<link rel="stylesheet" href="/static/app.css?v=8cc64018">
 </head>
 <body>
 
@@ -1103,12 +1103,12 @@
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label" for="promptRole">Role <span style="color:var(--ink-4);font-weight:400;">(assigns a persona)</span></label>
+            <label class="form-label" for="promptRole">Agent</label>
             <div style="display:flex; gap:6px; align-items:center;">
               <select id="promptRole" class="form-input" style="flex:1;">
                 <option value="">No role</option>
               </select>
-              <button type="button" class="icon-btn" onclick="window.openRolesWorkspace()" title="Manage roles" aria-label="Manage roles">
+              <button type="button" class="icon-btn" onclick="window.openRolesWorkspace()" title="Manage agents" aria-label="Manage agents">
                 <span class="material-symbols-outlined">person_play</span>
               </button>
             </div>
@@ -2173,7 +2173,7 @@
 <div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=7d646d40"></script>
+<script defer src="/static/app.js?v=be5db2e1"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>
