@@ -33,10 +33,10 @@
    ============================================================================ */
 // Free tier limits — Pro users bypass all of these
 const FREE_LIMITS = {
-  prompts:    35,
-  folders:    8,
+  prompts:    25,
+  folders:    5,
   tags:       10,
-  categories: 10,
+  categories: 5,
 };
 
 const state = {
