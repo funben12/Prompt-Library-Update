@@ -7802,7 +7802,7 @@ function _tokenRow(model, est) {
       desc: 'This is the Agents workspace. Define full role profiles — identity, voice, knowledge base, skills — and copy them as structured text, XML, or prose into any AI tool.',
       icon: 'smart_toy',
       open: 'roles',
-      target: '#rolesWorkspace'
+      target: null
     },
     {
       eyebrow: 'Step 7 of 12',
@@ -7810,7 +7810,7 @@ function _tokenRow(model, est) {
       desc: 'This is Prompt Forge — a structured prompt builder. The workspace nav also gives you Lab, Context Bank, Prompt Components and more. Each is a dedicated tool built around your saved prompts.',
       icon: 'workspaces',
       open: 'forge',
-      target: '#forgeWorkspace'
+      target: null
     },
     {
       eyebrow: 'Step 8 of 12',
@@ -7825,7 +7825,7 @@ function _tokenRow(model, est) {
       desc: 'This is the Context Bank. Save reusable context blocks — company info, persona, style guide — and inject them into any prompt with one click. No more retyping the same background text.',
       icon: 'database',
       open: 'contextBank',
-      target: '#contextBankWorkspace'
+      target: null
     },
     {
       eyebrow: 'Step 10 of 12',
@@ -7837,7 +7837,7 @@ function _tokenRow(model, est) {
     {
       eyebrow: 'Step 11 of 12',
       title: 'Pro <em>features</em>',
-      desc: 'Unlock version history, analytics, chat format export, and the Tone Calibrator workspace with a Pro licence. Your data stays local either way.',
+      desc: 'Unlock version history, analytics, chat-format export, and power workspaces like Prompt Components with a Pro licence. Your data stays local either way.',
       icon: 'workspace_premium',
       target: '#licenceBtn'
     },
@@ -7958,6 +7958,10 @@ function _tokenRow(model, est) {
       card.style.top = '';
       card.style.left = '';
     }
+
+    // Workspace-preview steps drop the dimmer so the real workspace is fully visible.
+    const overlay = _el('onboardingOverlay');
+    if (overlay) overlay.classList.toggle('ob-preview', !!s.open);
 
     _reconcileView(s, function() { _spotlightOn(s.target); });
   }

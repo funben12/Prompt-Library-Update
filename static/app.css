@@ -5687,6 +5687,9 @@
   display: block;
   pointer-events: all;
 }
+/* Workspace-preview steps open the real workspace — drop the dimmer so the user
+   sees the whole thing; the card still floats on top via the overlay context. */
+#onboardingOverlay.ob-preview #onboardingSpotlight { display: none; }
 #onboardingSpotlight {
   position: absolute;
   inset: 0;
