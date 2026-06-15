@@ -7799,16 +7799,18 @@ function _tokenRow(model, est) {
     {
       eyebrow: 'Step 6 of 12',
       title: 'Build <em>AI agents</em>',
-      desc: 'The Agents workspace lets you define full role profiles — identity, voice, knowledge base, skills — and copy them as structured text, XML, or prose into any AI tool.',
+      desc: 'This is the Agents workspace. Define full role profiles — identity, voice, knowledge base, skills — and copy them as structured text, XML, or prose into any AI tool.',
       icon: 'smart_toy',
-      target: '#rolesNavBtn'
+      open: 'roles',
+      target: '#rolesWorkspace'
     },
     {
       eyebrow: 'Step 7 of 12',
       title: 'Power <em>workspaces</em>',
-      desc: 'The workspace nav (below) gives you Prompt Forge, Lab, Context Bank, Prompt Components, and more. Each is a dedicated tool built around your saved prompts.',
+      desc: 'This is Prompt Forge — a structured prompt builder. The workspace nav also gives you Lab, Context Bank, Prompt Components and more. Each is a dedicated tool built around your saved prompts.',
       icon: 'workspaces',
-      target: '#workspacesToggle'
+      open: 'forge',
+      target: '#forgeWorkspace'
     },
     {
       eyebrow: 'Step 8 of 12',
@@ -7820,9 +7822,10 @@ function _tokenRow(model, est) {
     {
       eyebrow: 'Step 9 of 12',
       title: 'Context <em>Bank</em>',
-      desc: 'Save reusable context blocks — company info, persona, style guide — and inject them into any prompt with one click. No more retyping the same background text.',
+      desc: 'This is the Context Bank. Save reusable context blocks — company info, persona, style guide — and inject them into any prompt with one click. No more retyping the same background text.',
       icon: 'database',
-      target: '#contextBankNavBtn'
+      open: 'contextBank',
+      target: '#contextBankWorkspace'
     },
     {
       eyebrow: 'Step 10 of 12',
@@ -7879,6 +7882,49 @@ function _tokenRow(model, est) {
     overlay.classList.add('ob-has-target');
   }
 
+  // Workspace previews — steps with `open` actually launch the workspace so the
+  // user sees the real thing, not just a highlighted nav button.
+  const OPEN_FNS = {
+    roles:       'openRolesWorkspace',
+    forge:       'openForgeWorkspace',
+    contextBank: 'openContextBankWorkspace'
+  };
+  const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
+    '#playgroundWorkspace', '#chainWorkspace', '#metaWorkspace',
+    '#contextBankWorkspace', '#componentsWorkspace'];
+
+  function _closeTourWorkspaces() {
+    WS_SELECTORS.forEach(function(sel) {
+      const el = document.querySelector(sel);
+      if (el && el.classList.contains('open')) el.classList.remove('open');
+    });
+    // Workspaces lock body scroll on open — always restore it.
+    document.body.style.overflow = '';
+    document.querySelectorAll('.nav-item[data-view]').forEach(function(el) {
+      el.classList.toggle('active', el.dataset.view === 'library');
+    });
+  }
+
+  // Bring the view into the state this step needs, then run the spotlight.
+  // Workspaces are display:none -> flex at inset:0 (no container transition), so
+  // bounds are correct synchronously once .open lands — _spotlightOn forces the
+  // reflow via getBoundingClientRect. No rAF (it throttles in background tabs).
+  function _reconcileView(s, done) {
+    const fnName = s.open ? OPEN_FNS[s.open] : null;
+    if (fnName && typeof window[fnName] === 'function') {
+      const keep = '#' + s.open + 'Workspace';
+      WS_SELECTORS.forEach(function(sel) {
+        if (sel === keep) return;
+        const el = document.querySelector(sel);
+        if (el && el.classList.contains('open')) el.classList.remove('open');
+      });
+      try { window[fnName](); } catch (e) {}
+    } else {
+      _closeTourWorkspaces();
+    }
+    done();
+  }
+
   function _render(step) {
     const s = STEPS[step];
     const icon = _el('obIcon');
@@ -7913,11 +7959,12 @@ function _tokenRow(model, est) {
       card.style.left = '';
     }
 
-    _spotlightOn(s.target);
+    _reconcileView(s, function() { _spotlightOn(s.target); });
   }
 
   window.PL_startOnboarding = function() {
     _step = 0;
+    _closeTourWorkspaces();
     _render(0);
     const overlay = _el('onboardingOverlay');
     if (overlay) overlay.classList.add('active');
@@ -7941,6 +7988,7 @@ function _tokenRow(model, est) {
 
   window.PL_skipOnboarding = function() {
     localStorage.setItem(TOUR_KEY, '1');
+    _closeTourWorkspaces();
     const overlay = _el('onboardingOverlay');
     if (overlay) overlay.classList.remove('active');
   };
