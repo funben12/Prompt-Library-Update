@@ -40,9 +40,9 @@
 - **Scorecard workspace:** Removed 2026-06-02. Do not rebuild or reference.
 - **Collection Builder workspace:** Removed 2026-06-02. Do not rebuild or reference.
 
-## Current State (2026-06-10)
+## Current State (2026-06-15)
 
-- **Build hash:** `1fdc8e44` (app.js) / `7a523c4b` (app.css) — updated 2026-06-10. Run `python3 update_hash.py` after every app.js change.
+- **Build hash:** `e670d42f` (app.js) / `f84b07e0` (app.css) — updated 2026-06-15. Run `python3 update_hash.py` after every app.js change.
 - **Starter templates:** `/api/starter-templates` seeds 10 curated prompts on empty library
 - **Variable ordering:** `variable_meta[v].sort_order` — up/down via `PL_moveVar(v, dir)`. Falls back to alphabetical.
 - **Variable preview:** `#variablePreview` live preview + `#copyFilledBtn` in `#usePromptSection`
@@ -51,23 +51,23 @@
 - **Prompt starter select:** 168 deduplicated options.
 - **App icon:** Multi-size ICO (16–256px) from `app-icon.png`. Both `icon.ico` and `static/icon.ico` updated.
 - **Roles agent fields:** 6 DB columns (`audience`, `output_format`, `constraints`, `domain`, `tasks`, `response_style`) in `app.py` + `_role_payload` + `serialize_role`.
-- **Text Expansion workspace:** `shortcuts.db` + full CRUD API + `#shortcutsWorkspace` UI + Tab-trigger in prompt editor. Pro-gated.
+- **Text Expansion workspace:** ⚠️ PLANNED — NOT YET IN HTML/JS. `shortcuts.db` API exists in `app.py` but `#shortcutsWorkspace` UI and Tab-trigger have not been integrated into `static/` files.
 - **Context Bank workspace:** Live as of 2026-06-02. localStorage-backed reusable context blocks. Accessible via sidebar nav (`data-view="contextBank"`) and as slide-out panel in New Prompt modal (`#promptCtxPanel`). Full CRUD, category filter, search, insert-at-cursor.
-- **Onboarding tour:** Live as of 2026-06-04. 13-step spotlight tour auto-launches on first run (localStorage `promptlib.tourDone`). Replay via sidebar footer "App tour" button (`#tourBtn`). Steps: welcome → library → new prompt → variables → folders → tags/categories → agents → workspaces → detail panel → export → Pro features → done. JS: `window.PL_startOnboarding`, `initOnboarding()` called from BOOTSTRAP.
+- **Onboarding tour (fixed 2026-06-15):** 12-step spotlight tour. `initOnboarding()` now correctly called from BOOTSTRAP (was missing — tour never auto-launched). `promptlib.tourDone` localStorage key. Replay via sidebar footer "App tour" button (`#tourBtn`, onclick `PL_startOnboarding`). Old Components tutorial (`PL_startTutorial`, `#tutorialOverlay`) auto-launch disabled to prevent double-tour; still accessible if called directly. Tour step target IDs corrected: `#promptsContainer`, `#foldersList`, `#categoriesList`, `#workspacesToggle`.
 - **Prompt Components workspace:** Live. Pre-expansion baseline (verified 2026-06-11): flat `BLOCKS` array (no `cat:` tags, no `CATEGORIES` array — uncategorised palette) + **23 `FRAMEWORKS`**: 5W2H, AIDA, APE, BAB, CARE, CO-STAR, COSTAR+, CSI+FBI, GROW, GRWC, META, OKR, PARA, PAS, PREP, RISEN, RODES, ROSES, RTF, SCQA, STAR, TRACE, ToT. `renderPalette()` targets `#pcwBlockGrid` / `#pcwFwList` (flat grid + list, no category pills/search). Drag-and-drop canvas, editable block cards, save to library. Sidebar nav (`data-view="components"`) + slide-out panel in New Prompt modal (`#promptComponentsPanel`, rendered separately by `_compPanelRender()`). Exposes `window._pcwBLOCKS` / `window._pcwFRAMEWORKS` globals (no `_pcwCATEGORIES` — not yet built). A 22-category/295-block/51-framework expansion (with new `#pcwCatPills`/`#pcwPaletteSearch`/`#pcwPaletteBody` palette UI) was built in `_rollbacks/app.js/app_20260611_110936.js` + `_rollbacks/index.html/index_20260611_110936.html` but never merged into live `static/` — reframed as planned future work, not yet scoped or scheduled.
-- **Full-screen Prompt Viewer (2026-06-05):** `#promptViewer` fixed overlay. Opens via "Expand" button on prompt cards (`window.PL_openViewer(id)`). Shows title, description, monospace prompt block, variable fill form, meta strip, tags. Copy raw + copy filled. Escape to close. Init: `initPromptViewer()` in BOOTSTRAP.
-- **Prompt Optimizer workspace (2026-06-05):** `#optimizerWorkspace`. Pro-gated. `data-view="optimizer"`. Scores prompt across 5 lenses (Clarity, Specificity, Context, Constraints, Output Format). Score ring + lens bar cards + improved version output. `openOptimizerWorkspace()`, `initOptimizerWorkspace()` in BOOTSTRAP.
-- **Tone Calibrator workspace (2026-06-05):** `#tonecalWorkspace`. Pro-gated. `data-view="tonecal"`. 4 sliders (Formality, Directness, Detail, Empathy) + 4 presets (Executive, Coach, Technical, Casual). Live preview transforms the source prompt. Diff stats strip. `openToneCalWorkspace()`, `initToneCalWorkspace()` in BOOTSTRAP.
-- **Context Bank redesign (2026-06-05):** Card grid layout (`#ctxCardsGrid`). Stats strip (`#ctxStatBlocks`, `#ctxStatCats`). Top bar: search + category pills. Cards: `ctx-card-cat-badge` + title + preview + footer actions (Copy, Edit). Editor panel right (`ctx-editor-v2`). `window._renderCtxCardGrid()` is the primary render path — wired into every CRUD op, search, filter, open, delete. `_ctxRenderList()` drives the legacy list (used for active-state highlighting only). HTML uses `ctx-body-v2` layout class.
+- **Full-screen Prompt Viewer (fixed 2026-06-15):** `#promptViewer` overlay. `initPromptViewer()` now correctly called from BOOTSTRAP (was missing — close button and Escape key were broken). Opens via `window.PL_openViewer(id)`. Escape to close now works.
+- **Prompt Optimizer workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. Described in prior sessions but `#optimizerWorkspace` has zero occurrences in `static/app.js` and `static/index.html`.
+- **Tone Calibrator workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. Described in prior sessions but `#tonecalWorkspace` has zero occurrences in `static/app.js` and `static/index.html`.
+- **Context Bank workspace (live):** `#contextBankWorkspace`. Left list panel + right editor. Category pills (Persona/Company/Audience/Product/Style/Other). `ctxSaveBtn`, `ctxCopyBtn`, `ctxDeleteBtn`. `_renderCtxList()` / `_openCtxEditor()`. Also available as side panel `#promptCtxPanel` in New Prompt modal.
 - **Onboarding tour visual polish (2026-06-05):** Animated progress bar (`#obProgressBar`) fills as steps advance. Spotlight gets `ob-has-target` class → pulse animation when targeting an element. Card has accent glow border. `.ob-icon-wrap` has accent border and glow.
 - **Cool-slate theme (2026-06-09):** Replaced warm-beige (hue 70) with cool-slate (hue 255) for both light and dark. Light: `--bg oklch(92.5% 0.007 255)`, `--surface oklch(96.5% 0.005 255)` — surface sits above bg, no depth inversion. Dark: `--bg oklch(15% 0.012 255)`. Accent is teal `oklch(40% 0.13 198)` light / `oklch(74% 0.13 198)` dark. CSS hash: `2083709d`.
 - **Command palette redesign (2026-06-09):** Grouped sections (4 groups: Create/Navigate/Workspaces/Tools), 18 commands, icon tiles (`.cmd-ic`), subtitles (`.sub`), PRO chip in header (`.cmd-pro-chip`), keyboard hint footer. Now **Pro-gated** — free users see premium modal. `#cmdBtn` has `premium-locked` + `data-premium="true"`.
-- **Pro-gating hardened (2026-06-09):** Internal `isPremium` guards added to 8 open-functions: `openCmdPalette`, `openChainWorkspace`, `openPlaygroundWorkspace`, `openForgeWorkspace`, `openLabWorkspace`, `openMetaWorkspace`, `openContextBankWorkspace`, `openComponentsWorkspace`. The `#chainNavBtn` is also `premium-locked` in HTML. The chain tab in the detail panel remains Free.
-- **Dashboard workspace (2026-06-09):** `#dashboardWorkspace`. Free. `data-view="dashboard"`. Greeting, stats tiles (total prompts, folders, tags, favourites), 8 recent prompts, 4 quick-action buttons. `openDashboardWorkspace()`, `initDashboardWorkspace()` in BOOTSTRAP. Nav button placed above Library in sidebar.
-- **Template Gallery workspace (2026-06-10):** `#galleryWorkspace`. **Pro-gated.** `data-view="gallery"`. **50 templates across 9 categories** (Writing, Coding, Marketing, Business, Research, Productivity, Prompt Engineering, Prompt Generation, Context Prompts). Category pill filter, search. **Preview modal** (`#galPreviewModal`) — click Preview button on any card to see full prompt in overlay before adding. `_galPreview(idx)`, `_galPreviewClose()`, `_galCatColour()`. `openGalleryWorkspace()`, `initGalleryWorkspace()` in BOOTSTRAP. `galleryNavBtn` is `premium-locked`.
-- **Snippets workspace (2026-06-10):** `#snippetsWorkspace`. **Pro-gated.** `data-view="snippets"`. localStorage-backed (`pl_snippets`). **Redesigned v2**: stats strip (count/pinned/chars), card grid layout with colour-coded left border, tag chips on cards, quick-copy button on hover, tag filter pills, pin-to-top, colour labels (7 colours). Editor: label + tag + content fields, colour strip, pin toggle, live char count. New data model: `{ id, label, tag, content, colour, pinned, created, updated }`. `openSnippetsWorkspace()`, `initSnippetsWorkspace()` in BOOTSTRAP. `snippetsNavBtn` is `premium-locked`.
-- **Trash & Restore workspace (2026-06-09):** `#trashWorkspace`. Free. `data-view="trash"`. localStorage-backed (`pl_trash`, cap 50). Captures deleted prompts/folders via hooks in `deletePromptById` / `deleteFolder`. Restore or permanently delete. `window.PL_trashPush` for hooks. `openTrashWorkspace()`, `initTrashWorkspace()` in BOOTSTRAP. `#trashCount` badge in nav.
-- **Plan modal updated (2026-06-09):** Free column: 25 prompts, 3 folders, locked items listed. Pro column: 18 features accurately. Payhip CTA link live. Note: modal shows "Agents — 3-day trial" for Free which is inconsistent with code (Agents is fully free in code) — copy-only discrepancy, no code gate.
+- **Pro-gating (confirmed 2026-06-15):** Internal `isPremium` guards on 8 open-functions. `#chainNavBtn` confirmed `premium-locked` + `data-premium="true"` in HTML (fixed 2026-06-15 — was missing). Chain tab in detail panel remains Free.
+- **Dashboard workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. `#dashboardWorkspace` has zero occurrences in `static/` files.
+- **Template Gallery workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. `#galleryWorkspace` has zero occurrences in `static/` files.
+- **Snippets workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. `#snippetsWorkspace` has zero occurrences in `static/` files.
+- **Trash & Restore workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. `#trashWorkspace` has zero occurrences in `static/` files.
+- **Plan modal:** Free column: 25 prompts, 3 folders, locked items listed. Pro column: 18 features accurately. Payhip CTA link live.
 
 ## Feature Inventory — Free vs Pro
 
@@ -82,8 +82,8 @@
 | Chain prompting (detail panel) | Chain tab in right detail panel + prompt editor modal — NOT the nav workspace |
 | Agents / Roles workspace | Full role builder — identity, voice, context, KB, skills |
 | Copy formats (Structured / XML / Prose) | Role copy formats |
-| Dashboard workspace | `#dashboardWorkspace` — stats, recent prompts, quick actions |
-| Trash & Restore workspace | `#trashWorkspace` — localStorage, 50-item cap, restore or delete forever |
+| Dashboard workspace | 🔲 Planned — not in static/ files |
+| Trash & Restore workspace | 🔲 Planned — not in static/ files |
 | Prompt starter (168 options) | Starter selector in prompt editor |
 | Colour labels | Per-prompt colour coding |
 | Favourites | Star/unstar prompts |
@@ -104,12 +104,12 @@
 | Prompt Lab workspace | ✅ Live | `#labWorkspace` — A/B testing |
 | Prompt Components workspace | ✅ Live | Flat block list + 23 frameworks (no categories yet). Drag-and-drop canvas |
 | Metaprompting workspace | ✅ Live | `#metaWorkspace` — AI prompt rewriter |
-| Prompt Optimizer workspace | ✅ Live | `#optimizerWorkspace` — 5-lens scoring, improved version output |
-| Tone Calibrator workspace | ✅ Live | `#tonecalWorkspace` — 4 sliders, 4 presets, live diff |
-| Context Bank workspace | ✅ Live | `#contextBankWorkspace` — card grid, localStorage-backed |
-| Template Gallery workspace | ✅ Live | `#galleryWorkspace` — 13 templates, 7 categories. `premium-locked` |
-| Snippets workspace | ✅ Live | `#snippetsWorkspace` — localStorage quick-capture. `premium-locked` |
-| Text Expansion workspace | ✅ Live | `:trigger` → Tab expansion, custom shortcuts, auto-suggest |
+| Prompt Optimizer workspace | 🔲 Planned | Not in static/ files — described in prior sessions only |
+| Tone Calibrator workspace | 🔲 Planned | Not in static/ files — described in prior sessions only |
+| Context Bank workspace | ✅ Live | `#contextBankWorkspace` — left list + right editor, category pills |
+| Template Gallery workspace | 🔲 Planned | Not in static/ files — described in prior sessions only |
+| Snippets workspace | 🔲 Planned | Not in static/ files — described in prior sessions only |
+| Text Expansion workspace | 🔲 Planned | API in app.py (`shortcuts.db`) — UI not in static/ files |
 | Version history | ✅ Live | Per-prompt version log with restore |
 | Analytics | ✅ Live | Usage stats, top prompts, tag clouds |
 | Duplicate prompt | ✅ Live | One-click clone |

@@ -6351,8 +6351,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   initMetaWorkspace();       // metaprompting workspace
   initContextBankWorkspace(); // context bank workspace + wiring
   initModalSidePanels();      // prompt modal side panels
-  initOnboarding();           // spotlight tour auto-launch on first run
-  initPromptViewer();         // prompt viewer close button and escape key
   // Fire licence check and data load in parallel -- prompts render immediately,
   // premium UI applies once both settle (no unlocked flash risk).
   await Promise.all([loadStoredLicence(), loadAll()]);
@@ -7766,7 +7764,7 @@ function _tokenRow(model, est) {
       title: 'Your <em>library</em>',
       desc: 'Every prompt you save lives here. Search, filter by folder, tag, or category. The list updates instantly as you type.',
       icon: 'library_books',
-      target: '#promptsContainer'
+      target: '#promptList'
     },
     {
       eyebrow: 'Step 2 of 12',
@@ -7780,21 +7778,21 @@ function _tokenRow(model, est) {
       title: 'Dynamic <em>variables</em>',
       desc: 'Wrap any word in double brackets — [[client]], [[topic]], [[tone]] — and it becomes a fillable field. When you copy, a form lets you fill it in seconds.',
       icon: 'data_object',
-      target: '#promptsContainer'
+      target: '#promptList'
     },
     {
       eyebrow: 'Step 4 of 12',
       title: 'Organise with <em>folders</em>',
       desc: 'Create folders to group prompts by project, client, or workflow. Drag-and-drop or assign in the editor. Use the folder filter in the sidebar to narrow the list.',
       icon: 'folder_open',
-      target: '#foldersList'
+      target: '#folderList'
     },
     {
       eyebrow: 'Step 5 of 12',
       title: 'Tags and <em>categories</em>',
       desc: 'Add tags for flexible cross-folder search. Assign a category (Writing, Research, Product…) for quick chip-filter access at the top of the library.',
       icon: 'label',
-      target: '#categoriesList'
+      target: '#categoryFilterRow'
     },
     {
       eyebrow: 'Step 6 of 12',
@@ -7808,7 +7806,7 @@ function _tokenRow(model, est) {
       title: 'Power <em>workspaces</em>',
       desc: 'The workspace nav (below) gives you Prompt Forge, Lab, Context Bank, Prompt Components, and more. Each is a dedicated tool built around your saved prompts.',
       icon: 'workspaces',
-      target: '#workspacesToggle'
+      target: '#workspacesToggleBtn'
     },
     {
       eyebrow: 'Step 8 of 12',
@@ -8433,8 +8431,10 @@ function _tokenRow(model, est) {
     requestAnimationFrame(function() { _positionCard(rect, step.position); });
   });
 
-  // Auto-launch disabled: the new onboarding tour (initOnboarding) handles first-run.
-  // PL_startTutorial remains available for the sidebar "Components tour" button.
+  // Auto-show on first launch (delay so app finishes loading)
+  if (!localStorage.getItem('pl_tutorial_seen')) {
+    setTimeout(window.PL_startTutorial, 1400);
+  }
 
 })();
 

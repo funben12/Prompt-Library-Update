@@ -76,7 +76,7 @@
             <span class="material-symbols-outlined nav-icon">biotech</span>
             <span class="nav-label">Prompt Lab</span>
           </button>
-          <button class="nav-item nav-sub-item premium-locked" data-view="chain" data-premium="true" id="chainNavBtn" title="Prompt Chain — multi-step pipeline (Pro)">
+          <button class="nav-item nav-sub-item" data-view="chain" id="chainNavBtn" title="Prompt Chain — multi-step pipeline">
             <span class="material-symbols-outlined nav-icon">account_tree</span>
             <span class="nav-label">Prompt Chain</span>
           </button>
@@ -155,9 +155,9 @@
         <span class="material-symbols-outlined">settings</span>
         <span>API settings</span>
       </button>
-      <button class="sidebar-footer-btn" id="tourBtn" title="App tour — replay the guided tour" aria-label="Replay app tour" onclick="window.PL_startOnboarding && window.PL_startOnboarding()">
-        <span class="material-symbols-outlined">auto_awesome</span>
-        <span>App tour</span>
+      <button class="sidebar-footer-btn" id="tutorialBtn" title="How to use Prompt Library" aria-label="Open tutorial" onclick="window.PL_startTutorial()">
+        <span class="material-symbols-outlined">help_outline</span>
+        <span>How to use</span>
       </button>
     </div>
   </aside>
@@ -661,6 +661,8 @@
                   <option value="You will now you are acting as a">You will now you are acting as a</option>
                   <option value="You will now you are acting as an">You will now you are acting as an</option>
                   <option value="You will now you are acting in the role of a">You will now you are acting in the role of a</option>
+                  <option value="You will now you are acting in the role of an">You will now you are acting in the role of an</option>
+                  <option value="You will now you are acting in the role of an">You will now you are acting in the role of an</option> 
                   <option value="You will now you are acting in the role of an">You will now you are acting in the role of an</option>
                 </select>
                 <input type="text" id="roleTypeInput" class="form-input" placeholder="e.g. senior copywriter specialising in SaaS" />
@@ -2156,6 +2158,19 @@
   <div class="tour-arrow" id="tourArrow"></div>
 </div>
 
+<div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+<!-- App script -->
+<script defer src="/static/app.js?v=53a25ef1"></script>
+
+<!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
+<script>
+  function toggleSidebar() {
+    document.body.classList.toggle('sidebar-hidden');
+  }
+  if (typeof window.createFolderInline !== 'function') window.createFolderInline = function () {};
+  if (typeof window.clearAllFilters    !== 'function') window.clearAllFilters    = function () {};
+</script>
   <div id="promptViewer" aria-modal="true" aria-label="Prompt viewer" role="dialog">
     <div class="pv-header">
       <button class="pv-back-btn" id="pvCloseBtn" title="Back to library">
@@ -2229,18 +2244,5 @@
     </div>
   </div>
 </div>
-<div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
-
-<!-- App script -->
-<script defer src="/static/app.js?v=e670d42f"></script>
-
-<!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
-<script>
-  function toggleSidebar() {
-    document.body.classList.toggle('sidebar-hidden');
-  }
-  if (typeof window.createFolderInline !== 'function') window.createFolderInline = function () {};
-  if (typeof window.clearAllFilters    !== 'function') window.clearAllFilters    = function () {};
-</script>
 </body>
 </html>
