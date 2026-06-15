@@ -7817,6 +7817,7 @@ function _tokenRow(model, est) {
       title: 'The <em>detail panel</em>',
       desc: 'Click any prompt to open the right panel. Fill variables, view version history, add notes and ratings, run a chain, or copy in any format — all without leaving the library.',
       icon: 'side_navigation',
+      openDetail: true,
       target: '#detailPanel'
     },
     {
@@ -7905,6 +7906,22 @@ function _tokenRow(model, est) {
     });
   }
 
+  // Detail-panel preview — open a real prompt so the user sees the actual panel,
+  // not an empty rail. Returns openDetail's promise (resolves once .open lands).
+  function _openTourDetail() {
+    const card = document.querySelector('.prompt-card[data-id]');
+    if (!card || !card.dataset.id || typeof window.PL_openDetail !== 'function') return null;
+    try { return window.PL_openDetail(parseInt(card.dataset.id, 10)); } catch (e) { return null; }
+  }
+
+  function _closeTourDetail() {
+    const dp = document.getElementById('detailPanel');
+    if (dp) { dp.classList.remove('open'); dp.setAttribute('aria-hidden', 'true'); }
+    document.querySelectorAll('.prompt-card.active').forEach(function(el) {
+      el.classList.remove('active');
+    });
+  }
+
   // Bring the view into the state this step needs, then run the spotlight.
   // Workspaces are display:none -> flex at inset:0 (no container transition), so
   // bounds are correct synchronously once .open lands — _spotlightOn forces the
@@ -7912,6 +7929,7 @@ function _tokenRow(model, est) {
   function _reconcileView(s, done) {
     const fnName = s.open ? OPEN_FNS[s.open] : null;
     if (fnName && typeof window[fnName] === 'function') {
+      _closeTourDetail();
       const keep = '#' + s.open + 'Workspace';
       WS_SELECTORS.forEach(function(sel) {
         if (sel === keep) return;
@@ -7919,9 +7937,31 @@ function _tokenRow(model, est) {
         if (el && el.classList.contains('open')) el.classList.remove('open');
       });
       try { window[fnName](); } catch (e) {}
-    } else {
-      _closeTourWorkspaces();
+      done();
+      return;
     }
+    if (s.openDetail) {
+      // Library underneath stays in the DOM, so a prompt card is available.
+      _closeTourWorkspaces();
+      const guard = _step;
+      const pr = _openTourDetail();
+      // Spotlight only after the panel has slid in (0.35s) — and only if the user
+      // hasn't moved on. getBoundingClientRect mid-slide gives the wrong rect.
+      // If they did move on (fast clicks can resolve openDetail's fetch late),
+      // close the now-stray panel instead of leaving it behind a later view.
+      const settle = function() {
+        if (_step === guard) { done(); }
+        else { _closeTourDetail(); }
+      };
+      if (pr && typeof pr.then === 'function') {
+        pr.then(function() { setTimeout(settle, 380); }, function() { setTimeout(settle, 380); });
+      } else {
+        setTimeout(settle, 420);
+      }
+      return;
+    }
+    _closeTourWorkspaces();
+    _closeTourDetail();
     done();
   }
 
@@ -7969,6 +8009,7 @@ function _tokenRow(model, est) {
   window.PL_startOnboarding = function() {
     _step = 0;
     _closeTourWorkspaces();
+    _closeTourDetail();
     _render(0);
     const overlay = _el('onboardingOverlay');
     if (overlay) overlay.classList.add('active');
@@ -7993,6 +8034,7 @@ function _tokenRow(model, est) {
   window.PL_skipOnboarding = function() {
     localStorage.setItem(TOUR_KEY, '1');
     _closeTourWorkspaces();
+    _closeTourDetail();
     const overlay = _el('onboardingOverlay');
     if (overlay) overlay.classList.remove('active');
   };
