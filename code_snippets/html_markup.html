@@ -1,0 +1,70 @@
+<!--
+  Reusable HTML markup skeletons, extracted from static/index.html.
+
+  Reference only — this file is not linked from index.html and is not
+  loaded by the app. Copy a block into the real markup and adapt
+  ids/classes before use.
+-->
+
+<!-- ============================================================================
+     1. Full-screen modal / workspace skeleton
+     Source: static/index.html:~2188-2237 (#promptViewer)
+     Pair with the open/close JS pattern in javascript_frontend.js (#5/#6).
+     Toggle visibility via the "open" class, not inline style, so CSS
+     transitions apply consistently.
+     ============================================================================ -->
+<div id="thingWorkspace" class="workspace" aria-modal="true" role="dialog">
+  <div class="ws-header">
+    <button class="ws-back-btn" id="thingCloseBtn">
+      <span class="material-symbols-outlined">arrow_back</span>
+      Back
+    </button>
+    <div class="ws-header-title" id="thingTitle"></div>
+  </div>
+  <div class="ws-body">
+    <div class="ws-main" id="thingMain"></div>
+    <aside class="ws-sidebar">
+      <div class="ws-section-label">Actions</div>
+      <button class="btn btn-accent" id="thingPrimaryBtn">Save</button>
+    </aside>
+  </div>
+</div>
+
+<!-- CSS pairing:
+  .workspace { display: none; }
+  .workspace.open { display: flex; }
+-->
+
+
+<!-- ============================================================================
+     2. Sidebar nav item with data-view routing
+     Source: static/index.html:~34-49
+     JS wiring lives in javascript_frontend.js's nav-item click handler
+     pattern — dispatch on el.dataset.view.
+     ============================================================================ -->
+<button class="nav-item" data-view="library">
+  <span class="material-symbols-outlined">menu_book</span>
+  <span>Library</span>
+  <span class="nav-count" id="libraryCount">0</span>
+</button>
+
+
+<!-- ============================================================================
+     3. Toast container
+     Source: static/index.html (paired with toast() in javascript_frontend.js)
+     Place once near the end of <body>.
+     ============================================================================ -->
+<div id="toastContainer" aria-live="polite"></div>
+
+
+<!-- ============================================================================
+     4. Premium-locked nav button
+     Source: static/index.html:~44, 67, 75-79
+     `premium-locked` class + `data-premium="true"` drives the visual lock
+     state; the matching JS guard is requirePremium() in javascript_frontend.js.
+     ============================================================================ -->
+<button class="nav-item premium-locked" data-view="analytics" data-premium="true">
+  <span class="material-symbols-outlined">monitoring</span>
+  <span>Analytics</span>
+  <span class="nav-lock material-symbols-outlined">lock</span>
+</button>
