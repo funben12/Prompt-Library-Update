@@ -4109,11 +4109,14 @@ function initConfigPanel() {
     tab.addEventListener('click', () => {
       $$('.config-provider-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-      // Load saved key for this provider
       const provider = tab.dataset.provider;
       const saved = localStorage.getItem(`pl_api_key_${provider}`) || '';
       const input = $('#configApiKeyInput');
       if (input) input.value = saved;
+      const modelRow = $('#configModelRow');
+      const modelInput = $('#configModelInput');
+      if (modelRow) modelRow.style.display = provider === 'openrouter' ? '' : 'none';
+      if (modelInput && provider === 'openrouter') modelInput.value = localStorage.getItem('pl_openrouter_model') || '';
     });
   });
 
@@ -4123,6 +4126,11 @@ function initConfigPanel() {
     saveBtn.addEventListener('click', () => {
       const provider = ($$('.config-provider-tab.active')[0]?.dataset.provider) || 'openai';
       const key = $('#configApiKeyInput')?.value?.trim() || '';
+      if (provider === 'openrouter') {
+        const model = $('#configModelInput')?.value?.trim() || '';
+        if (model) localStorage.setItem('pl_openrouter_model', model);
+        else localStorage.removeItem('pl_openrouter_model');
+      }
       if (key) {
         localStorage.setItem(`pl_api_key_${provider}`, key);
         localStorage.setItem('pl_ai_provider', provider);
@@ -4146,14 +4154,16 @@ function initConfigPanel() {
 
 function loadConfigSettings() {
   const provider = localStorage.getItem('pl_ai_provider') || 'openai';
-  // Activate correct tab
   $$('.config-provider-tab').forEach(t => {
     t.classList.toggle('active', t.dataset.provider === provider);
   });
-  // Load key
   const key = localStorage.getItem(`pl_api_key_${provider}`) || '';
   const input = $('#configApiKeyInput');
   if (input) input.value = key;
+  const modelRow = $('#configModelRow');
+  const modelInput = $('#configModelInput');
+  if (modelRow) modelRow.style.display = provider === 'openrouter' ? '' : 'none';
+  if (modelInput && provider === 'openrouter') modelInput.value = localStorage.getItem('pl_openrouter_model') || '';
 }
 
 /* ── AI Role Generation ──────────────────────────────────────────────────── */
@@ -4218,6 +4228,17 @@ window.PL_generateRoleWithAI = async function() {
       const data = await res.json();
       if (data.error) throw new Error(data.error.message);
       responseText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+
+    } else if (provider === 'openrouter') {
+      const model = localStorage.getItem('pl_openrouter_model') || 'openai/gpt-4o-mini';
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }], max_tokens: 400 }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      responseText = data.choices?.[0]?.message?.content?.trim() || '';
     }
 
     if (responseText) {
@@ -6626,6 +6647,17 @@ async function callAI(systemPrompt, userMsg, maxTokens) {
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
     return (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+
+  } else if (provider === 'openrouter') {
+    const model = localStorage.getItem('pl_openrouter_model') || 'openai/gpt-4o-mini';
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+      body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }], max_tokens: maxTokens }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    return (data.choices?.[0]?.message?.content || '').trim();
   }
   throw new Error('Unknown provider: ' + provider);
 }
