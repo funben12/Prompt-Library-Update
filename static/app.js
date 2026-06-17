@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
    Prompt Library Pro - app.js
    Editorial Workshop edition. Modular: state, api, helpers, render, controls.
    Backend lives behind /api/* (Flask). Same-origin so no CORS pain.
@@ -3005,6 +3005,7 @@ function _escapeToLibrary() {
   // Close any open workspaces
   ['#forgeWorkspace','#labWorkspace','#rolesWorkspace','#playgroundWorkspace',
    '#chainWorkspace','#metaWorkspace','#contextBankWorkspace','#componentsWorkspace',
+   '#optimizerWorkspace',
    ].forEach(sel => {
     const el = $(sel);
     if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -3066,6 +3067,7 @@ function init() {
       if (v === 'meta')          { window.openMetaWorkspace();          return; }
       if (v === 'contextBank')   { window.openContextBankWorkspace();  return; }
       if (v === 'components')    { window.openComponentsWorkspace();   return; }
+      if (v === 'optimizer')    { window.openOptimizerWorkspace();    return; }
       const stringViews = ['library', 'favorites'];
       setView(stringViews.includes(v) ? v : Number(v));
     });
@@ -4177,23 +4179,45 @@ window.PL_generateRoleWithAI = async function() {
     return;
   }
 
-  const name      = $('#roleNameInput')?.value?.trim()      || '';
-  const tone      = $('#roleToneInput')?.value?.trim()       || '';
-  const expertise = $('#roleExpertiseInput')?.value?.trim()  || '';
+  const name      = $('#roleNameInput')?.value?.trim()     || '';
+  const tone      = $('#roleToneInput')?.value?.trim()      || '';
+  const expertise = $('#roleExpertiseInput')?.value?.trim() || '';
 
   if (!name && !expertise) {
     toast('Fill in at least a Role Name or Expertise first', 'error');
     return;
   }
 
-  const btn = $('#rolesGenerateBtn');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite">progress_activity</span> Generating…'; }
+  const btns = ['#rolesGenerateBtn', '#rolesGenerateBtn2'].map(s => $(s)).filter(Boolean);
+  const loadingHtml = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite;font-size:15px;">progress_activity</span> Generating…';
+  btns.forEach(b => { b.disabled = true; b.innerHTML = loadingHtml; });
 
-  const systemPrompt = 'You are an expert at writing AI role personas. Write a rich, detailed persona paragraph in first person that an AI assistant should embody. Be specific, vivid, and professional. Return only the persona text, no preamble.';
+  const systemPrompt = `You are an expert at designing AI agent personas. Given a role name and any context, return a JSON object that fully populates an agent profile. Return ONLY valid JSON, no markdown fences, no preamble.
+
+Schema (all fields are strings unless noted):
+{
+  "tone": "communication tone/style",
+  "expertise": "areas of expertise",
+  "goal": "primary objective — what the agent is built to do",
+  "outcome": "what success looks like (one sentence)",
+  "audience": "target audience",
+  "domain": "industry or domain",
+  "tasks": "2-3 sentence description of primary tasks",
+  "output_format": "how responses should be structured",
+  "constraints": "what NOT to do (2-3 rules)",
+  "opening_message": "what the agent says when first activated",
+  "persona": "rich first-person persona paragraph (3-4 sentences)",
+  "response_style": "one of: formal, casual, direct, detailed, concise, persuasive, educational, empathetic",
+  "depth": "one of: quick, balanced, deep_dive, adaptive",
+  "format_mode": "one of: prose, bullets, numbered, headers, code_blocks",
+  "interaction_mode": "one of: reactive, proactive, clarify_first, auto_proceed",
+  "flags": ["array of any: no_hedging, cite_sources, ask_clarify, step_by_step, no_preamble, show_reasoning, use_examples, stay_on_topic, structured_output, no_repetition"]
+}`;
+
   const userMsg = [
     name      && `Role name: ${name}`,
-    tone      && `Tone/style: ${tone}`,
-    expertise && `Areas of expertise: ${expertise}`,
+    tone      && `Tone hint: ${tone}`,
+    expertise && `Expertise hint: ${expertise}`,
   ].filter(Boolean).join('\n');
 
   try {
@@ -4203,7 +4227,7 @@ window.PL_generateRoleWithAI = async function() {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-        body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }], max_tokens: 400 }),
+        body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }], max_tokens: 900 }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error.message);
@@ -4213,7 +4237,7 @@ window.PL_generateRoleWithAI = async function() {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', system: systemPrompt, messages: [{ role: 'user', content: userMsg }], max_tokens: 400 }),
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', system: systemPrompt, messages: [{ role: 'user', content: userMsg }], max_tokens: 900 }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error.message || data.error);
@@ -4234,28 +4258,58 @@ window.PL_generateRoleWithAI = async function() {
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-        body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }], max_tokens: 400 }),
+        body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }], max_tokens: 900 }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error.message);
       responseText = data.choices?.[0]?.message?.content?.trim() || '';
     }
 
-    if (responseText) {
-      const personaEl = $('#rolePersonaInput');
-      if (personaEl) {
-        personaEl.value = responseText;
-        updateRolePromptPreview();
-      }
-      toast('Persona generated', 'success');
-    } else {
-      toast('No response from AI', 'error');
+    if (!responseText) { toast('No response from AI', 'error'); return; }
+
+    const jsonStr = responseText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    let d;
+    try { d = JSON.parse(jsonStr); } catch(e) { throw new Error('AI returned invalid JSON — try again'); }
+
+    const setField = (id, val) => { const el = $(id); if (el && val) el.value = val; };
+    setField('#roleToneInput',         d.tone);
+    setField('#roleExpertiseInput',    d.expertise);
+    setField('#roleGoalInput',         d.goal);
+    setField('#roleOutcomeInput',      d.outcome);
+    setField('#roleAudienceInput',     d.audience);
+    setField('#roleDomainInput',       d.domain);
+    setField('#roleTasksInput',        d.tasks);
+    setField('#roleOutputFormatInput', d.output_format);
+    setField('#roleConstraintsInput',  d.constraints);
+    setField('#roleInitInput',         d.opening_message);
+    setField('#rolePersonaInput',      d.persona);
+
+    const activateChip = (groupId, val) => {
+      if (!val) return;
+      $$(`${groupId} .role-chip`).forEach(c => c.classList.toggle('active', c.dataset.val === val));
+      const hidden = $(`${groupId}`).closest('.form-group')?.querySelector('input[type=hidden]');
+      if (hidden) hidden.value = val;
+    };
+    activateChip('#roleStyleChips',      d.response_style);
+    activateChip('#roleDepthChips',      d.depth);
+    activateChip('#roleFormatModeChips', d.format_mode);
+    activateChip('#roleProcTypeChips',   d.interaction_mode);
+
+    if (Array.isArray(d.flags) && d.flags.length) {
+      $$('#roleFlagChips .role-chip').forEach(c => c.classList.toggle('active', d.flags.includes(c.dataset.val)));
+      const flagHidden = $('#roleFlagsInput');
+      if (flagHidden) flagHidden.value = d.flags.join(',');
     }
+
+    updateRolePromptPreview();
+    toast('Agent generated — review and save', 'success');
+
   } catch (err) {
     console.error('AI generation error:', err);
     toast(`Generation failed: ${err.message}`, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">spark</span> Generate with AI'; }
+    const resetHtml = '<span class="material-symbols-outlined" style="font-size:15px;">auto_awesome</span> Generate with AI';
+    btns.forEach(b => { b.disabled = false; b.innerHTML = resetHtml; });
   }
 };
 
@@ -4295,6 +4349,8 @@ function initRolesWorkspace() {
   // ── Button wiring ───────────────────────────────────────────────────────
   const generateBtn = $('#rolesGenerateBtn');
   if (generateBtn) generateBtn.addEventListener('click', window.PL_generateRoleWithAI);
+  const generateBtn2 = $('#rolesGenerateBtn2');
+  if (generateBtn2) generateBtn2.addEventListener('click', window.PL_generateRoleWithAI);
 
   const closeBtn = $('#rolesCloseBtn');
   if (closeBtn) closeBtn.addEventListener('click', closeRolesWorkspace);
@@ -6350,8 +6406,266 @@ function initModalSidePanels() {
     });
   }
   window.closeComponentsWorkspace = closeComponentsWorkspace;
+
+
 })();
 
+
+
+/* ============================================================================
+   PROMPT OPTIMIZER WORKSPACE
+   ============================================================================ */
+
+const _optState = {
+  selectedFrameworks: new Set(),
+  selectedTechniques: new Map(),
+  history: [],
+  selectedForCompare: [],
+  currentOutput: ''
+};
+
+window.openOptimizerWorkspace = function() {
+  if (!state.isPremium) { showPremiumModal(); return; }
+  $('#optimizerWorkspace')?.classList.add('open');
+  $$('.nav-item[data-view]').forEach(el =>
+    el.classList.toggle('active', el.dataset.view === 'optimizer'));
+  setTimeout(() => $('#optPromptInput')?.focus(), 80);
+};
+function closeOptimizerWorkspace() {
+  $('#optimizerWorkspace')?.classList.remove('open');
+  $$('.nav-item[data-view]').forEach(el =>
+    el.classList.toggle('active', el.dataset.view === 'library'));
+}
+
+function _optSetScore(overall) {
+  const ring  = $('#optRingFill');
+  const numEl = $('#optScoreNum');
+  if (ring)  ring.style.strokeDashoffset = String(226 - (overall / 100) * 226);
+  if (numEl) numEl.textContent = overall;
+  const spread = () => Math.max(55, overall - Math.floor(Math.random() * 12));
+  const setM = (id, val) => { const el = $('#' + id); if (el) el.textContent = val + '%'; };
+  setM('optClarity',      spread());
+  setM('optSpecificity',  spread());
+  setM('optContext',      spread());
+  setM('optStructure',    spread());
+  setM('optActionability',spread());
+}
+
+function _optAddHistory(type, prompt, output, score) {
+  _optState.history.unshift({
+    id: Date.now(), type,
+    prompt: prompt.substring(0, 80) + (prompt.length > 80 ? '...' : ''),
+    output, score,
+    timestamp: new Date().toLocaleTimeString()
+  });
+  if (_optState.history.length > 12) _optState.history.pop();
+  _optRenderHistory();
+}
+
+function _optRenderHistory() {
+  const el = $('#optHistory');
+  if (!el) return;
+  if (!_optState.history.length) {
+    el.innerHTML = '<span class="hint" style="font-size:var(--fs-xs);">Run Optimize or Analyze to build history.</span>';
+    return;
+  }
+  el.innerHTML = '';
+  _optState.history.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'opt-history-item' + (_optState.selectedForCompare.includes(item.id) ? ' selected' : '');
+    div.dataset.hid = item.id;
+    div.innerHTML = '<div class="opt-history-preview">' + escapeHtml(item.prompt) + '</div>' +
+      '<div class="opt-history-meta">' + item.type + ' · score ' + item.score + ' · ' + item.timestamp + '</div>';
+    div.addEventListener('click', () => _optSelectHistory(item.id));
+    el.appendChild(div);
+  });
+}
+
+function _optSelectHistory(id) {
+  const item = _optState.history.find(h => h.id === id);
+  if (!item) return;
+  const idx = _optState.selectedForCompare.indexOf(id);
+  if (idx === -1) {
+    if (_optState.selectedForCompare.length >= 2) _optState.selectedForCompare.shift();
+    _optState.selectedForCompare.push(id);
+  } else {
+    _optState.selectedForCompare.splice(idx, 1);
+  }
+  _optRenderHistory();
+  _optRenderCompare();
+  const out = $('#optOutput');
+  if (out) { out.textContent = item.output; }
+  _optState.currentOutput = item.output;
+  const actions = $('#optOutputActions');
+  if (actions) actions.style.display = 'flex';
+}
+
+function _optRenderCompare() {
+  const el = $('#optComparePanel');
+  if (!el) return;
+  const ids = _optState.selectedForCompare;
+  if (ids.length < 2) {
+    el.innerHTML = ids.length === 1
+      ? '<span class="hint" style="font-size:var(--fs-xs);">Select one more history item to compare.</span>'
+      : '<span class="hint" style="font-size:var(--fs-xs);">Select two history items to compare.</span>';
+    return;
+  }
+  const [a, b] = ids.map(id => _optState.history.find(h => h.id === id));
+  el.innerHTML =
+    '<div class="opt-compare-label">Version A · score ' + a.score + '</div>' +
+    '<div class="opt-compare-block">' + escapeHtml(a.output) + '</div>' +
+    '<div class="opt-compare-label">Version B · score ' + b.score + '</div>' +
+    '<div class="opt-compare-block">' + escapeHtml(b.output) + '</div>';
+}
+
+async function _optRunOptimize() {
+  const prompt = $('#optPromptInput')?.value?.trim();
+  if (!prompt) { toast('Paste a prompt first', 'warning'); return; }
+  const frameworks = Array.from(_optState.selectedFrameworks).join(', ');
+  const techniques = Array.from(_optState.selectedTechniques.entries())
+    .map(([t, lvl]) => lvl > 1 ? t + ' (emphasis ×' + lvl + ')' : t).join(', ');
+  const custom = $('#optCustomInstructions')?.value?.trim();
+  const sys = 'You are an expert prompt engineer. Optimize the given prompt and return: 1. The optimized prompt 2. Key improvements 3. Why these changes work. End your response with SCORE: [number 1-100] reflecting the optimized prompt quality. Plain text only, no markdown fencing.';
+  let usr = 'Optimize this prompt:\n\n"' + prompt + '"\n\n';
+  if (frameworks) usr += 'Apply frameworks: ' + frameworks + '.\n';
+  if (techniques) usr += 'Enhance with techniques: ' + techniques + '.\n';
+  if (custom)    usr += 'Additional requirements: ' + custom + '.\n';
+  const out = $('#optOutput');
+  if (out) out.innerHTML = '<span class="hint">⏳ Optimizing…</span>';
+  const result = await callAI(sys, usr, 1800);
+  const scoreMatch = result.match(/SCORE:\s*(\d{1,3})/i);
+  const score = scoreMatch ? Math.min(100, parseInt(scoreMatch[1])) : 75;
+  const clean = scoreMatch ? result.slice(0, result.lastIndexOf('SCORE:')).trim() : result;
+  if (out) out.textContent = clean;
+  _optState.currentOutput = clean;
+  const actions = $('#optOutputActions');
+  if (actions) actions.style.display = 'flex';
+  _optSetScore(Math.min(95, score + 5));
+  _optAddHistory('optimize', prompt, clean, score);
+  toast('Prompt optimized', 'success');
+}
+
+async function _optRunAnalyze() {
+  const prompt = $('#optPromptInput')?.value?.trim();
+  if (!prompt) { toast('Paste a prompt first', 'warning'); return; }
+  const custom = $('#optCustomInstructions')?.value?.trim();
+  const sys = 'You are an expert prompt engineer. Analyze the given prompt and provide: 1. Overall quality score (1-100) 2. Strengths 3. Areas for improvement 4. Enhancement suggestions. End with SCORE: [number].';
+  let usr = 'Analyze this prompt:\n\n"' + prompt + '"';
+  if (custom) usr += '\n\nConsider: ' + custom;
+  const out = $('#optOutput');
+  if (out) out.innerHTML = '<span class="hint">⏳ Analyzing…</span>';
+  const result = await callAI(sys, usr, 1500);
+  const scoreMatch = result.match(/SCORE:\s*(\d{1,3})/i);
+  const score = scoreMatch ? Math.min(100, parseInt(scoreMatch[1])) : 70;
+  const clean = scoreMatch ? result.slice(0, result.lastIndexOf('SCORE:')).trim() : result;
+  if (out) out.textContent = clean;
+  _optState.currentOutput = clean;
+  const actions = $('#optOutputActions');
+  if (actions) actions.style.display = 'flex';
+  _optSetScore(score);
+  _optAddHistory('analyze', prompt, clean, score);
+  toast('Analysis complete', 'success');
+}
+
+function initOptimizerWorkspace() {
+  const ws = $('#optimizerWorkspace');
+  if (!ws) return;
+
+  $$('#optimizerWorkspace .opt-fw-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const fw = this.dataset.fw;
+      if (_optState.selectedFrameworks.has(fw)) {
+        _optState.selectedFrameworks.delete(fw); this.classList.remove('active');
+      } else {
+        _optState.selectedFrameworks.add(fw); this.classList.add('active');
+      }
+    });
+  });
+
+  $$('#optimizerWorkspace .opt-tech-btn').forEach(btn => {
+    btn.dataset.label = btn.textContent;
+    btn.addEventListener('click', function() {
+      const tech = this.dataset.tech;
+      const lbl  = this.dataset.label;
+      const cur  = _optState.selectedTechniques.get(tech) || 0;
+      if (cur >= 12) {
+        _optState.selectedTechniques.delete(tech);
+        this.classList.remove('active');
+        this.removeAttribute('data-level');
+        this.textContent = lbl;
+      } else {
+        const next = cur + 1;
+        _optState.selectedTechniques.set(tech, next);
+        this.classList.add('active');
+        this.dataset.level = next;
+        this.textContent = lbl + ' ×' + next;
+      }
+    });
+  });
+
+  $('#optSelectAllTechBtn')?.addEventListener('click', () => {
+    $$('#optimizerWorkspace .opt-tech-btn').forEach(btn => {
+      _optState.selectedTechniques.set(btn.dataset.tech, 1);
+      btn.classList.add('active');
+      btn.dataset.level = '1';
+      btn.textContent = btn.dataset.label + ' ×1';
+    });
+  });
+  $('#optClearTechBtn')?.addEventListener('click', () => {
+    _optState.selectedTechniques.clear();
+    $$('#optimizerWorkspace .opt-tech-btn').forEach(btn => {
+      btn.classList.remove('active');
+      btn.removeAttribute('data-level');
+      btn.textContent = btn.dataset.label;
+    });
+  });
+
+  $('#optOptimizeBtn')?.addEventListener('click', async function() {
+    this.disabled = true;
+    this.innerHTML = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite">progress_activity</span> Optimizing…';
+    try { await _optRunOptimize(); }
+    catch(err) {
+      const out = $('#optOutput');
+      if (out) out.innerHTML = '<span class="hint">Error: ' + escapeHtml(err.message) + '</span>';
+      toast('Optimization failed: ' + err.message, 'error');
+    }
+    finally { this.disabled = false; this.innerHTML = '<span class="material-symbols-outlined">rocket_launch</span> Optimize'; }
+  });
+
+  $('#optAnalyzeBtn')?.addEventListener('click', async function() {
+    this.disabled = true;
+    this.innerHTML = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite">progress_activity</span> Analyzing…';
+    try { await _optRunAnalyze(); }
+    catch(err) {
+      const out = $('#optOutput');
+      if (out) out.innerHTML = '<span class="hint">Error: ' + escapeHtml(err.message) + '</span>';
+      toast('Analysis failed: ' + err.message, 'error');
+    }
+    finally { this.disabled = false; this.innerHTML = '<span class="material-symbols-outlined">analytics</span> Analyze'; }
+  });
+
+  $('#optCopyBtn')?.addEventListener('click', async () => {
+    const text = _optState.currentOutput || $('#optOutput')?.textContent?.trim();
+    if (!text) return;
+    if (await copyToClipboard(text)) toast('Output copied', 'success');
+  });
+
+  $('#optSaveBtn')?.addEventListener('click', async () => {
+    if (!_optState.currentOutput) { toast('Optimize a prompt first', 'warning'); return; }
+    const raw   = $('#optPromptInput')?.value?.trim() || '';
+    const title = (raw.split(' ').slice(0, 6).join(' ') || 'Optimized prompt') + ' (opt)';
+    try {
+      const result = await api('/prompts', { method: 'POST', body: { title, content: _optState.currentOutput, description: 'Optimized via Prompt Optimizer workspace', categories: 'Prompt Engineering', tags: 'optimized' } });
+      await loadPrompts(); await loadFilterOptions();
+      toast('Saved: ' + title, 'success');
+      closeOptimizerWorkspace();
+      if (result?.id) setTimeout(() => openDetail(result.id), 200);
+    } catch { toast('Could not save', 'error'); }
+  });
+
+  $('#closeOptimizerBtn')?.addEventListener('click', closeOptimizerWorkspace);
+  ws.addEventListener('keydown', e => { if (e.key === 'Escape') closeOptimizerWorkspace(); });
+}
 
 
 /* ============================================================================
@@ -6371,6 +6685,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initChainWorkspace();      // prompt chain workspace
   initMetaWorkspace();       // metaprompting workspace
   initContextBankWorkspace(); // context bank workspace + wiring
+  initOptimizerWorkspace();  // prompt optimizer workspace
   initModalSidePanels();      // prompt modal side panels
   initOnboarding();           // spotlight tour auto-launch on first run
   initPromptViewer();         // prompt viewer close button and escape key
@@ -8363,7 +8678,7 @@ function _tokenRow(model, est) {
   };
   const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
     '#playgroundWorkspace', '#chainWorkspace', '#metaWorkspace',
-    '#contextBankWorkspace', '#componentsWorkspace'];
+    '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace'];
 
   function _closeTourWorkspaces() {
     WS_SELECTORS.forEach(function(sel) {
@@ -9001,5 +9316,9 @@ function _tokenRow(model, est) {
   // Auto-launch disabled: the new onboarding tour (initOnboarding) handles first-run.
   // PL_startTutorial remains available for the sidebar "Components tour" button.
 
+
+
 })();
+
+
 
