@@ -8247,6 +8247,24 @@ function initMetaWorkspace() {
   });
   $('#closeMetaBtn')?.addEventListener('click', closeMetaWorkspace);
   ws.addEventListener('keydown', e => { if (e.key === 'Escape') closeMetaWorkspace(); });
+
+  // Live prompt preview — shows as user types in rough prompt box
+  const roughEl = $('#metaRoughPrompt');
+  const previewPanel = $('#metaPromptPreview');
+  const previewBody  = $('#metaPromptPreviewBody');
+  if (roughEl && previewPanel && previewBody) {
+    const _updateMetaPreview = () => {
+      const val = roughEl.value.trim();
+      if (val) {
+        previewBody.textContent = val;
+        previewPanel.style.display = '';
+      } else {
+        previewPanel.style.display = 'none';
+      }
+    };
+    roughEl.addEventListener('input', _updateMetaPreview);
+    roughEl.addEventListener('paste', () => setTimeout(_updateMetaPreview, 0));
+  }
 }
 
 

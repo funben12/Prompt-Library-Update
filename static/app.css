@@ -2871,7 +2871,7 @@
   .advanced-section {
     border: 1px solid var(--line);
     border-radius: var(--r-md);
-    overflow: hidden;
+    overflow: visible;
     margin-top: var(--sp-4);
   }
   .advanced-toggle {
@@ -2886,6 +2886,7 @@
     cursor: pointer;
     list-style: none;
     transition: background var(--t-fast), color var(--t-fast);
+    border-radius: var(--r-md) var(--r-md) 0 0;
   }
   .advanced-toggle::-webkit-details-marker { display: none; }
   .advanced-toggle:hover { background: var(--surface-3); color: var(--ink); }
@@ -3503,15 +3504,15 @@
   margin-bottom: var(--sp-2);
 }
 .chain-seed-label .material-symbols-outlined { font-size: 16px; color: var(--accent); }
-.chain-step {
+#chainWorkspace .chain-step {
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   background: var(--surface);
   overflow: hidden;
   transition: border-color var(--t-fast);
 }
-.chain-step.expanded { border-color: var(--accent-line); }
-.chain-step-header {
+#chainWorkspace .chain-step.expanded { border-color: var(--accent-line); }
+#chainWorkspace .chain-step-header {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
@@ -3521,8 +3522,8 @@
   background: var(--surface);
   transition: background var(--t-fast);
 }
-.chain-step-header:hover { background: var(--surface-2); }
-.chain-step-num {
+#chainWorkspace .chain-step-header:hover { background: var(--surface-2); }
+#chainWorkspace .chain-step-num {
   width: 28px; height: 28px;
   border-radius: 50%;
   background: var(--accent);
@@ -3532,7 +3533,7 @@
   display: grid; place-items: center;
   flex-shrink: 0;
 }
-.chain-step-label-input {
+#chainWorkspace .chain-step-label-input {
   flex: 1;
   border: none;
   background: transparent;
@@ -3544,12 +3545,12 @@
   padding: 0;
   min-width: 0;
 }
-.chain-step-body {
+#chainWorkspace .chain-step-body {
   padding: var(--sp-3) var(--sp-4) var(--sp-4);
   border-top: 1px solid var(--line);
   display: none;
 }
-.chain-step.expanded .chain-step-body { display: block; }
+#chainWorkspace .chain-step.expanded .chain-step-body { display: block; }
 .chain-word-count {
   font-size: 11px;
   color: var(--ink-4);
@@ -4294,6 +4295,35 @@
   color: var(--ink-2);
   line-height: 1.5;
 }
+.meta-preview-panel {
+  border: 1px solid var(--accent-line, color-mix(in oklch, var(--accent) 30%, transparent));
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.meta-preview-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: color-mix(in oklch, var(--accent) 8%, transparent);
+  border-bottom: 1px solid var(--accent-line, color-mix(in oklch, var(--accent) 25%, transparent));
+}
+.meta-preview-body {
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-sm);
+  line-height: 1.65;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
 @media (max-width: 900px) {
   .meta-body { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
   .meta-left { border-right: none; border-bottom: 1px solid var(--line); }
