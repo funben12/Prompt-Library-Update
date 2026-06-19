@@ -68,6 +68,7 @@
 - **Snippets workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. `#snippetsWorkspace` has zero occurrences in `static/` files.
 - **Trash & Restore workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. `#trashWorkspace` has zero occurrences in `static/` files.
 - **Plan modal:** Free column: 25 prompts, 3 folders, locked items listed. Pro column: 18 features accurately. Payhip CTA link live.
+- **QR code sharing (2026-06-19, hash 2d997878):** `#qrCodeBtn` in detail panel footer generates QR code containing serialized prompt data (title, description, content, categories, tags, variable_meta). Modal `#qrCodeModal` displays 250x250px QR code. Users can save as PNG or copy data. Uses qrcode.js@1.5.3 from jsDelivr CDN (async load). No server required — phone app can scan to import directly. Functions: `generateQRCode()`, `closeQRCodeModal()`, `saveQRCode()`, `copyQRLink()`.
 
 ## Feature Inventory — Free vs Pro
 
