@@ -418,6 +418,14 @@ def init_db():
         c.execute("ALTER TABLE roles ADD COLUMN tasks TEXT DEFAULT ''")
     if 'response_style' not in role_cols:
         c.execute("ALTER TABLE roles ADD COLUMN response_style TEXT DEFAULT ''")
+    if 'goal' not in role_cols:
+        c.execute("ALTER TABLE roles ADD COLUMN goal TEXT DEFAULT ''")
+    if 'outcome' not in role_cols:
+        c.execute("ALTER TABLE roles ADD COLUMN outcome TEXT DEFAULT ''")
+    if 'opening_message' not in role_cols:
+        c.execute("ALTER TABLE roles ADD COLUMN opening_message TEXT DEFAULT ''")
+    if 'persistent_context' not in role_cols:
+        c.execute("ALTER TABLE roles ADD COLUMN persistent_context TEXT DEFAULT ''")
     for col, sql in migrations:
         if col not in existing:
             c.execute(sql)
@@ -1602,12 +1610,16 @@ def serialize_role(row):
     except Exception:
         r['example_phrases'] = []
     r.setdefault('is_favorite',    0)
-    r.setdefault('audience',       '')
-    r.setdefault('output_format',  '')
-    r.setdefault('constraints',    '')
-    r.setdefault('domain',         '')
-    r.setdefault('tasks',          '')
-    r.setdefault('response_style', '')
+    r.setdefault('audience',          '')
+    r.setdefault('output_format',     '')
+    r.setdefault('constraints',       '')
+    r.setdefault('domain',            '')
+    r.setdefault('tasks',             '')
+    r.setdefault('response_style',    '')
+    r.setdefault('goal',              '')
+    r.setdefault('outcome',           '')
+    r.setdefault('opening_message',   '')
+    r.setdefault('persistent_context', '')
     # knowledge_base is a JSON array of {name, when_to_use, content, include} objects
     raw_kb = r.get('knowledge_base') or '[]'
     try:
@@ -1657,25 +1669,29 @@ def _role_payload(data):
     ]
 
     return {
-        'name':           (data.get('name') or 'Untitled role').strip() or 'Untitled role',
-        'icon':           data.get('icon') or '🎯',
-        'colour':         data.get('colour') or '#6366f1',
-        'persona':        data.get('persona') or '',
-        'tone':           data.get('tone') or '',
-        'expertise':      data.get('expertise') or '',
-        'example_phrase': data.get('example_phrase') or '',
+        'name':               (data.get('name') or 'Untitled role').strip() or 'Untitled role',
+        'icon':               data.get('icon') or '🎯',
+        'colour':             data.get('colour') or '#6366f1',
+        'persona':            data.get('persona') or '',
+        'tone':               data.get('tone') or '',
+        'expertise':          data.get('expertise') or '',
+        'example_phrase':     data.get('example_phrase') or '',
         'example_phrases': json.dumps([
             {'text': str(e.get('text',''))} for e in (data.get('example_phrases') or [])
             if e.get('text','').strip()
         ]),
-        'audience':       data.get('audience') or '',
-        'output_format':  data.get('output_format') or '',
-        'constraints':    data.get('constraints') or '',
-        'domain':         data.get('domain') or '',
-        'tasks':          data.get('tasks') or '',
-        'response_style': data.get('response_style') or '',
-        'knowledge_base': json.dumps(kb),
-        'skills':         json.dumps(skills),
+        'audience':           data.get('audience') or '',
+        'output_format':      data.get('output_format') or '',
+        'constraints':        data.get('constraints') or '',
+        'domain':             data.get('domain') or '',
+        'tasks':              data.get('tasks') or '',
+        'response_style':     data.get('response_style') or '',
+        'goal':               data.get('goal') or '',
+        'outcome':            data.get('outcome') or '',
+        'opening_message':    data.get('opening_message') or '',
+        'persistent_context': data.get('persistent_context') or '',
+        'knowledge_base':     json.dumps(kb),
+        'skills':             json.dumps(skills),
     }
 
 # ── AI Config settings (stored in local DB settings table) ───────────────────
@@ -1732,10 +1748,14 @@ def create_role():
     conn = get_db()
     try:
         cur = conn.execute('''
-            INSERT INTO roles (name, icon, colour, persona, tone, expertise, example_phrase, example_phrases, knowledge_base, skills)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
+            INSERT INTO roles (name, icon, colour, persona, tone, expertise, example_phrase, example_phrases,
+                               knowledge_base, skills, audience, output_format, constraints, domain, tasks,
+                               response_style, goal, outcome, opening_message, persistent_context)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ''', (p['name'], p['icon'], p['colour'], p['persona'],
-              p['tone'], p['expertise'], p['example_phrase'], p['example_phrases'], p['knowledge_base'], p['skills']))
+              p['tone'], p['expertise'], p['example_phrase'], p['example_phrases'], p['knowledge_base'], p['skills'],
+              p['audience'], p['output_format'], p['constraints'], p['domain'], p['tasks'],
+              p['response_style'], p['goal'], p['outcome'], p['opening_message'], p['persistent_context']))
         rid = cur.lastrowid
         conn.commit()
     finally:
@@ -1750,10 +1770,15 @@ def update_role(rid):
         conn.execute('''
             UPDATE roles
                SET name=?, icon=?, colour=?, persona=?, tone=?, expertise=?,
-                   example_phrase=?, example_phrases=?, knowledge_base=?, skills=?, updated_at=CURRENT_TIMESTAMP
+                   example_phrase=?, example_phrases=?, knowledge_base=?, skills=?,
+                   audience=?, output_format=?, constraints=?, domain=?, tasks=?,
+                   response_style=?, goal=?, outcome=?, opening_message=?, persistent_context=?,
+                   updated_at=CURRENT_TIMESTAMP
              WHERE id=?
         ''', (p['name'], p['icon'], p['colour'], p['persona'],
-              p['tone'], p['expertise'], p['example_phrase'], p['example_phrases'], p['knowledge_base'], p['skills'], rid))
+              p['tone'], p['expertise'], p['example_phrase'], p['example_phrases'], p['knowledge_base'], p['skills'],
+              p['audience'], p['output_format'], p['constraints'], p['domain'], p['tasks'],
+              p['response_style'], p['goal'], p['outcome'], p['opening_message'], p['persistent_context'], rid))
         conn.commit()
     finally:
         conn.close()

@@ -3468,18 +3468,30 @@ function openRoleInEditor(id) {
   set('#roleStyleInput',       role.response_style  || '');
   set('#roleAudienceInput',    role.audience        || '');
   set('#roleDomainInput',      role.domain          || '');
-  set('#roleConstraintsInput', role.constraints     || '');
-  set('#roleOutputFormatInput',role.output_format   || '');
-  set('#roleTasksInput',       role.workflow_notes  || '');
+  set('#roleConstraintsInput',  role.constraints        || '');
+  set('#roleOutputFormatInput', role.output_format      || '');
+  set('#roleTasksInput',        role.tasks              || '');
+  set('#roleGoalInput',         role.goal               || '');
+  set('#roleOutcomeInput',      role.outcome            || '');
+  set('#roleInitInput',         role.opening_message    || '');
+  set('#roleMemoryInput',       role.persistent_context || '');
+  set('#rolePersonaInput',      role.persona            || '');
 
   const iconBtn = $('#roleIconBtn');
   if (iconBtn) iconBtn.textContent = role.icon || '🎯';
 
-  // Response style chips — restore from saved value
-  const savedStyle = (role.response_style || '').toLowerCase();
-  $$('.role-chip').forEach(chip => {
-    chip.classList.toggle('on', chip.dataset.val === savedStyle);
-  });
+  // Restore chips per group from saved values
+  const _restoreChip = (groupSel, val) => {
+    if (!val) return;
+    const v = val.toLowerCase();
+    $$(groupSel + ' .role-chip').forEach(c => c.classList.toggle('on', c.dataset.val === v));
+  };
+  _restoreChip('#roleStyleChips',      role.response_style);
+  _restoreChip('#roleDepthChips',      role.depth);
+  _restoreChip('#roleFormatModeChips', role.format_mode);
+  _restoreChip('#roleProcTypeChips',   role.interaction_mode);
+  const savedFlags = Array.isArray(role.behaviour_flags) ? role.behaviour_flags : [];
+  $$('#roleFlagChips .role-chip').forEach(c => c.classList.toggle('on', savedFlags.includes(c.dataset.val)));
 
   // Toolbar buttons state
   const delBtn = $('#rolesDeleteBtn');
@@ -3713,24 +3725,35 @@ function getRoleFromForm() {
     if (chip.dataset.val) activeFlags.push(chip.dataset.val);
   });
 
+  const _chipVal = (sel) => $(sel + ' .role-chip.on')?.dataset?.val || '';
+  const flagVals = [];
+  $$('#roleFlagChips .role-chip.on').forEach(c => { if (c.dataset.val) flagVals.push(c.dataset.val); });
+
   return {
-    name:              $('#roleNameInput')?.value?.trim()           || '',
-    icon:              $('#roleIconBtn')?.textContent?.trim()        || '🤖',
-    colour:            $('#roleColourPicker')?.value                 || '#6366f1',
-    prompt_starter:    (($('#rolePromptStarter')?.value || 'You are a') + ' ' + ($('#roleTypeInput')?.value?.trim() || '')).trim(),
-    persona:           $('#rolePersonaInput')?.value                 || '',
-    tone:              $('#roleToneInput')?.value                    || '',
-    expertise:         $('#roleExpertiseInput')?.value               || '',
-    response_style:    $('#roleStyleInput')?.value                   || '',
-    behaviour_flags:   activeFlags,
-    audience:          $('#roleAudienceInput')?.value                || '',
-    domain:            $('#roleDomainInput')?.value                  || '',
-    constraints:       $('#roleConstraintsInput')?.value             || '',
-    output_format:     $('#roleOutputFormatInput')?.value            || '',
-    workflow_notes:    $('#roleTasksInput')?.value                   || '',
-    example_phrases:   _getExamplesFromDOM(),
-    knowledge_base:    kbEntries,
-    skills:            skillEntries,
+    name:               $('#roleNameInput')?.value?.trim()             || '',
+    icon:               $('#roleIconBtn')?.textContent?.trim()          || '🤖',
+    colour:             $('#roleColourPicker')?.value                   || '#6366f1',
+    prompt_starter:     (($('#rolePromptStarter')?.value || 'You are a') + ' ' + ($('#roleTypeInput')?.value?.trim() || '')).trim(),
+    persona:            $('#rolePersonaInput')?.value                   || '',
+    tone:               $('#roleToneInput')?.value                      || '',
+    expertise:          $('#roleExpertiseInput')?.value                 || '',
+    response_style:     _chipVal('#roleStyleChips'),
+    depth:              _chipVal('#roleDepthChips'),
+    format_mode:        _chipVal('#roleFormatModeChips'),
+    interaction_mode:   _chipVal('#roleProcTypeChips'),
+    behaviour_flags:    flagVals,
+    audience:           $('#roleAudienceInput')?.value                  || '',
+    domain:             $('#roleDomainInput')?.value                    || '',
+    constraints:        $('#roleConstraintsInput')?.value               || '',
+    output_format:      $('#roleOutputFormatInput')?.value              || '',
+    tasks:              $('#roleTasksInput')?.value                     || '',
+    goal:               $('#roleGoalInput')?.value                      || '',
+    outcome:            $('#roleOutcomeInput')?.value                   || '',
+    opening_message:    $('#roleInitInput')?.value                      || '',
+    persistent_context: $('#roleMemoryInput')?.value                    || '',
+    example_phrases:    _getExamplesFromDOM(),
+    knowledge_base:     kbEntries,
+    skills:             skillEntries,
   };
 }
 
@@ -4004,14 +4027,14 @@ window.PL_newRole = function() {
 
   // Clear all fields
   ['#roleNameInput','#rolePersonaInput','#roleToneInput','#roleExpertiseInput',
-   '#roleConstraintsInput','#roleInitInput','#roleMemoryInput',
-   '#roleTasksInput'].forEach(sel => {
+   '#roleConstraintsInput','#roleInitInput','#roleMemoryInput','#roleTasksInput',
+   '#roleGoalInput','#roleOutcomeInput','#roleAudienceInput','#roleDomainInput',
+   '#roleOutputFormatInput'].forEach(sel => {
     const el = $(sel);
     if (el) el.value = '';
   });
   // Reset selects
-  ['#rolePromptStarter','#roleStyleInput','#roleAudienceInput',
-   '#roleComplexityInput','#roleProcessTypeInput','#roleOutputFormatInput'].forEach(sel => {
+  ['#rolePromptStarter'].forEach(sel => {
     const el = $(sel);
     if (el) el.selectedIndex = 0;
   });
@@ -4192,27 +4215,50 @@ window.PL_generateRoleWithAI = async function() {
   const loadingHtml = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite;font-size:15px;">progress_activity</span> Generating…';
   btns.forEach(b => { b.disabled = true; b.innerHTML = loadingHtml; });
 
-  const systemPrompt = `You are an expert at designing AI agent personas. Given a role name and any context, return a JSON object that fully populates an agent profile. Return ONLY valid JSON, no markdown fences, no preamble.
+  const systemPrompt = `You are an expert at designing AI agent personas. Given a role name and context, return a JSON object that FULLY populates every field of a richly detailed agent profile. Make it specific, opinionated, and impressive — this is what the user will show off. Return ONLY valid JSON, no markdown fences, no preamble.
 
-Schema (all fields are strings unless noted):
+Schema (all fields required — make each one detailed and specific to the role):
 {
-  "tone": "communication tone/style",
-  "expertise": "areas of expertise",
-  "goal": "primary objective — what the agent is built to do",
-  "outcome": "what success looks like (one sentence)",
-  "audience": "target audience",
+  "tone": "specific communication tone — e.g. Forensic and impatient. No softening. Asks the question no one wants asked.",
+  "expertise": "comma-separated expertise areas — specific, not generic",
+  "goal": "one sharp sentence — what this agent exists to do",
+  "outcome": "one sentence — what success concretely looks like",
+  "audience": "specific target user — job title, context, pain point",
   "domain": "industry or domain",
-  "tasks": "2-3 sentence description of primary tasks",
-  "output_format": "how responses should be structured",
-  "constraints": "what NOT to do (2-3 rules)",
-  "opening_message": "what the agent says when first activated",
-  "persona": "rich first-person persona paragraph (3-4 sentences)",
+  "tasks": "3-4 specific tasks this agent handles — be concrete, name real deliverables",
+  "output_format": "exactly how outputs are structured — e.g. Lead with the answer. Three supporting points. One action to take.",
+  "constraints": "3 sharp rules for what NOT to do — specific, not generic",
+  "opening_message": "exactly what this agent says when first activated — first-person, specific to the role",
+  "persona": "rich 4-5 sentence first-person persona paragraph — voice, background, philosophy, how they think",
+  "persistent_context": "2-3 facts this agent always carries — e.g. Assumes B2B audience. Always uses active voice. Never recommends more than 3 options.",
   "response_style": "one of: formal, casual, direct, detailed, concise, persuasive, educational, empathetic",
   "depth": "one of: quick, balanced, deep_dive, adaptive",
   "format_mode": "one of: prose, bullets, numbered, headers, code_blocks",
   "interaction_mode": "one of: reactive, proactive, clarify_first, auto_proceed",
-  "flags": ["array of any: no_hedging, cite_sources, ask_clarify, step_by_step, no_preamble, show_reasoning, use_examples, stay_on_topic, structured_output, no_repetition"]
-}`;
+  "flags": ["choose 4-6 from: no_hedging, cite_sources, ask_clarify, step_by_step, no_preamble, show_reasoning, use_examples, stay_on_topic, structured_output, no_repetition"],
+  "skills": [
+    {
+      "name": "Skill name — e.g. Cold Email Architecture",
+      "description": "What this skill does and why it matters for this agent — 1-2 sentences",
+      "example": "One specific example sentence showing the skill in action — as if the agent is doing it"
+    }
+  ],
+  "knowledge_base": [
+    {
+      "name": "Entry name — e.g. Brand Voice Rules",
+      "when_to_use": "Specific trigger — e.g. Writing any client-facing copy or taglines",
+      "content": "The actual knowledge — 2-4 concrete rules, facts, or principles this agent references",
+      "include": true
+    }
+  ],
+  "example_phrases": [
+    { "text": "A phrase that shows exactly how this agent talks — make it memorable and specific to the voice" },
+    { "text": "A second distinct phrase — different register or use case" },
+    { "text": "A third phrase — could be a question this agent asks or a signature way of framing" }
+  ]
+}
+
+Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make them rich, specific, and immediately usable. This should read like the agent was designed by an expert, not generated by a template.`;
 
   const userMsg = [
     name      && `Role name: ${name}`,
@@ -4227,7 +4273,7 @@ Schema (all fields are strings unless noted):
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-        body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }], max_tokens: 900 }),
+        body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }], max_tokens: 2000 }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error.message);
@@ -4237,7 +4283,7 @@ Schema (all fields are strings unless noted):
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', system: systemPrompt, messages: [{ role: 'user', content: userMsg }], max_tokens: 900 }),
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', system: systemPrompt, messages: [{ role: 'user', content: userMsg }], max_tokens: 2000 }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error.message || data.error);
@@ -4247,7 +4293,7 @@ Schema (all fields are strings unless noted):
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt + '\n\n' + userMsg }] }] }),
+        body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt + '\n\n' + userMsg }] }], generationConfig: { maxOutputTokens: 2000 } }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error.message);
@@ -4284,11 +4330,13 @@ Schema (all fields are strings unless noted):
     setField('#roleInitInput',         d.opening_message);
     setField('#rolePersonaInput',      d.persona);
 
+    // Activate chip groups using .on class (consistent with rest of system)
     const activateChip = (groupId, val) => {
       if (!val) return;
-      $$(`${groupId} .role-chip`).forEach(c => c.classList.toggle('active', c.dataset.val === val));
-      const hidden = $(`${groupId}`).closest('.form-group')?.querySelector('input[type=hidden]');
-      if (hidden) hidden.value = val;
+      const v = val.toLowerCase();
+      $$(groupId + ' .role-chip').forEach(c => {
+        c.classList.toggle('on', c.dataset.val === v);
+      });
     };
     activateChip('#roleStyleChips',      d.response_style);
     activateChip('#roleDepthChips',      d.depth);
@@ -4296,10 +4344,17 @@ Schema (all fields are strings unless noted):
     activateChip('#roleProcTypeChips',   d.interaction_mode);
 
     if (Array.isArray(d.flags) && d.flags.length) {
-      $$('#roleFlagChips .role-chip').forEach(c => c.classList.toggle('active', d.flags.includes(c.dataset.val)));
-      const flagHidden = $('#roleFlagsInput');
-      if (flagHidden) flagHidden.value = d.flags.join(',');
+      $$('#roleFlagChips .role-chip').forEach(c => c.classList.toggle('on', d.flags.includes(c.dataset.val)));
     }
+
+    // Render skills, KB, example phrases
+    if (Array.isArray(d.skills) && d.skills.length) renderSkillList(d.skills);
+    if (Array.isArray(d.knowledge_base) && d.knowledge_base.length) renderKbList(d.knowledge_base);
+    if (Array.isArray(d.example_phrases) && d.example_phrases.length) renderExampleList(d.example_phrases);
+
+    // Set persistent_context field
+    const pcEl = $('#roleMemoryInput');
+    if (pcEl && d.persistent_context) pcEl.value = d.persistent_context;
 
     updateRolePromptPreview();
     toast('Agent generated — review and save', 'success');
@@ -4338,11 +4393,19 @@ function initRolesWorkspace() {
     if (section === 'preview') updateRolePromptPreview();
   });
 
-  // ── Behaviour chips ─────────────────────────────────────────────────────
+  // Behaviour chips - single-select groups enforce exclusivity
+  const SINGLE_SELECT_GROUPS = ['roleStyleChips', 'roleDepthChips', 'roleFormatModeChips', 'roleProcTypeChips'];
   document.addEventListener('click', e => {
     const chip = e.target.closest('.role-chip');
     if (!chip || !$('#rolesWorkspace')?.classList.contains('open')) return;
-    chip.classList.toggle('on');
+    const group = chip.closest('.role-chip-group');
+    if (group && SINGLE_SELECT_GROUPS.includes(group.id)) {
+      const wasOn = chip.classList.contains('on');
+      group.querySelectorAll('.role-chip').forEach(c => c.classList.remove('on'));
+      if (!wasOn) chip.classList.add('on');
+    } else {
+      chip.classList.toggle('on');
+    }
     updateRolePromptPreview();
   });
 
@@ -6957,7 +7020,7 @@ async function callAI(systemPrompt, userMsg, maxTokens) {
     const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt + '\n\n' + userMsg }] }] }),
+      body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt + '\n\n' + userMsg }] }], generationConfig: { maxOutputTokens: 2000 } }),
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
