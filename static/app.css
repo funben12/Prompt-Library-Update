@@ -5732,6 +5732,92 @@
 .pv-expand-btn .material-symbols-outlined { font-size: 14px; }
 
 /* ============================================================
+   QR CODE MODAL
+   ============================================================ */
+#qrCodeModal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: var(--bg);
+  align-items: center;
+  justify-content: center;
+}
+#qrCodeModal:not([hidden]) {
+  display: flex;
+}
+.qr-modal-content {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-lg);
+  max-width: 480px;
+  width: 90%;
+  max-height: 90vh;
+  overflow: auto;
+}
+.qr-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-5);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.qr-modal-header h2 {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--ink);
+  font-family: var(--ff-display);
+}
+.qr-modal-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  gap: var(--sp-4);
+  flex: 1;
+  min-height: 400px;
+}
+.qr-code-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  padding: var(--sp-4);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  min-width: 250px;
+  min-height: 250px;
+}
+.qr-code-container canvas {
+  max-width: 100%;
+  height: auto;
+}
+.qr-instruction {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  text-align: center;
+  margin: 0;
+}
+.qr-modal-footer {
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+  flex-shrink: 0;
+  justify-content: center;
+}
+.qr-modal-footer .btn {
+  flex: 1;
+  max-width: 200px;
+}
+
+/* ============================================================
    CONTEXT BANK — card grid redesign
    ============================================================ */
 

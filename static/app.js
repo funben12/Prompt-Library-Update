@@ -1728,6 +1728,118 @@ async function saveNotesAndRating() {
     toast('Could not save notes', 'error');
   }
 }
+
+async function generateQRCode() {
+  if (!state.detailId) return;
+  
+  try {
+    const p = state.prompts.find(x => x.id === state.detailId);
+    if (!p) return;
+    
+    const promptData = {
+      title: p.title,
+      description: p.description || '',
+      content: p.content || '',
+      categories: p.categories || [],
+      tags: p.tags || [],
+      variable_meta: p.variable_meta || {},
+    };
+    
+    const dataString = JSON.stringify(promptData);
+    
+    const modal = $('#qrCodeModal');
+    if (!modal) return;
+    
+    modal.removeAttribute('hidden');
+    const container = $('#qrCodeContainer');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (typeof QRCode === 'undefined') {
+      toast('QR code library loading', 'info');
+      setTimeout(() => generateQRCode(), 1000);
+      return;
+    }
+    
+    try {
+      new QRCode(container, {
+        text: dataString,
+        width: 250,
+        height: 250,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H,
+      });
+      toast('QR code generated', 'success');
+    } catch (err) {
+      toast('Could not generate QR code', 'error');
+    }
+  } catch (err) {
+    toast('Could not generate QR code', 'error');
+  }
+}
+
+function closeQRCodeModal() {
+  const modal = $('#qrCodeModal');
+  if (modal) {
+    modal.setAttribute('hidden', '');
+    const container = $('#qrCodeContainer');
+    if (container) container.innerHTML = '';
+  }
+}
+
+window.PL_generateQRCode = generateQRCode;
+
+function saveQRCode() {
+  try {
+    const canvas = $('#qrCodeContainer canvas');
+    if (!canvas) {
+      toast('No QR code to save', 'error');
+      return;
+    }
+    const p = state.prompts.find(x => x.id === state.detailId);
+    const filename = p ? `qr-${p.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png` : 'qr-code.png';
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = filename;
+    link.click();
+    toast('QR code saved', 'success');
+  } catch (err) {
+    toast('Could not save QR code', 'error');
+  }
+}
+
+function copyQRLink() {
+  try {
+    const p = state.prompts.find(x => x.id === state.detailId);
+    if (!p) return;
+    
+    const promptData = {
+      title: p.title,
+      description: p.description || '',
+      content: p.content || '',
+      categories: p.categories || [],
+      tags: p.tags || [],
+      variable_meta: p.variable_meta || {},
+    };
+    
+    const dataString = JSON.stringify(promptData);
+    const text = `Prompt Library QR: ${dataString}`;
+    copyToClipboard(text).then(ok => {
+      if (ok) toast('QR data copied', 'success');
+      else toast('Could not copy', 'error');
+    });
+  } catch (err) {
+    toast('Could not copy', 'error');
+  }
+}
+
+window.PL_saveQRCode = saveQRCode;
+window.PL_copyQRLink = copyQRLink;
+
+
+
 /* ============================================================================
    PROMPT EDITOR MODAL
    ============================================================================ */
@@ -3142,6 +3254,11 @@ function init() {
   $('#panelDuplicateBtn')?.addEventListener('click', () => state.detailId && duplicatePrompt(state.detailId));
   $('#copyToClipboardBtn')?.addEventListener('click', handleCopyWithVariables);
   $('#varCopyFilledBtn')?.addEventListener('click', handleCopyWithVariables);
+  $('#qrCodeBtn')?.addEventListener('click', generateQRCode);
+  $('#qrCloseBtn')?.addEventListener('click', closeQRCodeModal);
+  $('#qrCodeModal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeQRCodeModal();
+  });
   $('#footerExportBtn')?.addEventListener('click', handleSinglePromptExport);
   $('#footerMdBtn')?.addEventListener('click', () => {
     if (!state.isPremium) { showPremiumModal(); return; }
