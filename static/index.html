@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" media="print" onload="this.media='all'">
 
-<link rel="stylesheet" href="/static/app.css?v=e320a300">
+<link rel="stylesheet" href="/static/app.css?v=aefeda38">
 </head>
 <body>
 
@@ -276,6 +276,9 @@
           </button>
           <button class="icon-btn" id="panelEditBtn" title="Edit">
             <span class="material-symbols-outlined">edit</span>
+          </button>
+          <button class="icon-btn" id="panelQRBtn" title="Share via QR code">
+            <span class="material-symbols-outlined">qr_code_2</span>
           </button>
           <button class="icon-btn danger" id="panelDeleteBtn" title="Delete">
             <span class="material-symbols-outlined">delete</span>
@@ -2436,7 +2439,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=af7e73ba"></script>
+<script defer src="/static/app.js?v=03bacacf"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>
@@ -2446,5 +2449,32 @@
   if (typeof window.createFolderInline !== 'function') window.createFolderInline = function () {};
   if (typeof window.clearAllFilters    !== 'function') window.clearAllFilters    = function () {};
 </script>
+
+<!-- QR Code Modal -->
+<div id="qrModal" class="qr-modal-backdrop" hidden aria-modal="true" role="dialog">
+  <div class="qr-modal-card">
+    <div class="qr-modal-header">
+      <span class="qr-modal-title">Share via QR Code</span>
+      <button class="icon-btn" id="qrModalClose" title="Close" aria-label="Close">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div id="qrModalBody" class="qr-modal-body">
+      <div class="qr-spinner" id="qrSpinner">
+        <span class="material-symbols-outlined qr-spin-icon">progress_activity</span>
+      </div>
+      <div id="qrSvgWrap" class="qr-svg-wrap" hidden></div>
+      <p id="qrPromptName" class="qr-prompt-name"></p>
+      <p id="qrTooLong" class="qr-error" hidden>This prompt is too long for a QR code. Try shortening it or exporting as a file instead.</p>
+    </div>
+    <div class="qr-modal-footer">
+      <button class="btn btn-secondary" id="qrSaveBtn" hidden>
+        <span class="material-symbols-outlined">download</span>
+        Save as PNG
+      </button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
