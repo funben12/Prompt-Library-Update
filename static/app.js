@@ -5978,8 +5978,12 @@ function initModalSidePanels() {
 
 
   var _canvasBlocks = [];
+  var _canvasLayout = [];  // array of { idx, x, y, zIndex }
+  var _canvasState  = { zoom: 1, panX: 0, panY: 0 };  // zoom 0.25-2.0, pan in pixels
   var _activeCat    = 'all';
   var _dragSrcIdx   = null;
+  var _dragStartX   = null;  // for tracking spacebar drag pan
+  var _dragStartY   = null;
 
   window._pcwBLOCKS      = BLOCKS;
   window._pcwFRAMEWORKS  = FRAMEWORKS;
