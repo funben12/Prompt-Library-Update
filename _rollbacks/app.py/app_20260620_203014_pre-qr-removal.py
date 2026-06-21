@@ -11,6 +11,12 @@ import zipfile
 import sys
 import os
 import threading
+try:
+    import qrcode
+    import qrcode.image.svg
+    _QR_AVAILABLE = True
+except ImportError:
+    _QR_AVAILABLE = False
 
 def _hash_key(k):
     return hashlib.sha256(k.strip().upper().encode()).hexdigest()
@@ -279,15 +285,6 @@ def init_db():
         is_favorite  INTEGER DEFAULT 0,
         FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
     )''')
-
-    # Indexes for the prompts table — list view sorts by updated_at and filters
-    # on these columns on every load. Without these the query planner falls
-    # back to a full table scan plus a temp B-tree sort each time.
-    c.execute('CREATE INDEX IF NOT EXISTS idx_prompts_updated_at   ON prompts(updated_at)')
-    c.execute('CREATE INDEX IF NOT EXISTS idx_prompts_folder_id   ON prompts(folder_id)')
-    c.execute('CREATE INDEX IF NOT EXISTS idx_prompts_is_favorite ON prompts(is_favorite)')
-    c.execute('CREATE INDEX IF NOT EXISTS idx_prompts_colour_label ON prompts(colour_label)')
-    c.execute('CREATE INDEX IF NOT EXISTS idx_prompts_rating      ON prompts(rating)')
 
 
     c.execute('''CREATE TABLE IF NOT EXISTS prompt_versions (
@@ -615,12 +612,7 @@ def detect_variables(content):
 
 def serialize_prompt(row):
     p = dict(row)
-    # 'variables' is deliberately NOT computed here. It's a pure function of
-    # 'content', and detect_variables() was running 3 regex passes per row on
-    # every call to this serializer, including the full-list /api/prompts load
-    # that fires on every app launch. The frontend already has an identical
-    # detectVariables() (static/app.js) used as a fallback wherever this field
-    # is read, so the same content always re-derives the same result.
+    p['variables']     = detect_variables(p.get('content', ''))
     p['description']   = p.get('description') or ''
     # Fall back to legacy 'category' column if 'categories' is empty
     p['categories']    = _normalise_list(p.get('categories') or p.get('category') or '')
@@ -2450,4 +2442,51 @@ def pg_seed_from_prompt(sid, pid):
     )
     db.commit()
     return jsonify({'ok': True})
+
+
+@app.route('/api/prompts/<int:pid>/qr')
+def prompt_qr(pid):
+    if not _QR_AVAILABLE:
+        return jsonify({'error': 'qrcode package not installed'}), 503
+    db = get_db()
+    row = db.execute("SELECT title, content, variable_meta FROM prompts WHERE id=?", (pid,)).fetchone()
+    if not row:
+        return jsonify({'error': 'Not found'}), 404
+
+    title   = row['title'] or ''
+    content = row['content'] or ''
+
+    # Extract variable names from content
+    found = []
+    seen  = set()
+    for pat in [r'\[\[(\w+)\]\]', r'\{\{(\w+)\}\}', r'\(\((\w+)\)\)']:
+        for m in re.finditer(pat, content):
+            name = m.group(1)
+            if name not in seen:
+                seen.add(name)
+                found.append(name)
+
+    lines = []
+    lines.append(f'PROMPT: {title}')
+    if found:
+        lines.append(f'VARIABLES: {", ".join(found)}')
+    lines.append('')
+    lines.append(content)
+    payload = '\n'.join(lines)
+
+    # QR version auto-selected; use error correction L for max capacity (~2953 bytes)
+    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=10, border=4)
+    qr.add_data(payload)
+    try:
+        qr.make(fit=True)
+    except Exception:
+        return jsonify({'error': 'Prompt is too long for a QR code (max ~2953 bytes)'}), 400
+
+    factory = qrcode.image.svg.SvgPathImage
+    img = qr.make_image(image_factory=factory)
+    buf = io.BytesIO()
+    img.save(buf)
+    svg_bytes = buf.getvalue()
+
+    return Response(svg_bytes, mimetype='image/svg+xml')
 

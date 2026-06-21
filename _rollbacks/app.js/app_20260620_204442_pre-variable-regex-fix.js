@@ -749,7 +749,7 @@ function renderPromptCard(p) {
   const colour   = p.colour_label ? `c-${p.colour_label}` : '';
   const isFav    = !!p.is_favorite;
   const rating   = p.rating || 0;
-  const varCount = (p.variables || detectVariables(p.content)).length;
+  const varCount = (p.variables || []).length;
   const updated  = relativeTime(p.updated_at || p.created_at);
   const active   = p.id === state.detailId ? 'active' : '';
 

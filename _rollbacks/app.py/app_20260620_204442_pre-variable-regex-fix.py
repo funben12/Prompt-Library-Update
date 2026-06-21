@@ -615,12 +615,7 @@ def detect_variables(content):
 
 def serialize_prompt(row):
     p = dict(row)
-    # 'variables' is deliberately NOT computed here. It's a pure function of
-    # 'content', and detect_variables() was running 3 regex passes per row on
-    # every call to this serializer, including the full-list /api/prompts load
-    # that fires on every app launch. The frontend already has an identical
-    # detectVariables() (static/app.js) used as a fallback wherever this field
-    # is read, so the same content always re-derives the same result.
+    p['variables']     = detect_variables(p.get('content', ''))
     p['description']   = p.get('description') or ''
     # Fall back to legacy 'category' column if 'categories' is empty
     p['categories']    = _normalise_list(p.get('categories') or p.get('category') or '')

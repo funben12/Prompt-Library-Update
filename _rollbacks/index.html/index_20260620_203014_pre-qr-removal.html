@@ -277,6 +277,9 @@
           <button class="icon-btn" id="panelEditBtn" title="Edit">
             <span class="material-symbols-outlined">edit</span>
           </button>
+          <button class="icon-btn" id="panelQRBtn" title="Share via QR code">
+            <span class="material-symbols-outlined">qr_code_2</span>
+          </button>
           <button class="icon-btn danger" id="panelDeleteBtn" title="Delete">
             <span class="material-symbols-outlined">delete</span>
           </button>
@@ -2446,6 +2449,32 @@
   if (typeof window.createFolderInline !== 'function') window.createFolderInline = function () {};
   if (typeof window.clearAllFilters    !== 'function') window.clearAllFilters    = function () {};
 </script>
+
+<!-- QR Code Modal -->
+<div id="qrModal" class="qr-modal-backdrop" hidden aria-modal="true" role="dialog">
+  <div class="qr-modal-card">
+    <div class="qr-modal-header">
+      <span class="qr-modal-title">Share via QR Code</span>
+      <button class="icon-btn" id="qrModalClose" title="Close" aria-label="Close">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div id="qrModalBody" class="qr-modal-body">
+      <div class="qr-spinner" id="qrSpinner">
+        <span class="material-symbols-outlined qr-spin-icon">progress_activity</span>
+      </div>
+      <div id="qrSvgWrap" class="qr-svg-wrap" hidden></div>
+      <p id="qrPromptName" class="qr-prompt-name"></p>
+      <p id="qrTooLong" class="qr-error" hidden>This prompt is too long for a QR code. Try shortening it or exporting as a file instead.</p>
+    </div>
+    <div class="qr-modal-footer">
+      <button class="btn btn-secondary" id="qrSaveBtn" hidden>
+        <span class="material-symbols-outlined">download</span>
+        Save as PNG
+      </button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

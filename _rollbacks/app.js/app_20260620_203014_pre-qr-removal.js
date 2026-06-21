@@ -749,7 +749,7 @@ function renderPromptCard(p) {
   const colour   = p.colour_label ? `c-${p.colour_label}` : '';
   const isFav    = !!p.is_favorite;
   const rating   = p.rating || 0;
-  const varCount = (p.variables || detectVariables(p.content)).length;
+  const varCount = (p.variables || []).length;
   const updated  = relativeTime(p.updated_at || p.created_at);
   const active   = p.id === state.detailId ? 'active' : '';
 
@@ -3140,6 +3140,7 @@ function init() {
   $('#panelEditBtn')?.addEventListener('click', () => state.detailId && editPrompt(state.detailId));
   $('#panelDeleteBtn')?.addEventListener('click', () => state.detailId && deletePromptById(state.detailId));
   $('#panelDuplicateBtn')?.addEventListener('click', () => state.detailId && duplicatePrompt(state.detailId));
+  $('#panelQRBtn')?.addEventListener('click', () => state.detailId && PL_showQRCode(state.detailId));
   $('#copyToClipboardBtn')?.addEventListener('click', handleCopyWithVariables);
   $('#varCopyFilledBtn')?.addEventListener('click', handleCopyWithVariables);
   $('#footerExportBtn')?.addEventListener('click', handleSinglePromptExport);
@@ -6756,6 +6757,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initModalSidePanels();      // prompt modal side panels
   initOnboarding();           // spotlight tour auto-launch on first run
   initPromptViewer();
+  _initQRModal();         // prompt viewer close button and escape key
   // Fire licence check and data load in parallel -- prompts render immediately,
   // premium UI applies once both settle (no unlocked flash risk).
   await Promise.all([loadStoredLicence(), loadAll()]);
@@ -9086,6 +9088,100 @@ function _tokenRow(model, est) {
     });
   };
 
+})();
+
+
+/* ============================================================================
+   QR CODE MODAL — share a prompt as a scannable QR code
+   Fetches SVG from /api/prompts/<id>/qr, displays in modal overlay.
+   ============================================================================ */
+
+(function() {
+  function _openQRModal(id, title) {
+    const modal   = $('#qrModal');
+    const spinner = $('#qrSpinner');
+    const svgWrap = $('#qrSvgWrap');
+    const nameEl  = $('#qrPromptName');
+    const errEl   = $('#qrTooLong');
+    const saveBtn = $('#qrSaveBtn');
+
+    // Reset state
+    spinner.style.display = '';
+    svgWrap.hidden        = true;
+    svgWrap.innerHTML     = '';
+    errEl.hidden          = true;
+    saveBtn.hidden        = true;
+    nameEl.textContent    = title || '';
+    modal.hidden          = false;
+    document.body.style.overflow = 'hidden';
+
+    fetch(`/api/prompts/${id}/qr`)
+      .then(r => {
+        if (!r.ok) return r.json().then(j => Promise.reject(j.error || 'Error'));
+        return r.text();
+      })
+      .then(svg => {
+        spinner.style.display = 'none';
+        svgWrap.innerHTML     = svg;
+        svgWrap.hidden        = false;
+        saveBtn.hidden        = false;
+        saveBtn._svgSource    = svg;
+        saveBtn._title        = title || 'prompt';
+      })
+      .catch(msg => {
+        spinner.style.display = 'none';
+        errEl.hidden          = false;
+        errEl.textContent     = typeof msg === 'string' ? msg : 'Could not generate QR code.';
+      });
+  }
+
+  function _closeQRModal() {
+    $('#qrModal').hidden       = true;
+    document.body.style.overflow = '';
+  }
+
+  function _saveQRAsPng(svgSource, title) {
+    const blob = new Blob([svgSource], { type: 'image/svg+xml;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const img  = new Image();
+    img.onload = function() {
+      const canvas  = document.createElement('canvas');
+      canvas.width  = img.naturalWidth  || 500;
+      canvas.height = img.naturalHeight || 500;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(function(pngBlob) {
+        const a    = document.createElement('a');
+        a.href     = URL.createObjectURL(pngBlob);
+        a.download = (title || 'prompt').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') + '-qr.png';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      }, 'image/png');
+    };
+    img.src = url;
+  }
+
+  // Wire up close + save buttons (once, from BOOTSTRAP call below)
+  window._initQRModal = function() {
+    $('#qrModalClose')?.addEventListener('click', _closeQRModal);
+    $('#qrModal')?.addEventListener('click', function(e) {
+      if (e.target === this) _closeQRModal();
+    });
+    $('#qrSaveBtn')?.addEventListener('click', function() {
+      if (this._svgSource) _saveQRAsPng(this._svgSource, this._title);
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && !$('#qrModal').hidden) _closeQRModal();
+    });
+  };
+
+  window.PL_showQRCode = function(id) {
+    const p = state.prompts.find(x => x.id === id) || { title: '' };
+    _openQRModal(id, p.title);
+  };
 })();
 
 
