@@ -1017,27 +1017,6 @@ def toggle_favorite(pid):
     conn.close()
     return jsonify({'is_favorite': nv})
 
-@app.route('/api/prompts/<int:pid>/template', methods=['POST'])
-def toggle_template_tag(pid):
-    """Toggle the 'template' tag on a prompt -- powers the Gallery's
-    'My Templates' section. No new column: reuses the existing tags field
-    so this needs no schema migration."""
-    conn = get_db()
-    row  = conn.execute('SELECT tags FROM prompts WHERE id=?', (pid,)).fetchone()
-    if not row:
-        conn.close()
-        return jsonify({'error': 'Not found'}), 404
-    tags = _normalise_list(row['tags'])
-    is_template = any(t.lower() == 'template' for t in tags)
-    if is_template:
-        tags = [t for t in tags if t.lower() != 'template']
-    else:
-        tags = tags + ['template']
-    conn.execute('UPDATE prompts SET tags=? WHERE id=?', (_list_for_db(tags), pid))
-    conn.commit()
-    conn.close()
-    return jsonify({'is_template': not is_template})
-
 @app.route('/api/prompts/<int:pid>/use', methods=['POST'])
 def use_prompt(pid):
     conn = get_db()
