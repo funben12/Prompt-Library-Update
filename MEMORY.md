@@ -74,9 +74,9 @@
 ### Free (all users)
 | Feature | Notes |
 | :--- | :--- |
-| Prompt library | Up to 25 prompts. Create, edit, delete, organise |
-| Folders | Up to 3 folders |
-| Tags & categories | Up to 5 tags & 3 categories per prompt |
+| Prompt library | Up to 35 prompts. Create, edit, delete, organise |
+| Folders | Up to 8 folders |
+| Tags & categories | Up to 5 tags & 8 categories per prompt |
 | Variable system | `[[name]]` `{{name}}` `((name))` — text, number, date, dropdown |
 | Variable live preview | Fill variables with live substitution preview |
 | Chain prompting (detail panel) | Chain tab in right detail panel + prompt editor modal — NOT the nav workspace |
