@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" media="print" onload="this.media='all'">
 
-<link rel="stylesheet" href="/static/app.css?v=b72567f7">
+<link rel="stylesheet" href="/static/app.css?v=aefeda38">
 </head>
 <body>
 
@@ -91,14 +91,6 @@
           <button class="nav-item nav-sub-item premium-locked" data-view="optimizer" data-premium="true" id="optimizerNavBtn" title="Prompt Optimizer - Pro">
             <span class="material-symbols-outlined nav-icon">rocket_launch</span>
             <span class="nav-label">Prompt Optimizer</span>
-          </button>
-          <button class="nav-item nav-sub-item premium-locked" data-view="tonecal" data-premium="true" id="tonecalNavBtn" title="Tone Calibrator - Pro">
-            <span class="material-symbols-outlined nav-icon">tune</span>
-            <span class="nav-label">Tone Calibrator</span>
-          </button>
-          <button class="nav-item nav-sub-item premium-locked" data-view="snippets" data-premium="true" id="snippetsNavBtn" title="Snippets - Pro">
-            <span class="material-symbols-outlined nav-icon">bolt</span>
-            <span class="nav-label">Snippets</span>
           </button>
         </div>
       </div>
@@ -1005,10 +997,6 @@
           <span class="material-symbols-outlined">extension</span>
           Components
         </button>
-        <button type="button" class="panel-toggle-btn" id="snipPanelToggleBtn" title="Snippets — insert a saved snippet at the cursor">
-          <span class="material-symbols-outlined">bolt</span>
-          Snippets
-        </button>
       </div>
       <button class="icon-btn" id="closePromptModal" aria-label="Close">
         <span class="material-symbols-outlined">close</span>
@@ -1357,62 +1345,6 @@
       </div>
       <div class="cp-panel-body" id="compPanelBody">
         <!-- injected by _compPanelRender() -->
-      </div>
-    </div>
-  </div>
-
-  <!-- Snippets side panel -->
-  <div class="modal-side-panel" id="promptSnippetsPanel">
-    <div class="modal-side-panel-inner">
-      <div class="sp-header">
-        <span class="sp-title">
-          <span class="material-symbols-outlined">bolt</span>
-          Snippets
-        </span>
-        <button type="button" class="icon-btn" id="closeSnipPanel" aria-label="Close Snippets panel">
-          <span class="material-symbols-outlined">close</span>
-        </button>
-      </div>
-      <div class="ctx-panel-search">
-        <input type="search" id="snipPanelSearch" class="form-input" placeholder="Search snippets…" />
-      </div>
-      <div class="ctx-panel-cats" id="snipPanelCats">
-        <button class="chip active" data-cpf="all">All</button>
-        <button class="chip" data-cpf="Signatures">Signatures</button>
-        <button class="chip" data-cpf="Disclaimers">Disclaimers</button>
-        <button class="chip" data-cpf="Boilerplate">Boilerplate</button>
-        <button class="chip" data-cpf="Greetings">Greetings</button>
-        <button class="chip" data-cpf="Closings">Closings</button>
-        <button class="chip" data-cpf="Other">Other</button>
-      </div>
-      <div class="ctx-panel-list" id="snipPanelList">
-        <div class="ctx-panel-empty">
-          <span class="material-symbols-outlined" style="font-size:32px">bolt</span>
-          <span>Loading snippets…</span>
-        </div>
-      </div>
-      <div class="ctx-panel-add-row">
-        <details id="snipPanelAddDetails">
-          <summary class="btn btn-ghost btn-sm" style="list-style:none; cursor:pointer; display:inline-flex; gap:4px; align-items:center;">
-            <span class="material-symbols-outlined" style="font-size:14px">add</span>
-            Quick-add snippet
-          </summary>
-          <div style="margin-top:var(--sp-3); display:flex; flex-direction:column; gap:var(--sp-2);">
-            <input type="text" id="snipPanelNewTitle" class="form-input" placeholder="Snippet title" />
-            <select id="snipPanelNewCat" class="form-input">
-              <option>Signatures</option>
-              <option>Disclaimers</option>
-              <option>Boilerplate</option>
-              <option>Greetings</option>
-              <option>Closings</option>
-              <option>Other</option>
-            </select>
-            <textarea id="snipPanelNewContent" class="form-textarea" rows="4" placeholder="Snippet content…" style="resize:vertical"></textarea>
-            <button type="button" class="btn btn-accent btn-sm" id="snipPanelSaveBtn" style="width:100%;">
-              <span class="material-symbols-outlined" style="font-size:14px">save</span> Save snippet
-            </button>
-          </div>
-        </details>
       </div>
     </div>
   </div>
@@ -2197,65 +2129,6 @@
 </div>
 
 <!-- ============================================================
-     WORKSPACE: Tone Calibrator
-     Rewrites prompt text in a chosen tone via shared AI executor.
-     data-view="tonecal"
-     ============================================================ -->
-<div id="tonecalWorkspace" role="dialog" aria-modal="true" aria-label="Tone Calibrator">
-  <div class="ws-header">
-    <div class="ws-header-left">
-      <span class="material-symbols-outlined ws-header-icon">tune</span>
-      <div>
-        <h2 class="ws-title">Tone Calibrator</h2>
-        <p class="ws-subtitle">Pick a tone, rewrite your prompt, compare before and after.</p>
-      </div>
-    </div>
-    <div class="ws-header-actions">
-      <button class="btn btn-accent" id="tcSaveBtn"><span class="material-symbols-outlined">save</span> Save</button>
-      <button class="icon-btn" id="closeTonecalBtn" aria-label="Close Tone Calibrator"><span class="material-symbols-outlined">close</span></button>
-    </div>
-  </div>
-  <div class="ws-body tc-body">
-
-    <!-- LEFT: Input + tone presets + custom instructions -->
-    <div class="tc-left">
-      <div class="opt-section-label">Prompt Input</div>
-      <textarea id="tcPromptInput" class="forge-input" rows="6" placeholder="Paste your prompt here..."></textarea>
-
-      <div class="opt-section-label" style="margin-top:var(--sp-3);">Tone</div>
-      <div class="tc-tones">
-        <button class="tc-tone-btn active" data-tone="formal">Formal</button>
-        <button class="tc-tone-btn" data-tone="casual">Casual</button>
-        <button class="tc-tone-btn" data-tone="persuasive">Persuasive</button>
-        <button class="tc-tone-btn" data-tone="concise">Concise</button>
-        <button class="tc-tone-btn" data-tone="friendly">Friendly</button>
-        <button class="tc-tone-btn" data-tone="technical">Technical</button>
-      </div>
-
-      <div class="opt-section-label" style="margin-top:var(--sp-3);">Custom Instructions</div>
-      <textarea id="tcCustomInstructions" class="forge-input" rows="2" placeholder="Optional — e.g. keep under 100 words, address the customer by name..."></textarea>
-
-      <div class="opt-actions" style="margin-top:var(--sp-3);">
-        <button class="btn btn-accent" id="tcRewriteBtn"><span class="material-symbols-outlined">tune</span> Rewrite tone</button>
-      </div>
-    </div>
-
-    <!-- RIGHT: Before / after -->
-    <div class="tc-right">
-      <div class="opt-section-label">Before</div>
-      <div class="opt-compare-block" id="tcOutputOriginal"><span class="hint">Original prompt will appear here...</span></div>
-
-      <div class="opt-section-label" style="margin-top:var(--sp-3);">After</div>
-      <div class="opt-output" id="tcOutputRewritten"><span class="hint">Rewritten output will appear here...</span></div>
-      <div id="tcOutputActions" style="display:none;" class="opt-actions">
-        <button class="btn btn-ghost btn-sm" id="tcCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy</button>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<!-- ============================================================
      WORKSPACE: Context Bank
      Reusable context blocks — personas, company info, style guides.
      data-view="contextBank"
@@ -2363,117 +2236,6 @@
             <span class="material-symbols-outlined">content_copy</span> Copy
           </button>
           <button class="btn btn-ghost ctx-delete-btn" id="ctxDeleteBtn" style="margin-left:auto">
-            <span class="material-symbols-outlined">delete</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<!-- ============================================================
-     WORKSPACE: Snippets
-     Short reusable text snippets — signatures, disclaimers, boilerplate.
-     Click-to-insert at cursor. data-view="snippets"
-     ============================================================ -->
-<div id="snippetsWorkspace" role="dialog" aria-modal="true" aria-label="Snippets">
-  <div class="ws-header">
-    <div class="ws-header-left">
-      <span class="material-symbols-outlined ws-header-icon">bolt</span>
-      <div>
-        <h2 class="ws-title">Snippets</h2>
-        <p class="ws-subtitle">Short reusable text — signatures, disclaimers, boilerplate. Insert at cursor.</p>
-      </div>
-    </div>
-    <div class="ws-header-actions">
-      <button class="btn btn-accent" id="snipNewBtn">
-        <span class="material-symbols-outlined">add</span> New snippet
-      </button>
-      <button class="icon-btn" id="closeSnippetsBtn" aria-label="Close Snippets">
-        <span class="material-symbols-outlined">close</span>
-      </button>
-    </div>
-  </div>
-
-  <div class="ws-body ctx-body">
-
-    <!-- Left: list panel -->
-    <div class="ctx-list-panel">
-      <div class="ctx-search-row">
-        <span class="material-symbols-outlined ctx-search-icon">search</span>
-        <input type="search" id="snipSearch" class="ctx-search-input" placeholder="Search snippets…" autocomplete="off" />
-      </div>
-
-      <div class="ctx-cat-row" id="snipCategoryRow">
-        <button class="ctx-pill active" data-snip-filter="all">All</button>
-        <button class="ctx-pill" data-snip-filter="Signatures">Signatures</button>
-        <button class="ctx-pill" data-snip-filter="Disclaimers">Disclaimers</button>
-        <button class="ctx-pill" data-snip-filter="Boilerplate">Boilerplate</button>
-        <button class="ctx-pill" data-snip-filter="Greetings">Greetings</button>
-        <button class="ctx-pill" data-snip-filter="Closings">Closings</button>
-        <button class="ctx-pill" data-snip-filter="Other">Other</button>
-      </div>
-
-      <div class="ctx-meta-row">
-        <span class="ctx-meta-stat"><span id="snipStatBlocks">0</span> snippets</span>
-        <span class="ctx-meta-sep">·</span>
-        <span class="ctx-meta-stat"><span id="snipStatCats">0</span> categories</span>
-      </div>
-
-      <div class="ctx-list" id="snipList">
-        <div class="ctx-empty" id="snipEmptyHint">
-          <span class="material-symbols-outlined">inventory_2</span>
-          <p>No snippets yet.<br>Click <strong>New snippet</strong> to start.</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Right: editor panel -->
-    <div class="ctx-editor-panel" id="snipEditorPanel">
-      <div class="ctx-editor-empty" id="snipEditorEmpty">
-        <span class="material-symbols-outlined">touch_app</span>
-        <p>Select a snippet to edit<br>or click <strong>New snippet</strong></p>
-      </div>
-
-      <div class="ctx-editor-form" id="snipEditorForm" hidden>
-        <div class="ctx-editor-top">
-          <span class="ctx-editor-eyebrow" id="snipEditorHeading">New snippet</span>
-        </div>
-        <div class="ctx-editor-scroll">
-          <div class="ctx-field">
-            <label class="ctx-label">Title <span class="ctx-req">*</span></label>
-            <input type="text" id="snipTitle" class="ctx-input" placeholder="e.g. Email Sign-off" />
-          </div>
-          <div class="ctx-field">
-            <label class="ctx-label">Category</label>
-            <select id="snipCategory" class="ctx-input ctx-select">
-              <option>Signatures</option>
-              <option>Disclaimers</option>
-              <option>Boilerplate</option>
-              <option>Greetings</option>
-              <option>Closings</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div class="ctx-field ctx-field-grow">
-            <label class="ctx-label">
-              Content <span class="ctx-req">*</span>
-              <span class="ctx-label-hint">Inserted exactly as written at the cursor</span>
-            </label>
-            <textarea id="snipContent" class="ctx-textarea" rows="14"
-              placeholder="Write your reusable snippet here…&#10;&#10;e.g.&#10;Best regards,&#10;[Your name]&#10;[Your title]"></textarea>
-          </div>
-          <div class="ctx-save-confirm" id="snipSaveConfirm">&#10003; Saved</div>
-        </div>
-        <div class="ctx-editor-footer">
-          <button class="btn btn-accent" id="snipSaveBtn">
-            <span class="material-symbols-outlined">save</span> Save
-          </button>
-          <button class="btn btn-ghost" id="snipCopyBtn">
-            <span class="material-symbols-outlined">content_copy</span> Copy
-          </button>
-          <button class="btn btn-ghost ctx-delete-btn" id="snipDeleteBtn" style="margin-left:auto">
             <span class="material-symbols-outlined">delete</span>
           </button>
         </div>
@@ -2674,7 +2436,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=d3014aaf"></script>
+<script defer src="/static/app.js?v=03bacacf"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

@@ -3005,7 +3005,7 @@ function _escapeToLibrary() {
   // Close any open workspaces
   ['#forgeWorkspace','#labWorkspace','#rolesWorkspace','#playgroundWorkspace',
    '#chainWorkspace','#metaWorkspace','#contextBankWorkspace','#componentsWorkspace',
-   '#optimizerWorkspace','#tonecalWorkspace','#snippetsWorkspace',
+   '#optimizerWorkspace','#tonecalWorkspace',
    ].forEach(sel => {
     const el = $(sel);
     if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -3069,7 +3069,6 @@ function init() {
       if (v === 'components')    { window.openComponentsWorkspace();   return; }
       if (v === 'optimizer')    { window.openOptimizerWorkspace();    return; }
       if (v === 'tonecal')      { window.openToneCalWorkspace();      return; }
-      if (v === 'snippets')     { window.openSnippetsWorkspace();     return; }
       const stringViews = ['library', 'favorites'];
       setView(stringViews.includes(v) ? v : Number(v));
     });
@@ -5315,14 +5314,13 @@ function initContextBankWorkspace() {
    ============================================================================ */
 
 function _panelOpen(panelId, btnId) {
-  ['#promptCtxPanel','#promptComponentsPanel','#promptSnippetsPanel'].forEach(sel => {
+  ['#promptCtxPanel','#promptComponentsPanel'].forEach(sel => {
     const el = $(sel); if (el) el.classList.remove('open');
   });
   $$('.panel-toggle-btn').forEach(b => b.classList.remove('active'));
   $(panelId)?.classList.add('open');
   $(btnId)?.classList.add('active');
   if (panelId === '#promptCtxPanel') _ctxPanelRefresh();
-  if (panelId === '#promptSnippetsPanel') _snipPanelRefresh();
 }
 
 function _panelClose(panelId, btnId) {
@@ -5410,18 +5408,9 @@ function initModalSidePanels() {
     }
   });
 
-  // Snippets panel toggle
-  $('#snipPanelToggleBtn')?.addEventListener('click', () => {
-    if ($('#promptSnippetsPanel')?.classList.contains('open'))
-      _panelClose('#promptSnippetsPanel', '#snipPanelToggleBtn');
-    else
-      _panelOpen('#promptSnippetsPanel', '#snipPanelToggleBtn');
-  });
-
   // Close buttons
   $('#closeCtxPanel')?.addEventListener('click',  () => _panelClose('#promptCtxPanel', '#ctxPanelToggleBtn'));
   $('#closeCompPanel')?.addEventListener('click', () => _panelClose('#promptComponentsPanel', '#compPanelToggleBtn'));
-  $('#closeSnipPanel')?.addEventListener('click', () => _panelClose('#promptSnippetsPanel', '#snipPanelToggleBtn'));
 
   // Context panel search + category filter
   $('#ctxPanelSearch')?.addEventListener('input', _ctxPanelRefresh);
@@ -5433,19 +5422,6 @@ function initModalSidePanels() {
       _ctxPanelRefresh();
     });
   });
-
-  // Snippets panel search + category filter
-  $('#snipPanelSearch')?.addEventListener('input', _snipPanelRefresh);
-
-  $$('#snipPanelCats .chip[data-cpf]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      $$('#snipPanelCats .chip').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      _snipPanelRefresh();
-    });
-  });
-
-  $('#snipPanelSaveBtn')?.addEventListener('click', _snipPanelSaveNew);
 
   // Components panel search
   $('#compPanelSearch')?.addEventListener('input', _compPanelRender);
@@ -6859,288 +6835,6 @@ function initToneCalWorkspace() {
   ws.addEventListener('keydown', e => { if (e.key === 'Escape') closeToneCalWorkspace(); });
 }
 
-/* ============================================================================
-   SNIPPETS WORKSPACE
-   localStorage-backed reusable short text snippets (signatures, disclaimers,
-   boilerplate). Click-to-insert at cursor — distinct from Context Bank's
-   longer persona/company context blocks.
-   ls key: pl_snippets  →  [{id, title, category, content, created}]
-   data-view="snippets" | openSnippetsWorkspace() | initSnippetsWorkspace()
-   ============================================================================ */
-
-const SNIP_LS_KEY = 'pl_snippets';
-let _snipBlocks   = [];
-let _snipActiveId = null;
-let _snipFilter   = 'all';
-
-function _snipLoad() { try { _snipBlocks = JSON.parse(localStorage.getItem(SNIP_LS_KEY) || '[]'); } catch { _snipBlocks = []; } }
-function _snipSave() { localStorage.setItem(SNIP_LS_KEY, JSON.stringify(_snipBlocks)); }
-function _snipUID()  { return 'snip_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7); }
-
-// ── Starter templates ────────────────────────────────────────────────────────
-const SNIP_TEMPLATES = [
-  { category: 'Signatures', title: 'Standard Email Sign-off', content: 'Best regards,\n[Your name]\n[Your title]' },
-  { category: 'Disclaimers', title: 'AI-Generated Content Notice', content: 'This content was drafted with AI assistance and reviewed by a human before publishing.' },
-  { category: 'Greetings', title: 'Warm Opening Line', content: 'Hope this finds you well — appreciate you taking the time to read this.' },
-  { category: 'Closings', title: 'Call-to-Action Closer', content: "Let me know if you'd like to take this further — happy to jump on a call this week." },
-  { category: 'Boilerplate', title: 'Confidentiality Notice', content: 'This message is intended only for the addressee and may contain confidential information. If received in error, please delete and notify the sender.' },
-  { category: 'Other', title: 'Placeholder Bracket Reminder', content: '[Replace this bracketed text with your specific detail before sending.]' },
-];
-
-function _snipSeedTemplates() {
-  const seeded = localStorage.getItem('pl_snip_seeded');
-  if (seeded) return;
-  _snipBlocks = SNIP_TEMPLATES.map((t, i) => ({
-    id: 'tpl_' + i + '_' + Math.random().toString(36).slice(2, 6),
-    title: t.title,
-    category: t.category,
-    content: t.content,
-    created: new Date().toISOString(),
-  }));
-  _snipSave();
-  localStorage.setItem('pl_snip_seeded', '1');
-}
-
-// ── Stats ────────────────────────────────────────────────────────────────────
-function _snipUpdateStats() {
-  const cats = new Set(_snipBlocks.map(b => b.category));
-  const elB = $('#snipStatBlocks'); if (elB) elB.textContent = _snipBlocks.length;
-  const elC = $('#snipStatCats');   if (elC) elC.textContent = cats.size;
-}
-
-// ── List render ──────────────────────────────────────────────────────────────
-function _snipRenderList() {
-  const list  = $('#snipList');
-  const empty = $('#snipEmptyHint');
-  if (!list) return;
-
-  const query = ($('#snipSearch')?.value || '').toLowerCase();
-  let filtered = _snipBlocks.slice();
-  if (_snipFilter !== 'all') filtered = filtered.filter(b => b.category === _snipFilter);
-  if (query) filtered = filtered.filter(b =>
-    (b.title   || '').toLowerCase().includes(query) ||
-    (b.content || '').toLowerCase().includes(query)
-  );
-
-  _snipUpdateStats();
-
-  if (!filtered.length) {
-    list.innerHTML = '';
-    if (empty) empty.style.display = '';
-    return;
-  }
-  if (empty) empty.style.display = 'none';
-
-  list.innerHTML = filtered.map(b => {
-    const active  = b.id === _snipActiveId ? ' active' : '';
-    const preview = (b.content || '').slice(0, 80).replace(/</g, '&lt;');
-    return '<div class="ctx-block-item' + active + '" data-snip-id="' + escapeAttr(b.id) + '">'
-      + '<div class="ctx-block-item-header">'
-        + '<span class="ctx-block-item-title">' + escapeHtml(b.title || 'Untitled') + '</span>'
-        + '<span class="ctx-cat-tag">' + escapeHtml(b.category || 'Other') + '</span>'
-      + '</div>'
-      + '<div class="ctx-block-item-preview">' + preview + (b.content && b.content.length > 80 ? '…' : '') + '</div>'
-    + '</div>';
-  }).join('');
-
-  list.querySelectorAll('[data-snip-id]').forEach(item => {
-    item.addEventListener('click', () => _snipOpenBlock(item.dataset.snipId));
-  });
-}
-
-// ── Block open/editor ────────────────────────────────────────────────────────
-function _snipOpenBlock(id) {
-  _snipActiveId = id || null;
-  const block   = id ? _snipBlocks.find(b => b.id === id) : null;
-  const empty   = $('#snipEditorEmpty');
-  const form    = $('#snipEditorForm');
-  const heading = $('#snipEditorHeading');
-  const delBtn  = $('#snipDeleteBtn');
-  const confirm = $('#snipSaveConfirm');
-
-  if (!form) return;
-
-  if (block) {
-    if (heading) heading.textContent = 'Editing snippet';
-    const set = (sel, val) => { const el = $(sel); if (el) el.value = val; };
-    set('#snipTitle',    block.title    || '');
-    set('#snipCategory', block.category || 'Other');
-    set('#snipContent',  block.content  || '');
-    if (delBtn) delBtn.style.display = '';
-  } else {
-    if (heading) heading.textContent = 'New snippet';
-    ['#snipTitle', '#snipContent'].forEach(s => { const el = $(s); if (el) el.value = ''; });
-    const cat = $('#snipCategory'); if (cat) cat.value = 'Other';
-    if (delBtn) delBtn.style.display = 'none';
-  }
-
-  if (confirm) confirm.style.display = 'none';
-  if (empty)   empty.style.display   = 'none';
-  form.hidden = false;
-
-  _snipRenderList();
-  setTimeout(() => { $('#snipTitle')?.focus(); }, 60);
-}
-
-function _snipNewBlock() { _snipOpenBlock(null); }
-
-// ── CRUD ─────────────────────────────────────────────────────────────────────
-function _snipSaveBlock() {
-  const title    = $('#snipTitle')?.value.trim();
-  const category = $('#snipCategory')?.value || 'Other';
-  const content  = $('#snipContent')?.value.trim();
-
-  if (!title) { $('#snipTitle')?.focus(); return; }
-
-  if (_snipActiveId) {
-    const idx = _snipBlocks.findIndex(b => b.id === _snipActiveId);
-    if (idx !== -1) Object.assign(_snipBlocks[idx], { title, category, content });
-  } else {
-    _snipActiveId = _snipUID();
-    _snipBlocks.unshift({ id: _snipActiveId, title, category, content, created: new Date().toISOString() });
-    const delBtn = $('#snipDeleteBtn'); if (delBtn) delBtn.style.display = '';
-    const heading = $('#snipEditorHeading'); if (heading) heading.textContent = 'Editing snippet';
-  }
-
-  _snipSave();
-  _snipRenderList();
-
-  const confirm = $('#snipSaveConfirm');
-  if (confirm) { confirm.style.display = ''; setTimeout(() => { confirm.style.display = 'none'; }, 1800); }
-}
-
-function _snipDeleteBlock() {
-  if (!_snipActiveId) return;
-  _snipBlocks = _snipBlocks.filter(b => b.id !== _snipActiveId);
-  _snipSave();
-  _snipActiveId = null;
-
-  const form  = $('#snipEditorForm');
-  const empty = $('#snipEditorEmpty');
-  if (form)  form.hidden = true;
-  if (empty) empty.style.display = '';
-  _snipRenderList();
-}
-
-async function _snipCopyBlock() {
-  const block = _snipBlocks.find(b => b.id === _snipActiveId);
-  if (!block) { toast('Select a snippet first', 'warning'); return; }
-  const ok = await copyToClipboard(block.content || '');
-  toast(ok ? 'Snippet copied' : 'Copy failed', ok ? 'success' : 'error');
-}
-
-// ── Workspace open/close ─────────────────────────────────────────────────────
-window.openSnippetsWorkspace = function() {
-  if (!state.isPremium) { showPremiumModal(); return; }
-  _snipSeedTemplates();
-  _snipLoad();
-  const ws = $('#snippetsWorkspace');
-  if (!ws) return;
-  ws.classList.add('open');
-  document.body.style.overflow = 'hidden';
-  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'snippets'));
-  _snipFilter = 'all';
-  $$('[data-snip-filter]').forEach(b => b.classList.toggle('active', b.dataset.snipFilter === 'all'));
-  _snipActiveId = null;
-  const form  = $('#snipEditorForm');
-  const empty = $('#snipEditorEmpty');
-  if (form)  form.hidden = true;
-  if (empty) empty.style.display = '';
-  _snipRenderList();
-};
-
-function closeSnippetsWorkspace() {
-  const ws = $('#snippetsWorkspace');
-  if (!ws) return;
-  ws.classList.remove('open');
-  document.body.style.overflow = '';
-  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
-}
-
-function initSnippetsWorkspace() {
-  const ws = $('#snippetsWorkspace');
-  if (!ws) return;
-
-  $('#closeSnippetsBtn')?.addEventListener('click', closeSnippetsWorkspace);
-  $('#snipNewBtn')?.addEventListener('click', _snipNewBlock);
-  $('#snipSaveBtn')?.addEventListener('click', _snipSaveBlock);
-  $('#snipDeleteBtn')?.addEventListener('click', _snipDeleteBlock);
-  $('#snipCopyBtn')?.addEventListener('click', _snipCopyBlock);
-  $('#snipSearch')?.addEventListener('input', _snipRenderList);
-
-  $$('[data-snip-filter]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _snipFilter = btn.dataset.snipFilter;
-      $$('[data-snip-filter]').forEach(b => b.classList.toggle('active', b === btn));
-      _snipRenderList();
-    });
-  });
-
-  ws.addEventListener('keydown', e => { if (e.key === 'Escape') closeSnippetsWorkspace(); });
-}
-
-// ── Modal side panel: insert snippet at cursor ──────────────────────────────
-function _snipPanelRefresh() {
-  const list = $('#snipPanelList');
-  if (!list) return;
-  _snipLoad();
-  const query  = ($('#snipPanelSearch')?.value || '').toLowerCase();
-  const catBtn = document.querySelector('#snipPanelCats .chip.active');
-  const cat    = catBtn?.dataset?.cpf || 'all';
-
-  let blocks = _snipBlocks;
-  if (cat !== 'all') blocks = blocks.filter(b => b.category === cat);
-  if (query) blocks = blocks.filter(b =>
-    (b.title||'').toLowerCase().includes(query) ||
-    (b.content||'').toLowerCase().includes(query));
-
-  if (!blocks.length) {
-    list.innerHTML = '<div style="color:var(--ink-3);font-size:var(--fs-sm);padding:var(--sp-3);text-align:center;">No snippets found.<br>Create one in the Snippets workspace.</div>';
-    return;
-  }
-
-  list.innerHTML = blocks.map(b =>
-    '<div class="ctx-panel-item" data-spid="' + escapeAttr(b.id) + '" ' +
-    'style="padding:8px var(--sp-3);cursor:pointer;border-bottom:1px solid var(--border,#374151);">' +
-      '<div style="font-size:var(--fs-sm);font-weight:600;">' + escapeHtml(b.title) + '</div>' +
-      '<div style="font-size:11px;color:var(--ink-3);">' + escapeHtml(b.category || 'Other') + '</div>' +
-    '</div>'
-  ).join('');
-
-  list.querySelectorAll('[data-spid]').forEach(item => {
-    item.addEventListener('click', () => {
-      const block = _snipBlocks.find(b => b.id === item.dataset.spid);
-      if (!block) return;
-      const ta = $('#promptContent');
-      if (ta) {
-        const ins = block.content || '';
-        const pos = ta.selectionStart ?? ta.value.length;
-        ta.value = ta.value.slice(0, pos) + ins + ta.value.slice(pos);
-        ta.selectionStart = ta.selectionEnd = pos + ins.length;
-        ta.dispatchEvent(new Event('input'));
-      }
-      toast('Snippet inserted', 'success');
-    });
-  });
-}
-
-function _snipPanelSaveNew() {
-  const title    = ($('#snipPanelNewTitle')?.value   || '').trim();
-  const category = $('#snipPanelNewCat')?.value      || 'Other';
-  const content  = ($('#snipPanelNewContent')?.value || '').trim();
-  if (!title)   { toast('Give the snippet a title', 'warning'); return; }
-  if (!content) { toast('Add content to the snippet', 'warning'); return; }
-  _snipLoad();
-  _snipBlocks.unshift({ id: _snipUID(), title, category, content, created: new Date().toISOString() });
-  _snipSave();
-  if ($('#snipPanelNewTitle'))   $('#snipPanelNewTitle').value   = '';
-  if ($('#snipPanelNewContent')) $('#snipPanelNewContent').value = '';
-  const details = $('#snipPanelAddDetails');
-  if (details) details.open = false;
-  _snipPanelRefresh();
-  toast('Snippet saved', 'success');
-}
-
 
 /* ============================================================================
    BOOTSTRAP
@@ -7161,7 +6855,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   initContextBankWorkspace(); // context bank workspace + wiring
   initOptimizerWorkspace();  // prompt optimizer workspace
   initToneCalWorkspace();    // tone calibrator workspace
-  initSnippetsWorkspace();   // snippets workspace + panel wiring
   initModalSidePanels();      // prompt modal side panels
   initOnboarding();           // spotlight tour auto-launch on first run
   initPromptViewer();

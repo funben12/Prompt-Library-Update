@@ -57,7 +57,7 @@
 - **Prompt Components workspace:** Live. Pre-expansion baseline (verified 2026-06-11): flat `BLOCKS` array (no `cat:` tags, no `CATEGORIES` array — uncategorised palette) + **23 `FRAMEWORKS`**: 5W2H, AIDA, APE, BAB, CARE, CO-STAR, COSTAR+, CSI+FBI, GROW, GRWC, META, OKR, PARA, PAS, PREP, RISEN, RODES, ROSES, RTF, SCQA, STAR, TRACE, ToT. `renderPalette()` targets `#pcwBlockGrid` / `#pcwFwList` (flat grid + list, no category pills/search). Drag-and-drop canvas, editable block cards, save to library. Sidebar nav (`data-view="components"`) + slide-out panel in New Prompt modal (`#promptComponentsPanel`, rendered separately by `_compPanelRender()`). Exposes `window._pcwBLOCKS` / `window._pcwFRAMEWORKS` globals (no `_pcwCATEGORIES` — not yet built). A 22-category/295-block/51-framework expansion (with new `#pcwCatPills`/`#pcwPaletteSearch`/`#pcwPaletteBody` palette UI) was built in `_rollbacks/app.js/app_20260611_110936.js` + `_rollbacks/index.html/index_20260611_110936.html` but never merged into live `static/` — reframed as planned future work, not yet scoped or scheduled.
 - **Full-screen Prompt Viewer (fixed 2026-06-15):** `#promptViewer` overlay. `initPromptViewer()` now correctly called from BOOTSTRAP (was missing — close button and Escape key were broken). Opens via `window.PL_openViewer(id)`. Escape to close now works.
 - **Prompt Optimizer workspace (corrected 2026-06-22):** ✅ LIVE, not planned — prior MEMORY.md entry was wrong. `#optimizerWorkspace` exists in index.html, `_optRunOptimize()` / `_optRunAnalyze()` in app.js call the shared `callAI()` helper. Pro-gated via `#optimizerNavBtn` (`premium-locked` + `data-premium="true"`).
-- **Tone Calibrator workspace (built 2026-06-22):** ✅ LIVE. `#tonecalWorkspace`, mirrors Prompt Optimizer's structure. 6 tone presets (Formal/Casual/Persuasive/Concise/Friendly/Technical), calls shared `callAI()`, before/after panes, save-to-library. Pro-gated via `#tonecalNavBtn`. No new dependencies, no schema change.
+- **Tone Calibrator workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. Described in prior sessions but `#tonecalWorkspace` has zero occurrences in `static/app.js` and `static/index.html`.
 - **Context Bank workspace (live):** `#contextBankWorkspace`. Left list panel + right editor. Category pills (Persona/Company/Audience/Product/Style/Other). `ctxSaveBtn`, `ctxCopyBtn`, `ctxDeleteBtn`. `_renderCtxList()` / `_openCtxEditor()`. Also available as side panel `#promptCtxPanel` in New Prompt modal.
 - **Onboarding tour visual polish (2026-06-05):** Animated progress bar (`#obProgressBar`) fills as steps advance. Spotlight gets `ob-has-target` class → pulse animation when targeting an element. Card has accent glow border. `.ob-icon-wrap` has accent border and glow.
 - **Cool-slate theme (2026-06-09):** Replaced warm-beige (hue 70) with cool-slate (hue 255) for both light and dark. Light: `--bg oklch(92.5% 0.007 255)`, `--surface oklch(96.5% 0.005 255)` — surface sits above bg, no depth inversion. Dark: `--bg oklch(15% 0.012 255)`. Accent is teal `oklch(40% 0.13 198)` light / `oklch(74% 0.13 198)` dark. CSS hash: `2083709d`.
@@ -65,7 +65,7 @@
 - **Pro-gating (confirmed 2026-06-15):** Internal `isPremium` guards on 8 open-functions. `#chainNavBtn` confirmed `premium-locked` + `data-premium="true"` in HTML (fixed 2026-06-15 — was missing). Chain tab in detail panel remains Free.
 - **Dashboard workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. `#dashboardWorkspace` has zero occurrences in `static/` files.
 - **Template Gallery workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. `#galleryWorkspace` has zero occurrences in `static/` files.
-- **Snippets workspace (built 2026-06-22):** ✅ LIVE. `#snippetsWorkspace` — localStorage-backed (`pl_snippets`, mirrors Context Bank's `pl_ctx_blocks` pattern), categories Signatures/Disclaimers/Boilerplate/Greetings/Closings/Other, 6 starter snippets seeded on first open. Two surfaces: full CRUD workspace + `#promptSnippetsPanel` slide-out in the New Prompt modal (`#snipPanelToggleBtn`) for click-to-insert-at-cursor into `#promptContent` — inserts raw content with no wrapper text, unlike Context Bank's "--- Context: X ---" wrapping. Reuses `.ctx-*` CSS classes wholesale; only new CSS is the `#snippetsWorkspace` overlay rule. Pro-gated via `#snippetsNavBtn`. No new dependencies, no schema change.
+- **Snippets workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. `#snippetsWorkspace` has zero occurrences in `static/` files.
 - **Trash & Restore workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. `#trashWorkspace` has zero occurrences in `static/` files.
 - **Plan modal (fixed 2026-06-22):** Free column: 35 prompts, 8 folders, 5 tags & 8 categories per prompt, locked items listed. Pro column: 18 features accurately. Payhip CTA link live. Confirmed Pro stays one-off lifetime licence (not subscription).
 
@@ -105,10 +105,10 @@
 | Prompt Components workspace | ✅ Live | Flat block list + 23 frameworks (no categories yet). Drag-and-drop canvas |
 | Metaprompting workspace | ✅ Live | `#metaWorkspace` — AI prompt rewriter |
 | Prompt Optimizer workspace | ✅ Live | Pro-gated, calls shared `callAI()` helper. Corrected 2026-06-22 — was wrongly marked Planned |
-| Tone Calibrator workspace | ✅ Live | Built 2026-06-22. Calls shared `callAI()`, mirrors Optimizer pattern |
+| Tone Calibrator workspace | 🔲 Planned | Not in static/ files — described in prior sessions only |
 | Context Bank workspace | ✅ Live | `#contextBankWorkspace` — left list + right editor, category pills |
 | Template Gallery workspace | 🔲 Planned | Not in static/ files — described in prior sessions only |
-| Snippets workspace | ✅ Live | Built 2026-06-22. localStorage-backed, mirrors Context Bank pattern + insert-at-cursor panel |
+| Snippets workspace | 🔲 Planned | Not in static/ files — described in prior sessions only |
 | Text Expansion workspace | 🔲 Planned | Fully unbuilt — no backend, no UI. Corrected 2026-06-22, prior `shortcuts.db` claim was false |
 | Version history | ✅ Live | Per-prompt version log with restore |
 | Analytics | ✅ Live | Usage stats, top prompts, tag clouds |

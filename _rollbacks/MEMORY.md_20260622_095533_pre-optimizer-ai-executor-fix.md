@@ -51,13 +51,13 @@
 - **Prompt starter select:** 168 deduplicated options.
 - **App icon:** Multi-size ICO (16–256px) from `app-icon.png`. Both `icon.ico` and `static/icon.ico` updated.
 - **Roles agent fields:** 6 DB columns (`audience`, `output_format`, `constraints`, `domain`, `tasks`, `response_style`) in `app.py` + `_role_payload` + `serialize_role`.
-- **Text Expansion workspace (corrected 2026-06-22):** ⚠️ PLANNED — fully unbuilt. Prior entry claiming a `shortcuts.db` API exists in app.py was checked and is FALSE — no `shortcuts` table, no `shortcut` string anywhere in app.py. Backend AND UI both need building from scratch.
+- **Text Expansion workspace:** ⚠️ PLANNED — NOT YET IN HTML/JS. `shortcuts.db` API exists in `app.py` but `#shortcutsWorkspace` UI and Tab-trigger have not been integrated into `static/` files.
 - **Context Bank workspace:** Live as of 2026-06-02. localStorage-backed reusable context blocks. Accessible via sidebar nav (`data-view="contextBank"`) and as slide-out panel in New Prompt modal (`#promptCtxPanel`). Full CRUD, category filter, search, insert-at-cursor.
 - **Onboarding tour (fixed 2026-06-15):** 12-step spotlight tour. `initOnboarding()` now correctly called from BOOTSTRAP (was missing — tour never auto-launched). `promptlib.tourDone` localStorage key. Replay via sidebar footer "App tour" button (`#tourBtn`, onclick `PL_startOnboarding`). Old Components tutorial (`PL_startTutorial`, `#tutorialOverlay`) auto-launch disabled to prevent double-tour; still accessible if called directly. Tour step target IDs corrected: `#promptsContainer`, `#foldersList`, `#categoriesList`, `#workspacesToggle`. **Workspace previews (2026-06-15):** steps 6/7/9 now actually OPEN the workspace they describe (Agents→`openRolesWorkspace`, Power workspaces→`openForgeWorkspace`, Context Bank→`openContextBankWorkspace`) via a per-step `open` field + `_reconcileView()`. `_closeTourWorkspaces()` restores body scroll + nav state on library steps, finish, and Escape. Spotlight runs synchronously after `.open` (no rAF — throttles in background). Previews show for free users too (open-fns have no premium guard); nav buttons stay premium-locked outside the tour. **Preview polish (2026-06-15, hash 72411254):** workspace-preview steps (6/7/9) now set `target: null` and add `ob-preview` to `#onboardingOverlay`, whose CSS hides the dark `#onboardingSpotlight` so the real workspace shows fully (was: a pointless full-screen cutout that let the 70%-black dimmer sweep across the freshly-opened workspace). Step 8 ("The detail panel") now sets `openDetail: true` → `_openTourDetail()` opens the first library prompt's `#detailPanel` (was: spotlighted an empty/off-screen rail — the user saw nothing). Detail step keeps the dimmer + spotlight (panel is `z-index:20`, below the 9000 overlay; hole reveals it). Async/race-safe: `_openTourDetail()` returns `openDetail`'s promise, spotlight fires 380ms later (after the 0.32s slide) and only if `_step` is unchanged — else `_closeTourDetail()` removes the stray panel. `_closeTourDetail()` also runs on start/skip and on every workspace/library step. NOTE: the detail panel slide is transform-transition based and is *throttled/paused in headless preview* (Chromium) so it reads as `translateX(100%)` there; it runs normally in the visible WebView2 window — verify via DOM/`transition:none`, not headless screenshots. Verified end-to-end (DOM assertions): forward/back/Escape teardown clean, body scroll restored, one workspace open at a time, race handled.
 - **Prompt Components workspace:** Live. Pre-expansion baseline (verified 2026-06-11): flat `BLOCKS` array (no `cat:` tags, no `CATEGORIES` array — uncategorised palette) + **23 `FRAMEWORKS`**: 5W2H, AIDA, APE, BAB, CARE, CO-STAR, COSTAR+, CSI+FBI, GROW, GRWC, META, OKR, PARA, PAS, PREP, RISEN, RODES, ROSES, RTF, SCQA, STAR, TRACE, ToT. `renderPalette()` targets `#pcwBlockGrid` / `#pcwFwList` (flat grid + list, no category pills/search). Drag-and-drop canvas, editable block cards, save to library. Sidebar nav (`data-view="components"`) + slide-out panel in New Prompt modal (`#promptComponentsPanel`, rendered separately by `_compPanelRender()`). Exposes `window._pcwBLOCKS` / `window._pcwFRAMEWORKS` globals (no `_pcwCATEGORIES` — not yet built). A 22-category/295-block/51-framework expansion (with new `#pcwCatPills`/`#pcwPaletteSearch`/`#pcwPaletteBody` palette UI) was built in `_rollbacks/app.js/app_20260611_110936.js` + `_rollbacks/index.html/index_20260611_110936.html` but never merged into live `static/` — reframed as planned future work, not yet scoped or scheduled.
 - **Full-screen Prompt Viewer (fixed 2026-06-15):** `#promptViewer` overlay. `initPromptViewer()` now correctly called from BOOTSTRAP (was missing — close button and Escape key were broken). Opens via `window.PL_openViewer(id)`. Escape to close now works.
-- **Prompt Optimizer workspace (corrected 2026-06-22):** ✅ LIVE, not planned — prior MEMORY.md entry was wrong. `#optimizerWorkspace` exists in index.html, `_optRunOptimize()` / `_optRunAnalyze()` in app.js call the shared `callAI()` helper. Pro-gated via `#optimizerNavBtn` (`premium-locked` + `data-premium="true"`).
-- **Tone Calibrator workspace (built 2026-06-22):** ✅ LIVE. `#tonecalWorkspace`, mirrors Prompt Optimizer's structure. 6 tone presets (Formal/Casual/Persuasive/Concise/Friendly/Technical), calls shared `callAI()`, before/after panes, save-to-library. Pro-gated via `#tonecalNavBtn`. No new dependencies, no schema change.
+- **Prompt Optimizer workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. Described in prior sessions but `#optimizerWorkspace` has zero occurrences in `static/app.js` and `static/index.html`.
+- **Tone Calibrator workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. Described in prior sessions but `#tonecalWorkspace` has zero occurrences in `static/app.js` and `static/index.html`.
 - **Context Bank workspace (live):** `#contextBankWorkspace`. Left list panel + right editor. Category pills (Persona/Company/Audience/Product/Style/Other). `ctxSaveBtn`, `ctxCopyBtn`, `ctxDeleteBtn`. `_renderCtxList()` / `_openCtxEditor()`. Also available as side panel `#promptCtxPanel` in New Prompt modal.
 - **Onboarding tour visual polish (2026-06-05):** Animated progress bar (`#obProgressBar`) fills as steps advance. Spotlight gets `ob-has-target` class → pulse animation when targeting an element. Card has accent glow border. `.ob-icon-wrap` has accent border and glow.
 - **Cool-slate theme (2026-06-09):** Replaced warm-beige (hue 70) with cool-slate (hue 255) for both light and dark. Light: `--bg oklch(92.5% 0.007 255)`, `--surface oklch(96.5% 0.005 255)` — surface sits above bg, no depth inversion. Dark: `--bg oklch(15% 0.012 255)`. Accent is teal `oklch(40% 0.13 198)` light / `oklch(74% 0.13 198)` dark. CSS hash: `2083709d`.
@@ -65,7 +65,7 @@
 - **Pro-gating (confirmed 2026-06-15):** Internal `isPremium` guards on 8 open-functions. `#chainNavBtn` confirmed `premium-locked` + `data-premium="true"` in HTML (fixed 2026-06-15 — was missing). Chain tab in detail panel remains Free.
 - **Dashboard workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. `#dashboardWorkspace` has zero occurrences in `static/` files.
 - **Template Gallery workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. `#galleryWorkspace` has zero occurrences in `static/` files.
-- **Snippets workspace (built 2026-06-22):** ✅ LIVE. `#snippetsWorkspace` — localStorage-backed (`pl_snippets`, mirrors Context Bank's `pl_ctx_blocks` pattern), categories Signatures/Disclaimers/Boilerplate/Greetings/Closings/Other, 6 starter snippets seeded on first open. Two surfaces: full CRUD workspace + `#promptSnippetsPanel` slide-out in the New Prompt modal (`#snipPanelToggleBtn`) for click-to-insert-at-cursor into `#promptContent` — inserts raw content with no wrapper text, unlike Context Bank's "--- Context: X ---" wrapping. Reuses `.ctx-*` CSS classes wholesale; only new CSS is the `#snippetsWorkspace` overlay rule. Pro-gated via `#snippetsNavBtn`. No new dependencies, no schema change.
+- **Snippets workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. `#snippetsWorkspace` has zero occurrences in `static/` files.
 - **Trash & Restore workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. `#trashWorkspace` has zero occurrences in `static/` files.
 - **Plan modal (fixed 2026-06-22):** Free column: 35 prompts, 8 folders, 5 tags & 8 categories per prompt, locked items listed. Pro column: 18 features accurately. Payhip CTA link live. Confirmed Pro stays one-off lifetime licence (not subscription).
 
@@ -104,12 +104,12 @@
 | Prompt Lab workspace | ✅ Live | `#labWorkspace` — A/B testing |
 | Prompt Components workspace | ✅ Live | Flat block list + 23 frameworks (no categories yet). Drag-and-drop canvas |
 | Metaprompting workspace | ✅ Live | `#metaWorkspace` — AI prompt rewriter |
-| Prompt Optimizer workspace | ✅ Live | Pro-gated, calls shared `callAI()` helper. Corrected 2026-06-22 — was wrongly marked Planned |
-| Tone Calibrator workspace | ✅ Live | Built 2026-06-22. Calls shared `callAI()`, mirrors Optimizer pattern |
+| Prompt Optimizer workspace | 🔲 Planned | Not in static/ files — described in prior sessions only |
+| Tone Calibrator workspace | 🔲 Planned | Not in static/ files — described in prior sessions only |
 | Context Bank workspace | ✅ Live | `#contextBankWorkspace` — left list + right editor, category pills |
 | Template Gallery workspace | 🔲 Planned | Not in static/ files — described in prior sessions only |
-| Snippets workspace | ✅ Live | Built 2026-06-22. localStorage-backed, mirrors Context Bank pattern + insert-at-cursor panel |
-| Text Expansion workspace | 🔲 Planned | Fully unbuilt — no backend, no UI. Corrected 2026-06-22, prior `shortcuts.db` claim was false |
+| Snippets workspace | 🔲 Planned | Not in static/ files — described in prior sessions only |
+| Text Expansion workspace | 🔲 Planned | API in app.py (`shortcuts.db`) — UI not in static/ files |
 | Version history | ✅ Live | Per-prompt version log with restore |
 | Analytics | ✅ Live | Usage stats, top prompts, tag clouds |
 | Duplicate prompt | ✅ Live | One-click clone |
@@ -118,13 +118,13 @@
 | Rating & notes | ✅ Live | Per-prompt star rating + private notes |
 | Ctrl+T text case cycling | ✅ Live | Toggle case in prompt editor |
 | Dark/light theme toggle | ✅ Live | User-switchable theme |
-| In-app AI executor | ✅ Live | `callAI(systemPrompt, userMsg, maxTokens)` in app.js (~line 6997). Supports OpenAI, Anthropic, Gemini, OpenRouter. Corrected 2026-06-22 — was wrongly marked Planned |
+| In-app AI executor | 🔲 Planned | Claude/GPT with DPAPI-encrypted key storage |
 | Version diff view | 🔲 Planned | Side-by-side diff between versions |
 
 ## Roadmap
 
 ### Pro — Planned
-- **In-app AI executor (corrected 2026-06-22):** ✅ Already live, not planned. Shared `callAI()` helper in app.js, used by Prompt Optimizer, Metaprompting, Smart/AI tagging, Prompt Score, Roles AI persona generation. ⚠️ Key storage is plain `localStorage` (`pl_api_key_<provider>`), NOT DPAPI-encrypted as previously documented — this is a real gap if it matters for the security story, flagged but not yet fixed.
+- **In-app AI executor:** Send prompt directly to Claude or GPT from the app. DPAPI-encrypted API key storage. Provider scope and encryption approach TBD before build.
 - **Version diff view:** Side-by-side diff between any two saved versions of a prompt. Complexity high — design TBD.
 - **Text Expansion Layer 2 (system-wide):** Global keyboard hook via `pynput`/`keyboard`. Deferred — AV flag risk, requires explicit user opt-in. Do not build until Layer 1 is proven stable.
 

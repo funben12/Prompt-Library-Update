@@ -1,15 +1,15 @@
 # Telegram Launch Announcement — Prompt Library Pro
 
-Prompt Library Pro is close to launch. Built it to solve one problem: good prompts get lost. Buried in old chats, scattered across notes apps, rewritten from scratch every time you need them.
+Hey guys, Prompt Library Pro is close to launch. Here's the real picture before it goes live.
 
-This is a local Windows app. No cloud, no accounts, no subscription quietly tracking what you do. Your prompts live on your machine, under your control.
+Most online prompt libraries make you create an account, host everything on someone else's server, and charge a monthly subscription for the privilege. Some give you four or five folders and call that a tier. You're renting access to your own prompts.
 
-What you get: a searchable library for every prompt you've written. Variables you fill in once and reuse across contexts, with a live preview as you type. Roles, so you can attach a persona, tone, and expertise to any prompt before you run it. Chain prompting, so you can link prompts together into multi-step workflows. Folders, tags, colour labels, and favourites, so finding anything takes seconds, not minutes.
+I built this for one purpose: a single place to build and store your prompts, instead of scattering them across Google Docs, Word files, or someone else's library.
 
-Free tier covers 25 prompts, 3 folders, the full variable system, roles, and chain prompting in the detail panel. Enough to actually use it daily.
+It's a fully local desktop app. Think Obsidian, but for prompts. Everything sits in a single DB file on your machine. No data centre, no admin panel, no cloud backup running behind your back. Here's the catch: delete that DB file and everything's gone. No recovery, no support ticket that fixes it. That's how local this is.
 
-Pro unlocks unlimited prompts and folders, plus Forge, Lab, Playground, Components, Context Bank, version history, and analytics. One-time licence. No subscription.
+It also has API features and prompt components, and I'm adding to the component list daily.
 
-If you've ever lost a prompt that actually worked, this is built for you.
+I'm excited to get this in front of you. I'll be straight with you: it's not fully fleshed out yet. Features are still landing. But the goal has always been the same: speed up how fast you go from idea to usable prompt.
 
-Launch details coming soon. Questions welcome in the meantime.
+Launch details soon. Questions welcome now.

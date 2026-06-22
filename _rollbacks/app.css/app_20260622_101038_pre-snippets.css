@@ -7120,18 +7120,3 @@
   flex-direction: column;
 }
 #tonecalWorkspace.open { display: flex; }
-
-/* =============================================================
-   SNIPPETS WORKSPACE
-   Reuses .ctx-* layout/editor classes from Context Bank —
-   same visual pattern, only the overlay rule below is new.
-   ============================================================= */
-#snippetsWorkspace {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal, 100);
-  background: var(--bg);
-  flex-direction: column;
-}
-#snippetsWorkspace.open { display: flex; }
