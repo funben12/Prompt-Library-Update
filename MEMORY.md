@@ -40,7 +40,9 @@
 - **Scorecard workspace:** Removed 2026-06-02. Do not rebuild or reference.
 - **Collection Builder workspace:** Removed 2026-06-02. Do not rebuild or reference.
 
-## Current State (2026-06-15)
+## Current State (2026-06-24)
+
+- **Payhip launch (2026-06-24):** App is now live on Payhip at https://payhip.com/b/WKSLO. Launch discount code `PlaygroundRelease` gives 50% off — first 5 uses only. A second discount code (25% off) is planned pending sales momentum. YouTube tutorial planned. Feature screenshots to be shared to Telegram community over coming days.
 
 - **Build hash:** `72411254` (app.js) / `64ad4e42` (app.css) — updated 2026-06-15. Run `python3 update_hash.py` after every app.js change.
 - **Starter templates:** `/api/starter-templates` seeds 10 curated prompts on empty library
