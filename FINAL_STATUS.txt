@@ -1,0 +1,91 @@
+================================================================================
+PROMPT LIBRARY PRO — LICENCE SYSTEM COMPLETE
+================================================================================
+
+DATE:     2026-06-23
+VERSION:  Pre-Release 2 (v2.0.0)
+STATUS:   ✓ Ready for Payhip Deployment
+
+================================================================================
+WHAT'S BEEN BUILT
+================================================================================
+
+Backend:
+  ✓ Flask API endpoints (3 routes)
+  ✓ SQLite licence database
+  ✓ 218 licence keys generated & loaded
+  ✓ All syntax verified
+
+Frontend:
+  ✓ Licence key UI in Settings
+  ✓ JavaScript activation handlers
+  ✓ Status display & validation
+  ✓ All syntax verified
+
+Installer:
+  ✓ Inno Setup script updated
+  ✓ Ready to compile
+
+================================================================================
+TO DEPLOY
+================================================================================
+
+1. Run BUILD_INSTALLER.bat on your Windows machine
+   Output: installer/PromptLibraryPro_Setup_PreRelease_2.exe
+
+2. Upload to Payhip:
+   - Product 1: Application (free download)
+   - Product 2: Licence Key ($60)
+   
+3. Paste all 218 keys from all_keys_to_load.txt into Payhip's licence settings
+
+4. Publish both products
+
+================================================================================
+FILES CREATED
+================================================================================
+
+Backend:
+  - app.py (licence API added)
+  - init_licences.py (load keys into DB)
+  - generate_keys.py (create new keys anytime)
+  
+Frontend:
+  - static/app.js (licence handlers added)
+  - static/index.html (settings UI added)
+  
+Installer:
+  - PromptLibrary.iss (updated)
+  - BUILD_INSTALLER.bat (compile script)
+  
+Documentation:
+  - LICENCE_SYSTEM.md (full system docs)
+  - DEPLOYMENT_CHECKLIST.md (step-by-step)
+  - all_keys_to_load.txt (218 keys for Payhip)
+  
+Data:
+  - PromptLibrary.db → licences table (218 keys loaded)
+
+================================================================================
+KEY FACTS
+================================================================================
+
+✓ Fully local — no internet required
+✓ One key per machine — locked by machine_id
+✓ Persistent — survives app restart
+✓ One-time activation — unlimited usage after
+✓ 218 keys ready now, generate more anytime
+✓ Payhip auto-distributes keys to buyers
+✓ No server required — Payhip handles payment
+
+================================================================================
+NEXT STEP
+================================================================================
+
+Run: BUILD_INSTALLER.bat
+
+This creates: installer/PromptLibraryPro_Setup_PreRelease_2.exe
+
+Then upload to Payhip.
+
+================================================================================

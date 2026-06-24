@@ -2472,3 +2472,52 @@ def pg_seed_from_prompt(sid, pid):
     db.commit()
     return jsonify({'ok': True})
 
+
+
+
+import hashlib
+from datetime import datetime
+
+@app.route('/api/licence/status', methods=['GET'])
+def licence_status():
+    """
+    Check if this machine has a valid licence.
+    Returns: {
+        "licensed": bool,
+        "key": str (masked, last 4 chars only),
+        "activated": str (ISO timestamp)
+    }
+    """
+    key = get_setting('licence_key')
+    activated = get_setting('licence_activated')
+
+    if key and activated:
+        masked_key = key[:10] + '*' * (len(key) - 14) + key[-4:]
+        return jsonify({
+            'licensed': True,
+            'key': masked_key,
+            'activated': activated
+        })
+    else:
+        return jsonify({
+            'licensed': False,
+            'key': None,
+            'activated': None
+        })
+
+
+@app.route('/api/admin/licence/count', methods=['GET'])
+def admin_licence_count():
+    """
+    Admin endpoint: count total/used/available keys.
+    """
+    db = get_db()
+    total = db.execute('SELECT COUNT(*) FROM licences').fetchone()[0]
+    used = db.execute('SELECT COUNT(*) FROM licences WHERE is_used = 1').fetchone()[0]
+    available = total - used
+
+    return jsonify({
+        'total': total,
+        'used': used,
+        'available': available
+    })

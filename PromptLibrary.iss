@@ -6,8 +6,8 @@
 ;  Purchase    : https://payhip.com/MXPhillips
 ;  Compiler    : Inno Setup 6.3+  (https://jrsoftware.org/isinfo.php)
 ;
-;  RELEASE     : Pre-Release 1  (v0.9.0)
-;  DATE        : 2026-06-09
+;  RELEASE     : Pre-Release 2  (v2.0.0)
+;  DATE        : 2026-06-23
 ;
 ;  PRE-COMPILE CHECKLIST
 ;  ─────────────────────
@@ -18,7 +18,7 @@
 ;
 ;  OUTPUT
 ;  ──────
-;  installer\PromptLibraryPro_Setup_PreRelease_1.exe
+;  installer\PromptLibraryPro_Setup_PreRelease_2.exe
 ;
 ; =============================================================================
 
@@ -29,8 +29,8 @@
 ; -----------------------------------------------------------------------------
 
 ; ── Semantic version (used for upgrade detection + Windows version info) ─────
-#define AppVersion        "0.9.0"
-#define AppVersionDisplay "Pre-Release 1"
+#define AppVersion        "2.0.0"
+#define AppVersionDisplay "Pre-Release 2"
 
 ; ── Identity ──────────────────────────────────────────────────────────────────
 #define AppName        "Prompt Library Pro"
@@ -41,9 +41,9 @@
 #define AppExeName     "PromptLibrary.exe"
 #define AppDataFolder  "PromptLibrary"
 #define AppMutex       "PromptLibraryPro_RunningInstance_v1"
-#define AppDescription "Your local-first AI prompt library — 189 prompt blocks, 43 frameworks, " + \
-                       "drag-and-drop canvas, roles, variables, chains, and more. " + \
-                       "No cloud. No accounts. No subscription."
+#define AppDescription "Your local-first AI prompt library — Prompt Forge, Optimizer, " + \
+                       "Tone Calibrator, Context Bank, Snippets, Components, " + \
+                       "in-app AI executor, roles, variables, chains. No cloud. No accounts. No subscription."
 
 
 ; =============================================================================
@@ -97,7 +97,7 @@ ChangesAssociations=yes
 
 ; ── Output ────────────────────────────────────────────────────────────────────
 OutputDir=installer
-OutputBaseFilename=PromptLibraryPro_Setup_PreRelease_1
+OutputBaseFilename=PromptLibraryPro_Setup_PreRelease_2
 SetupIconFile=icon.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 UninstallDisplayName={#AppName} {#AppVersionDisplay}
@@ -195,7 +195,8 @@ Source: "dist\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 ; Application icon  —  used by shortcuts and the Add/Remove Programs entry
 Source: "icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 
-; Optional extras  —  uncomment when files are ready
+; Optional extras
+Source: "LICENCE_SYSTEM.md";    DestDir: "{app}"; Flags: ignoreversion
 ; Source: "LICENSE.txt";      DestDir: "{app}"; Flags: ignoreversion isreadme
 ; Source: "CHANGELOG.txt";    DestDir: "{app}"; Flags: ignoreversion
 ; Source: "RELEASE_NOTES.txt"; DestDir: "{app}"; Flags: ignoreversion

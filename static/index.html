@@ -976,6 +976,23 @@
         <span class="material-symbols-outlined">save</span> Save settings
       </button>
       <div id="configStatus" style="font-size:11px;color:var(--ink-3);text-align:center;min-height:16px;"></div>
+      <hr style="margin: var(--sp-4) 0; border: none; border-top: 1px solid var(--ink-2);">
+      <div style="margin-top: var(--sp-4);">
+        <div class="config-section-label">Licence Key</div>
+        <div id="licenceStatus" style="font-size:12px;margin-bottom:var(--sp-2);padding:var(--sp-2);background:var(--bg-2);border-radius:var(--radius);border-left:4px solid var(--ink-3);">
+          <span id="licenceStatusText">Not licensed — enter your key to unlock Pro features</span>
+        </div>
+        <div class="config-api-row">
+          <input type="text" id="licenceKeyInput" class="form-input" placeholder="Enter your licence key (PROMPTLIB-PRO-XXXX-XXXX-XXXX)" autocomplete="off" />
+        </div>
+        <button type="button" class="btn btn-accent" id="licenceActivateBtn" style="width:100%; margin-top:var(--sp-2);">
+          <span class="material-symbols-outlined">vpn_key</span> Activate Licence
+        </button>
+        <div id="licenceActivateStatus" style="font-size:11px;color:var(--ink-3);text-align:center;min-height:16px;margin-top:var(--sp-2);"></div>
+        <p style="font-size:11px;color:var(--ink-4);margin-top:var(--sp-3);line-height:1.5;">
+          Don't have a key? <a href="https://payhip.com/b/WKSLO" target="_blank" style="color:var(--accent);text-decoration:none;">Buy Prompt Library Pro</a>
+        </p>
+      </div>
     
     </div>
   </div>
@@ -2674,7 +2691,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=93770399"></script>
+<script defer src="/static/app.js?v=bd8674e5"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>
