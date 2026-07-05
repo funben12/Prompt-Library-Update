@@ -237,15 +237,9 @@ del _RAW_KEYS  # Don't keep plaintext in memory after startup
 
 
 def get_db():
-    conn = sqlite3.connect(DATABASE, timeout=10)
+    conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     conn.execute('PRAGMA foreign_keys = ON')
-    # WAL mode avoids the rollback-journal + fcntl combination that caused a stale
-    # -journal file to lock out all access after an unclean shutdown (2026-07-04).
-    # busy_timeout gives concurrent access a retry window instead of an immediate
-    # "database is locked" error.
-    conn.execute('PRAGMA journal_mode=WAL')
-    conn.execute('PRAGMA busy_timeout=10000')
     return conn
 
 def init_db():

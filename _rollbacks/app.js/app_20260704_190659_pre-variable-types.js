@@ -959,7 +959,7 @@ function renderDetailPanel(p) {
   const useSec = $('#usePromptSection');
   if (vars.length > 0) {
     useSec.hidden = false;
-    renderVariableFields(vars, _migrateLegacyVarMeta(p.variable_meta || {}));
+    renderVariableFields(vars, p.variable_meta || {});
   } else {
     useSec.hidden = true;
     $('#variableFields').innerHTML = '';
@@ -1001,24 +1001,6 @@ async function renderDetailRole(roleId) {
   chip.title = role.persona ? role.persona.slice(0, 200) : role.name;
 }
 
-// Migrates old single-value checkbox (Yes/No) meta to the new Checkbox List (options-based) shape.
-// Old shape:  { type: 'checkbox', default: 'true' | 'Yes' | 'No' }  -- no options array
-// New shape:  { type: 'checkbox', default: 'Yes', options: ['Yes','No'] }
-// Star Rating (type: 'rating') needs no migration -- same numeric 1-5 value, only the widget changed.
-function _migrateLegacyVarMeta(meta) {
-  const out = {};
-  for (const v in meta) {
-    const m = meta[v] || {};
-    if (m.type === 'checkbox' && (!m.options || !m.options.length)) {
-      const wasChecked = m.default === 'true' || m.default === 'Yes';
-      out[v] = { ...m, options: ['Yes', 'No'], default: wasChecked ? 'Yes' : '' };
-    } else {
-      out[v] = m;
-    }
-  }
-  return out;
-}
-
 function renderVariableFields(vars, meta) {
   const wrap = $('#variableFields');
   if (!vars.length) { wrap.innerHTML = ''; return; }
@@ -1030,14 +1012,7 @@ function renderVariableFields(vars, meta) {
     return;
   }
 
-  const typeIcon = {
-    text: 'abc', paragraph: 'subject', markdown: 'article', code: 'code', password: 'lock',
-    email: 'email', url: 'link', phone: 'phone',
-    number: 'tag', date: 'event', time: 'schedule', color: 'palette', currency: 'payments',
-    percentage: 'percent', filepath: 'folder_open', imageurl: 'image',
-    dropdown: 'arrow_drop_down', checkbox: 'checklist', tags: 'sell', togglegroup: 'toggle_on', range: 'stacked_line_chart',
-    slider: 'linear_scale', rating: 'star'
-  };
+  const typeIcon = { text: 'abc', number: 'tag', date: 'event', dropdown: 'arrow_drop_down', email: 'email', url: 'link', phone: 'phone', textarea: 'wrap_text', paragraph: 'subject', password: 'lock', checkbox: 'check_box', slider: 'linear_scale', rating: 'star', color: 'palette', time: 'schedule', code: 'code' };
 
   wrap.innerHTML = visible.map(v => {
     const m    = meta[v] || {};
@@ -1067,67 +1042,18 @@ function renderVariableFields(vars, meta) {
       input = `<input type="password" class="var-input" data-var="${escapeAttr(v)}" placeholder="Password" value="${escapeAttr(def)}" />`;
     } else if (type === 'color') {
       input = `<input type="color" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def) || '#000000'}" style="width:48px;height:32px;padding:2px;cursor:pointer;" />`;
+    } else if (type === 'textarea') {
+      input = `<textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter text…" rows="3" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>`;
     } else if (type === 'paragraph') {
-      const pRows = m.size === 'short' ? 3 : (m.size === 'tall' ? 10 : 6);
-      input = `<textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter paragraph…" rows="${pRows}" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>`;
-    } else if (type === 'markdown') {
-      input = `<textarea class="var-input var-markdown" data-var="${escapeAttr(v)}" placeholder="Enter markdown… (# headings, **bold**, - lists)" rows="8" style="width:100%;resize:vertical;font-family:monospace;font-size:12px;">${escapeHtml(def)}</textarea>`;
+      input = `<textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter paragraph…" rows="6" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>`;
     } else if (type === 'code') {
       input = `<textarea class="var-input var-code" data-var="${escapeAttr(v)}" placeholder="Enter code…" rows="4" style="width:100%;resize:vertical;font-family:monospace;font-size:12px;">${escapeHtml(def)}</textarea>`;
-    } else if (type === 'currency') {
-      input = `<div style="display:flex;align-items:center;gap:6px;">
-        <span style="font-size:13px;color:var(--ink-2);font-weight:600;">$</span>
-        <input type="number" step="0.01" class="var-input" data-var="${escapeAttr(v)}" placeholder="0.00" value="${escapeAttr(def)}" style="flex:1;" />
-      </div>`;
-    } else if (type === 'percentage') {
-      input = `<div style="display:flex;align-items:center;gap:6px;">
-        <input type="number" min="0" max="100" class="var-input" data-var="${escapeAttr(v)}" placeholder="0" value="${escapeAttr(def)}" style="flex:1;" />
-        <span style="font-size:13px;color:var(--ink-2);font-weight:600;">%</span>
-      </div>`;
-    } else if (type === 'filepath') {
-      input = `<input type="text" class="var-input var-code" data-var="${escapeAttr(v)}" placeholder="C:\\path\\to\\file.ext" value="${escapeAttr(def)}" style="font-family:monospace;font-size:12px;" />`;
-    } else if (type === 'imageurl') {
-      input = `<div>
-        <input type="url" class="var-input var-imageurl-input" data-var="${escapeAttr(v)}" placeholder="https://example.com/image.png" value="${escapeAttr(def)}" oninput="window._PL_previewImageUrl(this)" />
-        <div class="var-imageurl-preview" style="margin-top:6px;${def ? '' : 'display:none;'}">
-          <img src="${escapeAttr(def)}" style="max-width:120px;max-height:80px;border-radius:6px;border:1px solid var(--line);" onerror="this.parentElement.style.display='none';" onload="this.parentElement.style.display='block';" />
-        </div>
-      </div>`;
-    } else if (type === 'tags') {
-      const tagList = def ? def.split(',').map(s => s.trim()).filter(Boolean) : [];
-      input = `<div class="var-tags-field" data-var="${escapeAttr(v)}">
-        <div class="var-tags-chips">
-          ${tagList.map(t => `<span class="chip active var-tag-chip">${escapeHtml(t)}<span class="material-symbols-outlined" style="font-size:13px;cursor:pointer;" onclick="window._PL_removeTag(this)">close</span></span>`).join('')}
-        </div>
-        <input type="text" class="var-input var-tags-input" placeholder="Type a tag and press Enter…" onkeydown="window._PL_addTagKey(event, this)" />
-        <input type="hidden" class="var-input var-tags-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
-      </div>`;
-    } else if (type === 'checkbox' && opts.length) {
-      const checkedList = def ? def.split(',').map(s => s.trim()) : [];
-      input = `<div class="var-checklist" data-var="${escapeAttr(v)}">
-        ${opts.map((o, i) => `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:4px;">
-          <input type="checkbox" class="var-checklist-item" value="${escapeAttr(o)}" ${checkedList.includes(o) ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;" />
-          <span style="font-size:13px;color:var(--ink-2);">${escapeHtml(o)}</span>
-        </label>`).join('')}
-        <input type="hidden" class="var-input var-checklist-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
-      </div>`;
     } else if (type === 'checkbox') {
-      input = `<p style="font-size:12px;color:var(--ink-3);">Add options in the variable editor to use this checklist.</p>`;
-    } else if (type === 'togglegroup' && opts.length) {
-      input = `<div class="var-toggle-group" data-var="${escapeAttr(v)}">
-        ${opts.map(o => `<span class="chip var-toggle-btn${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</span>`).join('')}
-        <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
-      </div>`;
-    } else if (type === 'togglegroup') {
-      input = `<p style="font-size:12px;color:var(--ink-3);">Add options in the variable editor to use this toggle group.</p>`;
-    } else if (type === 'range') {
-      const [rMin, rMax] = def ? def.split(',').map(s => s.trim()) : ['', ''];
-      input = `<div style="display:flex;align-items:center;gap:8px;">
-        <input type="number" class="var-input var-range-min" data-var="${escapeAttr(v)}" placeholder="Min" value="${escapeAttr(rMin || '')}" style="flex:1;" />
-        <span style="color:var(--ink-3);font-size:12px;">to</span>
-        <input type="number" class="var-input var-range-max" data-var="${escapeAttr(v)}" placeholder="Max" value="${escapeAttr(rMax || '')}" style="flex:1;" />
-        <input type="hidden" class="var-input var-range-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
-      </div>`;
+      const isChecked = def === 'true' || def === 'Yes';
+      input = `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" class="var-checkbox" data-var="${escapeAttr(v)}" ${isChecked ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;" />
+        <span style="font-size:13px;color:var(--ink-2);">Yes / No</span>
+      </label>`;
     } else if (type === 'slider') {
       const sliderDef = def || '50';
       input = `<div style="display:flex;align-items:center;gap:10px;">
@@ -1135,11 +1061,7 @@ function renderVariableFields(vars, meta) {
         <span style="min-width:28px;text-align:right;font-size:13px;font-weight:600;color:var(--ink-1);">${escapeHtml(sliderDef)}</span>
       </div>`;
     } else if (type === 'rating') {
-      const ratingVal = parseInt(def, 10) || 0;
-      input = `<div class="var-star-rating" data-var="${escapeAttr(v)}">
-        ${[1,2,3,4,5].map(n => `<span class="material-symbols-outlined var-star${n<=ratingVal?' filled':''}" data-value="${n}" onclick="window._PL_selectStar(this)" style="cursor:pointer;font-size:22px;color:${n<=ratingVal?'var(--accent)':'var(--ink-3)'};">${n<=ratingVal?'star':'star_outline'}</span>`).join('')}
-        <input type="hidden" class="var-input var-star-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
-      </div>`;
+      input = `<input type="number" class="var-input" data-var="${escapeAttr(v)}" min="1" max="5" placeholder="1–5" value="${escapeAttr(def)}" style="width:80px;" />`;
     } else {
       input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter value…" value="${escapeAttr(def)}" />`;
     }
@@ -1214,95 +1136,6 @@ function _updateVarLivePreview() {
   previewWrap.hidden = false;
   previewBox.innerHTML = preview;
 }
-
-/* ---- New variable type interaction helpers (Tags / Toggle Group / Star Rating / Checklist / Image URL / Range) ---- */
-window._PL_previewImageUrl = function(input) {
-  const wrap = input.parentElement.querySelector('.var-imageurl-preview');
-  if (!wrap) return;
-  const img = wrap.querySelector('img');
-  if (input.value.trim()) {
-    img.src = input.value.trim();
-    wrap.style.display = 'block';
-  } else {
-    wrap.style.display = 'none';
-  }
-};
-
-window._PL_addTagKey = function(evt, input) {
-  if (evt.key !== 'Enter') return;
-  evt.preventDefault();
-  const val = input.value.trim();
-  if (!val) return;
-  const field = input.closest('.var-tags-field');
-  const hidden = field.querySelector('.var-tags-hidden');
-  const current = hidden.value ? hidden.value.split(',').map(s => s.trim()).filter(Boolean) : [];
-  if (!current.includes(val)) current.push(val);
-  hidden.value = current.join(', ');
-  input.value = '';
-  const chipsWrap = field.querySelector('.var-tags-chips');
-  const chip = document.createElement('span');
-  chip.className = 'chip active var-tag-chip';
-  chip.innerHTML = escapeHtml(val) + '<span class="material-symbols-outlined" style="font-size:13px;cursor:pointer;" onclick="window._PL_removeTag(this)">close</span>';
-  chipsWrap.appendChild(chip);
-  hidden.dispatchEvent(new Event('input', { bubbles: true }));
-};
-
-window._PL_removeTag = function(closeIcon) {
-  const chip = closeIcon.closest('.var-tag-chip');
-  const field = chip.closest('.var-tags-field');
-  const hidden = field.querySelector('.var-tags-hidden');
-  const removedText = chip.textContent.trim();
-  const current = hidden.value ? hidden.value.split(',').map(s => s.trim()).filter(Boolean) : [];
-  const next = current.filter(t => t !== removedText);
-  hidden.value = next.join(', ');
-  chip.remove();
-  hidden.dispatchEvent(new Event('input', { bubbles: true }));
-};
-
-window._PL_selectToggle = function(btn) {
-  const group = btn.closest('.var-toggle-group');
-  group.querySelectorAll('.var-toggle-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  const hidden = group.querySelector('.var-toggle-hidden');
-  hidden.value = btn.dataset.value;
-  hidden.dispatchEvent(new Event('input', { bubbles: true }));
-};
-
-window._PL_selectStar = function(star) {
-  const wrap = star.closest('.var-star-rating');
-  const val = parseInt(star.dataset.value, 10);
-  const hidden = wrap.querySelector('.var-star-hidden');
-  hidden.value = String(val);
-  wrap.querySelectorAll('.var-star').forEach(s => {
-    const n = parseInt(s.dataset.value, 10);
-    const filled = n <= val;
-    s.textContent = filled ? 'star' : 'star_outline';
-    s.classList.toggle('filled', filled);
-    s.style.color = filled ? 'var(--accent)' : 'var(--ink-3)';
-  });
-  hidden.dispatchEvent(new Event('input', { bubbles: true }));
-};
-
-// Checklist (multi-option checkbox) and Range fields sync their hidden input via delegated listeners
-document.addEventListener('change', function(evt) {
-  const checklistItem = evt.target.closest('.var-checklist-item');
-  if (checklistItem) {
-    const wrap = evt.target.closest('.var-checklist');
-    const hidden = wrap.querySelector('.var-checklist-hidden');
-    const checked = Array.from(wrap.querySelectorAll('.var-checklist-item:checked')).map(el => el.value);
-    hidden.value = checked.join(', ');
-    hidden.dispatchEvent(new Event('input', { bubbles: true }));
-  }
-});
-document.addEventListener('input', function(evt) {
-  if (evt.target.classList && (evt.target.classList.contains('var-range-min') || evt.target.classList.contains('var-range-max'))) {
-    const container = evt.target.parentElement;
-    const minEl = container.querySelector('.var-range-min');
-    const maxEl = container.querySelector('.var-range-max');
-    const hidden = container.querySelector('.var-range-hidden');
-    hidden.value = (minEl.value || '') + ', ' + (maxEl.value || '');
-  }
-});
 
 function switchDetailTab(name) {
   $$('.detail-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
@@ -2128,16 +1961,13 @@ function renderVarMetaList(existing) {
     list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
     return;
   }
-  const OPTIONS_TYPES = ['dropdown', 'checkbox', 'togglegroup'];
   const meta = existing || collectVarMeta();
   list.innerHTML = vars.map(v => {
     const m = meta[v] || {};
     const type    = m.type || 'text';
     const def     = m.default || '';
-    const size    = m.size || 'medium';
     const visible = m.visible !== false;
     const opts    = (m.options || []).join(', ');
-    const needsOptions = OPTIONS_TYPES.includes(type);
     return `
       <div class="var-meta-row" data-var="${escapeAttr(v)}">
         <div class="var-meta-head">
@@ -2152,8 +1982,8 @@ function renderVarMetaList(existing) {
           <select data-field="type" onchange="window.PL_onVarTypeChange(this)">
             <optgroup label="Text">
             <option value="text"      ${type === 'text'      ? 'selected' : ''}>Text</option>
+            <option value="textarea"  ${type === 'textarea'  ? 'selected' : ''}>Textarea</option>
             <option value="paragraph" ${type === 'paragraph' ? 'selected' : ''}>Paragraph</option>
-            <option value="markdown"  ${type === 'markdown'  ? 'selected' : ''}>Markdown</option>
             <option value="code"      ${type === 'code'      ? 'selected' : ''}>Code</option>
             <option value="password"  ${type === 'password'  ? 'selected' : ''}>Password</option>
             </optgroup>
@@ -2163,38 +1993,19 @@ function renderVarMetaList(existing) {
             <option value="phone"     ${type === 'phone'     ? 'selected' : ''}>Phone</option>
             </optgroup>
             <optgroup label="Input">
-            <option value="number"     ${type === 'number'     ? 'selected' : ''}>Number</option>
-            <option value="date"       ${type === 'date'       ? 'selected' : ''}>Date</option>
-            <option value="time"       ${type === 'time'       ? 'selected' : ''}>Time</option>
-            <option value="color"      ${type === 'color'      ? 'selected' : ''}>Color</option>
-            <option value="currency"   ${type === 'currency'   ? 'selected' : ''}>Currency</option>
-            <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
-            <option value="filepath"   ${type === 'filepath'   ? 'selected' : ''}>File Path</option>
-            <option value="imageurl"   ${type === 'imageurl'   ? 'selected' : ''}>Image URL</option>
-            </optgroup>
-            <optgroup label="Choice">
-            <option value="dropdown"    ${type === 'dropdown'    ? 'selected' : ''}>Dropdown</option>
-            <option value="checkbox"    ${type === 'checkbox'    ? 'selected' : ''}>Checkbox List</option>
-            <option value="tags"        ${type === 'tags'        ? 'selected' : ''}>Tags</option>
-            <option value="togglegroup" ${type === 'togglegroup' ? 'selected' : ''}>Toggle Group</option>
-            <option value="range"       ${type === 'range'       ? 'selected' : ''}>Range</option>
-            </optgroup>
-            <optgroup label="Advanced">
+            <option value="number"    ${type === 'number'    ? 'selected' : ''}>Number</option>
+            <option value="date"      ${type === 'date'      ? 'selected' : ''}>Date</option>
+            <option value="time"      ${type === 'time'      ? 'selected' : ''}>Time</option>
+            <option value="color"     ${type === 'color'     ? 'selected' : ''}>Color</option>
             <option value="slider"    ${type === 'slider'    ? 'selected' : ''}>Slider</option>
-            <option value="rating"    ${type === 'rating'    ? 'selected' : ''}>Star Rating</option>
+            <option value="rating"    ${type === 'rating'    ? 'selected' : ''}>Rating (1–5)</option>
+            <option value="dropdown"  ${type === 'dropdown'  ? 'selected' : ''}>Dropdown</option>
+            <option value="checkbox"  ${type === 'checkbox'  ? 'selected' : ''}>Checkbox</option>
             </optgroup>
           </select>
           <input type="text" data-field="default" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
         </div>
-        <div class="paragraph-size" style="display: ${type === 'paragraph' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
-          <span style="font-size: 11px; color: var(--ink-3);">Size:</span>
-          <select data-field="size" style="font-size: 12px; padding: 4px 8px;">
-            <option value="short"  ${size === 'short'  ? 'selected' : ''}>Short (3 rows)</option>
-            <option value="medium" ${size === 'medium' ? 'selected' : ''}>Medium (6 rows)</option>
-            <option value="tall"   ${size === 'tall'   ? 'selected' : ''}>Tall (10 rows)</option>
-          </select>
-        </div>
-        <div class="dropdown-options" style="display: ${needsOptions ? 'block' : 'none'};">
+        <div class="dropdown-options" style="display: ${type === 'dropdown' ? 'block' : 'none'};">
           <textarea data-field="options" placeholder="Comma-separated options" rows="2"
                     style="width: 100%; padding: 6px 10px; font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; color: var(--ink); margin-top: 4px;">${escapeHtml(opts)}</textarea>
         </div>
@@ -2202,12 +2013,9 @@ function renderVarMetaList(existing) {
   }).join('');
 }
 window.PL_onVarTypeChange = function(sel) {
-  const OPTIONS_TYPES = ['dropdown', 'checkbox', 'togglegroup'];
   const row = sel.closest('.var-meta-row');
   const opts = row.querySelector('.dropdown-options');
-  const sizeRow = row.querySelector('.paragraph-size');
-  if (opts) opts.style.display = OPTIONS_TYPES.includes(sel.value) ? 'block' : 'none';
-  if (sizeRow) sizeRow.style.display = sel.value === 'paragraph' ? 'flex' : 'none';
+  if (opts) opts.style.display = sel.value === 'dropdown' ? 'block' : 'none';
 };
 
 function collectVarMeta() {
@@ -2221,10 +2029,7 @@ function collectVarMeta() {
     const options = optsEl?.value
       ? optsEl.value.split(',').map(o => o.trim()).filter(Boolean)
       : [];
-    const sizeEl  = row.querySelector('[data-field="size"]');
-    const entry = { type, default: def, visible, options };
-    if (type === 'paragraph' && sizeEl) entry.size = sizeEl.value;
-    meta[v] = entry;
+    meta[v] = { type, default: def, visible, options };
   });
   return meta;
 }
@@ -3200,8 +3005,7 @@ function _escapeToLibrary() {
   // Close any open workspaces
   ['#forgeWorkspace','#labWorkspace','#rolesWorkspace','#playgroundWorkspace',
    '#chainWorkspace','#metaWorkspace','#contextBankWorkspace','#componentsWorkspace',
-   '#optimizerWorkspace','#fillWorkspace','#auditWorkspace','#diffWorkspace',
-   '#costWorkspace','#pulseWorkspace','#xrayWorkspace','#spliceWorkspace',
+   '#optimizerWorkspace','#tonecalWorkspace','#snippetsWorkspace',
    ].forEach(sel => {
     const el = $(sel);
     if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -3264,13 +3068,8 @@ function init() {
       if (v === 'contextBank')   { window.openContextBankWorkspace();  return; }
       if (v === 'components')    { window.openComponentsWorkspace();   return; }
       if (v === 'optimizer')    { window.openOptimizerWorkspace();    return; }
-      if (v === 'fill')         { window.openFillWorkspace();         return; }
-      if (v === 'audit')        { window.openAuditWorkspace();        return; }
-      if (v === 'diff')         { window.openDiffWorkspace();         return; }
-      if (v === 'cost')         { window.openCostWorkspace();         return; }
-      if (v === 'pulse')        { window.openPulseWorkspace();        return; }
-      if (v === 'xray')         { window.openXrayWorkspace();         return; }
-      if (v === 'splice')       { window.openSpliceWorkspace();       return; }
+      if (v === 'tonecal')      { window.openToneCalWorkspace();      return; }
+      if (v === 'snippets')     { window.openSnippetsWorkspace();     return; }
       const stringViews = ['library', 'favorites'];
       setView(stringViews.includes(v) ? v : Number(v));
     });
@@ -4250,10 +4049,10 @@ window.PL_newRole = function() {
   if (colPicker) colPicker.value = '#6366f1';
   // Reset section tabs to Core
   $$('.role-nav-tab').forEach(t => t.classList.remove('active'));
-  const coreTab = document.querySelector('.role-nav-tab[data-section="identity"]');
+  const coreTab = null; // no tabs in single-page layout
   if (coreTab) coreTab.classList.add('active');
   $$('.role-section-panel').forEach(p => p.classList.remove('active'));
-  const corePanel = $('#role-section-identity');
+  const corePanel = null; // no tab panels in single-page layout
   if (corePanel) corePanel.classList.add('active');
 
   renderRolesList(); // clear active highlight
@@ -4262,55 +4061,6 @@ window.PL_newRole = function() {
   renderExampleList([]);
   updateRolePromptPreview();
   $('#roleNameInput')?.focus();
-};
-
-/* ── Starter presets — one-click agent scaffolds from the empty state ─────── */
-const ROLE_PRESETS = [
-  { icon: '✍️', name: 'Senior Copywriter', tone: 'Confident, concise, no fluff', expertise: 'Conversion copy, B2B SaaS, email',
-    persona: 'I am a senior copywriter with 12 years in B2B SaaS. I lead with the point and make every word earn its place.',
-    goal: 'Turn rough ideas into copy the user can ship immediately',
-    tasks: 'Cold emails, landing pages, LinkedIn posts, ad creative', flags: ['no_preamble', 'no_hedging'] },
-  { icon: '🔍', name: 'Code Reviewer', tone: 'Direct, technical, constructive', expertise: 'Code quality, security, performance',
-    persona: 'I am a staff engineer reviewing code. I flag real defects with severity levels and never pad findings with praise.',
-    goal: 'Catch bugs and design problems before they merge',
-    tasks: 'Review diffs, audit functions, suggest safer patterns', flags: ['step_by_step', 'use_examples'] },
-  { icon: '📊', name: 'Strategy Analyst', tone: 'Measured, evidence-first', expertise: 'Market analysis, competitive research',
-    persona: 'I am a strategy analyst. I separate facts from assumptions, quantify what I can, and flag confidence levels.',
-    goal: 'Turn messy questions into structured, defensible analysis',
-    tasks: 'SWOT, market sizing, competitor teardowns, option scoring', flags: ['cite_sources', 'show_reasoning'] },
-  { icon: '🎓', name: 'Patient Teacher', tone: 'Warm, encouraging, jargon-free', expertise: 'Explaining complex topics simply',
-    persona: 'I am a teacher who explains hard ideas with analogies and small steps. I check understanding before moving on.',
-    goal: 'Make the user genuinely understand, not just receive answers',
-    tasks: 'Explain concepts, build learning plans, quiz the user', flags: ['use_examples', 'step_by_step'] },
-  { icon: '🧪', name: 'Prompt Engineer', tone: 'Precise, systematic', expertise: 'Prompt design, evaluation, iteration',
-    persona: 'I am a prompt engineer. I diagnose why prompts fail and rebuild them with clear roles, constraints and formats.',
-    goal: 'Make every prompt sharper, testable and reusable',
-    tasks: 'Rewrite prompts, design rubrics, build prompt templates', flags: ['structured_output', 'show_reasoning'] },
-  { icon: '📝', name: 'Ruthless Editor', tone: 'Blunt, surgical, respectful of voice', expertise: 'Editing, clarity, structure',
-    persona: 'I am an editor who cuts 30% of any draft without losing meaning. I preserve the writer’s voice while removing noise.',
-    goal: 'Make drafts shorter, clearer and stronger',
-    tasks: 'Line edits, structural edits, headline options', flags: ['no_preamble', 'no_repetition'] },
-];
-
-window.PL_newRoleFromPreset = function(idx) {
-  const p = ROLE_PRESETS[idx];
-  if (!p) return;
-  window.PL_newRole();
-  const set = (sel, val) => { const el = $(sel); if (el) el.value = val || ''; };
-  set('#roleNameInput',      p.name);
-  set('#roleToneInput',      p.tone);
-  set('#roleExpertiseInput', p.expertise);
-  set('#rolePersonaInput',   p.persona);
-  set('#roleGoalInput',      p.goal);
-  set('#roleTasksInput',     p.tasks);
-  const iconBtn = $('#roleIconBtn');
-  if (iconBtn) iconBtn.textContent = p.icon;
-  (p.flags || []).forEach(f => {
-    const chip = document.querySelector('#roleFlagChips .role-chip[data-val="' + f + '"]');
-    if (chip) chip.classList.add('on');
-  });
-  updateRolePromptPreview();
-  toast('Preset loaded — tweak and save', 'success');
 };
 
 /* ── Delete ───────────────────────────────────────────────────────────────── */
@@ -5904,7 +5654,7 @@ function initModalSidePanels() {
     { cat: 'reasoning', icon: 'search_insights',   label: 'Assumption Audit',   text: 'Before answering, identify all assumptions embedded in the question:\n1. Assumption: [state it] — Valid / Questionable\n2. Assumption: [state it] — Valid / Questionable\n\nNow answer with those assumptions made explicit.' },
     { cat: 'reasoning', icon: 'psychology_alt',      label: 'Cognitive Bias Check', text: 'Before answering, identify any cognitive biases that may affect your reasoning:\n- Confirmation bias: Are you favoring information that confirms your existing beliefs?\n- Anchoring bias: Are you relying too heavily on the first piece of information you received?\n- Availability heuristic: Are you overestimating the importance of information that is most readily available?\n- Hindsight bias: Are you seeing events as more predictable than they actually were?\n- Overconfidence bias: Are you overestimating your own knowledge or abilities?\n\nState how you will mitigate these biases in your response.'},    
     { cat: 'reasoning', icon: 'manage_search',     label: "Devil's Advocate",   text: 'Argue the strongest possible case AGAINST the following position, then give your actual view:\n\nPosition: [state the claim]\n\nCounter-argument:\n[strongest objection]\n\nMy actual view:\n[balanced conclusion].' },
-    { cat: 'reasoning', icon: 'psychology',         label: 'First Principles',   text: 'Break this down to first principles:\n1. What do we know for certain? [foundational facts]\n2. What are we assuming? [remove these]\n3. What can we build from scratch? [derived conclusion]' },
+    { cat: 'reasoning', icon: 'cognition',         label: 'First Principles',   text: 'Break this down to first principles:\n1. What do we know for certain? [foundational facts]\n2. What are we assuming? [remove these]\n3. What can we build from scratch? [derived conclusion]' },
     { cat: 'reasoning', icon: 'psychology_alt',      label: 'Perspective Taking', text: 'Before answering, consider the perspective of [stakeholder / persona].\n- What are their goals and motivations?\n- What constraints or pressures do they face?\n- How would they interpret the situation?\n- What would they consider a successful outcome?\n\nNow answer with this perspective in mind.' },
     { cat: 'reasoning', icon: 'data_exploration',  label: 'Socratic Method',    text: 'Guide me to the answer by asking probing questions rather than stating it directly.\n\nStart with: [opening question]\nIf I say [X], ask: [follow-up]\nKeep questioning until I reach: [target insight].' },
     { cat: 'reasoning', icon: 'hub',               label: 'Stakeholder Map',    text: 'Identify all stakeholders affected by [decision/plan/change]:\n\n- Primary (directly affected): [who + how]\n- Secondary (indirectly affected): [who + how]\n- Opponents (will resist): [who + why]\n- Champions (will advocate): [who + why]\n\nHighest-risk stakeholder: [name the one most likely to derail this]' },
@@ -5912,7 +5662,7 @@ function initModalSidePanels() {
     { cat: 'reasoning', icon: 'lightbulb',         label: 'Reasoning',          text: 'Before answering, reason through this explicitly:\n\n1. Core question: [restate the problem precisely]\n2. Known facts: [what I can confirm with confidence]\n3. Inferences: [what I am inferring — flagged as such]\n4. Key trade-offs: [competing considerations]\n5. What would change my answer: [the assumption that, if false, flips the conclusion]\n\nConclusion: [answer grounded in the reasoning above]' },
     { cat: 'reasoning', icon: 'fork_left',         label: 'Lateral Thinking',   text: 'Apply lateral thinking to [problem]. Challenge every obvious assumption.\n\nProblem restated: [as normally framed]\nObvious approaches (set aside): [conventional solutions]\n\nProvocation (Po technique):\nPo: [impossible or absurd reversal of the problem]\nInsight from provocation: [what does this suggest?]\n\nRandom entry:\nRandom word: [any word — e.g. "mirror"]\nConnection to the problem: [how does this spark an idea?]\n\nLateral solution: [the unexpected approach this thinking revealed]' },
     { cat: 'reasoning', icon: 'update',            label: 'Bayesian Update',    text: 'Apply Bayesian reasoning to update the belief that [hypothesis].\n\nPrior belief (before new evidence): [%] — based on [prior evidence or base rate]\n\nNew evidence: [describe the new information]\nLikelihood ratio: If hypothesis is true, this evidence is [N]x more/less likely\n\nUpdated (posterior) belief: approximately [%]\nReasoning: [how you arrived at this]\n\nWhat evidence would push above [N]%? [answer]\nWhat evidence would push below [N]%? [answer]' },
-    { cat: 'reasoning', icon: 'device_hub',      label: 'Second-Order Thinking', text: 'Apply second and third-order thinking to [decision / action].\n\nFirst-order effect: [the immediate, obvious consequence]\n\nSecond-order effects (what happens because the first thing happened):\n- [second-order effect 1]\n- [second-order effect 2]\n\nThird-order effects:\n- [third-order effect 1]\n- [third-order effect 2]\n\nUnintended consequence most likely to matter: [the surprising downstream effect]\nDecision implication: [does this analysis change what you would do?]' },
+    { cat: 'reasoning', icon: 'network_node',      label: 'Second-Order Thinking', text: 'Apply second and third-order thinking to [decision / action].\n\nFirst-order effect: [the immediate, obvious consequence]\n\nSecond-order effects (what happens because the first thing happened):\n- [second-order effect 1]\n- [second-order effect 2]\n\nThird-order effects:\n- [third-order effect 1]\n- [third-order effect 2]\n\nUnintended consequence most likely to matter: [the surprising downstream effect]\nDecision implication: [does this analysis change what you would do?]' },
     // ── CONTROL FLOW ─────────────────────────────────────────────────────────
     { cat: 'control', icon: 'alt_route',           label: 'If/Else',             text: 'Condition: IF [condition or trigger is true]\n\nTHEN:\n  [Action or output when condition is met]\n  Format: [how to respond in this branch]\n\nELSE:\n  [Action or output when condition is NOT met]\n  Format: [how to respond in this branch]\n\nEdge case: IF [specific exception]:\n  [How to handle it]' },
     { cat: 'control', icon: 'mediation',           label: 'Switch/Case',         text: 'Evaluate the input and select the matching case:\n\nSWITCH [input variable or condition]\n\n  CASE [value 1]:\n    [Response or action]\n\n  CASE [value 2]:\n    [Response or action]\n\n  DEFAULT:\n    [Response when no case matches]' },
@@ -6034,7 +5784,7 @@ function initModalSidePanels() {
   { cat: 'meta', icon: 'analytics',             label: 'Prompt Analyzer',     text: 'Break down the following prompt into its components and explain their purpose.\n\nPrompt to analyze:\n[paste prompt here]\n\nComponents:\n1. Role / persona: [what role the AI is asked to take and why]\n2. Context / background: [what information is provided to set the scene]\n3. Task / instruction: [what the AI is being asked to do]\n4. Output format / constraints: [how the response should be structured or limited]\n5. Variables / placeholders: [any dynamic elements that change between uses]' },
   { cat: 'meta', icon: 'refresh',               label: 'Prompt Reframer',     text: 'Reframe the following prompt to approach the task from a different angle or mindset.\n\nOriginal prompt:\n[paste prompt here]\n\nNew framing approach: [e.g. problem-first, solution-first, user-centric, data-driven]\n\nRewritten prompt:\n[output]\n\nHow this reframing changes the expected output:\n- [point 1]\n- [point 2]' },
   { cat: 'meta', icon: 'bug_report',            label: 'Prompt Debugger',      text: 'Identify potential issues in the following prompt that could lead to poor or unexpected AI responses.\n\nPrompt to debug:\n[paste prompt here]\n\nPotential issues:\n1. Ambiguity in instructions — could lead to varied interpretations\n2. Missing context — AI may lack necessary background to answer correctly\n3. Overly broad or vague task — may result in unfocused output\n4. Conflicting constraints — could confuse the AI\n5. Lack of output format specification — may produce unstructured or unusable results\n\nRecommended fixes:\n- [fix 1]\n- [fix 2]\n- [fix 3]\n\nRewritten prompt with fixes applied:\n[output]' },
-  { cat: 'meta', icon: 'speed',     label: 'Prompt Stress Tester', text: 'Test the following prompt under challenging conditions to see how robust it is.\n\nPrompt to test:\n[paste prompt here]\n\nStress test scenarios:\n1. Ambiguous input — provide unclear or incomplete information\n2. Conflicting instructions — give contradictory requirements\n3. Extreme constraints — limit time, length, or resources\n4. Unusual context — place the task in an unexpected setting\n5. Edge cases — present rare or atypical situations\n\nFor each scenario, evaluate:\n- How well does the AI handle it?\n- What errors or failures occur?\n- How could the prompt be improved to handle this better?' },
+  { cat: 'meta', icon: 'stress_management',     label: 'Prompt Stress Tester', text: 'Test the following prompt under challenging conditions to see how robust it is.\n\nPrompt to test:\n[paste prompt here]\n\nStress test scenarios:\n1. Ambiguous input — provide unclear or incomplete information\n2. Conflicting instructions — give contradictory requirements\n3. Extreme constraints — limit time, length, or resources\n4. Unusual context — place the task in an unexpected setting\n5. Edge cases — present rare or atypical situations\n\nFor each scenario, evaluate:\n- How well does the AI handle it?\n- What errors or failures occur?\n- How could the prompt be improved to handle this better?' },
   { cat: 'meta', icon: 'translate',             label: 'Prompt Translator',   text: 'Translate the following prompt into [target language] while preserving all instructions, constraints, and formatting requirements exactly.\n\nOriginal prompt:\n[paste prompt here]\n\nTarget language: [language]\n\nNotes:\n- Preserve all [[variables]] and placeholders unchanged\n- Keep all formatting markers intact\n- Adapt any culturally specific examples to the target language\'s context\n\nTranslated prompt:\n[output]' },
   { cat: 'meta', icon: 'playlist_add_check',    label: 'Constraint Checker',  text: 'Review the following prompt and identify whether all necessary constraints are present and properly specified.\n\nPrompt to review:\n[paste prompt here]\n\nConstraint checklist:\n- [ ] Word / length limit specified\n- [ ] Output format clearly defined\n- [ ] Tone / style guidance included\n- [ ] Scope boundaries set\n- [ ] Examples provided (if few-shot needed)\n- [ ] Edge cases addressed\n- [ ] Hallucination safeguards present\n- [ ] Audience / expertise level stated\n\nMissing constraints:\n1. [missing constraint 1]\n2. [missing constraint 2]\n\nRevised prompt with constraints added:\n[output]' },
   { cat: 'meta', icon: 'shuffle',               label: 'Prompt Scrambler',    text: 'Take the following structured prompt and reorganise it in three different ways without changing any content.\n\nOriginal prompt:\n[paste prompt here]\n\nReorganisation A — Role-first:\n[prompt with role/persona placed first]\n\nReorganisation B — Task-first:\n[prompt with task/instruction placed first]\n\nReorganisation C — Context-first:\n[prompt with background/context placed first]\n\nAnalysis: which organisation likely works best for this specific task and why.' },
@@ -8001,917 +7751,118 @@ function initOptimizerWorkspace() {
 }
 
 /* ============================================================================
-   WORKSPACE SUITE — shared helpers
-   Used by Quick Fill, Auditor, Diff Lens, Cost Lens, Pulse, X-Ray, Splicer.
+   TONE CALIBRATOR WORKSPACE
+   Rewrites prompt text in a chosen tone via the shared callAI() helper.
    ============================================================================ */
+const _tcState = {
+  selectedTone: 'formal',
+  currentOutput: '',
+};
 
-// Fill a <select> with library prompts. Keeps first option as placeholder.
-async function _wsFillPromptPicker(selectSel) {
-  const sel = $(selectSel);
-  if (!sel) return;
-  try {
-    const data = await api('/prompts');
-    const list = Array.isArray(data) ? data : (data.prompts || []);
-    const first = sel.options[0] ? sel.options[0].outerHTML : '<option value="">Load from library…</option>';
-    sel.innerHTML = first + list.map(p =>
-      '<option value="' + escapeAttr(p.id) + '">' + escapeHtml(p.title || 'Untitled') + '</option>').join('');
-    sel._promptCache = list;
-  } catch { /* picker stays empty — paste still works */ }
+const TC_TONE_LABELS = {
+  formal:      'formal, professional',
+  casual:      'casual, conversational',
+  persuasive:  'persuasive, compelling',
+  concise:     'concise, terse, no filler',
+  friendly:    'warm, friendly, approachable',
+  technical:   'technical, precise, domain-expert',
+};
+
+window.openToneCalWorkspace = function() {
+  if (!state.isPremium) { showPremiumModal(); return; }
+  $('#tonecalWorkspace')?.classList.add('open');
+  $$('.nav-item[data-view]').forEach(el =>
+    el.classList.toggle('active', el.dataset.view === 'tonecal'));
+  setTimeout(() => $('#tcPromptInput')?.focus(), 80);
+};
+function closeToneCalWorkspace() {
+  $('#tonecalWorkspace')?.classList.remove('open');
+  $$('.nav-item[data-view]').forEach(el =>
+    el.classList.toggle('active', el.dataset.view === 'library'));
 }
 
-function _wsPickedPrompt(selectSel) {
-  const sel = $(selectSel);
-  if (!sel || !sel.value || !sel._promptCache) return null;
-  return sel._promptCache.find(p => String(p.id) === String(sel.value)) || null;
+async function _tcRunRewrite() {
+  const prompt = $('#tcPromptInput')?.value?.trim();
+  if (!prompt) { toast('Paste a prompt first', 'warning'); return; }
+  const toneLabel = TC_TONE_LABELS[_tcState.selectedTone] || TC_TONE_LABELS.formal;
+  const custom = $('#tcCustomInstructions')?.value?.trim();
+  const sys = 'You are an expert editor. Rewrite the given text in a ' + toneLabel +
+    ' tone. Preserve the original meaning, structure and intent — change only word choice, phrasing and register. ' +
+    'Return ONLY the rewritten text. No preamble, no explanation, no markdown fencing.';
+  let usr = prompt;
+  if (custom) usr += '\n\nAdditional instructions: ' + custom;
+  const origEl = $('#tcOutputOriginal');
+  const outEl  = $('#tcOutputRewritten');
+  if (origEl) origEl.textContent = prompt;
+  if (outEl)  outEl.innerHTML = '<span class="hint">⏳ Rewriting…</span>';
+  const result = await callAI(sys, usr, 1200);
+  if (outEl) outEl.textContent = result;
+  _tcState.currentOutput = result;
+  const actions = $('#tcOutputActions');
+  if (actions) actions.style.display = 'flex';
+  toast('Tone rewritten', 'success');
 }
 
-// Rough token estimate — average of chars/4 and words*1.33 heuristics.
-function _wsEstTokens(text) {
-  const t = text || '';
-  const words = (t.trim().match(/\S+/g) || []).length;
-  return Math.max(0, Math.round((t.length / 4 + words * 1.33) / 2));
-}
+function initToneCalWorkspace() {
+  const ws = $('#tonecalWorkspace');
+  if (!ws) return;
 
-// Classify prompt lines into structural components. Offline, keyword-scored.
-// Returns { role, context, task, constraints, format, examples, other } — arrays of lines.
-function _wsSplitComponents(text) {
-  const out = { role: [], context: [], task: [], constraints: [], format: [], examples: [], other: [] };
-  const RX = {
-    role:        /\b(you are|act as|act like|adopt the|persona of|role of|behave as|you're an?|assume the role)\b/i,
-    constraints: /\b(don'?t|do not|never|avoid|must not|no more than|at most|at least|limit(?:ed)? to|only|exclude|without|refuse|forbidden|not allowed)\b/i,
-    format:      /\b(format|bullet|bulleted|numbered list|table|json|xml|yaml|markdown|heading|word count|words? max|paragraphs?|respond in|output.{0,12}(as|in)|structure your|tone[:\s]|begin with|end with|no preamble)\b/i,
-    examples:    /\b(example|e\.g\.|for instance|for example|such as|input:|output:|sample)\b/i,
-    task:        /\b(write|create|generate|analy[sz]e|summari[sz]e|list|explain|rewrite|classify|extract|translate|design|draft|produce|evaluate|compare|review|identify|describe|outline|build|compose|convert|improve|suggest|recommend|brainstorm|critique|answer|research)\b/i,
-    context:     /\b(context|background|given|about|we are|our company|the user|scenario|situation|currently|working on|audience|reader)\b/i,
-  };
-  const lines = (text || '').split(/\n+/).map(l => l.trim()).filter(Boolean);
-  lines.forEach((line, i) => {
-    // Score each bucket; first-line role bias, early-line context bias.
-    const scores = {
-      role:        (RX.role.test(line) ? 3 : 0) + (i === 0 ? 1 : 0),
-      constraints: RX.constraints.test(line) ? 2.5 : 0,
-      format:      RX.format.test(line) ? 2.5 : 0,
-      examples:    RX.examples.test(line) ? 2 : 0,
-      task:        (RX.task.test(line) ? 2 : 0),
-      context:     (RX.context.test(line) ? 1.5 : 0) + (i > 0 && i < 3 ? 0.5 : 0),
-    };
-    let best = 'other', bestScore = 1; // below 1 → other
-    Object.keys(scores).forEach(k => { if (scores[k] > bestScore) { best = k; bestScore = scores[k]; } });
-    out[best].push(line);
-  });
-  return out;
-}
-
-/* ============================================================================
-   QUICK FILL WORKSPACE
-   Pick or paste a template, auto-detect [placeholders] and {{variables}},
-   fill them in a generated form, copy or save the result. Values are
-   remembered per variable name in localStorage (pl_qf_memory).
-   data-view="fill" | openFillWorkspace() | initFillWorkspace()
-   ============================================================================ */
-
-const QF_MEM_KEY = 'pl_qf_memory';
-let _qfVars = []; // [{ token, name }]
-
-function _qfMemory() { try { return JSON.parse(localStorage.getItem(QF_MEM_KEY) || '{}'); } catch { return {}; } }
-function _qfRemember(vals) {
-  const mem = _qfMemory();
-  Object.assign(mem, vals);
-  const keys = Object.keys(mem);
-  if (keys.length > 200) keys.slice(0, keys.length - 200).forEach(k => delete mem[k]);
-  localStorage.setItem(QF_MEM_KEY, JSON.stringify(mem));
-}
-
-function _qfExtractVars(text) {
-  const seen = new Set();
-  const vars = [];
-  const re = /\{\{([^{}\n]{1,60}?)\}\}|\[([^\[\]\n]{1,60}?)\]/g;
-  let m;
-  while ((m = re.exec(text || '')) !== null) {
-    const token = m[0];
-    if (seen.has(token)) continue;
-    seen.add(token);
-    vars.push({ token, name: (m[1] || m[2] || '').trim() });
-  }
-  return vars;
-}
-
-function _qfRenderForm() {
-  const src  = $('#qfSource')?.value || '';
-  const list = $('#qfVarList');
-  if (!list) return;
-  _qfVars = _qfExtractVars(src);
-  const countEl = $('#qfVarCount');
-  if (countEl) countEl.textContent = _qfVars.length;
-
-  if (!_qfVars.length) {
-    list.innerHTML = '<div class="qf-empty">No placeholders found.<br>Use <code>[square brackets]</code> or <code>{{curly pairs}}</code> in the template.</div>';
-    _qfRenderPreview();
-    return;
-  }
-  const mem = _qfMemory();
-  list.innerHTML = _qfVars.map((v, i) =>
-    '<div class="qf-field">' +
-      '<label class="qf-field-label" title="' + escapeAttr(v.token) + '">' + escapeHtml(v.name || v.token) + '</label>' +
-      '<textarea class="forge-input qf-var-input" data-qf-idx="' + i + '" rows="1" placeholder="' + escapeAttr(v.token) + '">' +
-        escapeHtml(mem[v.name] || '') + '</textarea>' +
-    '</div>').join('');
-  list.querySelectorAll('.qf-var-input').forEach(ta => {
-    ta.addEventListener('input', () => {
-      ta.style.height = 'auto';
-      ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
-      _qfRenderPreview();
+  $$('#tonecalWorkspace .tc-tone-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      _tcState.selectedTone = this.dataset.tone;
+      $$('#tonecalWorkspace .tc-tone-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
     });
   });
-  _qfRenderPreview();
-}
 
-function _qfValues() {
-  const vals = {};
-  $$('#qfVarList .qf-var-input').forEach(ta => {
-    const v = _qfVars[Number(ta.dataset.qfIdx)];
-    if (v) vals[v.name] = ta.value;
-  });
-  return vals;
-}
-
-function _qfResult() {
-  let text = $('#qfSource')?.value || '';
-  const vals = _qfValues();
-  _qfVars.forEach(v => {
-    const val = (vals[v.name] || '').trim();
-    if (val) text = text.split(v.token).join(val);
-  });
-  return text;
-}
-
-function _qfRenderPreview() {
-  const out = $('#qfPreview');
-  if (!out) return;
-  const src = $('#qfSource')?.value || '';
-  if (!src.trim()) {
-    out.innerHTML = '<span class="hint">Pick a prompt or paste a template on the left…</span>';
-    const st = $('#qfFillStat'); if (st) st.textContent = '';
-    return;
-  }
-  const text = _qfResult();
-  let html = escapeHtml(text);
-  // Any tokens still present were left unfilled — highlight them.
-  let remaining = 0;
-  _qfVars.forEach(v => {
-    const esc = escapeHtml(v.token);
-    if (html.includes(esc)) {
-      remaining += 1;
-      html = html.split(esc).join('<mark class="qf-missing">' + esc + '</mark>');
-    }
-  });
-  out.innerHTML = html;
-  const st = $('#qfFillStat');
-  if (st) st.textContent = _qfVars.length
-    ? (_qfVars.length - remaining) + ' of ' + _qfVars.length + ' filled'
-    : '';
-}
-
-window.openFillWorkspace = function() {
-  if (!state.isPremium) { showPremiumModal(); return; }
-  const ws = $('#fillWorkspace');
-  if (!ws) return;
-  ws.classList.add('open');
-  document.body.style.overflow = 'hidden';
-  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'fill'));
-  _wsFillPromptPicker('#qfPicker');
-  setTimeout(() => $('#qfSource')?.focus(), 80);
-};
-
-function closeFillWorkspace() {
-  $('#fillWorkspace')?.classList.remove('open');
-  document.body.style.overflow = '';
-  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
-}
-
-function initFillWorkspace() {
-  const ws = $('#fillWorkspace');
-  if (!ws) return;
-  $('#closeFillBtn')?.addEventListener('click', closeFillWorkspace);
-  $('#qfSource')?.addEventListener('input', _qfRenderForm);
-  $('#qfPicker')?.addEventListener('change', () => {
-    const p = _wsPickedPrompt('#qfPicker');
-    if (!p) return;
-    const src = $('#qfSource');
-    if (src) { src.value = p.content || ''; _qfRenderForm(); }
-  });
-  $('#qfCopyBtn')?.addEventListener('click', async () => {
-    const text = _qfResult().trim();
-    if (!text) { toast('Nothing to copy yet', 'warning'); return; }
-    _qfRemember(_qfValues());
-    if (await copyToClipboard(text)) toast('Filled prompt copied', 'success');
-  });
-  $('#qfSaveBtn')?.addEventListener('click', async () => {
-    const text = _qfResult().trim();
-    if (!text) { toast('Fill the template first', 'warning'); return; }
-    _qfRemember(_qfValues());
-    const picked = _wsPickedPrompt('#qfPicker');
-    const title  = ((picked?.title || text.split(' ').slice(0, 6).join(' ')) + ' (filled)').slice(0, 120);
-    try {
-      const cats = Array.isArray(picked?.categories) ? picked.categories.join(', ') : (picked?.categories || '');
-      const result = await api('/prompts', { method: 'POST', body: { title, content: text, description: 'Filled via Quick Fill workspace', categories: cats, tags: 'quick-fill' } });
-      await loadPrompts(); await loadFilterOptions();
-      toast('Saved: ' + title, 'success');
-      closeFillWorkspace();
-      if (result?.id) setTimeout(() => openDetail(result.id), 200);
-    } catch { toast('Could not save', 'error'); }
-  });
-  $('#qfClearBtn')?.addEventListener('click', () => {
-    const src = $('#qfSource'); if (src) src.value = '';
-    const pk = $('#qfPicker'); if (pk) pk.selectedIndex = 0;
-    _qfRenderForm();
-  });
-  ws.addEventListener('keydown', e => { if (e.key === 'Escape') closeFillWorkspace(); });
-}
-
-/* ============================================================================
-   PROMPT AUDITOR WORKSPACE
-   Offline rubric scoring across six dimensions plus a findings list.
-   Optional AI deep critique through the shared callAI() helper.
-   data-view="audit" | openAuditWorkspace() | initAuditWorkspace()
-   ============================================================================ */
-
-const AUD_VAGUE = ['some', 'various', 'stuff', 'things', 'good', 'nice', 'interesting', 'a few', 'better', 'appropriate', 'relevant', 'etc'];
-
-function _audScore(text) {
-  const t = (text || '').trim();
-  const lower = t.toLowerCase();
-  const words = (t.match(/\S+/g) || []).length;
-  const dims = {};
-  const findings = [];
-
-  // Role & persona
-  const hasRole = /\b(you are|act as|act like|adopt|persona of|role of|behave as)\b/i.test(t);
-  dims['Role & persona'] = hasRole ? 95 : 25;
-  if (!hasRole) findings.push({ sev: 'low', text: 'No role or persona set. Opening with "You are a…" anchors expertise and voice.' });
-
-  // Task clarity
-  const verbRx = /\b(write|create|generate|analy[sz]e|summari[sz]e|list|explain|rewrite|classify|extract|translate|design|draft|produce|evaluate|compare|review|identify|describe|outline|build|compose)\b/i;
-  const hasVerb = verbRx.test(t);
-  const hasQuant = /\b\d+\b|\b(one|two|three|four|five|ten)\b/i.test(t);
-  dims['Task clarity'] = (hasVerb ? 55 : 15) + (hasQuant ? 25 : 5) + (words >= 8 ? 15 : 0);
-  if (!hasVerb) findings.push({ sev: 'high', text: 'No clear action verb found. State exactly what the AI should do (write, analyse, list…).' });
-  if (words < 8) findings.push({ sev: 'med', text: 'Very short prompt (' + words + ' words). Underspecified prompts produce generic output.' });
-
-  // Context
-  const hasCtx = /\b(context|background|given|about|audience|scenario|we are|the user|for a|aimed at)\b/i.test(t) || words > 60;
-  dims['Context'] = hasCtx ? 80 : 30;
-  if (!hasCtx) findings.push({ sev: 'med', text: 'No background or audience context. Say who it is for and what situation it serves.' });
-
-  // Constraints
-  const hasCons = /\b(don'?t|do not|never|avoid|must|no more than|at most|at least|limit|only|exclude|without)\b/i.test(t);
-  dims['Constraints'] = hasCons ? 85 : 35;
-  if (!hasCons) findings.push({ sev: 'low', text: 'No constraints. Boundaries ("no jargon", "max 200 words") sharpen results.' });
-
-  // Output format
-  const hasFmt = /\b(format|bullet|numbered|table|json|xml|markdown|heading|word count|words|paragraphs?|tone|respond in|structure)\b/i.test(t);
-  dims['Output format'] = hasFmt ? 90 : 30;
-  if (!hasFmt) findings.push({ sev: 'med', text: 'No output format specified. Say how the answer should be structured.' });
-
-  // Examples
-  const hasEx = /\b(example|e\.g\.|for instance|for example|such as|input:|output:)\b/i.test(t);
-  dims['Examples'] = hasEx ? 90 : 45;
-
-  // Extra findings beyond the rubric
-  const vagueHits = AUD_VAGUE.filter(w => new RegExp('\\b' + w.replace('.', '\\.') + '\\b', 'i').test(lower));
-  if (vagueHits.length >= 2) findings.push({ sev: 'med', text: 'Vague wording: ' + vagueHits.slice(0, 5).map(w => '“' + w + '”').join(', ') + '. Swap for concrete terms.' });
-  const placeholders = _qfExtractVars(t);
-  if (placeholders.length) findings.push({ sev: 'high', text: placeholders.length + ' unfilled placeholder' + (placeholders.length > 1 ? 's' : '') + ' (' + placeholders.slice(0, 3).map(p => p.token).join(', ') + '…). Fill them in Quick Fill before running.' });
-  if (words > 120 && !t.includes('\n')) findings.push({ sev: 'med', text: 'Wall of text — ' + words + ' words with no line breaks. Split into sections or bullets.' });
-  if (/\b(concise|brief|short)\b/i.test(t) && /\b(detailed|comprehensive|in-depth|thorough)\b/i.test(t)) {
-    findings.push({ sev: 'high', text: 'Conflicting instructions: asks for both concise and detailed output. Pick one or scope each.' });
-  }
-  if (/ignore (all |any )?(previous|prior|above) instructions/i.test(t)) {
-    findings.push({ sev: 'high', text: 'Contains "ignore previous instructions" — commonly flagged or misinterpreted by models.' });
-  }
-
-  const vals = Object.values(dims);
-  const overall = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
-  return { overall, dims, findings, words, tokens: _wsEstTokens(t) };
-}
-
-function _audRender(result) {
-  const scoreEl = $('#audScoreNum');
-  if (scoreEl) scoreEl.textContent = result.overall;
-  const badge = $('#audScoreBadge');
-  if (badge) {
-    badge.textContent = result.overall >= 80 ? 'Strong' : result.overall >= 55 ? 'Decent' : 'Needs work';
-    badge.className = 'aud-badge ' + (result.overall >= 80 ? 'aud-good' : result.overall >= 55 ? 'aud-mid' : 'aud-bad');
-  }
-  const meta = $('#audMeta');
-  if (meta) meta.textContent = result.words + ' words · ~' + result.tokens + ' tokens';
-
-  const dimsEl = $('#audDims');
-  if (dimsEl) dimsEl.innerHTML = Object.entries(result.dims).map(([label, v]) =>
-    '<div class="aud-dim">' +
-      '<div class="aud-dim-head"><span>' + escapeHtml(label) + '</span><span class="aud-dim-val">' + v + '</span></div>' +
-      '<div class="aud-bar"><div class="aud-bar-fill' + (v >= 70 ? '' : v >= 45 ? ' mid' : ' low') + '" style="width:' + v + '%"></div></div>' +
-    '</div>').join('');
-
-  const list = $('#audFindings');
-  if (list) {
-    list.innerHTML = result.findings.length
-      ? result.findings.map(f =>
-          '<div class="aud-finding aud-sev-' + f.sev + '">' +
-            '<span class="aud-sev-chip">' + (f.sev === 'high' ? 'High' : f.sev === 'med' ? 'Med' : 'Low') + '</span>' +
-            '<span>' + escapeHtml(f.text) + '</span>' +
-          '</div>').join('')
-      : '<div class="hint" style="padding:var(--sp-3);">No issues found — this prompt covers the fundamentals. ✓</div>';
-  }
-  const results = $('#audResults');
-  if (results) results.style.display = '';
-}
-
-window.openAuditWorkspace = function() {
-  if (!state.isPremium) { showPremiumModal(); return; }
-  const ws = $('#auditWorkspace');
-  if (!ws) return;
-  ws.classList.add('open');
-  document.body.style.overflow = 'hidden';
-  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'audit'));
-  _wsFillPromptPicker('#audPicker');
-  setTimeout(() => $('#audInput')?.focus(), 80);
-};
-
-function closeAuditWorkspace() {
-  $('#auditWorkspace')?.classList.remove('open');
-  document.body.style.overflow = '';
-  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
-}
-
-function initAuditWorkspace() {
-  const ws = $('#auditWorkspace');
-  if (!ws) return;
-  $('#closeAuditBtn')?.addEventListener('click', closeAuditWorkspace);
-  $('#audPicker')?.addEventListener('change', () => {
-    const p = _wsPickedPrompt('#audPicker');
-    if (p) { const el = $('#audInput'); if (el) el.value = p.content || ''; }
-  });
-  $('#audRunBtn')?.addEventListener('click', () => {
-    const text = $('#audInput')?.value?.trim();
-    if (!text) { toast('Paste a prompt first', 'warning'); return; }
-    _audRender(_audScore(text));
-  });
-  $('#audAiBtn')?.addEventListener('click', async function() {
-    const text = $('#audInput')?.value?.trim();
-    if (!text) { toast('Paste a prompt first', 'warning'); return; }
-    const out = $('#audAiOutput');
+  $('#tcRewriteBtn')?.addEventListener('click', async function() {
     this.disabled = true;
-    if (out) { out.style.display = ''; out.innerHTML = '<span class="hint">⏳ Running deep critique…</span>'; }
+    this.innerHTML = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite">progress_activity</span> Rewriting…';
+    try { await _tcRunRewrite(); }
+    catch(err) {
+      const outEl = $('#tcOutputRewritten');
+      if (outEl) outEl.innerHTML = '<span class="hint">Error: ' + escapeHtml(err.message) + '</span>';
+      toast('Rewrite failed: ' + err.message, 'error');
+    }
+    finally { this.disabled = false; this.innerHTML = '<span class="material-symbols-outlined">tune</span> Rewrite tone'; }
+  });
+
+  $('#tcCopyBtn')?.addEventListener('click', async () => {
+    const text = _tcState.currentOutput || $('#tcOutputRewritten')?.textContent?.trim();
+    if (!text) return;
+    if (await copyToClipboard(text)) toast('Output copied', 'success');
+  });
+
+  $('#tcSaveBtn')?.addEventListener('click', async () => {
+    if (!_tcState.currentOutput) { toast('Rewrite a prompt first', 'warning'); return; }
+    const raw   = $('#tcPromptInput')?.value?.trim() || '';
+    const title = (raw.split(' ').slice(0, 6).join(' ') || 'Tone-calibrated prompt') + ' (' + _tcState.selectedTone + ')';
     try {
-      const sys = 'You are a prompt engineering reviewer. Critique the given prompt: name its three biggest weaknesses, then rewrite the weakest sentence. Be specific and terse. Plain text, no markdown headings.';
-      const result = await callAI(sys, text, 800);
-      if (out) out.textContent = result;
-    } catch (err) {
-      if (out) out.innerHTML = '<span class="hint">Error: ' + escapeHtml(err.message) + '</span>';
-      toast('Critique failed: ' + err.message, 'error');
-    } finally { this.disabled = false; }
-  });
-  ws.addEventListener('keydown', e => { if (e.key === 'Escape') closeAuditWorkspace(); });
-}
-
-/* ============================================================================
-   DIFF LENS WORKSPACE
-   Word-level diff between two prompts with similarity score. Offline. Free.
-   data-view="diff" | openDiffWorkspace() | initDiffWorkspace()
-   ============================================================================ */
-
-// Token-level LCS diff. Returns array of {op: 'eq'|'del'|'ins', text}.
-function _diffTokens(a, b) {
-  const at = a.match(/\S+|\s+/g) || [];
-  const bt = b.match(/\S+|\s+/g) || [];
-  const CAP = 3000;
-  if (at.length > CAP || bt.length > CAP) return null; // too large for O(n·m)
-  const n = at.length, m = bt.length;
-  // LCS table (single-int rows to keep memory sane)
-  const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
-  for (let i = n - 1; i >= 0; i--) {
-    for (let j = m - 1; j >= 0; j--) {
-      dp[i][j] = at[i] === bt[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
-    }
-  }
-  const ops = [];
-  let i = 0, j = 0;
-  while (i < n && j < m) {
-    if (at[i] === bt[j]) { ops.push({ op: 'eq', text: at[i] }); i++; j++; }
-    else if (dp[i + 1][j] >= dp[i][j + 1]) { ops.push({ op: 'del', text: at[i] }); i++; }
-    else { ops.push({ op: 'ins', text: bt[j] }); j++; }
-  }
-  while (i < n) { ops.push({ op: 'del', text: at[i++] }); }
-  while (j < m) { ops.push({ op: 'ins', text: bt[j++] }); }
-  return ops;
-}
-
-function _diffRun() {
-  const a = $('#diffInputA')?.value || '';
-  const b = $('#diffInputB')?.value || '';
-  const out = $('#diffOutput');
-  if (!out) return;
-  if (!a.trim() || !b.trim()) { toast('Fill both sides first', 'warning'); return; }
-  const ops = _diffTokens(a, b);
-  if (!ops) { out.innerHTML = '<span class="hint">Texts too large for word-level diff (3,000 token cap per side).</span>'; return; }
-
-  let html = '', eqCount = 0, wordTotal = 0;
-  ops.forEach(o => {
-    const esc = escapeHtml(o.text);
-    if (o.op === 'eq') { html += esc; if (/\S/.test(o.text)) eqCount++; }
-    else if (o.op === 'del') html += '<del class="dif-del">' + esc + '</del>';
-    else html += '<ins class="dif-ins">' + esc + '</ins>';
-    if (/\S/.test(o.text)) wordTotal++;
-  });
-  out.innerHTML = html;
-
-  const aw = (a.match(/\S+/g) || []).length, bw = (b.match(/\S+/g) || []).length;
-  const sim = (aw + bw) ? Math.round((2 * eqCount / (aw + bw)) * 100) : 0;
-  const stat = $('#diffStats');
-  if (stat) stat.innerHTML =
-    '<span class="dif-sim">' + sim + '% similar</span>' +
-    '<span>A: ' + aw + ' words · ~' + _wsEstTokens(a) + ' tok</span>' +
-    '<span>B: ' + bw + ' words · ~' + _wsEstTokens(b) + ' tok</span>';
-}
-
-window.openDiffWorkspace = function() {
-  const ws = $('#diffWorkspace');
-  if (!ws) return;
-  ws.classList.add('open');
-  document.body.style.overflow = 'hidden';
-  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'diff'));
-  _wsFillPromptPicker('#diffPickerA');
-  _wsFillPromptPicker('#diffPickerB');
-  setTimeout(() => $('#diffInputA')?.focus(), 80);
-};
-
-function closeDiffWorkspace() {
-  $('#diffWorkspace')?.classList.remove('open');
-  document.body.style.overflow = '';
-  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
-}
-
-function initDiffWorkspace() {
-  const ws = $('#diffWorkspace');
-  if (!ws) return;
-  $('#closeDiffBtn')?.addEventListener('click', closeDiffWorkspace);
-  $('#diffPickerA')?.addEventListener('change', () => {
-    const p = _wsPickedPrompt('#diffPickerA');
-    if (p) { const el = $('#diffInputA'); if (el) el.value = p.content || ''; }
-  });
-  $('#diffPickerB')?.addEventListener('change', () => {
-    const p = _wsPickedPrompt('#diffPickerB');
-    if (p) { const el = $('#diffInputB'); if (el) el.value = p.content || ''; }
-  });
-  $('#diffRunBtn')?.addEventListener('click', _diffRun);
-  $('#diffSwapBtn')?.addEventListener('click', () => {
-    const a = $('#diffInputA'), b = $('#diffInputB');
-    if (!a || !b) return;
-    const tmp = a.value; a.value = b.value; b.value = tmp;
-    if ($('#diffOutput')?.textContent?.trim()) _diffRun();
-  });
-  ws.addEventListener('keydown', e => { if (e.key === 'Escape') closeDiffWorkspace(); });
-}
-
-/* ============================================================================
-   COST LENS WORKSPACE
-   Token + cost estimate across common models. Static price table — offline.
-   Prices are indicative (checked mid-2026); always verify with the provider.
-   data-view="cost" | openCostWorkspace() | initCostWorkspace()
-   ============================================================================ */
-
-const COST_MODELS = [
-  { name: 'Claude Opus',      ctx: 200000,  inPM: 15.00, outPM: 75.00 },
-  { name: 'Claude Sonnet',    ctx: 200000,  inPM: 3.00,  outPM: 15.00 },
-  { name: 'Claude Haiku',     ctx: 200000,  inPM: 1.00,  outPM: 5.00 },
-  { name: 'GPT-4o',           ctx: 128000,  inPM: 2.50,  outPM: 10.00 },
-  { name: 'GPT-4o mini',      ctx: 128000,  inPM: 0.15,  outPM: 0.60 },
-  { name: 'Gemini Pro',       ctx: 2000000, inPM: 1.25,  outPM: 5.00 },
-  { name: 'Gemini Flash',     ctx: 1000000, inPM: 0.10,  outPM: 0.40 },
-];
-
-function _costFmt(n) {
-  if (n >= 1)      return '$' + n.toFixed(2);
-  if (n >= 0.01)   return '$' + n.toFixed(3);
-  return '$' + n.toFixed(5);
-}
-
-function _costRun() {
-  const text    = $('#costInput')?.value || '';
-  const outTok  = Math.max(0, parseInt($('#costOutTokens')?.value, 10) || 500);
-  const perDay  = Math.max(1, parseInt($('#costRunsDay')?.value, 10) || 1);
-  const inTok   = _wsEstTokens(text);
-  const meta    = $('#costMeta');
-  if (meta) meta.textContent = '~' + inTok.toLocaleString() + ' input tokens · ' + (text.match(/\S+/g) || []).length + ' words';
-
-  const body = $('#costTableBody');
-  if (!body) return;
-  body.innerHTML = COST_MODELS.map(mdl => {
-    const run   = (inTok / 1e6) * mdl.inPM + (outTok / 1e6) * mdl.outPM;
-    const month = run * perDay * 30;
-    const fit   = Math.min(100, Math.round(((inTok + outTok) / mdl.ctx) * 100));
-    return '<tr>' +
-      '<td>' + escapeHtml(mdl.name) + '</td>' +
-      '<td class="cl-num">' + _costFmt(run) + '</td>' +
-      '<td class="cl-num">' + _costFmt(run * perDay) + '</td>' +
-      '<td class="cl-num">' + _costFmt(month) + '</td>' +
-      '<td><div class="cl-fit"><div class="cl-fit-fill' + (fit > 85 ? ' cl-fit-hot' : '') + '" style="width:' + Math.max(fit, 2) + '%"></div></div>' +
-        '<span class="cl-fit-label">' + fit + '%</span></td>' +
-    '</tr>';
-  }).join('');
-  const results = $('#costResults');
-  if (results) results.style.display = '';
-}
-
-window.openCostWorkspace = function() {
-  if (!state.isPremium) { showPremiumModal(); return; }
-  const ws = $('#costWorkspace');
-  if (!ws) return;
-  ws.classList.add('open');
-  document.body.style.overflow = 'hidden';
-  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'cost'));
-  _wsFillPromptPicker('#costPicker');
-  setTimeout(() => $('#costInput')?.focus(), 80);
-};
-
-function closeCostWorkspace() {
-  $('#costWorkspace')?.classList.remove('open');
-  document.body.style.overflow = '';
-  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
-}
-
-function initCostWorkspace() {
-  const ws = $('#costWorkspace');
-  if (!ws) return;
-  $('#closeCostBtn')?.addEventListener('click', closeCostWorkspace);
-  $('#costPicker')?.addEventListener('change', () => {
-    const p = _wsPickedPrompt('#costPicker');
-    if (p) { const el = $('#costInput'); if (el) el.value = p.content || ''; _costRun(); }
-  });
-  ['#costInput', '#costOutTokens', '#costRunsDay'].forEach(sel => {
-    $(sel)?.addEventListener('input', () => { if ($('#costResults')?.style.display !== 'none') _costRun(); });
-  });
-  $('#costRunBtn')?.addEventListener('click', _costRun);
-  ws.addEventListener('keydown', e => { if (e.key === 'Escape') closeCostWorkspace(); });
-}
-
-/* ============================================================================
-   LIBRARY PULSE WORKSPACE
-   Health scan of the whole library — duplicates, missing metadata, stale and
-   thin prompts. Click any row to jump to that prompt. Offline computation.
-   data-view="pulse" | openPulseWorkspace() | initPulseWorkspace()
-   ============================================================================ */
-
-function _pulseTokenSet(text) {
-  return new Set((text || '').toLowerCase().slice(0, 400).match(/[a-z0-9]{3,}/g) || []);
-}
-
-function _pulseJaccard(sa, sb) {
-  if (!sa.size || !sb.size) return 0;
-  let inter = 0;
-  sa.forEach(t => { if (sb.has(t)) inter++; });
-  return inter / (sa.size + sb.size - inter);
-}
-
-async function _pulseScan() {
-  const scanBtn = $('#pulseRescanBtn');
-  if (scanBtn) scanBtn.disabled = true;
-  const body = $('#pulseBody');
-  if (body) body.innerHTML = '<div class="hint" style="padding:var(--sp-4);">⏳ Scanning library…</div>';
-  try {
-    const data = await api('/prompts');
-    const list = Array.isArray(data) ? data : (data.prompts || []);
-    const metaEmpty = v => Array.isArray(v) ? !v.length : !String(v || '').trim();
-    const issues = {
-      untagged:      list.filter(p => metaEmpty(p.tags)),
-      uncategorised: list.filter(p => metaEmpty(p.categories)),
-      undescribed:   list.filter(p => metaEmpty(p.description)),
-      thin:          list.filter(p => (p.content || '').trim().length < 40),
-    };
-    // Stale — updated/created more than 90 days ago, when a date field exists.
-    const cutoff = Date.now() - 90 * 24 * 3600 * 1000;
-    issues.stale = list.filter(p => {
-      const d = Date.parse(p.updated_at || p.created_at || '');
-      return !isNaN(d) && d < cutoff;
-    });
-    // Near-duplicate pairs — Jaccard over title + content prefix, capped scan.
-    const dupPairs = [];
-    const capped = list.slice(0, 500).map(p => ({ p, set: _pulseTokenSet((p.title || '') + ' ' + (p.content || '')) }));
-    for (let i = 0; i < capped.length && dupPairs.length < 30; i++) {
-      for (let j = i + 1; j < capped.length; j++) {
-        if (_pulseJaccard(capped[i].set, capped[j].set) >= 0.75) {
-          dupPairs.push([capped[i].p, capped[j].p]);
-          if (dupPairs.length >= 30) break;
-        }
-      }
-    }
-    const total = list.length || 1;
-    const pct = arr => arr.length / total;
-    const score = Math.max(0, Math.round(100
-      - pct(issues.untagged) * 25
-      - pct(issues.undescribed) * 20
-      - pct(issues.uncategorised) * 15
-      - pct(issues.thin) * 15
-      - Math.min(25, dupPairs.length * 3)));
-
-    const scoreEl = $('#pulseScoreNum');
-    if (scoreEl) scoreEl.textContent = score;
-    const meta = $('#pulseMeta');
-    if (meta) meta.textContent = list.length + ' prompts scanned' + (list.length > 500 ? ' (duplicate check capped at 500)' : '');
-
-    const rowFor = p => '<div class="pulse-row" data-pulse-id="' + escapeAttr(p.id) + '">' +
-      '<span class="pulse-row-title">' + escapeHtml(p.title || 'Untitled') + '</span>' +
-      '<span class="material-symbols-outlined">chevron_right</span></div>';
-
-    const section = (label, icon, arr, hintText) => {
-      const items = arr.slice(0, 15);
-      return '<div class="pulse-card">' +
-        '<div class="pulse-card-head"><span class="material-symbols-outlined">' + icon + '</span>' +
-          '<span>' + label + '</span><span class="pulse-count' + (arr.length ? '' : ' ok') + '">' + arr.length + '</span></div>' +
-        (arr.length
-          ? items.map(rowFor).join('') + (arr.length > 15 ? '<div class="hint" style="padding:6px 12px;">+' + (arr.length - 15) + ' more…</div>' : '')
-          : '<div class="pulse-clean">' + hintText + '</div>') +
-      '</div>';
-    };
-
-    if (body) {
-      body.innerHTML =
-        section('Untagged', 'label_important', issues.untagged, 'Every prompt is tagged. ✓') +
-        section('No category', 'category', issues.uncategorised, 'Every prompt has a category. ✓') +
-        section('No description', 'description', issues.undescribed, 'All prompts described. ✓') +
-        section('Thin content', 'compress', issues.thin, 'No under-developed prompts. ✓') +
-        section('Stale (90+ days)', 'history', issues.stale, 'Library is fresh. ✓') +
-        '<div class="pulse-card"><div class="pulse-card-head"><span class="material-symbols-outlined">content_copy</span>' +
-          '<span>Possible duplicates</span><span class="pulse-count' + (dupPairs.length ? '' : ' ok') + '">' + dupPairs.length + '</span></div>' +
-          (dupPairs.length
-            ? dupPairs.map(([a, b]) =>
-                '<div class="pulse-dup-pair">' + rowFor(a) + '<span class="pulse-dup-tie">≈</span>' + rowFor(b) + '</div>').join('')
-            : '<div class="pulse-clean">No near-duplicates found. ✓</div>') +
-        '</div>';
-      body.querySelectorAll('[data-pulse-id]').forEach(row => {
-        row.addEventListener('click', () => {
-          const id = parseInt(row.dataset.pulseId, 10);
-          closePulseWorkspace();
-          setTimeout(() => openDetail(id), 150);
-        });
-      });
-    }
-  } catch (e) {
-    if (body) body.innerHTML = '<div class="hint" style="padding:var(--sp-4);">Scan failed: ' + escapeHtml(e.message) + '</div>';
-  } finally {
-    if (scanBtn) scanBtn.disabled = false;
-  }
-}
-
-window.openPulseWorkspace = function() {
-  if (!state.isPremium) { showPremiumModal(); return; }
-  const ws = $('#pulseWorkspace');
-  if (!ws) return;
-  ws.classList.add('open');
-  document.body.style.overflow = 'hidden';
-  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'pulse'));
-  _pulseScan();
-};
-
-function closePulseWorkspace() {
-  $('#pulseWorkspace')?.classList.remove('open');
-  document.body.style.overflow = '';
-  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
-}
-
-function initPulseWorkspace() {
-  const ws = $('#pulseWorkspace');
-  if (!ws) return;
-  $('#closePulseBtn')?.addEventListener('click', closePulseWorkspace);
-  $('#pulseRescanBtn')?.addEventListener('click', _pulseScan);
-  ws.addEventListener('keydown', e => { if (e.key === 'Escape') closePulseWorkspace(); });
-}
-
-/* ============================================================================
-   PROMPT X-RAY WORKSPACE
-   Deconstruct any prompt into its structural components — role, context,
-   task, constraints, format, examples. Edit parts, reassemble, save.
-   data-view="xray" | openXrayWorkspace() | initXrayWorkspace()
-   ============================================================================ */
-
-const XRAY_PARTS = [
-  { key: 'role',        label: 'Role',          icon: 'person' },
-  { key: 'context',     label: 'Context',       icon: 'info' },
-  { key: 'task',        label: 'Task',          icon: 'task_alt' },
-  { key: 'constraints', label: 'Constraints',   icon: 'block' },
-  { key: 'format',      label: 'Output Format', icon: 'format_list_bulleted' },
-  { key: 'examples',    label: 'Examples',      icon: 'format_quote' },
-  { key: 'other',       label: 'Unclassified',  icon: 'help_outline' },
-];
-
-function _xrayRun() {
-  const text = $('#xrayInput')?.value?.trim();
-  if (!text) { toast('Paste a prompt first', 'warning'); return; }
-  const parts = _wsSplitComponents(text);
-  const grid = $('#xrayGrid');
-  if (!grid) return;
-  grid.innerHTML = XRAY_PARTS.map(p => {
-    const content = (parts[p.key] || []).join('\n');
-    const present = !!content.trim();
-    if (p.key === 'other' && !present) return '';
-    return '<div class="xr-card' + (present ? '' : ' xr-missing') + '">' +
-      '<div class="xr-card-head"><span class="material-symbols-outlined">' + p.icon + '</span>' +
-        '<span>' + p.label + '</span>' +
-        '<span class="xr-chip">' + (present ? 'Found' : 'Missing') + '</span>' +
-        '<button class="icon-btn xr-copy" data-xr-part="' + p.key + '" title="Copy section"><span class="material-symbols-outlined" style="font-size:15px;">content_copy</span></button></div>' +
-      '<textarea class="forge-input xr-text" data-xr-key="' + p.key + '" rows="3" placeholder="' +
-        (present ? '' : 'Nothing detected — add your own ' + p.label.toLowerCase() + ' here…') + '">' + escapeHtml(content) + '</textarea>' +
-    '</div>';
-  }).join('');
-  grid.querySelectorAll('.xr-copy').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const ta = grid.querySelector('.xr-text[data-xr-key="' + btn.dataset.xrPart + '"]');
-      if (ta?.value.trim() && await copyToClipboard(ta.value.trim())) toast('Section copied', 'success');
-    });
-  });
-  const actions = $('#xrayActions');
-  if (actions) actions.style.display = 'flex';
-}
-
-function _xrayAssemble() {
-  const parts = [];
-  XRAY_PARTS.forEach(p => {
-    const ta = document.querySelector('#xrayGrid .xr-text[data-xr-key="' + p.key + '"]');
-    const v = ta?.value?.trim();
-    if (v) parts.push('## ' + (p.key === 'other' ? 'Notes' : p.label) + '\n' + v);
-  });
-  return parts.join('\n\n');
-}
-
-window.openXrayWorkspace = function() {
-  if (!state.isPremium) { showPremiumModal(); return; }
-  const ws = $('#xrayWorkspace');
-  if (!ws) return;
-  ws.classList.add('open');
-  document.body.style.overflow = 'hidden';
-  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'xray'));
-  _wsFillPromptPicker('#xrayPicker');
-  setTimeout(() => $('#xrayInput')?.focus(), 80);
-};
-
-function closeXrayWorkspace() {
-  $('#xrayWorkspace')?.classList.remove('open');
-  document.body.style.overflow = '';
-  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
-}
-
-function initXrayWorkspace() {
-  const ws = $('#xrayWorkspace');
-  if (!ws) return;
-  $('#closeXrayBtn')?.addEventListener('click', closeXrayWorkspace);
-  $('#xrayPicker')?.addEventListener('change', () => {
-    const p = _wsPickedPrompt('#xrayPicker');
-    if (p) { const el = $('#xrayInput'); if (el) el.value = p.content || ''; }
-  });
-  $('#xrayRunBtn')?.addEventListener('click', _xrayRun);
-  $('#xrayCopyBtn')?.addEventListener('click', async () => {
-    const text = _xrayAssemble();
-    if (!text) { toast('Nothing to copy yet', 'warning'); return; }
-    if (await copyToClipboard(text)) toast('Structured prompt copied', 'success');
-  });
-  $('#xraySaveBtn')?.addEventListener('click', async () => {
-    const text = _xrayAssemble();
-    if (!text) { toast('Deconstruct a prompt first', 'warning'); return; }
-    const picked = _wsPickedPrompt('#xrayPicker');
-    const title  = ((picked?.title || 'Deconstructed prompt') + ' (structured)').slice(0, 120);
-    try {
-      const result = await api('/prompts', { method: 'POST', body: { title, content: text, description: 'Restructured via Prompt X-Ray workspace', categories: 'Prompt Engineering', tags: 'x-ray' } });
+      const result = await api('/prompts', { method: 'POST', body: { title, content: _tcState.currentOutput, description: 'Tone-calibrated via Tone Calibrator workspace', categories: 'Prompt Engineering', tags: 'tone-calibrated' } });
       await loadPrompts(); await loadFilterOptions();
       toast('Saved: ' + title, 'success');
-      closeXrayWorkspace();
+      closeToneCalWorkspace();
       if (result?.id) setTimeout(() => openDetail(result.id), 200);
     } catch { toast('Could not save', 'error'); }
   });
-  ws.addEventListener('keydown', e => { if (e.key === 'Escape') closeXrayWorkspace(); });
+
+  $('#closeTonecalBtn')?.addEventListener('click', closeToneCalWorkspace);
+  ws.addEventListener('keydown', e => { if (e.key === 'Escape') closeToneCalWorkspace(); });
 }
 
 /* ============================================================================
-   PROMPT SPLICER WORKSPACE
-   Merge two prompts component-by-component: deconstruct both sides, pick
-   which side supplies each part, assemble a hybrid. Offline.
-   data-view="splice" | openSpliceWorkspace() | initSpliceWorkspace()
-   ============================================================================ */
-
-let _splParts = null; // { a: {...}, b: {...} } after deconstruct
-
-function _splRun() {
-  const a = $('#splInputA')?.value?.trim();
-  const b = $('#splInputB')?.value?.trim();
-  if (!a || !b) { toast('Fill both sides first', 'warning'); return; }
-  _splParts = { a: _wsSplitComponents(a), b: _wsSplitComponents(b) };
-  const grid = $('#splGrid');
-  if (!grid) return;
-  grid.innerHTML = XRAY_PARTS.filter(p => p.key !== 'other').map(p => {
-    const av = (_splParts.a[p.key] || []).join('\n');
-    const bv = (_splParts.b[p.key] || []).join('\n');
-    // Default pick: whichever side has content; A wins ties.
-    const pick = av ? 'a' : (bv ? 'b' : 'none');
-    const cell = (side, val) =>
-      '<label class="spl-side' + (pick === side ? ' picked' : '') + (val ? '' : ' spl-empty') + '">' +
-        '<input type="radio" name="spl-' + p.key + '" value="' + side + '"' + (pick === side ? ' checked' : '') + (val ? '' : ' disabled') + ' />' +
-        '<span class="spl-side-tag">' + side.toUpperCase() + '</span>' +
-        '<span class="spl-side-text">' + (val ? escapeHtml(val.length > 220 ? val.slice(0, 220) + '…' : val) : '<em>not present</em>') + '</span>' +
-      '</label>';
-    return '<div class="spl-row" data-spl-key="' + p.key + '">' +
-      '<div class="spl-row-label"><span class="material-symbols-outlined">' + p.icon + '</span>' + p.label +
-        (av || bv ? '' : ' <span class="xr-chip">Missing in both</span>') + '</div>' +
-      '<div class="spl-pair">' + cell('a', av) + cell('b', bv) + '</div>' +
-    '</div>';
-  }).join('');
-  const actions = $('#splActions');
-  if (actions) actions.style.display = 'flex';
-  _splPreview();
-}
-
-function _splAssemble() {
-  if (!_splParts) return '';
-  const parts = [];
-  XRAY_PARTS.filter(p => p.key !== 'other').forEach(p => {
-    const row = document.querySelector('#splGrid .spl-row[data-spl-key="' + p.key + '"]');
-    const side = row?.querySelector('input:checked')?.value;
-    if (!side || side === 'none') return;
-    const val = (_splParts[side][p.key] || []).join('\n').trim();
-    if (val) parts.push('## ' + p.label + '\n' + val);
-  });
-  return parts.join('\n\n');
-}
-
-function _splPreview() {
-  const out = $('#splPreview');
-  if (!out) return;
-  // Sync .picked highlight with radio state
-  $$('#splGrid .spl-side').forEach(l => l.classList.toggle('picked', l.querySelector('input')?.checked || false));
-  const text = _splAssemble();
-  out.innerHTML = text ? escapeHtml(text) : '<span class="hint">Pick components above to build the hybrid…</span>';
-}
-
-window.openSpliceWorkspace = function() {
-  if (!state.isPremium) { showPremiumModal(); return; }
-  const ws = $('#spliceWorkspace');
-  if (!ws) return;
-  ws.classList.add('open');
-  document.body.style.overflow = 'hidden';
-  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'splice'));
-  _wsFillPromptPicker('#splPickerA');
-  _wsFillPromptPicker('#splPickerB');
-};
-
-function closeSpliceWorkspace() {
-  $('#spliceWorkspace')?.classList.remove('open');
-  document.body.style.overflow = '';
-  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
-}
-
-function initSpliceWorkspace() {
-  const ws = $('#spliceWorkspace');
-  if (!ws) return;
-  $('#closeSpliceBtn')?.addEventListener('click', closeSpliceWorkspace);
-  $('#splPickerA')?.addEventListener('change', () => {
-    const p = _wsPickedPrompt('#splPickerA');
-    if (p) { const el = $('#splInputA'); if (el) el.value = p.content || ''; }
-  });
-  $('#splPickerB')?.addEventListener('change', () => {
-    const p = _wsPickedPrompt('#splPickerB');
-    if (p) { const el = $('#splInputB'); if (el) el.value = p.content || ''; }
-  });
-  $('#splRunBtn')?.addEventListener('click', _splRun);
-  $('#splGrid')?.addEventListener('change', _splPreview);
-  $('#splCopyBtn')?.addEventListener('click', async () => {
-    const text = _splAssemble();
-    if (!text) { toast('Splice two prompts first', 'warning'); return; }
-    if (await copyToClipboard(text)) toast('Hybrid prompt copied', 'success');
-  });
-  $('#splSaveBtn')?.addEventListener('click', async () => {
-    const text = _splAssemble();
-    if (!text) { toast('Splice two prompts first', 'warning'); return; }
-    const pa = _wsPickedPrompt('#splPickerA'), pb = _wsPickedPrompt('#splPickerB');
-    const title = ('Splice: ' + (pa?.title || 'A') + ' × ' + (pb?.title || 'B')).slice(0, 120);
-    try {
-      const result = await api('/prompts', { method: 'POST', body: { title, content: text, description: 'Merged via Prompt Splicer workspace', categories: 'Prompt Engineering', tags: 'spliced' } });
-      await loadPrompts(); await loadFilterOptions();
-      toast('Saved: ' + title, 'success');
-      closeSpliceWorkspace();
-      if (result?.id) setTimeout(() => openDetail(result.id), 200);
-    } catch { toast('Could not save', 'error'); }
-  });
-  ws.addEventListener('keydown', e => { if (e.key === 'Escape') closeSpliceWorkspace(); });
-}
-
-/* ============================================================================
-   SNIPPETS STORE
-   Powers the prompt-editor side panel (search, insert-at-cursor, Quick-add).
-   The standalone Snippets workspace was replaced by Quick Fill (2026-07).
+   SNIPPETS WORKSPACE
+   localStorage-backed reusable short text snippets (signatures, disclaimers,
+   boilerplate). Click-to-insert at cursor — distinct from Context Bank's
+   longer persona/company context blocks.
    ls key: pl_snippets  →  [{id, title, category, content, created}]
+   data-view="snippets" | openSnippetsWorkspace() | initSnippetsWorkspace()
    ============================================================================ */
 
 const SNIP_LS_KEY = 'pl_snippets';
 let _snipBlocks   = [];
+let _snipActiveId = null;
+let _snipFilter   = 'all';
 
 function _snipLoad() { try { _snipBlocks = JSON.parse(localStorage.getItem(SNIP_LS_KEY) || '[]'); } catch { _snipBlocks = []; } }
 function _snipSave() { localStorage.setItem(SNIP_LS_KEY, JSON.stringify(_snipBlocks)); }
@@ -8941,11 +7892,188 @@ function _snipSeedTemplates() {
   localStorage.setItem('pl_snip_seeded', '1');
 }
 
+// ── Stats ────────────────────────────────────────────────────────────────────
+function _snipUpdateStats() {
+  const cats = new Set(_snipBlocks.map(b => b.category));
+  const elB = $('#snipStatBlocks'); if (elB) elB.textContent = _snipBlocks.length;
+  const elC = $('#snipStatCats');   if (elC) elC.textContent = cats.size;
+}
+
+// ── List render ──────────────────────────────────────────────────────────────
+function _snipRenderList() {
+  const list  = $('#snipList');
+  const empty = $('#snipEmptyHint');
+  if (!list) return;
+
+  const query = ($('#snipSearch')?.value || '').toLowerCase();
+  let filtered = _snipBlocks.slice();
+  if (_snipFilter !== 'all') filtered = filtered.filter(b => b.category === _snipFilter);
+  if (query) filtered = filtered.filter(b =>
+    (b.title   || '').toLowerCase().includes(query) ||
+    (b.content || '').toLowerCase().includes(query)
+  );
+
+  _snipUpdateStats();
+
+  if (!filtered.length) {
+    list.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  list.innerHTML = filtered.map(b => {
+    const active  = b.id === _snipActiveId ? ' active' : '';
+    const preview = (b.content || '').slice(0, 80).replace(/</g, '&lt;');
+    return '<div class="ctx-block-item' + active + '" data-snip-id="' + escapeAttr(b.id) + '">'
+      + '<div class="ctx-block-item-header">'
+        + '<span class="ctx-block-item-title">' + escapeHtml(b.title || 'Untitled') + '</span>'
+        + '<span class="ctx-cat-tag">' + escapeHtml(b.category || 'Other') + '</span>'
+      + '</div>'
+      + '<div class="ctx-block-item-preview">' + preview + (b.content && b.content.length > 80 ? '…' : '') + '</div>'
+    + '</div>';
+  }).join('');
+
+  list.querySelectorAll('[data-snip-id]').forEach(item => {
+    item.addEventListener('click', () => _snipOpenBlock(item.dataset.snipId));
+  });
+}
+
+// ── Block open/editor ────────────────────────────────────────────────────────
+function _snipOpenBlock(id) {
+  _snipActiveId = id || null;
+  const block   = id ? _snipBlocks.find(b => b.id === id) : null;
+  const empty   = $('#snipEditorEmpty');
+  const form    = $('#snipEditorForm');
+  const heading = $('#snipEditorHeading');
+  const delBtn  = $('#snipDeleteBtn');
+  const confirm = $('#snipSaveConfirm');
+
+  if (!form) return;
+
+  if (block) {
+    if (heading) heading.textContent = 'Editing snippet';
+    const set = (sel, val) => { const el = $(sel); if (el) el.value = val; };
+    set('#snipTitle',    block.title    || '');
+    set('#snipCategory', block.category || 'Other');
+    set('#snipContent',  block.content  || '');
+    if (delBtn) delBtn.style.display = '';
+  } else {
+    if (heading) heading.textContent = 'New snippet';
+    ['#snipTitle', '#snipContent'].forEach(s => { const el = $(s); if (el) el.value = ''; });
+    const cat = $('#snipCategory'); if (cat) cat.value = 'Other';
+    if (delBtn) delBtn.style.display = 'none';
+  }
+
+  if (confirm) confirm.style.display = 'none';
+  if (empty)   empty.style.display   = 'none';
+  form.hidden = false;
+
+  _snipRenderList();
+  setTimeout(() => { $('#snipTitle')?.focus(); }, 60);
+}
+
+function _snipNewBlock() { _snipOpenBlock(null); }
+
+// ── CRUD ─────────────────────────────────────────────────────────────────────
+function _snipSaveBlock() {
+  const title    = $('#snipTitle')?.value.trim();
+  const category = $('#snipCategory')?.value || 'Other';
+  const content  = $('#snipContent')?.value.trim();
+
+  if (!title) { $('#snipTitle')?.focus(); return; }
+
+  if (_snipActiveId) {
+    const idx = _snipBlocks.findIndex(b => b.id === _snipActiveId);
+    if (idx !== -1) Object.assign(_snipBlocks[idx], { title, category, content });
+  } else {
+    _snipActiveId = _snipUID();
+    _snipBlocks.unshift({ id: _snipActiveId, title, category, content, created: new Date().toISOString() });
+    const delBtn = $('#snipDeleteBtn'); if (delBtn) delBtn.style.display = '';
+    const heading = $('#snipEditorHeading'); if (heading) heading.textContent = 'Editing snippet';
+  }
+
+  _snipSave();
+  _snipRenderList();
+
+  const confirm = $('#snipSaveConfirm');
+  if (confirm) { confirm.style.display = ''; setTimeout(() => { confirm.style.display = 'none'; }, 1800); }
+}
+
+function _snipDeleteBlock() {
+  if (!_snipActiveId) return;
+  _snipBlocks = _snipBlocks.filter(b => b.id !== _snipActiveId);
+  _snipSave();
+  _snipActiveId = null;
+
+  const form  = $('#snipEditorForm');
+  const empty = $('#snipEditorEmpty');
+  if (form)  form.hidden = true;
+  if (empty) empty.style.display = '';
+  _snipRenderList();
+}
+
+async function _snipCopyBlock() {
+  const block = _snipBlocks.find(b => b.id === _snipActiveId);
+  if (!block) { toast('Select a snippet first', 'warning'); return; }
+  const ok = await copyToClipboard(block.content || '');
+  toast(ok ? 'Snippet copied' : 'Copy failed', ok ? 'success' : 'error');
+}
+
+// ── Workspace open/close ─────────────────────────────────────────────────────
+window.openSnippetsWorkspace = function() {
+  if (!state.isPremium) { showPremiumModal(); return; }
+  _snipSeedTemplates();
+  _snipLoad();
+  const ws = $('#snippetsWorkspace');
+  if (!ws) return;
+  ws.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'snippets'));
+  _snipFilter = 'all';
+  $$('[data-snip-filter]').forEach(b => b.classList.toggle('active', b.dataset.snipFilter === 'all'));
+  _snipActiveId = null;
+  const form  = $('#snipEditorForm');
+  const empty = $('#snipEditorEmpty');
+  if (form)  form.hidden = true;
+  if (empty) empty.style.display = '';
+  _snipRenderList();
+};
+
+function closeSnippetsWorkspace() {
+  const ws = $('#snippetsWorkspace');
+  if (!ws) return;
+  ws.classList.remove('open');
+  document.body.style.overflow = '';
+  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+}
+
+function initSnippetsWorkspace() {
+  const ws = $('#snippetsWorkspace');
+  if (!ws) return;
+
+  $('#closeSnippetsBtn')?.addEventListener('click', closeSnippetsWorkspace);
+  $('#snipNewBtn')?.addEventListener('click', _snipNewBlock);
+  $('#snipSaveBtn')?.addEventListener('click', _snipSaveBlock);
+  $('#snipDeleteBtn')?.addEventListener('click', _snipDeleteBlock);
+  $('#snipCopyBtn')?.addEventListener('click', _snipCopyBlock);
+  $('#snipSearch')?.addEventListener('input', _snipRenderList);
+
+  $$('[data-snip-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _snipFilter = btn.dataset.snipFilter;
+      $$('[data-snip-filter]').forEach(b => b.classList.toggle('active', b === btn));
+      _snipRenderList();
+    });
+  });
+
+  ws.addEventListener('keydown', e => { if (e.key === 'Escape') closeSnippetsWorkspace(); });
+}
+
 // ── Modal side panel: insert snippet at cursor ──────────────────────────────
 function _snipPanelRefresh() {
   const list = $('#snipPanelList');
   if (!list) return;
-  _snipSeedTemplates();
   _snipLoad();
   const query  = ($('#snipPanelSearch')?.value || '').toLowerCase();
   const catBtn = document.querySelector('#snipPanelCats .chip.active');
@@ -8958,7 +8086,7 @@ function _snipPanelRefresh() {
     (b.content||'').toLowerCase().includes(query));
 
   if (!blocks.length) {
-    list.innerHTML = '<div style="color:var(--ink-3);font-size:var(--fs-sm);padding:var(--sp-3);text-align:center;">No snippets found.<br>Use Quick-add below to create one.</div>';
+    list.innerHTML = '<div style="color:var(--ink-3);font-size:var(--fs-sm);padding:var(--sp-3);text-align:center;">No snippets found.<br>Create one in the Snippets workspace.</div>';
     return;
   }
 
@@ -9147,13 +8275,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   initMetaWorkspace();       // metaprompting workspace
   initContextBankWorkspace(); // context bank workspace + wiring
   initOptimizerWorkspace();  // prompt optimizer workspace
-  initFillWorkspace();       // quick fill workspace
-  initAuditWorkspace();      // prompt auditor workspace
-  initDiffWorkspace();       // diff lens workspace
-  initCostWorkspace();       // cost lens workspace
-  initPulseWorkspace();      // library pulse workspace
-  initXrayWorkspace();       // prompt x-ray workspace
-  initSpliceWorkspace();     // prompt splicer workspace
+  initToneCalWorkspace();    // tone calibrator workspace
+  initSnippetsWorkspace();   // snippets workspace + panel wiring
   initModalSidePanels();      // prompt modal side panels
   initOnboarding();           // spotlight tour auto-launch on first run
   initPromptViewer();
