@@ -1044,6 +1044,38 @@ def toggle_template_tag(pid):
     conn.close()
     return jsonify({'is_template': not is_template})
 
+@app.route('/api/tags/rename', methods=['POST'])
+def rename_tag():
+    """Rename, merge, or delete a tag across every prompt.
+    Body: {"from": "old", "to": "new"} -- empty "to" deletes the tag.
+    Renaming onto an existing tag merges them (lists are deduped)."""
+    data = _json_body()
+    src = (data.get('from') or '').strip()
+    dst = (data.get('to') or '').strip()
+    if not src:
+        return jsonify({'error': 'Missing tag name'}), 400
+    conn = get_db()
+    try:
+        rows = conn.execute('SELECT id, tags FROM prompts').fetchall()
+        changed = 0
+        for r in rows:
+            tags = _normalise_list(r['tags'])
+            if not any(t.lower() == src.lower() for t in tags):
+                continue
+            out = []
+            for t in tags:
+                v = dst if t.lower() == src.lower() else t
+                if v and v.lower() not in [x.lower() for x in out]:
+                    out.append(v)
+            conn.execute('UPDATE prompts SET tags=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                         (_list_for_db(out), r['id']))
+            changed += 1
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'success': True, 'changed': changed})
+
+
 @app.route('/api/prompts/<int:pid>/use', methods=['POST'])
 def use_prompt(pid):
     conn = get_db()

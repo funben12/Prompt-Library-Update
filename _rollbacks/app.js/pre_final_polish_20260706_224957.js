@@ -844,13 +844,11 @@
         function renderFolders() {
             const list = $('#foldersList');
             if (!list) return;
-            const folderCountEl = $('#foldersSectionCount');
-            if (folderCountEl) folderCountEl.textContent = state.folders.length || '';
             if (!state.folders.length) {
                 list.innerHTML = '<p class="filter-list-empty">No folders yet</p>';
                 return;
             }
-            list.innerHTML = [...state.folders].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(f => {
+            list.innerHTML = state.folders.map(f => {
                 const count = state.prompts.filter(p => p.folder_id === f.id).length;
                 const safeName = JSON.stringify(f.name).replace(/'/g, '&#39;');
                 return `
@@ -870,20 +868,14 @@
             }).join('');
         }
 
-        let _tagsExpanded = false;
-        let _tagSearchQ = '';
-
         function renderSidebarFilters() {
             const cats = $('#categoriesList');
             const tags = $('#tagsList');
             if (cats) {
-                const catCountEl = $('#categoriesSectionCount');
-                if (catCountEl) catCountEl.textContent = state.filters.categories.length || '';
                 if (!state.filters.categories.length) {
                     cats.innerHTML = '<p class="filter-list-empty">None yet</p>';
                 } else {
-                    const sortedCats = [...state.filters.categories].sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
-                    cats.innerHTML = sortedCats.map(c =>
+                    cats.innerHTML = state.filters.categories.map(c =>
                         '<div class="filter-list-item" data-filter-cat="' + escapeHtml(c.value) + '">' +
                         '<span class="material-symbols-outlined">category</span>' +
                         '<span>' + escapeHtml(c.value) + '</span>' +
@@ -896,125 +888,24 @@
                 }
             }
             if (tags) {
-                const all = [...(state.filters.tags || [])].sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
-                const tagCountEl = $('#tagsSectionCount');
-                if (tagCountEl) tagCountEl.textContent = all.length || '';
-                const wrap = $('#tagSearchWrap');
-                if (wrap) wrap.hidden = all.length <= 8;
-                if (!all.length) {
+                if (!state.filters.tags.length) {
                     tags.innerHTML = '<p class="filter-list-empty">None yet</p>';
                 } else {
-                    const q = (_tagSearchQ || '').trim().toLowerCase();
-                    const filtered = q ? all.filter(t => t.value.toLowerCase().includes(q)) : all;
-                    const LIMIT = 15;
-                    const showAll = _tagsExpanded || !!q;
-                    const shown = showAll ? filtered : filtered.slice(0, LIMIT);
-                    const hiddenCount = filtered.length - shown.length;
-                    let html = '<div class="tag-cloud">' + shown.map(t =>
-                        '<button type="button" class="tag-pill" data-filter-tag="' + escapeHtml(t.value) + '">' +
-                        '#' + escapeHtml(t.value) +
-                        '<span class="tag-pill-count">' + t.count + '</span>' +
-                        '</button>'
-                    ).join('') + '</div>';
-                    if (q && !filtered.length) {
-                        html += '<p class="filter-list-empty">No tags match</p>';
-                    } else if (hiddenCount > 0) {
-                        html += '<button type="button" class="tag-more-btn" id="tagMoreBtn">Show all ' + filtered.length + ' tags</button>';
-                    } else if (_tagsExpanded && !q && all.length > LIMIT) {
-                        html += '<button type="button" class="tag-more-btn" id="tagMoreBtn">Show less</button>';
-                    }
-                    tags.innerHTML = html;
+                    tags.innerHTML = state.filters.tags.map(t =>
+                        '<div class="filter-list-item" data-filter-tag="' + escapeHtml(t.value) + '">' +
+                        '<span class="material-symbols-outlined">tag</span>' +
+                        '<span>#' + escapeHtml(t.value) + '</span>' +
+                        '<span class="filter-count">' + t.count + '</span>' +
+                        '</div>'
+                    ).join('');
                     tags.querySelectorAll('[data-filter-tag]').forEach(el => {
                         el.addEventListener('click', () => window.PL_filterByTag(el.dataset.filterTag));
-                    });
-                    $('#tagMoreBtn')?.addEventListener('click', () => {
-                        _tagsExpanded = !_tagsExpanded;
-                        renderSidebarFilters();
                     });
                 }
             }
             // Keep tag-input autocomplete lists fresh
-            // category chips are static presets -- no known-values update needed
+            // category chips are static presets — no known-values update needed
             updateTagInputKnown('tagsTagInput', (state.filters.tags || []).map(t => t.value));
-        }
-
-        /* ============================================================================
-           TAG MANAGER -- rename, merge or delete tags across the whole library
-           ============================================================================ */
-        function renderTagManager() {
-            const list = $('#tagManagerList');
-            if (!list) return;
-            const all = [...(state.filters.tags || [])].sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
-            if (!all.length) {
-                list.innerHTML = '<p class="tag-manager-empty">No tags yet -- tags you add to prompts show up here.</p>';
-                return;
-            }
-            list.innerHTML = all.map(t =>
-                '<div class="tag-manager-row" data-tag="' + escapeHtml(t.value) + '">' +
-                '<span class="material-symbols-outlined tm-icon">tag</span>' +
-                '<span class="tm-name">#' + escapeHtml(t.value) + '</span>' +
-                '<span class="tm-count">' + t.count + '</span>' +
-                '<button class="folder-mini-btn" data-tm-rename title="Rename or merge"><span class="material-symbols-outlined">edit</span></button>' +
-                '<button class="folder-mini-btn danger" data-tm-delete title="Delete everywhere"><span class="material-symbols-outlined">delete</span></button>' +
-                '</div>'
-            ).join('');
-        }
-
-        async function tagManagerAction(from, to) {
-            try {
-                const res = await fetch('/api/tags/rename', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ from: from, to: to })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Request failed');
-                await loadAll();
-                renderTagManager();
-                return data.changed;
-            } catch (err) {
-                toast('Tag update failed: ' + err.message, 'error');
-                return null;
-            }
-        }
-
-        function initTagManager() {
-            const openBtn = $('#tagManagerBtn');
-            const modal = $('#tagManagerModal');
-            if (!openBtn || !modal) return;
-            openBtn.addEventListener('click', e => {
-                e.stopPropagation();
-                renderTagManager();
-                modal.classList.add('active');
-            });
-            const close = () => modal.classList.remove('active');
-            $('#closeTagManagerBtn')?.addEventListener('click', close);
-            $('#tagManagerDoneBtn')?.addEventListener('click', close);
-            modal.addEventListener('click', e => {
-                if (e.target === modal) close();
-            });
-            $('#tagManagerList')?.addEventListener('click', async e => {
-                const row = e.target.closest('.tag-manager-row');
-                if (!row) return;
-                const tag = row.dataset.tag;
-                if (e.target.closest('[data-tm-delete]')) {
-                    if (!confirm('Remove #' + tag + ' from every prompt?')) return;
-                    const n = await tagManagerAction(tag, '');
-                    if (n !== null) toast('Removed #' + tag + ' from ' + n + ' prompt' + (n === 1 ? '' : 's'), 'success');
-                    return;
-                }
-                if (e.target.closest('[data-tm-rename]')) {
-                    const next = prompt('Rename #' + tag + ' to:', tag);
-                    if (next === null) return;
-                    const clean = next.trim().replace(/^#+/, '').replace(/,/g, ' ').trim();
-                    if (!clean || clean === tag) return;
-                    const exists = (state.filters.tags || []).some(t =>
-                        t.value.toLowerCase() === clean.toLowerCase() && t.value.toLowerCase() !== tag.toLowerCase());
-                    if (exists && !confirm('#' + clean + ' already exists -- merge #' + tag + ' into it?')) return;
-                    const n = await tagManagerAction(tag, clean);
-                    if (n !== null) toast((exists ? 'Merged into #' : 'Renamed to #') + clean + ' (' + n + ' prompt' + (n === 1 ? '' : 's') + ')', 'success');
-                }
-            });
         }
 
         function updateFolderDropdown() {
@@ -3287,7 +3178,7 @@ NOTE: Return only the formatted Markdown — no explanatory text around it.
         }
 
         function loadTheme() {
-            const saved = localStorage.getItem('promptlib.theme') || 'dark';
+            const saved = localStorage.getItem('promptlib.theme') || 'light';
             applyTheme(saved);
         }
 
@@ -3519,6 +3410,7 @@ NOTE: Return only the formatted Markdown — no explanatory text around it.
         /** Workspace launch commands — every tool reachable from the palette. */
         function getWorkspaceCommands() {
             const table = [
+                ['Dashboard', 'dashboard', 'openDashboardWorkspace', 'home overview stats landing'],
                 ['All Workspaces', 'grid_view', 'openWorkspacesLauncher', 'launcher tools browse grid'],
                 ['Prompt Generator', 'bolt', 'openGenWorkspace', 'generate create task describe ai'],
                 ['Prompt Optimizer', 'rocket_launch', 'openOptimizerWorkspace', 'optimize improve score quality'],
@@ -3920,6 +3812,10 @@ NOTE: Return only the formatted Markdown — no explanatory text around it.
                         window.openGenWorkspace();
                         return;
                     }
+                    if (v === 'dashboard') {
+                        window.openDashboardWorkspace();
+                        return;
+                    }
                     if (v === 'workspaces') {
                         window.openWorkspacesLauncher();
                         return;
@@ -3990,10 +3886,6 @@ NOTE: Return only the formatted Markdown — no explanatory text around it.
 
             $('#closePromptModal')?.addEventListener('click', closePromptModal);
             $('#autoTagBtn')?.addEventListener('click', runAutoTag);
-            $('#tagSearchInput')?.addEventListener('input', e => {
-                _tagSearchQ = e.target.value;
-                renderSidebarFilters();
-            });
             $('#smartTagBtn')?.addEventListener('click', runSmartTag);
             $('#cancelPromptBtn')?.addEventListener('click', closePromptModal);
             $('#promptForm')?.addEventListener('submit', handlePromptSubmit);
@@ -9699,32 +9591,6 @@ Must avoid: [Anything sensitive or previously declined]`
                         if (ov) ov.hidden = true;
                     }
 
-                    /* Hand the chosen build outline to the Prompt Generator. */
-                    function _aiToGenerator() {
-                        if (!_aiPlan) return;
-                        var opt = _aiPlan.options[_aiPlan.chosen || 0];
-                        if (!opt) return;
-                        var lines = [];
-                        if (opt.title) lines.push(opt.title);
-                        if (opt.restatement) lines.push(opt.restatement);
-                        lines.push('');
-                        lines.push('Structure the prompt with these sections, in order:');
-                        opt.items.forEach(function(b, i) {
-                            var hint = (b.text || '').split('\n')[0];
-                            if (hint.length > 90) hint = hint.slice(0, 87) + '...';
-                            lines.push((i + 1) + '. ' + b.label + ' — ' + hint);
-                        });
-                        _aiClose();
-                        closeComponentsWorkspace();
-                        if (typeof window.openGenWorkspace === 'function') window.openGenWorkspace();
-                        var input = $('#genTaskInput');
-                        if (input) {
-                            input.value = lines.join('\n');
-                            input.dispatchEvent(new Event('input', { bubbles: true }));
-                        }
-                        toast('Outline sent to Prompt Generator', 'success');
-                    }
-
                     function _aiValidateOption(raw) {
                         var items = (raw.blocks || []).map(_aiFindBlock).filter(Boolean);
                         var seen = {};
@@ -10495,7 +10361,6 @@ Must avoid: [Anything sensitive or previously declined]`
                         if ($('#pcwAiReplaceBtn')) $('#pcwAiReplaceBtn').addEventListener('click', function() {
                             _aiBuild(true);
                         });
-                        if ($('#pcwAiToGenBtn')) $('#pcwAiToGenBtn').addEventListener('click', _aiToGenerator);
                         if ($('#pcwAiSkip')) $('#pcwAiSkip').addEventListener('click', function() {
                             _aiSkip = true;
                         });
@@ -12628,12 +12493,6 @@ Must avoid: [Anything sensitive or previously declined]`
                 $('#workspacesLauncher')?.classList.add('open');
                 $$('.nav-item[data-view]').forEach(el =>
                     el.classList.toggle('active', el.dataset.view === 'workspaces'));
-                const s = $('#launcherSearch');
-                if (s) {
-                    s.value = '';
-                    s.dispatchEvent(new Event('input'));
-                    setTimeout(() => s.focus(), 50);
-                }
             };
 
             function closeWorkspacesLauncher() {
@@ -12662,23 +12521,6 @@ Must avoid: [Anything sensitive or previously declined]`
                 $('#closeLauncherBtn')?.addEventListener('click', closeWorkspacesLauncher);
                 ws.addEventListener('keydown', e => {
                     if (e.key === 'Escape') closeWorkspacesLauncher();
-                });
-
-                // Search filter — hides cards, then any group left empty
-                $('#launcherSearch')?.addEventListener('input', e => {
-                    const q = e.target.value.trim().toLowerCase();
-                    let anyVisible = false;
-                    $$('#launcherGrid .launcher-card').forEach(card => {
-                        const show = !q || card.textContent.toLowerCase().includes(q);
-                        card.style.display = show ? '' : 'none';
-                        if (show) anyVisible = true;
-                    });
-                    $$('#launcherGrid .launcher-group').forEach(group => {
-                        const has = [...group.querySelectorAll('.launcher-card')].some(cd => cd.style.display !== 'none');
-                        group.style.display = has ? '' : 'none';
-                    });
-                    const empty = $('#launcherEmpty');
-                    if (empty) empty.hidden = anyVisible;
                 });
             }
 
@@ -12794,11 +12636,11 @@ Must avoid: [Anything sensitive or previously declined]`
                 initModalSidePanels(); // prompt modal side panels
                 initOnboarding(); // spotlight tour auto-launch on first run
                 initPromptViewer();
-                initTagManager(); // tag manager modal (sidebar tags header)
                 // Fire licence check and data load in parallel -- prompts render immediately,
                 // premium UI applies once both settle (no unlocked flash risk).
                 initLicenceUI(); // wire licence key activation
                 await Promise.all([loadStoredLicence(), loadAll()]);
+                window.openDashboardWorkspace();
             });
 
 

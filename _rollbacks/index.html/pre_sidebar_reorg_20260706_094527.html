@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" media="print" onload="this.media='all'">
 
-<link rel="stylesheet" href="/static/app.css?v=4057d1fb">
+<link rel="stylesheet" href="/static/app.css?v=a25649fb">
 </head>
 <body>
 
@@ -46,17 +46,94 @@
         <span>Analytics</span>
         <span class="nav-lock material-symbols-outlined">lock</span>
       </button>
-      <button class="nav-item" data-view="workspaces" id="workspacesNavBtn" title="Workspaces — browse all tools">
-        <span class="material-symbols-outlined">grid_view</span>
-        <span>Workspaces</span>
+      <button class="nav-item" data-view="roles" id="rolesNavBtn" data-trial="agents">
+        <span class="material-symbols-outlined">smart_toy</span>
+        <span>Agents</span>
+        <span class="nav-count" id="rolesCount">0</span>
       </button>
+      <button class="nav-item premium-locked" data-view="playground" data-premium="true" id="playgroundNavBtn" title="Prompt Playground (Ctrl+Shift+P) — Pro">
+        <span class="material-symbols-outlined nav-icon">science</span>
+        <span class="nav-label">Playground</span>
+      </button>
+
+      <!-- Workspaces collapsible group -->
+      <div class="nav-group" id="workspacesGroup">
+        <button class="nav-group-toggle" id="workspacesToggle" aria-expanded="false">
+          <span class="material-symbols-outlined nav-icon">grid_view</span>
+          <span class="nav-label">Workspaces</span>
+          <span class="material-symbols-outlined nav-group-chev">expand_more</span>
+        </button>
+        <div class="nav-group-items" id="workspacesItems">
+          <button class="nav-item nav-sub-item premium-locked" data-view="components" data-premium="true" id="componentsNavBtn" title="Prompt Components — drag-and-drop builder — Pro">
+            <span class="material-symbols-outlined nav-icon">extension</span>
+            <span class="nav-label">Prompt Components</span>
+          </button>
+          <button class="nav-item nav-sub-item" data-view="forge" id="forgeNavBtn" title="Prompt Forge">
+            <span class="material-symbols-outlined nav-icon">construction</span>
+            <span class="nav-label">Prompt Forge</span>
+          </button>
+          <button class="nav-item nav-sub-item premium-locked" data-view="lab" data-premium="true" id="labNavBtn" title="Prompt Lab — Pro">
+            <span class="material-symbols-outlined nav-icon">biotech</span>
+            <span class="nav-label">Prompt Lab</span>
+          </button>
+          <button class="nav-item nav-sub-item premium-locked" data-view="chain" data-premium="true" id="chainNavBtn" title="Prompt Chain — multi-step pipeline (Pro)">
+            <span class="material-symbols-outlined nav-icon">account_tree</span>
+            <span class="nav-label">Prompt Chain</span>
+          </button>
+          <button class="nav-item nav-sub-item premium-locked" data-view="meta" data-premium="true" id="metaNavBtn" title="Metaprompting — Pro">
+            <span class="material-symbols-outlined nav-icon">auto_fix_high</span>
+            <span class="nav-label">Metaprompting</span>
+          </button>
+          <button class="nav-item nav-sub-item premium-locked" data-view="contextBank" data-premium="true" id="contextBankNavBtn" title="Context Bank — Pro">
+            <span class="material-symbols-outlined nav-icon">database</span>
+            <span class="nav-label">Context Bank</span>
+          </button>
+          <button class="nav-item nav-sub-item premium-locked" data-view="optimizer" data-premium="true" id="optimizerNavBtn" title="Prompt Optimizer - Pro">
+            <span class="material-symbols-outlined nav-icon">rocket_launch</span>
+            <span class="nav-label">Prompt Optimizer</span>
+          </button>
+          <button class="nav-item nav-sub-item premium-locked" data-view="generate" data-premium="true" id="genNavBtn" title="Prompt Generator - describe a task, get a prompt - Pro">
+            <span class="material-symbols-outlined nav-icon">bolt</span>
+            <span class="nav-label">Prompt Generator</span>
+          </button>
+          <button class="nav-item nav-sub-item premium-locked" data-view="fill" data-premium="true" id="fillNavBtn" title="Quick Fill - fill template placeholders - Pro">
+            <span class="material-symbols-outlined nav-icon">dynamic_form</span>
+            <span class="nav-label">Quick Fill</span>
+          </button>
+          <button class="nav-item nav-sub-item premium-locked" data-view="audit" data-premium="true" id="auditNavBtn" title="Prompt Auditor - rubric scoring - Pro">
+            <span class="material-symbols-outlined nav-icon">fact_check</span>
+            <span class="nav-label">Prompt Auditor</span>
+          </button>
+          <button class="nav-item nav-sub-item" data-view="diff" id="diffNavBtn" title="Diff Lens - compare two prompts">
+            <span class="material-symbols-outlined nav-icon">compare</span>
+            <span class="nav-label">Diff Lens</span>
+          </button>
+          <button class="nav-item nav-sub-item premium-locked" data-view="cost" data-premium="true" id="costNavBtn" title="Cost Lens - token and cost estimates - Pro">
+            <span class="material-symbols-outlined nav-icon">calculate</span>
+            <span class="nav-label">Cost Lens</span>
+          </button>
+          <button class="nav-item nav-sub-item premium-locked" data-view="pulse" data-premium="true" id="pulseNavBtn" title="Library Pulse - health scan - Pro">
+            <span class="material-symbols-outlined nav-icon">monitor_heart</span>
+            <span class="nav-label">Library Pulse</span>
+          </button>
+          <button class="nav-item nav-sub-item premium-locked" data-view="xray" data-premium="true" id="xrayNavBtn" title="Prompt X-Ray - deconstruct any prompt - Pro">
+            <span class="material-symbols-outlined nav-icon">visibility</span>
+            <span class="nav-label">Prompt X-Ray</span>
+          </button>
+          <button class="nav-item nav-sub-item premium-locked" data-view="splice" data-premium="true" id="spliceNavBtn" title="Prompt Splicer - merge two prompts - Pro">
+            <span class="material-symbols-outlined nav-icon">call_merge</span>
+            <span class="nav-label">Prompt Splicer</span>
+          </button>
+        </div>
+      </div>
+
     </nav>
 
     <div id="sidebarScroll">
 
       <div class="nav-section">
         <div class="nav-section-label" data-toggle="folders" aria-expanded="false">
-          <span>Folders <span class="nav-section-count" id="foldersSectionCount"></span></span>
+          <span>Folders</span>
           <span style="display:inline-flex; align-items:center; gap:4px;">
             <button class="nav-icon-btn" id="newFolderBtn" title="New folder" aria-label="New folder">
               <span class="material-symbols-outlined">add</span>
@@ -71,7 +148,7 @@
 
       <div class="nav-section">
         <div class="nav-section-label" data-toggle="categories" aria-expanded="false">
-          <span>Categories <span class="nav-section-count" id="categoriesSectionCount"></span></span>
+          <span>Categories</span>
           <span class="material-symbols-outlined chev">expand_more</span>
         </div>
         <div class="nav-section-content" id="categories-content">
@@ -81,19 +158,10 @@
 
       <div class="nav-section">
         <div class="nav-section-label" data-toggle="tags" aria-expanded="false">
-          <span>Tags <span class="nav-section-count" id="tagsSectionCount"></span></span>
-          <span style="display:inline-flex; align-items:center; gap:4px;">
-            <button class="nav-icon-btn" id="tagManagerBtn" title="Manage tags" aria-label="Manage tags">
-              <span class="material-symbols-outlined">tune</span>
-            </button>
-            <span class="material-symbols-outlined chev">expand_more</span>
-          </span>
+          <span>Tags</span>
+          <span class="material-symbols-outlined chev">expand_more</span>
         </div>
         <div class="nav-section-content" id="tags-content">
-          <div class="tag-search" id="tagSearchWrap" hidden>
-            <span class="material-symbols-outlined">search</span>
-            <input type="text" id="tagSearchInput" placeholder="Filter tags..." autocomplete="off" aria-label="Filter tags">
-          </div>
           <div id="tagsList" class="filter-list"></div>
         </div>
       </div>
@@ -145,7 +213,7 @@
           <button class="icon-btn" id="sidebarToggleBtn" title="Toggle sidebar" aria-label="Toggle sidebar">
             <span class="material-symbols-outlined">menu_open</span>
           </button>
-          <button class="icon-btn premium-locked" data-premium="true" id="cmdBtn" title="Command palette (Ctrl+K) - Pro" aria-label="Open command palette">
+          <button class="icon-btn" id="cmdBtn" title="Command palette (Ctrl+K)" aria-label="Open command palette">
             <span class="material-symbols-outlined">search</span>
           </button>
           <button class="btn btn-ghost" id="surpriseMeBtn" title="Open a random prompt" aria-label="Surprise me">
@@ -1425,23 +1493,6 @@
 <!-- ============================================================
      OTHER MODALS
      ============================================================ -->
-<div class="modal-overlay" id="tagManagerModal" role="dialog" aria-modal="true" aria-labelledby="tagManagerTitle">
-  <div class="modal-box-sm">
-    <div class="modal-header">
-      <h3 id="tagManagerTitle">Manage tags</h3>
-      <button class="icon-btn" id="closeTagManagerBtn" aria-label="Close">
-        <span class="material-symbols-outlined">close</span>
-      </button>
-    </div>
-    <div class="modal-body">
-      <p class="tag-manager-hint">Rename to an existing tag to merge the two. Deleting removes the tag from every prompt.</p>
-      <div class="tag-manager-list" id="tagManagerList"></div>
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="btn btn-ghost" id="tagManagerDoneBtn">Done</button>
-    </div>
-  </div>
-</div>
 <div class="modal-overlay" id="folderModal" role="dialog" aria-modal="true">
   <div class="modal-box-sm">
     <div class="modal-header">
@@ -1704,7 +1755,6 @@
     <div class="cmd-input-row">
       <span class="material-symbols-outlined">search</span>
       <input type="text" id="cmdInput" placeholder="Search prompts or type a command..." />
-      <span class="cmd-pro-badge">PRO</span>
       <span class="cmd-kbd">Esc</span>
     </div>
     <div class="cmd-results" id="cmdResults"></div>
@@ -2752,7 +2802,6 @@
         <div class="pcw-ai-actions">
           <button type="button" class="btn btn-ghost" id="pcwAiBackBtn"><span class="material-symbols-outlined">arrow_back</span> Rephrase</button>
           <button type="button" class="btn btn-ghost" id="pcwAiReplaceBtn" hidden><span class="material-symbols-outlined">restart_alt</span> Replace canvas</button>
-          <button type="button" class="btn btn-ghost" id="pcwAiToGenBtn" title="Send this outline to the Prompt Generator"><span class="material-symbols-outlined">bolt</span> Send to Generator</button>
           <button type="button" class="btn btn-accent" id="pcwAiGoBtn"><span class="material-symbols-outlined">play_arrow</span> Build it</button>
         </div>
       </div>
@@ -2966,243 +3015,6 @@
 </div>
 
 
-<!-- ============================================================
-     WORKSPACE: Dashboard
-     data-view="dashboard"
-     ============================================================ -->
-<div id="dashboardWorkspace" role="dialog" aria-modal="true" aria-label="Dashboard">
-  <div class="ws-header">
-    <div class="ws-header-left">
-      <span class="material-symbols-outlined ws-header-icon">dashboard</span>
-      <div>
-        <h2 class="ws-title">Dashboard</h2>
-        <p class="ws-subtitle">Your library at a glance.</p>
-      </div>
-    </div>
-    <div class="ws-header-actions">
-      <button class="icon-btn" id="closeDashboardBtn" aria-label="Close Dashboard"><span class="material-symbols-outlined">close</span></button>
-    </div>
-  </div>
-  <div class="ws-body dash-body">
-    <div class="dash-stats">
-      <div class="dash-stat-tile">
-        <span class="material-symbols-outlined dash-stat-icon">menu_book</span>
-        <span class="dash-stat-num" id="dashStatPrompts">0</span>
-        <span class="dash-stat-label">Prompts</span>
-      </div>
-      <div class="dash-stat-tile">
-        <span class="material-symbols-outlined dash-stat-icon">star</span>
-        <span class="dash-stat-num" id="dashStatFavs">0</span>
-        <span class="dash-stat-label">Favourites</span>
-      </div>
-      <div class="dash-stat-tile">
-        <span class="material-symbols-outlined dash-stat-icon">category</span>
-        <span class="dash-stat-num" id="dashStatCategories">0</span>
-        <span class="dash-stat-label">Categories</span>
-      </div>
-      <div class="dash-stat-tile">
-        <span class="material-symbols-outlined dash-stat-icon">sell</span>
-        <span class="dash-stat-num" id="dashStatTags">0</span>
-        <span class="dash-stat-label">Tags</span>
-      </div>
-    </div>
-
-    <div class="dash-section-label">Quick Launch</div>
-    <div class="dash-quick-grid">
-      <button class="dash-quick-tile" data-open="openGenWorkspace">
-        <span class="material-symbols-outlined">bolt</span> Prompt Generator
-      </button>
-      <button class="dash-quick-tile" data-open="openOptimizerWorkspace">
-        <span class="material-symbols-outlined">rocket_launch</span> Prompt Optimizer
-      </button>
-      <button class="dash-quick-tile" data-open="openComponentsWorkspace">
-        <span class="material-symbols-outlined">extension</span> Prompt Components
-      </button>
-      <button class="dash-quick-tile" data-open="openForgeWorkspace">
-        <span class="material-symbols-outlined">construction</span> Prompt Forge
-      </button>
-      <button class="dash-quick-tile" id="dashSeeAllBtn">
-        <span class="material-symbols-outlined">grid_view</span> See all workspaces
-      </button>
-    </div>
-
-    <div class="dash-section-label">Recent Prompts</div>
-    <div class="dash-recent-list" id="dashRecentList">
-      <div class="dash-empty-hint">No prompts yet — create your first one from the Library.</div>
-    </div>
-
-    <button class="btn btn-accent" id="dashGoLibraryBtn" style="align-self:flex-start;margin-top:var(--sp-2);">
-      <span class="material-symbols-outlined">menu_book</span> Go to Library
-    </button>
-  </div>
-</div>
-
-<!-- ============================================================
-     WORKSPACE: Workspaces Launcher
-     data-view="workspaces"
-     ============================================================ -->
-<div id="workspacesLauncher" role="dialog" aria-modal="true" aria-label="Workspaces">
-  <div class="ws-header">
-    <div class="ws-header-left">
-      <span class="material-symbols-outlined ws-header-icon">grid_view</span>
-      <div>
-        <h2 class="ws-title">Workspaces</h2>
-        <p class="ws-subtitle">Every tool in one place. Pick one to get started.</p>
-      </div>
-    </div>
-    <div class="ws-header-actions">
-      <button class="icon-btn" id="closeLauncherBtn" aria-label="Close Workspaces"><span class="material-symbols-outlined">close</span></button>
-    </div>
-  </div>
-  <div class="ws-body launcher-body">
-    <div class="launcher-toolbar">
-      <div class="launcher-search">
-        <span class="material-symbols-outlined">search</span>
-        <input type="text" id="launcherSearch" placeholder="Search tools..." autocomplete="off" aria-label="Search workspaces">
-      </div>
-    </div>
-    <div id="launcherGrid">
-      <div class="launcher-group" data-group="build">
-        <div class="launcher-group-label">
-          <span class="material-symbols-outlined">construction</span>
-          <span>Build</span>
-          <span class="launcher-group-hint">Create new prompts from scratch</span>
-        </div>
-        <div class="launcher-grid">
-      <button class="launcher-card" data-open="openGenWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">bolt</span>
-        <span class="launcher-card-title">Prompt Generator</span>
-        <span class="launcher-card-desc">Describe a task in plain English, get a complete prompt</span>
-        <span class="launcher-card-lock material-symbols-outlined">lock</span>
-      </button>
-      <button class="launcher-card" data-open="openForgeWorkspace">
-        <span class="material-symbols-outlined launcher-card-icon">construction</span>
-        <span class="launcher-card-title">Prompt Forge</span>
-        <span class="launcher-card-desc">Build structured prompts from a framework — RTF, CO-STAR and more</span>
-      </button>
-      <button class="launcher-card" data-open="openComponentsWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">extension</span>
-        <span class="launcher-card-title">Prompt Components</span>
-        <span class="launcher-card-desc">Drag-and-drop builder — combine blocks into full prompts</span>
-        <span class="launcher-card-lock material-symbols-outlined">lock</span>
-      </button>
-      <button class="launcher-card" data-open="openChainWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">account_tree</span>
-        <span class="launcher-card-title">Prompt Chain</span>
-        <span class="launcher-card-desc">Multi-step prompt pipelines</span>
-        <span class="launcher-card-lock material-symbols-outlined">lock</span>
-      </button>
-      <button class="launcher-card" data-open="openRolesWorkspace">
-        <span class="material-symbols-outlined launcher-card-icon">smart_toy</span>
-        <span class="launcher-card-title">Agents</span>
-        <span class="launcher-card-desc">Build and run reusable AI agent roles</span>
-      </button>
-        </div>
-      </div>
-      <div class="launcher-group" data-group="refine">
-        <div class="launcher-group-label">
-          <span class="material-symbols-outlined">auto_fix_high</span>
-          <span>Refine</span>
-          <span class="launcher-group-hint">Improve and rework existing prompts</span>
-        </div>
-        <div class="launcher-grid">
-      <button class="launcher-card" data-open="openOptimizerWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">rocket_launch</span>
-        <span class="launcher-card-title">Prompt Optimizer</span>
-        <span class="launcher-card-desc">Framework, techniques and AI quality scoring</span>
-        <span class="launcher-card-lock material-symbols-outlined">lock</span>
-      </button>
-      <button class="launcher-card" data-open="openMetaWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">auto_fix_high</span>
-        <span class="launcher-card-title">Metaprompting</span>
-        <span class="launcher-card-desc">AI rewrites a rough prompt into a polished, production-ready one</span>
-        <span class="launcher-card-lock material-symbols-outlined">lock</span>
-      </button>
-      <button class="launcher-card" data-open="openSpliceWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">call_merge</span>
-        <span class="launcher-card-title">Prompt Splicer</span>
-        <span class="launcher-card-desc">Merge two prompts into one</span>
-        <span class="launcher-card-lock material-symbols-outlined">lock</span>
-      </button>
-      <button class="launcher-card" data-open="openLabWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">biotech</span>
-        <span class="launcher-card-title">Prompt Lab</span>
-        <span class="launcher-card-desc">A/B test prompt variants side by side</span>
-        <span class="launcher-card-lock material-symbols-outlined">lock</span>
-      </button>
-        </div>
-      </div>
-      <div class="launcher-group" data-group="inspect">
-        <div class="launcher-group-label">
-          <span class="material-symbols-outlined">search</span>
-          <span>Inspect</span>
-          <span class="launcher-group-hint">Analyse quality, cost and structure</span>
-        </div>
-        <div class="launcher-grid">
-      <button class="launcher-card" data-open="openAuditWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">fact_check</span>
-        <span class="launcher-card-title">Prompt Auditor</span>
-        <span class="launcher-card-desc">Rubric-based quality scoring</span>
-        <span class="launcher-card-lock material-symbols-outlined">lock</span>
-      </button>
-      <button class="launcher-card" data-open="openXrayWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">visibility</span>
-        <span class="launcher-card-title">Prompt X-Ray</span>
-        <span class="launcher-card-desc">Deconstruct any prompt into its parts</span>
-        <span class="launcher-card-lock material-symbols-outlined">lock</span>
-      </button>
-      <button class="launcher-card" data-open="openDiffWorkspace">
-        <span class="material-symbols-outlined launcher-card-icon">compare</span>
-        <span class="launcher-card-title">Diff Lens</span>
-        <span class="launcher-card-desc">Compare two prompts side by side</span>
-      </button>
-      <button class="launcher-card" data-open="openCostWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">calculate</span>
-        <span class="launcher-card-title">Cost Lens</span>
-        <span class="launcher-card-desc">Token and cost estimates</span>
-        <span class="launcher-card-lock material-symbols-outlined">lock</span>
-      </button>
-      <button class="launcher-card" data-open="openPulseWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">monitor_heart</span>
-        <span class="launcher-card-title">Library Pulse</span>
-        <span class="launcher-card-desc">Health scan across your whole library</span>
-        <span class="launcher-card-lock material-symbols-outlined">lock</span>
-      </button>
-        </div>
-      </div>
-      <div class="launcher-group" data-group="run">
-        <div class="launcher-group-label">
-          <span class="material-symbols-outlined">play_arrow</span>
-          <span>Run</span>
-          <span class="launcher-group-hint">Use your prompts day to day</span>
-        </div>
-        <div class="launcher-grid">
-      <button class="launcher-card" data-open="openFillWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">dynamic_form</span>
-        <span class="launcher-card-title">Quick Fill</span>
-        <span class="launcher-card-desc">Fill template placeholders fast</span>
-        <span class="launcher-card-lock material-symbols-outlined">lock</span>
-      </button>
-      <button class="launcher-card" data-open="openPlaygroundWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">science</span>
-        <span class="launcher-card-title">Playground</span>
-        <span class="launcher-card-desc">Freeform multi-panel testing ground</span>
-        <span class="launcher-card-lock material-symbols-outlined">lock</span>
-      </button>
-      <button class="launcher-card" data-open="openContextBankWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">database</span>
-        <span class="launcher-card-title">Context Bank</span>
-        <span class="launcher-card-desc">Reusable context blocks to drop into any prompt</span>
-        <span class="launcher-card-lock material-symbols-outlined">lock</span>
-      </button>
-        </div>
-      </div>
-      <p class="launcher-empty" id="launcherEmpty" hidden>No tools match your search</p>
-    </div>
-  </div>
-</div>
-
-
   <div id="promptViewer" aria-modal="true" aria-label="Prompt viewer" role="dialog">
     <div class="pv-header">
       <button class="pv-back-btn" id="pvCloseBtn" title="Back to library">
@@ -3282,7 +3094,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=27229a9a"></script>
+<script defer src="/static/app.js?v=fb3673a3"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

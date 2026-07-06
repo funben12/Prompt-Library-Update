@@ -1,0 +1,197 @@
+<!-- @dsCard group="Spacing" -->
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<style>
+:root {
+    --fs-xs:   clamp(0.7rem, 0.67rem + 0.17vw, 0.75rem);
+    --fs-sm:   clamp(0.75rem, 0.72rem + 0.17vw, 0.8rem);
+    --fs-base: clamp(1rem, 1rem + 0vw, 1rem);
+    --fs-md:   clamp(1.1rem, 1.06rem + 0.25vw, 1.15rem);
+    --fs-lg:   clamp(1.3rem, 1.22rem + 0.42vw, 1.5rem);
+    --fs-xl:   clamp(1.6rem, 1.45rem + 0.65vw, 2rem);
+    --fs-2xl:  clamp(2.5rem, 2rem + 1.8vw, 3rem);
+
+    --ff-display: "Fraunces", "Iowan Old Style", "Charter", Georgia, serif;
+    --ff-sans:    "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --ff-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --sp-1: 0.22rem;   /* 3.5  */
+    --sp-2: 0.4rem;    /* 6.5  */
+    --sp-3: 0.65rem;   /* 10.4 */
+    --sp-4: 0.85rem;   /* 13.6 */
+    --sp-5: 1.25rem;   /* 20 */
+    --sp-6: 1.7rem;    /* 27.2 */
+    --sp-7: 2.5rem;    /* 40 */
+    --sp-8: 3.4rem;    /* 54.4 */
+    --sp-9: 5rem;      /* 80 */
+
+    --sidebar-w: 264px;
+    --detail-w: clamp(360px, 32vw, 480px);
+    --content-max: 920px;
+
+    --r-sm: 4px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-xl: 16px;
+
+    --t-fast:   120ms;
+    --t-base:   200ms;
+    --t-slow:   320ms;
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in:        cubic-bezier(0.7, 0, 0.84, 0);
+
+    /* Teal primary (#006666), warm beige surfaces (#E7E5E4), dark blue text (#1E2938) */
+    --bg:           oklch(93.5% 0.01 70);    /* page */
+    --surface:      oklch(95.2% 0.008 70);   /* cards / panels */
+    --surface-2:    oklch(92%   0.012 70);   /* hover, sidebar */
+    --surface-3:    oklch(88.5% 0.015 70);   /* deep wells, inputs at rest */
+    --surface-sunk: oklch(91%   0.012 70);   /* recessed (search, textarea) */
+
+    --line:         oklch(85%   0.016 70);
+    --line-strong:  oklch(78%   0.020 70);
+
+    --ink:          oklch(18%   0.04  260);  /* primary text */
+    --ink-2:        oklch(32%   0.03  260);  /* body */
+    --ink-3:        oklch(50%   0.015 260);  /* muted */
+    --ink-4:        oklch(68%   0.010 260);  /* hint */
+
+    --accent:       oklch(38%   0.14  190);  /* teal primary */
+    --accent-hover: oklch(33%   0.15  190);
+    --accent-soft:  oklch(93%   0.05  190);  /* tinted background */
+    --accent-line:  oklch(80%   0.08  190);
+
+    --warn:         oklch(63%   0.18  52);   /* #FE9900 */
+    --warn-soft:    oklch(94%   0.05  52);
+    --danger:       oklch(51%   0.21  30);   /* #FF2157 */
+    --danger-soft:  oklch(94%   0.04  30);
+    --success:      oklch(54%   0.14  140);  /* #00A63D */
+    --success-soft: oklch(94%   0.04  140);
+
+    --gold:         oklch(70%   0.14  85);   /* ratings, premium */
+
+    --c-red:    oklch(60% 0.17 25);
+    --c-orange: oklch(70% 0.15 55);
+    --c-yellow: oklch(80% 0.13 90);
+    --c-green:  oklch(58% 0.13 145);
+    --c-teal:   oklch(60% 0.10 195);
+    --c-blue:   oklch(55% 0.13 245);
+    --c-purple: oklch(52% 0.16 295);
+    --c-pink:   oklch(63% 0.16 350);
+    --c-amber:    oklch(75% 0.14 68);
+    --c-lime:     oklch(72% 0.17 125);
+    --c-cyan:     oklch(68% 0.12 205);
+    --c-indigo:   oklch(50% 0.17 270);
+    --c-violet:   oklch(55% 0.18 305);
+    --c-magenta:  oklch(60% 0.19 330);
+    --c-fuchsia:  oklch(58% 0.21 316);
+    --c-rose:     oklch(62% 0.18 10);
+    --c-lavender: oklch(72% 0.09 290);
+
+    --shadow-sm: 0 1px 2px oklch(18% 0.04 260 / 0.08);
+    --shadow-md: 0 6px 20px -8px oklch(18% 0.04 260 / 0.12), 0 2px 6px oklch(18% 0.04 260 / 0.06);
+    --shadow-lg: 0 20px 50px -16px oklch(18% 0.04 260 / 0.20), 0 6px 14px oklch(18% 0.04 260 / 0.09);
+    --ring:      0 0 0 3px oklch(38% 0.14 190 / 0.20);
+
+    /* Neuromorphic shadows — warm light source from top-left */
+    --neu-raised:
+      5px 5px 10px oklch(83% 0.016 70 / 0.70),
+      -5px -5px 10px oklch(99.5% 0.004 70 / 0.55);
+    --neu-raised-sm:
+      3px 3px 6px oklch(83% 0.016 70 / 0.55),
+      -3px -3px 6px oklch(99.5% 0.004 70 / 0.42);
+    --neu-inset:
+      inset 2px 2px 5px oklch(83% 0.016 70 / 0.55),
+      inset -2px -2px 5px oklch(99.5% 0.004 70 / 0.40);
+    --neu-pressed:
+      inset 3px 3px 7px oklch(80% 0.016 70 / 0.65),
+      inset -2px -2px 5px oklch(99.5% 0.004 70 / 0.35);
+
+    --z-sidebar: 10;
+    --z-detail:  20;
+    --z-overlay: 50;
+    --z-modal:   60;
+    --z-toast:   80;
+    --z-palette: 90;
+  }
+
+:root[data-theme="dark"] {
+    --bg:           oklch(16%   0.012 70);
+    --surface:      oklch(20%   0.014 70);
+    --surface-2:    oklch(24%   0.016 70);
+    --surface-3:    oklch(28%   0.018 70);
+    --surface-sunk: oklch(14%   0.012 70);
+
+    --line:         oklch(30%   0.016 70);
+    --line-strong:  oklch(38%   0.018 70);
+
+    --ink:          oklch(93%   0.015 260);
+    --ink-2:        oklch(80%   0.015 260);
+    --ink-3:        oklch(62%   0.012 260);
+    --ink-4:        oklch(48%   0.010 260);
+
+    --accent:       oklch(72%   0.14  190);
+    --accent-hover: oklch(78%   0.14  190);
+    --accent-soft:  oklch(26%   0.08  190);
+    --accent-line:  oklch(38%   0.12  190);
+
+    --warn:         oklch(78%   0.17  52);
+    --warn-soft:    oklch(26%   0.08  52);
+    --danger:       oklch(74%   0.19  30);
+    --danger-soft:  oklch(26%   0.08  30);
+    --success:      oklch(74%   0.14  140);
+    --success-soft: oklch(24%   0.06  140);
+
+    --gold:         oklch(80%   0.14  85);
+
+    --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.5);
+    --shadow-md: 0 8px 24px -10px oklch(0% 0 0 / 0.65), 0 2px 8px oklch(0% 0 0 / 0.4);
+    --shadow-lg: 0 24px 60px -20px oklch(0% 0 0 / 0.80), 0 8px 18px oklch(0% 0 0 / 0.5);
+    --ring:      0 0 0 3px oklch(72% 0.14 190 / 0.35);
+
+    /* Neuromorphic shadows — dark mode */
+    --neu-raised:
+      5px 5px 10px oklch(10% 0.010 70 / 0.80),
+      -5px -5px 10px oklch(28% 0.016 70 / 0.50);
+    --neu-raised-sm:
+      3px 3px 6px oklch(10% 0.010 70 / 0.65),
+      -3px -3px 6px oklch(28% 0.016 70 / 0.40);
+    --neu-inset:
+      inset 2px 2px 5px oklch(10% 0.010 70 / 0.65),
+      inset -2px -2px 5px oklch(28% 0.016 70 / 0.40);
+    --neu-pressed:
+      inset 3px 3px 7px oklch(10% 0.010 70 / 0.75),
+      inset -2px -2px 5px oklch(28% 0.016 70 / 0.30);
+
+    --c-red:    oklch(72% 0.17 25);
+    --c-orange: oklch(80% 0.15 55);
+    --c-yellow: oklch(88% 0.13 90);
+    --c-green:  oklch(72% 0.14 140);
+    --c-teal:   oklch(70% 0.10 190);
+    --c-blue:   oklch(70% 0.14 190);
+    --c-purple: oklch(70% 0.16 295);
+    --c-pink:   oklch(76% 0.16 350);
+    --c-amber:    oklch(78% 0.14 68);
+    --c-lime:     oklch(75% 0.17 125);
+    --c-cyan:     oklch(72% 0.12 205);
+    --c-indigo:   oklch(58% 0.17 270);
+    --c-violet:   oklch(62% 0.18 305);
+    --c-magenta:  oklch(65% 0.19 330);
+    --c-fuchsia:  oklch(63% 0.21 316);
+    --c-rose:     oklch(67% 0.18 10);
+    --c-lavender: oklch(78% 0.09 290);
+  }
+
+body { margin: 0; padding: 24px; background: var(--bg); color: var(--ink); font-family: var(--ff-sans); }
+.material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal; font-size: 18px; line-height: 1; letter-spacing: normal; display: inline-block; }
+h3 { font-family: var(--ff-display); font-size: var(--fs-md); margin: 0 0 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 20px; }
+.spec-label { font-family: var(--ff-mono); font-size: 10px; color: var(--ink-3); display: block; margin-top: 4px; }
+
+
+</style></head>
+<body>
+<h3>Spacing scale</h3><div class="row"><div style="width:var(--sp-1);height:14px;background:var(--accent);border-radius:2px;"></div><span class="spec-label">--sp-1</span></div><div class="row"><div style="width:var(--sp-2);height:14px;background:var(--accent);border-radius:2px;"></div><span class="spec-label">--sp-2</span></div><div class="row"><div style="width:var(--sp-3);height:14px;background:var(--accent);border-radius:2px;"></div><span class="spec-label">--sp-3</span></div><div class="row"><div style="width:var(--sp-4);height:14px;background:var(--accent);border-radius:2px;"></div><span class="spec-label">--sp-4</span></div><div class="row"><div style="width:var(--sp-5);height:14px;background:var(--accent);border-radius:2px;"></div><span class="spec-label">--sp-5</span></div><div class="row"><div style="width:var(--sp-6);height:14px;background:var(--accent);border-radius:2px;"></div><span class="spec-label">--sp-6</span></div><div class="row"><div style="width:var(--sp-7);height:14px;background:var(--accent);border-radius:2px;"></div><span class="spec-label">--sp-7</span></div><div class="row"><div style="width:var(--sp-8);height:14px;background:var(--accent);border-radius:2px;"></div><span class="spec-label">--sp-8</span></div><div class="row"><div style="width:var(--sp-9);height:14px;background:var(--accent);border-radius:2px;"></div><span class="spec-label">--sp-9</span></div><h3 style="margin-top:24px;">Corner radii</h3><div class="row"><div><div style="width:64px;height:64px;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r-sm);"></div><span class="spec-label">--r-sm</span></div><div><div style="width:64px;height:64px;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r-md);"></div><span class="spec-label">--r-md</span></div><div><div style="width:64px;height:64px;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r-lg);"></div><span class="spec-label">--r-lg</span></div><div><div style="width:64px;height:64px;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r-xl);"></div><span class="spec-label">--r-xl</span></div></div>
+</body></html>
