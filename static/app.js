@@ -11362,6 +11362,23 @@ Must avoid: [Anything sensitive or previously declined]`
         return vars;
     }
 
+    function _qfWords(name) {
+        return (name || '')
+            .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+            .split(/[^a-zA-Z0-9]+/)
+            .map(w => w.toLowerCase())
+            .filter(Boolean);
+    }
+
+    function _qfGuessType(name) {
+        const words = _qfWords(name);
+        const has = (...keys) => keys.some(k => words.includes(k));
+        if (has('is', 'has', 'should', 'can', 'enable')) return 'boolean';
+        if (has('count', 'qty', 'quantity', 'number', 'age', 'amount', 'price', 'total', 'rating', 'score', 'percent', 'year', 'days', 'weight', 'height')) return 'number';
+        if (has('description', 'desc', 'bio', 'summary', 'details', 'notes', 'content', 'body', 'instructions', 'context', 'background', 'paragraph')) return 'longtext';
+        return 'text';
+    }
+
     function _qfRenderForm() {
         const src = $('#qfSource')?.value || '';
         const list = $('#qfVarList');
