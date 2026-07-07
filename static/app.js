@@ -11372,6 +11372,7 @@ Must avoid: [Anything sensitive or previously declined]`
 
     function _qfWords(name) {
         return (name || '')
+            .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
             .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
             .split(/[^a-zA-Z0-9]+/)
             .map(w => w.toLowerCase())
@@ -11410,7 +11411,8 @@ Must avoid: [Anything sensitive or previously declined]`
         const opts = types.map(t =>
             '<option value="' + t + '"' + (v.type === t ? ' selected' : '') + '>' + labels[t] + '</option>'
         ).join('');
-        return '<select class="qf-type-select" data-qf-type-idx="' + idx + '">' + opts + '</select>';
+        return '<select class="qf-type-select" data-qf-type-idx="' + idx + '" aria-label="Field type for ' +
+            escapeAttr(v.name || v.token) + '">' + opts + '</select>';
     }
 
     function _qfWireFieldInput(el) {
@@ -11431,7 +11433,7 @@ Must avoid: [Anything sensitive or previously declined]`
         const extracted = _qfExtractVars(src);
         _qfVars = extracted.map(v => {
             const remembered = _qfMemGet(v.name);
-            return { token: v.token, name: v.name, type: remembered.type || _qfGuessType(v.name) };
+            return { token: v.token, name: v.name, type: remembered.type || _qfGuessType(v.name), value: remembered.value || '' };
         });
         const countEl = $('#qfVarCount');
         if (countEl) countEl.textContent = _qfVars.length;
@@ -11442,7 +11444,7 @@ Must avoid: [Anything sensitive or previously declined]`
             return;
         }
         list.innerHTML = _qfVars.map((v, i) => {
-            const value = _qfMemGet(v.name).value || '';
+            const value = v.value;
             return '<div class="qf-field">' +
                 '<div class="qf-field-head">' +
                 '<label class="qf-field-label" title="' + escapeAttr(v.token) + '">' + escapeHtml(v.name || v.token) + '</label>' +
@@ -11461,9 +11463,10 @@ Must avoid: [Anything sensitive or previously declined]`
                 const oldInput = wrapper.querySelector('.qf-var-input');
                 const currentValue = oldInput ? oldInput.value : '';
                 v.type = sel.value;
-                _qfRemember({ [v.name]: { value: currentValue, type: v.type } });
                 oldInput.outerHTML = _qfFieldControlHtml(v, idx, currentValue);
-                _qfWireFieldInput(wrapper.querySelector('.qf-var-input'));
+                const newInput = wrapper.querySelector('.qf-var-input');
+                _qfWireFieldInput(newInput);
+                _qfRemember({ [v.name]: { value: newInput ? newInput.value : currentValue, type: v.type } });
                 _qfRenderPreview();
             });
         });
