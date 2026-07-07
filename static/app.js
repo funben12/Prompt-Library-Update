@@ -11537,6 +11537,15 @@ Must avoid: [Anything sensitive or previously declined]`
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
 
+    function _qfRememberAll() {
+        const vals = {};
+        $$('#qfVarList .qf-var-input').forEach(el => {
+            const v = _qfVars[Number(el.dataset.qfIdx)];
+            if (v) vals[v.name] = { value: el.value, type: v.type };
+        });
+        _qfRemember(vals);
+    }
+
     function initFillWorkspace() {
         const ws = $('#fillWorkspace');
         if (!ws) return;
@@ -11557,7 +11566,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 toast('Nothing to copy yet', 'warning');
                 return;
             }
-            _qfRemember(_qfValues());
+            _qfRememberAll();
             if (await copyToClipboard(text)) toast('Filled prompt copied', 'success');
         });
         $('#qfSaveBtn')?.addEventListener('click', async () => {
@@ -11566,7 +11575,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 toast('Fill the template first', 'warning');
                 return;
             }
-            _qfRemember(_qfValues());
+            _qfRememberAll();
             const picked = _wsPickedPrompt('#qfPicker');
             const title = ((picked?.title || text.split(' ').slice(0, 6).join(' ')) + ' (filled)').slice(0, 120);
             try {

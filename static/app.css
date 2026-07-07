@@ -8041,6 +8041,9 @@
 .qf-var-list { display: flex; flex-direction: column; gap: var(--sp-2); }
 .qf-field-label { font-size: var(--fs-xs); font-weight: 600; color: var(--ink-2); display: block; margin-bottom: 2px; }
 .qf-var-input { resize: none; overflow: hidden; min-height: 34px; }
+.qf-field { display: flex; flex-direction: column; gap: 4px; }
+.qf-field-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.qf-type-select { font-size: 11px; color: var(--ink-3); background: transparent; border: 1px solid var(--line); border-radius: var(--r-sm, 4px); padding: 1px 4px; flex-shrink: 0; }
 .qf-empty { color: var(--ink-3); font-size: var(--fs-sm); padding: var(--sp-2) 0; }
 .qf-preview { flex: 1; white-space: pre-wrap; }
 .qf-missing { background: color-mix(in oklch, var(--warning, #f59e0b) 25%, transparent); color: inherit; border-radius: 3px; padding: 0 2px; }
