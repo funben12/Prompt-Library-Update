@@ -11387,11 +11387,52 @@ Must avoid: [Anything sensitive or previously declined]`
         return 'text';
     }
 
+    function _qfFieldControlHtml(v, idx, value) {
+        const attrs = 'data-qf-idx="' + idx + '"';
+        if (v.type === 'boolean') {
+            const opts = ['', 'Yes', 'No'].map(o =>
+                '<option value="' + o + '"' + (value === o ? ' selected' : '') + '>' + (o || '\u2014') + '</option>'
+            ).join('');
+            return '<select class="forge-input qf-var-input" ' + attrs + '>' + opts + '</select>';
+        }
+        if (v.type === 'number') {
+            return '<input type="number" class="forge-input qf-var-input" ' + attrs +
+                ' value="' + escapeAttr(value) + '" placeholder="' + escapeAttr(v.token) + '" />';
+        }
+        const rows = v.type === 'longtext' ? 3 : 1;
+        return '<textarea class="forge-input qf-var-input" ' + attrs + ' rows="' + rows + '" placeholder="' +
+            escapeAttr(v.token) + '">' + escapeHtml(value) + '</textarea>';
+    }
+
+    function _qfTypeSelectHtml(v, idx) {
+        const types = ['text', 'longtext', 'number', 'boolean'];
+        const labels = { text: 'Text', longtext: 'Long text', number: 'Number', boolean: 'Yes/No' };
+        const opts = types.map(t =>
+            '<option value="' + t + '"' + (v.type === t ? ' selected' : '') + '>' + labels[t] + '</option>'
+        ).join('');
+        return '<select class="qf-type-select" data-qf-type-idx="' + idx + '">' + opts + '</select>';
+    }
+
+    function _qfWireFieldInput(el) {
+        const evt = el.tagName === 'SELECT' ? 'change' : 'input';
+        el.addEventListener(evt, () => {
+            if (el.tagName === 'TEXTAREA') {
+                el.style.height = 'auto';
+                el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+            }
+            _qfRenderPreview();
+        });
+    }
+
     function _qfRenderForm() {
         const src = $('#qfSource')?.value || '';
         const list = $('#qfVarList');
         if (!list) return;
-        _qfVars = _qfExtractVars(src);
+        const extracted = _qfExtractVars(src);
+        _qfVars = extracted.map(v => {
+            const remembered = _qfMemGet(v.name);
+            return { token: v.token, name: v.name, type: remembered.type || _qfGuessType(v.name) };
+        });
         const countEl = $('#qfVarCount');
         if (countEl) countEl.textContent = _qfVars.length;
 
@@ -11400,17 +11441,29 @@ Must avoid: [Anything sensitive or previously declined]`
             _qfRenderPreview();
             return;
         }
-        const mem = _qfMemory();
-        list.innerHTML = _qfVars.map((v, i) =>
-            '<div class="qf-field">' +
-            '<label class="qf-field-label" title="' + escapeAttr(v.token) + '">' + escapeHtml(v.name || v.token) + '</label>' +
-            '<textarea class="forge-input qf-var-input" data-qf-idx="' + i + '" rows="1" placeholder="' + escapeAttr(v.token) + '">' +
-            escapeHtml(mem[v.name] || '') + '</textarea>' +
-            '</div>').join('');
-        list.querySelectorAll('.qf-var-input').forEach(ta => {
-            ta.addEventListener('input', () => {
-                ta.style.height = 'auto';
-                ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+        list.innerHTML = _qfVars.map((v, i) => {
+            const value = _qfMemGet(v.name).value || '';
+            return '<div class="qf-field">' +
+                '<div class="qf-field-head">' +
+                '<label class="qf-field-label" title="' + escapeAttr(v.token) + '">' + escapeHtml(v.name || v.token) + '</label>' +
+                _qfTypeSelectHtml(v, i) +
+                '</div>' +
+                _qfFieldControlHtml(v, i, value) +
+                '</div>';
+        }).join('');
+        list.querySelectorAll('.qf-var-input').forEach(_qfWireFieldInput);
+        list.querySelectorAll('.qf-type-select').forEach(sel => {
+            sel.addEventListener('change', () => {
+                const idx = Number(sel.dataset.qfTypeIdx);
+                const v = _qfVars[idx];
+                if (!v) return;
+                const wrapper = sel.closest('.qf-field');
+                const oldInput = wrapper.querySelector('.qf-var-input');
+                const currentValue = oldInput ? oldInput.value : '';
+                v.type = sel.value;
+                _qfRemember({ [v.name]: { value: currentValue, type: v.type } });
+                oldInput.outerHTML = _qfFieldControlHtml(v, idx, currentValue);
+                _qfWireFieldInput(wrapper.querySelector('.qf-var-input'));
                 _qfRenderPreview();
             });
         });
