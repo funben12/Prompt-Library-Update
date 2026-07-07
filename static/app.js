@@ -11337,6 +11337,14 @@ Must avoid: [Anything sensitive or previously declined]`
         }
     }
 
+    // Legacy entries were a plain string value; normalize both shapes to {value, type}.
+    function _qfMemGet(name) {
+        const entry = _qfMemory()[name];
+        if (entry == null) return { value: '', type: undefined };
+        if (typeof entry === 'string') return { value: entry, type: undefined };
+        return { value: entry.value || '', type: entry.type };
+    }
+
     function _qfRemember(vals) {
         const mem = _qfMemory();
         Object.assign(mem, vals);
