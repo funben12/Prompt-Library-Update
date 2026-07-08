@@ -2891,54 +2891,103 @@ NOTE: Return only the JSON array — no explanatory text around it.
 
     const _MARKDOWN_TEMPLATE_TEXT = `Prompt Library Pro — Markdown Import Template
 ===============================================
-Format each of your prompts using the structure below.
+Format your prompts using the structure below.
 Separate multiple prompts with a horizontal rule (---).
 Paste the result into the Markdown tab above.
 
-INSTRUCTIONS FOR AI:
-Take each prompt I give you and format it using this exact Markdown structure.
-Keep each section on its own line. Separate prompts with ---.
+YOUR TASK:
+You are a prompt formatter. Your job is to take raw prompts and convert them into structured Markdown that this app can import.
 
-FORMAT:
-## Prompt Title
-*One-line description of what this prompt does.*
-**Categories:** Category1, Category2
-**Tags:** tag1, tag2, tag3
+FORMATTING RULES:
 
-\`\`\`
-Your full prompt text goes here.
-Use [[variable_name]] for any placeholder values.
-\`\`\`
+1. TITLE (## Heading)
+   - Must be a clear, concise name (3-8 words typically)
+   - Use sentence case, not ALL CAPS
+   - No special characters except hyphens, apostrophes, colons
+   - Examples: "Email Opener", "Code Reviewer", "JSON-to-YAML"
 
----
+2. DESCRIPTION (*italics*)
+   - One sentence only, 8-15 words
+   - Should explain what the prompt does, not how to use it
+   - Start with an action verb: "Write", "Generate", "Analyze", "Convert", etc.
+   - Examples: "*Generates professional email openings for any audience.*"
+
+3. CATEGORIES (**Categories:** ...)
+   - Comma-separated list (no periods)
+   - 1-3 categories per prompt
+   - Use broad buckets: Content, Code, Analysis, Writing, Design, Business, etc.
+   - If unsure, leave as single appropriate category
+
+4. TAGS (**Tags:** comma-separated)
+   - Lowercase, hyphenated words (no spaces, no underscores)
+   - 2-5 tags per prompt
+   - Be specific: "cold-email" not "email", "python-debugging" not "code"
+   - If a tag would be 1 word, combine it: use "api-design" not "api"
+
+5. PROMPT TEXT (with backticks)
+   - Include the ENTIRE prompt text
+   - Preserve all formatting (line breaks, bullet points, etc.)
+   - Replace values with placeholders like [[variable_name]] (lowercase, underscores)
+   - Example: [[prospect_name]], [[company_name]], [[topic]], [[word_count]]
+   - DO NOT include instructions about how to use the prompt—just the prompt itself
+
+HANDLING EDGE CASES:
+
+- MISSING DESCRIPTION: Generate a one-sentence summary of the title and prompt
+- MISSING CATEGORIES: Use "General" or infer from prompt type (Writing, Code, etc.)
+- MISSING TAGS: Infer 2-3 tags from the prompt's purpose
+- LONG TITLES (>12 words): Shorten to essential terms only
+- QUOTES IN TITLE: Escape them or rephrase without quotes
+- SPECIAL CHARACTERS IN TEXT: Keep as-is (do not remove dashes, slashes, etc.)
+
+VALIDATION BEFORE RETURNING:
+
+Check: Each prompt has a title, description, categories, and tags
+Check: Descriptions are one sentence only
+Check: Prompt text is inside backticks
+Check: All placeholders use [[snake_case]] format
+Check: Tags use hyphens, not spaces or underscores
+Check: Prompts separated by "---" on its own line
+Check: No explanatory text before/after the Markdown
 
 EXAMPLE OUTPUT:
-## Cold Email Outreach
-*Personalised cold email for a prospect.*
-**Categories:** Copywriting
-**Tags:** email, outreach, sales
+
+## Cold Email Hook
+*Generates a personalized opener for sales prospecting emails.*
+**Categories:** Writing, Business
+**Tags:** email, sales, cold-outreach, prospecting
 
 \`\`\`
-Write a cold email to [[prospect_name]] at [[company_name]].
-Keep it under 100 words and end with a clear call to action.
-\`\`\`
-
----
-
-## Blog Post Introduction
-*Engaging opener for any blog post.*
-**Categories:** Content
-**Tags:** blog, writing
-
-\`\`\`
-Write a compelling introduction for a blog post about [[topic]].
-Hook the reader in the first sentence.
+Write a cold email opener to [[prospect_name]] at [[company]].
+Subject line should grab attention in 8 words or less.
+Keep the body under [[word_count]] words.
+End with a specific, non-salesy call to action.
 \`\`\`
 
 ---
 
-NOTE: Return only the formatted Markdown — no explanatory text around it.
-`;
+## Python Function Debugger
+*Diagnoses errors in Python functions and suggests fixes.*
+**Categories:** Code
+**Tags:** python, debugging, error-analysis
+
+\`\`\`
+I have a Python function with an error.
+Function: [[function_name]]
+Error message: [[error_message]]
+
+Debug this step-by-step:
+1. Identify the root cause
+2. Explain why it's broken
+3. Provide the corrected code
+4. Suggest how to test the fix
+\`\`\`
+
+---
+
+FINAL INSTRUCTION:
+Return ONLY the formatted Markdown — no preamble, no explanation, no commentary.
+    `;
 
     window.PL_copyMarkdownTemplate = async function() {
         try {
