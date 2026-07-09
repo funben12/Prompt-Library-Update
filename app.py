@@ -890,6 +890,71 @@ def delete_prompt(pid):
     conn.close()
     return jsonify({'success': True})
 
+@app.route('/api/prompts/bulk', methods=['PATCH'])
+def bulk_update_prompts():
+    data = _json_body()
+    ids = data.get('ids') or []
+    action = data.get('action')
+    if not ids or action not in ('add_tag', 'move_folder'):
+        return jsonify({'error': 'ids and a valid action are required'}), 400
+
+    conn = get_db()
+    success, failed = 0, 0
+    try:
+        if action == 'add_tag':
+            tag = (data.get('tag') or '').strip()
+            if not tag:
+                conn.close()
+                return jsonify({'error': 'tag is required for add_tag'}), 400
+            for pid in ids:
+                row = conn.execute('SELECT tags FROM prompts WHERE id=?', (pid,)).fetchone()
+                if not row:
+                    failed += 1
+                    continue
+                tags = _normalise_list(row['tags'])
+                if tag not in tags:
+                    tags.append(tag)
+                conn.execute(
+                    'UPDATE prompts SET tags=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                    (_list_for_db(tags), pid)
+                )
+                success += 1
+        elif action == 'move_folder':
+            folder_id = _folder_id(data.get('folder_id'))
+            for pid in ids:
+                cur = conn.execute(
+                    'UPDATE prompts SET folder_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                    (folder_id, pid)
+                )
+                if cur.rowcount:
+                    success += 1
+                else:
+                    failed += 1
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'success': success, 'failed': failed})
+
+@app.route('/api/prompts/bulk', methods=['DELETE'])
+def bulk_delete_prompts():
+    data = _json_body()
+    ids = data.get('ids') or []
+    if not ids:
+        return jsonify({'error': 'ids is required'}), 400
+    conn = get_db()
+    success, failed = 0, 0
+    try:
+        for pid in ids:
+            cur = conn.execute('DELETE FROM prompts WHERE id=?', (pid,))
+            if cur.rowcount:
+                success += 1
+            else:
+                failed += 1
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'success': success, 'failed': failed})
+
 @app.route('/api/prompts/<int:pid>/fork', methods=['POST'])
 def fork_prompt(pid):
     """Fork a prompt — creates a copy with parent_id set to the original."""
