@@ -58,6 +58,9 @@
         theme: 'dark', // 'dark' | 'light'
     };
 
+    // Bulk-select: prompt IDs currently checked in the Library view.
+    let _bulkSelection = new Set();
+
     /* ============================================================================
        DOM HELPERS
        ============================================================================ */
@@ -736,6 +739,24 @@
         }
     }
 
+    function toggleBulkSelect(id) {
+        if (_bulkSelection.has(id)) _bulkSelection.delete(id);
+        else _bulkSelection.add(id);
+        renderBulkToolbar();
+    }
+
+    function bulkSelectAll() {
+        getFilteredPrompts().forEach(p => _bulkSelection.add(p.id));
+        renderPrompts();
+        renderBulkToolbar();
+    }
+
+    function bulkDeselectAll() {
+        _bulkSelection.clear();
+        renderPrompts();
+        renderBulkToolbar();
+    }
+
     function renderEmptyState() {
         const isSearching = !!state.search.trim();
         if (isSearching) {
@@ -831,6 +852,7 @@
       <div class="card-rule ${colour}"></div>
       <div class="card-body">
         <div class="card-title-row">
+          <input type="checkbox" class="card-select" onclick="event.stopPropagation()" onchange="window.PL_toggleBulkSelect(${p.id})" ${_bulkSelection.has(p.id) ? 'checked' : ''} aria-label="Select ${escapeAttr(p.title)}" />
           <h3 class="card-title">${escapeHtml(p.title)}</h3>
           ${isFav ? '<span class="card-fav material-symbols-outlined">star</span>' : ''}
           ${rating > 0 ? `<span class="card-rating">${'\u2605'.repeat(rating)}${'\u2606'.repeat(5 - rating)}</span>` : ''}
@@ -3881,6 +3903,7 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
     window.PL_useFromCard = useFromCard;
     window.PL_deletePrompt = deletePromptById;
     window.PL_restoreVersion = restoreVersion;
+    window.PL_toggleBulkSelect = toggleBulkSelect;
 
     // Shared helper: always escape folder/workspace views before applying a filter pill
     function _escapeToLibrary() {
@@ -4173,6 +4196,11 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
             state.groupByFolder = !state.groupByFolder;
             $('#groupFolderBtn').classList.toggle('active', state.groupByFolder);
             renderPrompts();
+        });
+
+        $('#bulkSelectAllCheckbox')?.addEventListener('change', (e) => {
+            if (e.target.checked) bulkSelectAll();
+            else bulkDeselectAll();
         });
 
         // Run chain
