@@ -11327,9 +11327,17 @@ Must avoid: [Anything sensitive or previously declined]`
                 'Cancel to save as a new prompt instead.'
             );
             if (replace) {
-                const notes = [sourcePrompt.notes, extraNote].filter(Boolean).join('\n');
+                const priorNotes = sourcePrompt.notes || '';
+                const notes = (extraNote && priorNotes.endsWith(extraNote))
+                    ? priorNotes
+                    : [priorNotes, extraNote].filter(Boolean).join('\n');
                 const existingTags = Array.isArray(sourcePrompt.tags) ? sourcePrompt.tags.join(',') : (sourcePrompt.tags || '');
-                const mergedTags = existingTags ? existingTags + ',' + tags : tags;
+                const mergedTags = Array.from(new Set(
+                    (existingTags ? existingTags + ',' + tags : tags)
+                        .split(',')
+                        .map(t => t.trim())
+                        .filter(Boolean)
+                )).join(',');
                 try {
                     await api('/prompts/' + sourcePrompt.id, {
                         method: 'PUT',
@@ -11901,14 +11909,15 @@ Must avoid: [Anything sensitive or previously declined]`
 
         $('#audSaveBtn')?.addEventListener('click', async () => {
             const text = $('#audInput')?.value?.trim();
-            if (!text || !_audLastResult) {
+            if (!text) {
                 toast('Audit a prompt first', 'warning');
                 return;
             }
+            const freshResult = _audScore(text);
             const picked = _wsPickedPrompt('#audPicker');
             const title = ((picked?.title || 'Audited prompt') + ' (audited)').slice(0, 120);
-            const topFindings = _audLastResult.findings.slice(0, 3).map(f => f.text).join(' | ');
-            const note = 'Audited via Prompt Auditor workspace — score ' + _audLastResult.overall + '/100.' +
+            const topFindings = freshResult.findings.slice(0, 3).map(f => f.text).join(' | ');
+            const note = 'Audited via Prompt Auditor workspace — score ' + freshResult.overall + '/100.' +
                 (topFindings ? ' Top findings: ' + topFindings : '');
             const saved = await _wsSaveOrReplace({
                 text,
