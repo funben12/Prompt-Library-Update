@@ -12506,24 +12506,16 @@ Must avoid: [Anything sensitive or previously declined]`
             }
             const picked = _wsPickedPrompt('#xrayPicker');
             const title = ((picked?.title || 'Deconstructed prompt') + ' (structured)').slice(0, 120);
-            try {
-                const result = await api('/prompts', {
-                    method: 'POST',
-                    body: {
-                        title,
-                        content: text,
-                        description: 'Restructured via Prompt X-Ray workspace',
-                        categories: 'Prompt Engineering',
-                        tags: 'x-ray'
-                    }
-                });
-                await loadPrompts();
-                await loadFilterOptions();
-                toast('Saved: ' + title, 'success');
+            const saved = await _wsSaveOrReplace({
+                text,
+                sourcePrompt: picked,
+                newTitle: title,
+                description: 'Restructured via Prompt X-Ray workspace',
+                tags: 'x-ray',
+            });
+            if (saved?.id) {
                 closeXrayWorkspace();
-                if (result?.id) setTimeout(() => openDetail(result.id), 200);
-            } catch {
-                toast('Could not save', 'error');
+                setTimeout(() => openDetail(saved.id), 200);
             }
         });
         ws.addEventListener('keydown', e => {
