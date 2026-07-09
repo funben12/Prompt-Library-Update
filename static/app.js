@@ -2131,6 +2131,10 @@
                 method: 'DELETE'
             });
             if (state.detailId === id) closeDetailPanel();
+            if (_bulkSelection.has(id)) {
+                _bulkSelection.delete(id);
+                renderBulkToolbar();
+            }
             await loadPrompts();
             await loadFilterOptions();
             toast('Prompt deleted', 'info');
