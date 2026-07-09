@@ -8318,6 +8318,7 @@
 .bulk-toolbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--sp-3, 12px);
   padding: var(--sp-2, 8px) var(--sp-3, 12px);
   margin-bottom: var(--sp-3, 12px);
