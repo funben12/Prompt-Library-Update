@@ -11728,6 +11728,8 @@ Must avoid: [Anything sensitive or previously declined]`
 
     const AUD_VAGUE = ['some', 'various', 'stuff', 'things', 'good', 'nice', 'interesting', 'a few', 'better', 'appropriate', 'relevant', 'etc'];
 
+    let _audLastResult = null;
+
     function _audScore(text) {
         const t = (text || '').trim();
         const lower = t.toLowerCase();
@@ -11893,7 +11895,33 @@ Must avoid: [Anything sensitive or previously declined]`
                 toast('Paste a prompt first', 'warning');
                 return;
             }
-            _audRender(_audScore(text));
+            _audLastResult = _audScore(text);
+            _audRender(_audLastResult);
+        });
+
+        $('#audSaveBtn')?.addEventListener('click', async () => {
+            const text = $('#audInput')?.value?.trim();
+            if (!text || !_audLastResult) {
+                toast('Audit a prompt first', 'warning');
+                return;
+            }
+            const picked = _wsPickedPrompt('#audPicker');
+            const title = ((picked?.title || 'Audited prompt') + ' (audited)').slice(0, 120);
+            const topFindings = _audLastResult.findings.slice(0, 3).map(f => f.text).join(' | ');
+            const note = 'Audited via Prompt Auditor workspace — score ' + _audLastResult.overall + '/100.' +
+                (topFindings ? ' Top findings: ' + topFindings : '');
+            const saved = await _wsSaveOrReplace({
+                text,
+                sourcePrompt: picked,
+                newTitle: title,
+                description: 'Audited via Prompt Auditor workspace',
+                tags: 'audited',
+                extraNote: note,
+            });
+            if (saved?.id) {
+                closeAuditWorkspace();
+                setTimeout(() => openDetail(saved.id), 200);
+            }
         });
         $('#audAiBtn')?.addEventListener('click', async function() {
             const text = $('#audInput')?.value?.trim();
