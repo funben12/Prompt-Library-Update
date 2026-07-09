@@ -757,6 +757,82 @@
         renderBulkToolbar();
     }
 
+    function renderBulkToolbar() {
+        const bar = $('#bulkToolbar');
+        if (!bar) return;
+        const count = _bulkSelection.size;
+        bar.hidden = count === 0;
+        const countEl = $('#bulkCount');
+        if (countEl) countEl.textContent = count + ' selected';
+
+        const tagSel = $('#bulkTagSelect');
+        if (tagSel) {
+            const existing = (state.filters.tags || []).map(t =>
+                '<option value="' + escapeAttr(t) + '">' + escapeHtml(t) + '</option>').join('');
+            tagSel.innerHTML = '<option value="">Add tag…</option>' + existing +
+                '<option value="__new__">+ New tag…</option>';
+        }
+        const folderSel = $('#bulkFolderSelect');
+        if (folderSel) {
+            const options = state.folders.map(f =>
+                '<option value="' + f.id + '">' + escapeHtml(f.name) + '</option>').join('');
+            folderSel.innerHTML = '<option value="">Move to folder…</option>' + options +
+                '<option value="__none__">No folder</option>';
+        }
+    }
+
+    async function bulkAddTag(tag) {
+        if (!tag || !_bulkSelection.size) return;
+        try {
+            const result = await api('/prompts/bulk', {
+                method: 'PATCH',
+                body: { ids: Array.from(_bulkSelection), action: 'add_tag', tag }
+            });
+            if (result.failed > 0) toast(result.success + ' tagged, ' + result.failed + ' failed', 'warning');
+            else toast(result.success + ' prompt' + (result.success !== 1 ? 's' : '') + ' tagged', 'success');
+            bulkDeselectAll();
+            await loadPrompts();
+            await loadFilterOptions();
+        } catch {
+            toast('Bulk tag failed', 'error');
+        }
+    }
+
+    async function bulkMove(folderId) {
+        if (!_bulkSelection.size) return;
+        try {
+            const result = await api('/prompts/bulk', {
+                method: 'PATCH',
+                body: { ids: Array.from(_bulkSelection), action: 'move_folder', folder_id: folderId }
+            });
+            if (result.failed > 0) toast(result.success + ' moved, ' + result.failed + ' failed', 'warning');
+            else toast(result.success + ' prompt' + (result.success !== 1 ? 's' : '') + ' moved', 'success');
+            bulkDeselectAll();
+            await loadPrompts();
+        } catch {
+            toast('Bulk move failed', 'error');
+        }
+    }
+
+    async function bulkDelete() {
+        if (!_bulkSelection.size) return;
+        const count = _bulkSelection.size;
+        if (!confirm('Delete ' + count + ' prompt' + (count !== 1 ? 's' : '') + '? This cannot be undone.')) return;
+        try {
+            const result = await api('/prompts/bulk', {
+                method: 'DELETE',
+                body: { ids: Array.from(_bulkSelection) }
+            });
+            if (result.failed > 0) toast(result.success + ' deleted, ' + result.failed + ' failed', 'warning');
+            else toast(result.success + ' prompt' + (result.success !== 1 ? 's' : '') + ' deleted', 'success');
+            bulkDeselectAll();
+            await loadPrompts();
+            await loadFilterOptions();
+        } catch {
+            toast('Bulk delete failed', 'error');
+        }
+    }
+
     function renderEmptyState() {
         const isSearching = !!state.search.trim();
         if (isSearching) {
@@ -4202,6 +4278,27 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
             if (e.target.checked) bulkSelectAll();
             else bulkDeselectAll();
         });
+
+        $('#bulkTagSelect')?.addEventListener('change', (e) => {
+            const val = e.target.value;
+            e.target.value = '';
+            if (val === '__new__') {
+                const tag = (prompt('New tag name:') || '').trim();
+                if (tag) bulkAddTag(tag);
+            } else if (val) {
+                bulkAddTag(val);
+            }
+        });
+
+        $('#bulkFolderSelect')?.addEventListener('change', (e) => {
+            const val = e.target.value;
+            e.target.value = '';
+            if (val === '__none__') bulkMove(null);
+            else if (val) bulkMove(parseInt(val, 10));
+        });
+
+        $('#bulkDeleteBtn')?.addEventListener('click', bulkDelete);
+        $('#bulkClearBtn')?.addEventListener('click', bulkDeselectAll);
 
         // Run chain
         $('#runChainBtn')?.addEventListener('click', () => {

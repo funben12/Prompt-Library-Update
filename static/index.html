@@ -223,6 +223,19 @@
       </div>
     </header>
 
+    <div class="bulk-toolbar" id="bulkToolbar" hidden>
+      <span id="bulkCount">0 selected</span>
+      <select id="bulkTagSelect">
+        <option value="">Add tag…</option>
+        <option value="__new__">+ New tag…</option>
+      </select>
+      <select id="bulkFolderSelect">
+        <option value="">Move to folder…</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" id="bulkDeleteBtn">Delete</button>
+      <button class="btn btn-ghost btn-sm" id="bulkClearBtn">Clear selection</button>
+    </div>
+
     <div id="content">
       <div id="promptsContainer" class="list-view"></div>
     </div>
@@ -3286,7 +3299,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=a9e45be1"></script>
+<script defer src="/static/app.js?v=236fcca2"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>
