@@ -768,7 +768,7 @@
         const tagSel = $('#bulkTagSelect');
         if (tagSel) {
             const existing = (state.filters.tags || []).map(t =>
-                '<option value="' + escapeAttr(t) + '">' + escapeHtml(t) + '</option>').join('');
+                '<option value="' + escapeAttr(t.value) + '">' + escapeHtml(t.value) + '</option>').join('');
             tagSel.innerHTML = '<option value="">Add tag…</option>' + existing +
                 '<option value="__new__">+ New tag…</option>';
         }
