@@ -1,0 +1,8 @@
+2026-07-24 14:57:23,740 ERROR WebView2 initialization failed with exception:
+  (0x80004004): Operation aborted (Exception from HRESULT: 0x80004004 (E_ABORT))
+   at System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo)
+   at Microsoft.Web.WebView2.Core.CoreWebView2Environment.<CreateCoreWebView2ControllerAsync>d__8.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.Web.WebView2.WinForms.WebView2.<InitCoreWebView2Async>d__26.MoveNext()

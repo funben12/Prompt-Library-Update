@@ -8122,7 +8122,7 @@
    Library Pulse, Prompt X-Ray, Prompt Splicer (2026-07)
    ============================================================= */
 #fillWorkspace, #auditWorkspace, #diffWorkspace, #costWorkspace,
-#pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace {
+#pulseWorkspace, #xrayWorkspace, #spliceWorkspace {
   display: none;
   position: fixed;
   inset: 0;
@@ -8131,98 +8131,7 @@
   flex-direction: column;
 }
 #fillWorkspace.open, #auditWorkspace.open, #diffWorkspace.open, #costWorkspace.open,
-#pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open,
-#batchWorkspace.open { display: flex; }
-
-/* -- Batch Runner -- */
-.br-body { display: grid; grid-template-columns: minmax(340px, 40%) 1fr; flex: 1; overflow: hidden; }
-.br-left {
-  display: flex; flex-direction: column;
-  padding: var(--sp-4) var(--sp-5);
-  border-right: 1px solid var(--line);
-  overflow-y: auto;
-  gap: var(--sp-1);
-}
-.br-right {
-  display: flex; flex-direction: column;
-  padding: var(--sp-4) var(--sp-5);
-  overflow: hidden;
-}
-.br-hint { font-size: var(--fs-xs); color: var(--ink-3); margin: var(--sp-2) 0 0; line-height: 1.4; }
-.br-controls {
-  display: flex; align-items: center; gap: var(--sp-3);
-  margin-top: var(--sp-3);
-}
-.br-model-label { font-size: var(--fs-xs); font-weight: 600; color: var(--ink-2); white-space: nowrap; }
-.br-controls .forge-input { flex: 1; }
-.br-stat {
-  margin: var(--sp-3) 0 0;
-  font-size: var(--fs-sm); color: var(--ink-2);
-  font-variant-numeric: tabular-nums;
-}
-.br-warn {
-  margin: var(--sp-2) 0 0;
-  padding: var(--sp-2) var(--sp-3);
-  font-size: var(--fs-xs);
-  color: var(--warn);
-  background: var(--warn-soft);
-  border: 1px solid color-mix(in oklch, var(--warn), transparent 60%);
-  border-radius: var(--r-sm);
-}
-.br-warn[hidden] { display: none; }
-.br-empty { color: var(--ink-3); font-size: var(--fs-sm); padding: var(--sp-5) 0; }
-.br-progress {
-  margin-left: var(--sp-2);
-  font-size: var(--fs-xs); font-weight: 500;
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Table scrolls inside its own box so the workspace never scrolls sideways. */
-.br-results-wrap { flex: 1; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-md); }
-.br-results-wrap[hidden] { display: none; }
-.br-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--fs-sm); }
-.br-table th {
-  position: sticky; top: 0; z-index: 1;
-  text-align: left;
-  padding: var(--sp-2) var(--sp-3);
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--line);
-  font-size: var(--fs-xs); font-weight: 700;
-  color: var(--ink-3);
-  text-transform: uppercase; letter-spacing: 0.06em;
-}
-.br-table td {
-  padding: var(--sp-3);
-  border-bottom: 1px solid var(--line);
-  vertical-align: top;
-  word-break: break-word;
-}
-.br-table tr:last-child td { border-bottom: 0; }
-.br-table th:nth-child(1), .br-idx { width: 44px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
-.br-table th:nth-child(2), .br-in { width: 24%; color: var(--ink-2); }
-.br-table th:nth-child(3) { width: 88px; }
-.br-table th:nth-child(5) { width: 70px; }
-.br-out { color: var(--ink); white-space: pre-wrap; }
-.br-row-actions { text-align: right; }
-
-.br-pill {
-  display: inline-block;
-  padding: 1px 8px;
-  border-radius: 999px;
-  font-size: 10.5px; font-weight: 700;
-  letter-spacing: 0.04em;
-  background: var(--surface-3);
-  color: var(--ink-3);
-}
-.br-pill.ok  { background: var(--success-soft); color: var(--success); }
-.br-pill.err { background: var(--danger-soft);  color: var(--danger); }
-.br-pill.run { background: var(--accent-soft);  color: var(--accent); }
-
-@media (max-width: 900px) {
-  .br-body { grid-template-columns: 1fr; }
-  .br-left { border-right: none; border-bottom: 1px solid var(--line); }
-}
+#pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open { display: flex; }
 
 /* Shared bits */
 .qf-picker { margin-bottom: var(--sp-2); }

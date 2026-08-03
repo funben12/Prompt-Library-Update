@@ -44,7 +44,7 @@
 
 - **Payhip launch (2026-06-24):** App is now live on Payhip at https://payhip.com/b/WKSLO. Launch discount code `PlaygroundRelease` gives 50% off — first 5 uses only. A second discount code (25% off) is planned pending sales momentum. YouTube tutorial planned. Feature screenshots to be shared to Telegram community over coming days.
 
-- **Build hash:** `72411254` (app.js) / `64ad4e42` (app.css) — updated 2026-06-15. Run `python3 update_hash.py` after every app.js change.
+- **Build hash:** `89c28185` (app.js) / `bfd143ad` (app.css) — updated 2026-07-25. Run `python update_hash.py` after every app.js change.
 - **Starter templates:** `/api/starter-templates` seeds 10 curated prompts on empty library
 - **Variable ordering:** `variable_meta[v].sort_order` — up/down via `PL_moveVar(v, dir)`. Falls back to alphabetical.
 - **Variable preview:** `#variablePreview` live preview + `#copyFilledBtn` in `#usePromptSection`
@@ -70,6 +70,70 @@
 - **Snippets workspace (built 2026-06-22):** ✅ LIVE. `#snippetsWorkspace` — localStorage-backed (`pl_snippets`, mirrors Context Bank's `pl_ctx_blocks` pattern), categories Signatures/Disclaimers/Boilerplate/Greetings/Closings/Other, 6 starter snippets seeded on first open. Two surfaces: full CRUD workspace + `#promptSnippetsPanel` slide-out in the New Prompt modal (`#snipPanelToggleBtn`) for click-to-insert-at-cursor into `#promptContent` — inserts raw content with no wrapper text, unlike Context Bank's "--- Context: X ---" wrapping. Reuses `.ctx-*` CSS classes wholesale; only new CSS is the `#snippetsWorkspace` overlay rule. Pro-gated via `#snippetsNavBtn`. No new dependencies, no schema change.
 - **Trash & Restore workspace:** ⚠️ PLANNED — NOT IN LIVE FILES. `#trashWorkspace` has zero occurrences in `static/` files.
 - **Plan modal (fixed 2026-06-22):** Free column: 35 prompts, 8 folders, 5 tags & 8 categories per prompt, locked items listed. Pro column: 18 features accurately. Payhip CTA link live. Confirmed Pro stays one-off lifetime licence (not subscription).
+
+## Current State (2026-07-25)
+
+**Theme — correction.** The cool-slate (hue 255) entry below is WRONG. Live `static/app.css`
+is warm beige + teal: `--bg oklch(93.5% 0.01 70)`, `--accent oklch(38% 0.14 190)`,
+Fraunces display serif + Instrument Sans. Only two theme selectors exist:
+`:root` (light) and `:root[data-theme="dark"]`. No `prefers-color-scheme` block.
+
+**Snippets and Tone Calibrator workspaces were removed 2026-07-04** and replaced by the
+7-workspace suite (Quick Fill, Auditor, Diff, Cost, Pulse, X-Ray, Splicer). The Snippets
+*editor side panel* survives; only the standalone workspace died. Entries below still
+listing them as live are stale.
+
+### Library screen redesign (phase 1)
+- Header cut from three stacked bars to two. Row 1: sidebar toggle, title block, search
+  (the hero), `#cmdBtn`, `New prompt`. Row 2: `#filtersBtn` popover, sort, `#activeFilterPill`,
+  and a right cluster (view toggle, group-by-folder, surprise-me). 180px -> 120px at desktop.
+- `#filtersPop` holds Favourites + Rated. `#filtersCount` badge and the still-visible
+  active pill keep filter state from hiding behind the popover. `window._syncFilterCount`
+  is called from `refreshActivePill()`.
+- `#viewTitle` was inheriting `--fs-2xl` (48px, the page-hero size); now `--fs-lg`.
+  `#breadcrumb:empty { display: none }` — it reserved 20px on the library view.
+- Cards: meta row muted to `--ink-4` and stripped of folder/clock glyphs (variable icon
+  kept), chips capped at 2 cats + 2 tags with a `.card-tag.more` `+N`, category chips no
+  longer borrow `--accent`. Bulk checkbox hover-reveals.
+- Row 1 has `flex-wrap` plus a 1100px breakpoint dropping search to its own line —
+  without it `#app`'s `overflow:hidden` clipped `New prompt`.
+
+### Launcher (phase 2)
+- `#launcherRecent` "Jump back in" strip, last 3 tools, localStorage `pl_ws_recent`,
+  hidden while searching. Clicks are delegated and re-check `state.isPremium`.
+- All 14 padlocks replaced by `.launcher-card-pro` gold chips.
+- Group colour on icons only: build blue, refine purple, inspect orange, run green.
+  This reclaimed `--accent`, which had been on all 17 card icons.
+- `.launcher-grid > .launcher-card:first-child` is the lead card (34px icon).
+
+### Batch Runner workspace (phase 3) — NEW, Pro
+`#batchWorkspace`, `data-view="batch"`, icon `table_view`, in the launcher's Run group.
+Runs one prompt across many input rows via `callAI`, sequentially.
+- Three input modes: 1 variable = one value per line; 2+ variables = first line must be a
+  CSV header naming them (`_brSplitCsv` handles quotes); no variables = each line is
+  appended to the prompt as its input.
+- `BR_MAX_ROWS` 50 (hard cap), `BR_WARN_ROWS` 25. Cost estimate reuses `COST_MODELS`.
+- `_brCancel` flag checked between rows — `callAI` has no abort support and was NOT changed.
+- A failed row does not halt the batch. Last template+rows persist to `pl_br_last`.
+- Export CSV and Copy all go to the clipboard. Per-row Save posts to `/prompts`.
+
+### Bugs fixed this session (all pre-existing)
+- `.bulk-toolbar` set `display:flex`, which outranks the UA `[hidden]` rule — the toolbar
+  held **49px of invisible dead space** above every prompt list at all times. Added
+  `.bulk-toolbar[hidden] { display: none }`.
+- Duplicate `#promptsContainer.list-view .card-actions` block set `opacity:1` after the
+  hover rule, so the **card hover-reveal never worked**. Duplicates merged (Key Principle 14).
+- Dark-theme `--c-blue` was authored at **hue 190** (teal's hue) while light uses 245, so
+  the blue and teal **prompt colour labels were identical in dark mode**. Now hue 245.
+- `Main.py` logging init had no try/except. A ReadOnly `error.log` crashed the app before
+  launch. `_init_logging()` now falls back to the data dir, then to no file handler.
+
+### Environment note (2026-07-25)
+The whole working tree had the Windows **ReadOnly** attribute set — 1,910 files outside
+`.git`, including `static/app.js`, `app.css`, `index.html`, `app.py`. This crashed the app
+and would have blocked every edit. Also found: repo files dragged into a `New Folder/`,
+an Explorer `desktop.ini`, and stale `app.js.tmp` / `index.html.tmp`. Cleared and cleaned.
+Detect with: `Get-ChildItem -Force -File -Recurse | Where-Object { $_.Attributes -match 'ReadOnly' }`.
 
 ## Feature Inventory — Free vs Pro
 

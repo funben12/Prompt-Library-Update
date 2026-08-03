@@ -15,7 +15,7 @@ import traceback
 
 import webview
 
-from app import app, get_data_dir, init_db
+from app import app, init_db
 
 
 # ERROR LOGGING
@@ -24,34 +24,13 @@ if getattr(sys, 'frozen', False):
     _log_dir = os.path.dirname(sys.executable)
 else:
     _log_dir = os.path.dirname(os.path.abspath(__file__))
+os.makedirs(_log_dir, exist_ok=True)
 
-_LOG_LEVEL = logging.WARNING   # Capture WARNING + ERROR + CRITICAL
-_LOG_FORMAT = '%(asctime)s %(levelname)s %(message)s'
-
-
-def _init_logging(primary_dir):
-    """Attach a file log, trying primary_dir then the data dir. Never raises."""
-    candidates = [primary_dir]
-    try:
-        candidates.append(get_data_dir())
-    except OSError:
-        pass
-    for candidate in candidates:
-        if not candidate:
-            continue
-        try:
-            os.makedirs(candidate, exist_ok=True)
-            path = os.path.join(candidate, 'error.log')
-            logging.basicConfig(filename=path, level=_LOG_LEVEL, format=_LOG_FORMAT)
-            return path
-        except OSError:
-            continue
-    # Last resort: run without a log file rather than refuse to start.
-    logging.basicConfig(level=_LOG_LEVEL, format=_LOG_FORMAT)
-    return None
-
-
-_log_path = _init_logging(_log_dir)
+logging.basicConfig(
+    filename=os.path.join(_log_dir, 'error.log'),
+    level=logging.WARNING,   # Capture WARNING + ERROR + CRITICAL
+    format='%(asctime)s %(levelname)s %(message)s'
+)
 
 HOST = '127.0.0.1'
 PORT = 5000
