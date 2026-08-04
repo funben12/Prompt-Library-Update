@@ -8,16 +8,20 @@
 
 ## 1. Audit findings (verified in code, not assumed)
 
-| # | Finding | Evidence |
-| :-- | :--- | :--- |
-| A1 | `--ff-display: Fraunces` and `--ff-sans: Instrument Sans` are declared but **never loaded**. Only Space Mono, JetBrains Mono and Material Symbols are fetched. Every heading silently falls back to Georgia; all body copy to Segoe UI. | `static/app.css:20-21` vs `static/index.html:12-13` |
-| A2 | **No responsive layout.** 287 `pcw-` rule mentions in CSS; exactly 1 sits inside a media query. | `static/app.css` |
-| A3 | **Keyboard focus is suppressed.** `outline: none` x19 vs `focus-visible` x3 across 8,543 CSS lines. WCAG 2.4.7 failure. | `static/app.css` |
-| A4 | **Canvas is mouse-only.** 19 drag/drop handlers, 0 arrow-key handlers in the PCW block. Blocks cannot be added, moved or reordered from the keyboard. | `static/app.js:7430-11000` |
-| A5 | **One draft, client-only.** Entire canvas persists to a single `localStorage` key `pl_pcw_draft`; the write is wrapped in a silent `try/catch`. Storage full = work lost with no warning. | `static/app.js:9376-9390` |
-| A6 | No server-side model for components at all — no components/kits/blocks table exists. | `app.py` (grep: 0 hits) |
+| # | Finding | Status | Evidence |
+| :-- | :--- | :--- | :--- |
+| A1 | `--ff-display: Fraunces` and `--ff-sans: Instrument Sans` were declared but **never loaded**. Every heading silently fell back to Georgia, all body copy to Segoe UI. | **Fixed** — commit `b0f61bd` | `app.css:20-21` vs `index.html:12` |
+| A2 | ~~No responsive layout~~ — **overstated, retracted.** The raw count (287 `pcw-` rules, 1 in a media query) was misleading: `.pcw-body` is a single-column grid whose only child is the canvas, and the preview sheet already sizes at `min(460px, 55%)`. The layout is largely fluid by construction. Narrow-width behaviour still needs a real check, but it is not the headline defect I first called it. | Retracted | `app.css:5351`, `app.css:6755` |
+| A3 | **Keyboard focus invisible on several components.** My first framing (`outline: none` ×19 vs `focus-visible` ×3) was imprecise — the global rule at `app.css:283-284` is correct modern practice. The real cause: ~6 component rules set `outline: none` on their *resting* state and, at equal specificity but later in the cascade, defeat the global `:focus-visible`. | **Fixed** — commit `b0f61bd` | `app.css:3695, 3880, 4089, 4225, 5387` |
+| A4 | **Canvas is mouse-only.** Zero `Arrow` key references across the entire 3,930-line workspace block; 1 `tabindex`; the 5 `keydown` handlers are shortcuts and Esc, not spatial movement. Blocks cannot be moved or reordered from the keyboard. | Open — v1 scope | `app.js:7430-11360` |
+| A5 | **One draft, client-only.** The whole canvas persists to a single `localStorage` key `pl_pcw_draft`; the write is wrapped in a silent `try/catch`. Storage full = work lost, no warning. | Open — v1 scope | `app.js:9376-9390` |
+| A6 | **No server-side model for components at all** — no components/blocks/kits table exists. | Open — v1 scope | `app.py` (0 grep hits) |
 
-A1–A3 are the highest-leverage visual fixes: they are cheap, global, and currently degrade every screen.
+### Retracted during verification
+
+**`.pcw-palette*` is not dead CSS.** I briefly flagged its 27 CSS rules as orphaned because the class appears nowhere in `index.html`. It is rendered dynamically by JS into `#pcwPaletteBody` (`app.js:9624`). The first grep that would have caught this never executed — a preceding `grep -c` returned 0, exited non-zero, and short-circuited the `&&` chain. Recorded here because it is the exact false-positive mode that makes automated dead-CSS detection unsafe in this codebase: **class names are assembled in JS string templates, so absence from HTML proves nothing.**
+
+A1 and A3 were the cheap global wins and are now landed. A4–A6 are structural and drive the PRD.
 
 ---
 
