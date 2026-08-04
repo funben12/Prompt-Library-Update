@@ -478,6 +478,52 @@ def init_db():
         PRIMARY KEY (prompt_a, prompt_b)
     )''')
 
+    # ── Component workspace tables ───────────────────────────────
+    # User-authored blocks. Shipped blocks stay in static/components-data.js.
+    c.execute('''CREATE TABLE IF NOT EXISTS component_blocks (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        name        TEXT NOT NULL,
+        category    TEXT NOT NULL,
+        body        TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        source      TEXT NOT NULL DEFAULT 'user',
+        forked_from TEXT,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # A saved canvas. prompt_id links to the plain prompt it emitted, if any.
+    c.execute('''CREATE TABLE IF NOT EXISTS compositions (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        title      TEXT NOT NULL,
+        prompt_id  INTEGER,
+        folder_id  INTEGER,
+        tags       TEXT DEFAULT '',
+        view_state TEXT NOT NULL DEFAULT '{}',
+        is_draft   INTEGER NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (prompt_id) REFERENCES prompts(id)  ON DELETE SET NULL,
+        FOREIGN KEY (folder_id) REFERENCES folders(id)  ON DELETE SET NULL
+    )''')
+
+    # Blocks placed on a canvas. block_ref is TEXT so one column addresses both
+    # shipped blocks (their JS id) and user blocks ('user:<component_blocks.id>').
+    c.execute('''CREATE TABLE IF NOT EXISTS composition_blocks (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        composition_id INTEGER NOT NULL,
+        block_ref      TEXT NOT NULL,
+        position       INTEGER NOT NULL DEFAULT 0,
+        x              REAL NOT NULL DEFAULT 0,
+        y              REAL NOT NULL DEFAULT 0,
+        z_index        INTEGER NOT NULL DEFAULT 0,
+        collapsed      INTEGER NOT NULL DEFAULT 0,
+        body_override  TEXT,
+        FOREIGN KEY (composition_id) REFERENCES compositions(id) ON DELETE CASCADE
+    )''')
+    c.execute('''CREATE INDEX IF NOT EXISTS idx_composition_blocks_cid
+        ON composition_blocks (composition_id, position)''')
+
     # ── Seed taxonomy defaults (only if empty) ───────────────────────────────
     domain_count = c.execute('SELECT COUNT(*) FROM taxonomy_domains').fetchone()[0]
     if domain_count == 0:
@@ -2656,3 +2702,219 @@ def admin_licence_count():
         'used': used,
         'available': available
     })
+
+
+# ══ Component workspace ═════════════════════════════════════════════
+
+def serialize_component(row):
+    b = dict(row)
+    b['description'] = b.get('description') or ''
+    b['source']      = b.get('source') or 'user'
+    return b
+
+def serialize_composition(row, blocks=None):
+    comp = dict(row)
+    comp['tags']       = _normalise_list(comp.get('tags') or '')
+    comp['view_state'] = _json_value(comp.get('view_state'), {})
+    comp['is_draft']   = int(comp.get('is_draft') or 0)
+    comp['blocks']     = [dict(b) for b in (blocks or [])]
+    return comp
+
+def _composition_payload(data):
+    """Shared field mapping for composition create and update."""
+    return (
+        (data.get('title') or '').strip(),
+        _folder_id(data.get('folder_id')),
+        _list_for_db(data.get('tags', '')),
+        _json_for_db(data.get('view_state'), {}),
+        1 if data.get('is_draft', 1) else 0,
+    )
+
+def _replace_composition_blocks(conn, cid, blocks):
+    """Blocks are replaced wholesale — the canvas is the source of truth."""
+    conn.execute('DELETE FROM composition_blocks WHERE composition_id=?', (cid,))
+    for i, blk in enumerate(blocks or []):
+        if not isinstance(blk, dict):
+            continue
+        ref = str(blk.get('block_ref') or '').strip()
+        if not ref:
+            continue
+        conn.execute(
+            '''INSERT INTO composition_blocks
+               (composition_id, block_ref, position, x, y, z_index, collapsed, body_override)
+               VALUES (?,?,?,?,?,?,?,?)''',
+            (cid, ref, _int_between(blk.get('position', i), 0, 100000, i),
+             float(blk.get('x') or 0), float(blk.get('y') or 0),
+             _int_between(blk.get('z_index', 0), 0, 100000, 0),
+             1 if blk.get('collapsed') else 0,
+             blk.get('body_override'))
+        )
+
+
+@app.route('/api/components', methods=['GET'])
+def get_components():
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM component_blocks ORDER BY category, name').fetchall()
+    conn.close()
+    return jsonify([serialize_component(r) for r in rows])
+
+@app.route('/api/components', methods=['POST'])
+def create_component():
+    data = _json_body()
+    name = (data.get('name') or '').strip()
+    body = data.get('body') or ''
+    if not name or not body.strip():
+        return jsonify({'error': 'name and body are required'}), 400
+    conn = get_db()
+    cur = conn.execute(
+        '''INSERT INTO component_blocks (name, category, body, description, source, forked_from)
+           VALUES (?,?,?,?,?,?)''',
+        (name, (data.get('category') or 'misc').strip(), body,
+         data.get('description') or '',
+         'fork' if data.get('forked_from') else 'user',
+         data.get('forked_from'))
+    )
+    bid = cur.lastrowid
+    conn.commit()
+    row = conn.execute('SELECT * FROM component_blocks WHERE id=?', (bid,)).fetchone()
+    conn.close()
+    return jsonify(serialize_component(row)), 201
+
+@app.route('/api/components/<int:bid>', methods=['PUT'])
+def update_component(bid):
+    data = _json_body()
+    conn = get_db()
+    row = conn.execute('SELECT * FROM component_blocks WHERE id=?', (bid,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'not found'}), 404
+    conn.execute(
+        '''UPDATE component_blocks
+           SET name=?, category=?, body=?, description=?, updated_at=CURRENT_TIMESTAMP
+           WHERE id=?''',
+        ((data.get('name') or row['name']).strip(),
+         (data.get('category') or row['category']).strip(),
+         data.get('body') if data.get('body') is not None else row['body'],
+         data.get('description') if data.get('description') is not None else row['description'],
+         bid)
+    )
+    conn.commit()
+    updated = conn.execute('SELECT * FROM component_blocks WHERE id=?', (bid,)).fetchone()
+    conn.close()
+    return jsonify(serialize_component(updated))
+
+@app.route('/api/components/<int:bid>/usage', methods=['GET'])
+def component_usage(bid):
+    """How many saved compositions reference this block — shown before delete."""
+    conn = get_db()
+    n = conn.execute(
+        'SELECT COUNT(DISTINCT composition_id) FROM composition_blocks WHERE block_ref=?',
+        ('user:%d' % bid,)
+    ).fetchone()[0]
+    conn.close()
+    return jsonify({'composition_count': n})
+
+@app.route('/api/components/<int:bid>', methods=['DELETE'])
+def delete_component(bid):
+    # Placements are deliberately left in place. serialize keeps body_override,
+    # so a composition still renders its text with the source block gone.
+    conn = get_db()
+    conn.execute('DELETE FROM component_blocks WHERE id=?', (bid,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/compositions', methods=['GET'])
+def get_compositions():
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM compositions ORDER BY updated_at DESC').fetchall()
+    counts = {}
+    for r in conn.execute(
+        'SELECT composition_id, COUNT(*) n FROM composition_blocks GROUP BY composition_id'
+    ).fetchall():
+        counts[r['composition_id']] = r['n']
+    conn.close()
+    out = []
+    for r in rows:
+        comp = serialize_composition(r)
+        comp['block_count'] = counts.get(r['id'], 0)
+        out.append(comp)
+    return jsonify(out)
+
+@app.route('/api/compositions/<int:cid>', methods=['GET'])
+def get_composition(cid):
+    conn = get_db()
+    row = conn.execute('SELECT * FROM compositions WHERE id=?', (cid,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'not found'}), 404
+    blocks = conn.execute(
+        'SELECT * FROM composition_blocks WHERE composition_id=? ORDER BY position', (cid,)
+    ).fetchall()
+    conn.close()
+    return jsonify(serialize_composition(row, blocks))
+
+@app.route('/api/compositions', methods=['POST'])
+def create_composition():
+    data = _json_body()
+    title, folder_id, tags, view_state, is_draft = _composition_payload(data)
+    if not title:
+        return jsonify({'error': 'title is required'}), 400
+    conn = get_db()
+    cur = conn.execute(
+        '''INSERT INTO compositions (title, prompt_id, folder_id, tags, view_state, is_draft)
+           VALUES (?,?,?,?,?,?)''',
+        (title, data.get('prompt_id'), folder_id, tags, view_state, is_draft)
+    )
+    cid = cur.lastrowid
+    _replace_composition_blocks(conn, cid, data.get('blocks'))
+    conn.commit()
+    row = conn.execute('SELECT * FROM compositions WHERE id=?', (cid,)).fetchone()
+    blocks = conn.execute(
+        'SELECT * FROM composition_blocks WHERE composition_id=? ORDER BY position', (cid,)
+    ).fetchall()
+    conn.close()
+    return jsonify(serialize_composition(row, blocks)), 201
+
+@app.route('/api/compositions/<int:cid>', methods=['PUT'])
+def update_composition(cid):
+    data = _json_body()
+    conn = get_db()
+    row = conn.execute('SELECT * FROM compositions WHERE id=?', (cid,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'not found'}), 404
+    # Merge, don't replace: a partial payload must not silently clear the
+    # fields it omits. Only keys actually present in the request are applied.
+    title      = (data.get('title') or '').strip() or row['title']
+    prompt_id  = data['prompt_id'] if 'prompt_id' in data else row['prompt_id']
+    folder_id  = _folder_id(data['folder_id']) if 'folder_id' in data else row['folder_id']
+    tags       = _list_for_db(data['tags']) if 'tags' in data else row['tags']
+    view_state = _json_for_db(data['view_state'], {}) if 'view_state' in data else row['view_state']
+    is_draft   = (1 if data['is_draft'] else 0) if 'is_draft' in data else row['is_draft']
+
+    conn.execute(
+        '''UPDATE compositions
+           SET title=?, prompt_id=?, folder_id=?, tags=?, view_state=?, is_draft=?,
+               updated_at=CURRENT_TIMESTAMP
+           WHERE id=?''',
+        (title, prompt_id, folder_id, tags, view_state, is_draft, cid)
+    )
+    if 'blocks' in data:
+        _replace_composition_blocks(conn, cid, data.get('blocks'))
+    conn.commit()
+    updated = conn.execute('SELECT * FROM compositions WHERE id=?', (cid,)).fetchone()
+    blocks = conn.execute(
+        'SELECT * FROM composition_blocks WHERE composition_id=? ORDER BY position', (cid,)
+    ).fetchall()
+    conn.close()
+    return jsonify(serialize_composition(updated, blocks))
+
+@app.route('/api/compositions/<int:cid>', methods=['DELETE'])
+def delete_composition(cid):
+    conn = get_db()
+    conn.execute('DELETE FROM compositions WHERE id=?', (cid,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
