@@ -1,81 +1,85 @@
-## Identity
+## Project
 
-This is the Prompt Library Pro workstation. Everything here relates to Eugene's local-first Windows desktop application for storing, organising, and running AI prompts. Routes here: any code work, feature builds, bug fixes, UI changes, build/packaging, or architecture decisions for this project. Does not route here: general prompt engineering theory, unrelated product work, or marketing copy.
-
-Stack: Python, Flask, PyWebView, SQLite, PyInstaller, Inno Setup, vanilla JS, Tailwind CDN. No cloud, no accounts, no internet required.
+Prompt Library Pro — local-first Windows desktop app for storing, organising, and running AI prompts. No cloud, no accounts, no internet required.
 
 ---
 
-## Resources
+## Stack
 
-| Resource | Read when... |
-| :--- | :--- |
-| MEMORY.md | Start of every session — key decisions, current state, contacts |
-| static/index.html | Any HTML/CSS change, UI audit, or structural question |
-| static/app.js | Any JS change, feature work, or behaviour question |
-| app.py | Any Flask API, DB schema, or backend question |
-| update_hash.py | After any edit to app.js — always run to update the MD5 cache-bust hash |
+- Python 3.9+, Flask 3.0.0, flask-cors 4.0.0, PyWebView 5.3.2, waitress 3.0.0
+- SQLite (`PromptLibrary.db`), PyInstaller (`PromptLibrary.spec`), Inno Setup (`PromptLibrary.iss`)
+- Frontend: vanilla JS (single `static/app.js`, ~18k lines, IIFE), Tailwind via CDN, no build step
 
 ---
 
-## Workflow
+## Commands
 
-1. **Session open check — run this first, every session, before anything else:**
-   ```
-   python3 -c "d=open('static/index.html','rb').read(); print('scripts:', d.count(b'<script'), '| complete:', b'</body>' in d and b'</html>' in d, '| NUL:', d.count(b'\x00'))"
-   ```
-   Expected output: `scripts: 3 | complete: True | NUL: 0` (3 since components-data.js was added — confirmed legitimate 2026-06-21, not corruption). If any value is wrong, restore from the most recent complete rollback in `_rollbacks/index.html/` before proceeding. Do not skip this step even if no HTML changes are planned — see Key Principle 10 for the confirmed root cause.
-   Also verify app.js is intact:
-   ```
-   node --check static/app.js 2>&1 && tail -3 static/app.js
-   ```
-   Expected: no syntax error, last line is `})();` (IIFE close). If truncated, restore from the most recent complete rollback in `_rollbacks/app.js/`.
-2. **Full audit.** Read MEMORY.md, then the relevant source files. Never assume state from prior context.
-3. **Outline plan, wait for approval** before executing multi-step changes.
-4. **Pre-edit checks:** Strip NUL bytes, verify no truncation (`grep -c "<script" static/index.html` → baseline 3; if lower, file is truncated).
-5. **Make changes via bash + Python only — never via the Edit or Write tool.** Root-caused 2026-06-21 (see Key Principle 10): this was never about edit size. Python pattern: read file → `content.replace(OLD, NEW)` → write file via bash. **Never trust an Edit/Write tool's "updated successfully" message on this project** — it reports success even when the underlying file is broken. Always verify independently via bash immediately after (step 6).
-6. **Post-edit checks:** `node --check static/app.js`, `python3 -m py_compile app.py`, div balance check, script tag count.
-7. **Run update_hash.py** after every app.js change.
-8. **Summarise** what changed and what's next. List all modified files at session end.
+```
+start.bat              # create/activate venv, install deps, run Main.py (dev)
+python3 update_hash.py # MD5 cache-bust hash for app.js -- run after every app.js edit
+node --check static/app.js       # JS syntax check
+python3 -m py_compile app.py     # Flask syntax check
+Build.bat / BUILD_INSTALLER.bat  # PyInstaller build + Inno Setup installer
+```
+
+No test suite, no linter, no package.json. Verification is manual: syntax checks above + running the app.
 
 ---
 
-## Editorial Rules
+## Architecture
 
-Follow my voice principles in 00_Resources (voice-principles.md).
+- `Main.py` -- entry point, launches Flask + PyWebView, handles frozen-vs-dev path resolution
+- `app.py` (~2.6k lines) -- Flask app: DB init/schema (`init_db()`), all `/api/*` routes, serialisation helpers. One file, no blueprints
+- `static/index.html` (~3.4k lines) -- all markup + inline `<style>`; 3 `<script>` tags: components-data.js, app.js, inline bootstrap
+- `static/app.js` (~18k lines) -- entire frontend logic in one IIFE: `state` object, render functions, workspace init/open functions, API calls
+- `static/components-data.js` -- static prompt-component library data, separated from app.js because of size
+- `licence_api.py`, `licence_ui.js` -- licence validation, kept separate from core app logic
+- DB tables (see `init_db()` in app.py): settings, folders, prompts, prompt_versions, variable_templates, usage_log, chains, meta_blueprints, roles, taxonomy_domains, taxonomy_use_cases, prompt_relationships
+- `_rollbacks/` -- manual snapshots of index.html/app.js kept for recovery; `_archive/` -- retired code/docs
 
-- Code comments: plain English, one line, imperative tense. No waffle.
-- Variable and function names: camelCase for JS, snake_case for Python. Match existing conventions exactly.
-- No new dependencies without explicit approval.
-- No schema migrations without explicit approval.
-- Premium-gated features must include the `premium-locked` class on HTML elements and a `state.isPremium` check in JS.
-
----
-
-## Key Principles (non-negotiable)
-
-1. **Full audit before every response.** Read the codebase. Never assume.
-2. **NUL byte contamination.** Strip before any syntax check: `python3 -c "f='PATH'; d=open(f,'rb').read(); open(f,'wb').write(d.replace(b'\x00',b''))"`.
-3. **HTML truncation.** After any edit: `grep -c "<script" static/index.html` → must equal 3 (components-data.js tag, app.js tag, inline script block). Check div balance. Check file ends with `</body></html>`.
-4. **Cache busting.** Run `python3 update_hash.py` after every app.js change. The script tag must contain `app.js?v=[8-char hex]`.
-5. **Async loader safety.** All render calls inside async loaders must be inside try/catch — never floating outside it.
-6. **Backward compatibility.** No schema changes, no new dependencies, unless explicitly approved.
-7. **Frozen vs. dev context.** `get_data_dir()` and `get_static_dir()` distinguish PyInstaller frozen builds from dev.
-8. **Flask/PyWebView race condition.** Flask confirmed ready (socket polling) before WebView loads.
-9. **Monolith prevention.** Do not grow app.js or index.html arbitrarily. V1 failure mode.
-10. **Edit/Write tool corrupts growing files — confirmed root cause, 2026-06-21.** This mount is `bindfs` (FUSE passthrough); the Edit/Write tool's write path and the bash-visible copy sync through a separate layer. Reproduced directly: any Edit or Write tool call that *increases* a file's byte length gets clamped back to the file's *previous* length on the bash-visible side — the excess is silently dropped off the end, regardless of where in the file the growth happened. Confirmed on a single-line insert (not just large blocks — the old "~50 line" / "~35 line" thresholds were a coincidence, not the mechanism). Confirmed permanent, not a sync delay (still broken 10s later). Confirmed one-directional — bash writes read back through the tool cleanly. Rule: **all edits go through bash + Python `content.replace()`, regardless of size. Never use the Edit or Write tool on this project's files.** Verify independently via bash after every single write; the tool's own success message is not reliable evidence here. Separately, the historical NUL-byte contamination (Key Principle 2) was NOT reproduced by this mechanism in testing — treat it as a distinct, still-unexplained issue and keep stripping defensively.
-11. **bash cannot delete files on this mount.** `rm` and Python's `os.remove()` both fail with `Operation not permitted` (EPERM) on every file tested, including ones created seconds earlier in the same session — confirmed 2026-06-21. Likely a deliberate guardrail, not a bug. Do not waste time retrying; ask Eugene to delete via Windows Explorer instead.
-12. **New workspace order of operations.** Before adding HTML for any new workspace nav button: (1) write `openXxxWorkspace()`, (2) add nav route to `init()` `$$('.nav-item[data-view]')` handler, (3) add `'#xxxWorkspace'` to `_escapeToLibrary()` array, (4) write `initXxxWorkspace()` and call it from BOOTSTRAP. Only then add HTML. Never add a `data-view` button with no JS handler — silent failures look like everything is broken.
-13. **Stability before new features.** Do not add new workspace HTML before its JS is tested and working. Do not stack new workspaces on unvalidated foundations. A working feature at depth beats two broken features side by side.
-14. **No duplicate CSS rule blocks.** Before appending any CSS section, `grep` for existing rules targeting the same IDs or class names. Duplicate blocks with different activation class names (e.g. `.ob-active` vs `.active`) cascade silently and cause hard-to-diagnose visual bugs. The old block wins. Always remove stale rules before adding new ones.
-15. **Overlay/modal HTML order.** Full-screen overlays and fixed-position elements (`#promptViewer`, `#onboardingOverlay`, `#toastContainer`, etc.) must be placed before `</body>` in a consistent order: viewer → onboarding overlay → toast container → `</body>`. Never place them after script tags.
+**Why one-file app.js/index.html instead of modules:** no build step by design (Tailwind CDN, PyWebView loads static files directly) -- see Key Principle 9, monolith growth is a known failure mode, not an intentional pattern to continue.
 
 ---
 
-## Triage Sequence ("prompts not showing")
+## Conventions actually in the code
 
-Run in order:
-1. `grep -c "<script" static/index.html` → baseline is 3. If lower, file is truncated
-2. `node --check static/app.js` → JS syntax error
-3. `python3 -m py_compile app.py` → Flask startup error
-4. Check render calls inside async loaders are protected by try/catch
+- JS: camelCase for functions/variables (`openXxxWorkspace`, `initXxxWorkspace`, `state.isPremium`)
+- Python: snake_case (`get_data_dir`, `_prompt_payload`, `serialize_prompt`)
+- Flask routes: private helpers prefixed `_` (`_json_body`, `_normalise_list`, `_folder_id`)
+- Comments: plain English, one line, imperative. No paragraph comments, no docstring blocks
+- No new dependencies without explicit approval. No schema migrations without explicit approval
+- Premium-gated features: `premium-locked` class on the HTML element + `state.isPremium` check in JS
+
+---
+
+## Hard rules -- never touch without asking
+
+1. **Never use the Edit or Write tool on this project's static/app.js or static/index.html.** Historically (bindfs mount, confirmed 2026-06-21) the Edit/Write path silently truncated growing files back to their previous length, and its own success message did not reflect this. Root mount has since changed to native Windows (per 2026-07-25 memory) so this may no longer reproduce -- but it has not been re-verified. Until confirmed safe, keep using bash + Python `content.replace()` for edits to these two files, and verify independently via bash after every write.
+2. **No schema changes, no new dependencies** without explicit approval (Editorial Rules + Key Principle 6).
+3. **Run `python3 update_hash.py` after every app.js change** -- the script tag must carry `app.js?v=[8-char hex]` or the browser serves a stale cached copy.
+4. **Do not grow app.js or index.html arbitrarily.** Monolith growth was the V1 failure mode.
+5. **New workspace build order is fixed:** (1) `openXxxWorkspace()`, (2) nav route in `init()`'s `.nav-item[data-view]` handler, (3) `'#xxxWorkspace'` added to `_escapeToLibrary()`, (4) `initXxxWorkspace()` called from BOOTSTRAP -- only then add the HTML. A `data-view` button with no handler fails silently.
+6. **No duplicate CSS rule blocks** targeting the same ID/class under a different activation class name (e.g. `.ob-active` vs `.active`) -- the earlier block wins silently. Grep before appending new CSS.
+7. **Overlay/modal HTML order before `</body>`:** viewer -> onboarding overlay -> toast container. Never after script tags.
+
+---
+
+## Gotchas (week 1)
+
+- **No build step.** Editing app.js/index.html directly IS the deploy for dev; there's no bundler to catch mistakes -- syntax-check manually (`node --check`).
+- **Cache busting is manual.** Forgetting `update_hash.py` means your JS change silently doesn't show up in the running app (stale cache).
+- **Frozen vs dev paths differ.** `get_data_dir()` / `get_static_dir()` in app.py branch on PyInstaller frozen state -- don't hardcode paths relative to the source tree.
+- **Flask/PyWebView startup race.** Main.py polls the socket to confirm Flask is up before WebView loads the page -- don't remove that wait.
+- **Async loaders need try/catch around every render call inside them,** or a failed fetch silently blanks the UI with no error surfaced.
+- **NUL bytes and truncation have hit this file before.** Before trusting static/index.html or app.js, sanity check: `grep -c "<script" static/index.html` should be 3; `node --check static/app.js` should pass and end in `})();`.
+- **PromptLibrary.db and PromptLibrary.db-journal are live SQLite files in the repo root** -- don't blindly overwrite/delete, the journal implies an interrupted write.
+- **licence_api.py / licence_ui.js are a separate system from the main prompt CRUD** -- don't conflate premium-gating logic with licence validation logic.
+
+---
+
+## Triage: "prompts not showing"
+
+1. `grep -c "<script" static/index.html` -> must be 3, else file truncated
+2. `node --check static/app.js` -> JS syntax error
+3. `python3 -m py_compile app.py` -> Flask startup error
+4. Check render calls inside async loaders are wrapped in try/catch
