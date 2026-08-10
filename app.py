@@ -78,6 +78,13 @@ def delete_setting(key):
 _RAW_KEYS = [
     # Weak/guessable keys removed 2026-05-23 (Eugene, 1234, PROMPTLIB-PRO-2026,
     # WARRIOR-007, X9F7-8K2M, NorthCarolina357). Structured issued keys kept below.
+    
+]
+# Sales licence keys — stored as SHA-256 hashes ONLY (plaintext lives in
+# keys_PRIVATE.txt, uploaded to Payhip, and is NEVER shipped in the app).
+# Generated 2026-05-23, batch of 15. To add more: generate keys, hash with
+# sha256(KEY.strip().upper()), append the digests below, rebuild.
+_SALES_KEY_HASHES = {
     'AND-001',
     'MASS-002',
     'DICE-003',
@@ -102,12 +109,6 @@ _RAW_KEYS = [
     'alpha'
     'omega'
     'phoenix' 
-]
-# Sales licence keys — stored as SHA-256 hashes ONLY (plaintext lives in
-# keys_PRIVATE.txt, uploaded to Payhip, and is NEVER shipped in the app).
-# Generated 2026-05-23, batch of 15. To add more: generate keys, hash with
-# sha256(KEY.strip().upper()), append the digests below, rebuild.
-_SALES_KEY_HASHES = {
     '5e6b749dab5356b2b46471251c2c60740179ac4135315eef8453b780fbf53f80',
     'f99096058489900dd13baae40d700948541aebb25832be529f003e482dd6fd7b',
     'd58635051ac42ad66955e35f2b5a4b8660df284ff0fc4888bb2d336af0fc75fe',
