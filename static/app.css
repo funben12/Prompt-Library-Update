@@ -33,7 +33,6 @@
 
     --sidebar-w: 264px;
     --detail-w: clamp(360px, 32vw, 480px);
-    --content-max: 920px;
 
     --r-sm: 4px;
     --r-md: 8px;
@@ -875,6 +874,7 @@
   }
   #promptsContainer.list-view .prompt-card:hover .card-actions,
   #promptsContainer.list-view .prompt-card:focus-within .card-actions { opacity: 1; }
+  #promptsContainer.list-view .card-desc { max-width: 760px; }
 
   /* Grid view: cards. */
   #promptsContainer.grid-view {
@@ -2168,14 +2168,6 @@
 ::-webkit-scrollbar-thumb:hover { background: var(--ink-4); }
 ::-webkit-scrollbar-track { background: transparent; }
 @layer utilities {
-  #content {
-    background:
-      linear-gradient(90deg, transparent 0, transparent calc(100% - 1px), var(--line) calc(100% - 1px)) 0 0 / min(100%, 920px) 100% no-repeat;
-  }
-
-  #promptsContainer.list-view {
-    max-width: var(--content-max);
-  }
 
   .card-title,
   h1, h2, h3, h4 {
