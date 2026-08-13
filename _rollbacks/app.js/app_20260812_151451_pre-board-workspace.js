@@ -55,7 +55,7 @@
         detailId: null,
         isPremium: false,
         licenceKey: '',
-        theme: 'light', // 'dark' | 'light'
+        theme: 'dark', // 'dark' | 'light'
     };
 
     // Bulk-select: prompt IDs currently checked in the Library view.
@@ -3478,7 +3478,7 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
     }
 
     function loadTheme() {
-        const saved = localStorage.getItem('promptlib.theme') || 'light';
+        const saved = localStorage.getItem('promptlib.theme') || 'dark';
         applyTheme(saved);
     }
 
@@ -4036,7 +4036,7 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
             '#chainWorkspace', '#metaWorkspace', '#contextBankWorkspace', '#componentsWorkspace',
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
-            '#batchWorkspace', '#boardWorkspace',
+            '#batchWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -4173,10 +4173,6 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
                 }
                 if (v === 'splice') {
                     window.openSpliceWorkspace();
-                    return;
-                }
-                if (v === 'board') {
-                    window.openBoardWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -12899,240 +12895,6 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
-       PROMPT BOARD WORKSPACE
-       Pin prompts into curated boards -- cross-cutting collections independent of
-       folders/tags. Boards live server-side (boards + board_pins tables).
-       data-view="board" | openBoardWorkspace() | initBoardWorkspace()
-       ============================================================================ */
-
-    let _boardState = {
-        boards: [],
-        activeId: null,
-        pins: []
-    };
-
-    async function _boardLoadList(keepSelection) {
-        const listEl = $('#boardList');
-        if (listEl) listEl.innerHTML = '<div class="hint" style="padding:var(--sp-4);">\u23f3 Loading boards\u2026</div>';
-        try {
-            _boardState.boards = await api('/boards');
-        } catch {
-            _boardState.boards = [];
-        }
-        _boardRenderList();
-        const stillExists = _boardState.boards.some(b => b.id === _boardState.activeId);
-        if (keepSelection && stillExists) {
-            _boardLoadDetail(_boardState.activeId);
-        } else if (_boardState.boards.length) {
-            _boardSelect(_boardState.boards[0].id);
-        } else {
-            _boardState.activeId = null;
-            _boardRenderDetail();
-        }
-    }
-
-    function _boardRenderList() {
-        const listEl = $('#boardList');
-        if (!listEl) return;
-        if (!_boardState.boards.length) {
-            listEl.innerHTML = '<div class="hint" style="padding:var(--sp-4);">No boards yet. Create one below.</div>';
-            return;
-        }
-        listEl.innerHTML = _boardState.boards.map(b =>
-            '<div class="board-row' + (b.id === _boardState.activeId ? ' active' : '') + '" data-board-id="' + b.id + '">' +
-                '<span class="board-row-name">' + escapeHtml(b.name) + '</span>' +
-                '<span class="board-row-count">' + b.pin_count + '</span>' +
-                '<button class="board-row-del material-symbols-outlined" data-board-del="' + b.id + '" title="Delete board" aria-label="Delete board">delete</button>' +
-            '</div>'
-        ).join('');
-        listEl.querySelectorAll('[data-board-id]').forEach(row => {
-            row.addEventListener('click', (e) => {
-                if (e.target.closest('[data-board-del]')) return;
-                _boardSelect(Number(row.dataset.boardId));
-            });
-        });
-        listEl.querySelectorAll('[data-board-del]').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const id = Number(btn.dataset.boardDel);
-                const board = _boardState.boards.find(b => b.id === id);
-                if (!confirm('Delete board "' + (board ? board.name : '') + '"? Pins are removed, prompts are not.')) return;
-                try {
-                    await api('/boards/' + id, { method: 'DELETE' });
-                    if (_boardState.activeId === id) _boardState.activeId = null;
-                    toast('Board deleted', 'success');
-                    _boardLoadList(true);
-                } catch {
-                    toast('Could not delete board', 'error');
-                }
-            });
-        });
-    }
-
-    function _boardSelect(id) {
-        _boardState.activeId = id;
-        _boardRenderList();
-        _boardLoadDetail(id);
-    }
-
-    async function _boardLoadDetail(id) {
-        const body = $('#boardPinsBody');
-        if (body) body.innerHTML = '<div class="hint" style="padding:var(--sp-4);">\u23f3 Loading pins\u2026</div>';
-        try {
-            _boardState.pins = await api('/boards/' + id + '/pins');
-        } catch {
-            _boardState.pins = [];
-        }
-        _boardRenderDetail();
-    }
-
-    function _boardRenderDetail() {
-        const empty = $('#boardEmptyState');
-        const detail = $('#boardDetailPane');
-        const board = _boardState.boards.find(b => b.id === _boardState.activeId);
-        if (!board) {
-            if (empty) empty.style.display = 'flex';
-            if (detail) detail.style.display = 'none';
-            return;
-        }
-        if (empty) empty.style.display = 'none';
-        if (detail) detail.style.display = 'flex';
-
-        const nameInput = $('#boardNameInput');
-        const descInput = $('#boardDescInput');
-        if (nameInput && document.activeElement !== nameInput) nameInput.value = board.name;
-        if (descInput && document.activeElement !== descInput) descInput.value = board.description || '';
-
-        const body = $('#boardPinsBody');
-        if (!body) return;
-        if (!_boardState.pins.length) {
-            body.innerHTML = '<div class="board-pins-empty hint">No prompts pinned yet. Pick one above and add it.</div>';
-            return;
-        }
-        body.innerHTML = _boardState.pins.map(p =>
-            '<div class="board-pin-card" data-board-pin-id="' + p.id + '">' +
-                '<span class="board-pin-title">' + escapeHtml(p.title || 'Untitled') + '</span>' +
-                '<span class="board-pin-desc">' + escapeHtml((p.description || '').slice(0, 90)) + '</span>' +
-                '<button class="board-pin-remove material-symbols-outlined" data-board-unpin="' + p.id + '" title="Remove from board" aria-label="Remove from board">close</button>' +
-            '</div>'
-        ).join('');
-        body.querySelectorAll('[data-board-pin-id]').forEach(card => {
-            card.addEventListener('click', (e) => {
-                if (e.target.closest('[data-board-unpin]')) return;
-                const id = Number(card.dataset.boardPinId);
-                closeBoardWorkspace();
-                setTimeout(() => openDetail(id), 150);
-            });
-        });
-        body.querySelectorAll('[data-board-unpin]').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const promptId = Number(btn.dataset.boardUnpin);
-                try {
-                    await api('/boards/' + _boardState.activeId + '/pins/' + promptId, { method: 'DELETE' });
-                    _boardState.pins = _boardState.pins.filter(p => p.id !== promptId);
-                    _boardRenderDetail();
-                    _boardLoadList(true);
-                } catch {
-                    toast('Could not remove pin', 'error');
-                }
-            });
-        });
-    }
-
-    async function _boardCreate() {
-        const input = $('#boardNewName');
-        const name = (input?.value || '').trim();
-        if (!name) {
-            toast('Name the board first', 'warning');
-            return;
-        }
-        try {
-            const result = await api('/boards', { method: 'POST', body: { name } });
-            if (input) input.value = '';
-            await _boardLoadList(false);
-            if (result?.id) _boardSelect(result.id);
-        } catch {
-            toast('Could not create board', 'error');
-        }
-    }
-
-    async function _boardSaveMeta() {
-        if (!_boardState.activeId) return;
-        const name = ($('#boardNameInput')?.value || '').trim();
-        const description = $('#boardDescInput')?.value || '';
-        if (!name) return;
-        try {
-            await api('/boards/' + _boardState.activeId, { method: 'PUT', body: { name, description } });
-            const board = _boardState.boards.find(b => b.id === _boardState.activeId);
-            if (board) {
-                board.name = name;
-                board.description = description;
-            }
-            _boardRenderList();
-        } catch {
-            toast('Could not save board', 'error');
-        }
-    }
-
-    async function _boardAddPin() {
-        if (!_boardState.activeId) {
-            toast('Select or create a board first', 'warning');
-            return;
-        }
-        const p = _wsPickedPrompt('#boardPinPicker');
-        if (!p) {
-            toast('Pick a prompt to add', 'warning');
-            return;
-        }
-        try {
-            await api('/boards/' + _boardState.activeId + '/pins', { method: 'POST', body: { prompt_id: p.id } });
-            const picker = $('#boardPinPicker');
-            if (picker) picker.value = '';
-            await _boardLoadDetail(_boardState.activeId);
-            _boardLoadList(true);
-        } catch {
-            toast('Could not add pin', 'error');
-        }
-    }
-
-    window.openBoardWorkspace = function() {
-        if (!state.isPremium) {
-            showPremiumModal();
-            return;
-        }
-        const ws = $('#boardWorkspace');
-        if (!ws) return;
-        ws.classList.add('open');
-        document.body.style.overflow = 'hidden';
-        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'board'));
-        _boardLoadList(true);
-        _wsFillPromptPicker('#boardPinPicker');
-    };
-
-    function closeBoardWorkspace() {
-        $('#boardWorkspace')?.classList.remove('open');
-        document.body.style.overflow = '';
-        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
-    }
-
-    function initBoardWorkspace() {
-        const ws = $('#boardWorkspace');
-        if (!ws) return;
-        $('#closeBoardBtn')?.addEventListener('click', closeBoardWorkspace);
-        $('#boardCreateBtn')?.addEventListener('click', _boardCreate);
-        $('#boardNewName')?.addEventListener('keydown', e => {
-            if (e.key === 'Enter') _boardCreate();
-        });
-        $('#boardAddPinBtn')?.addEventListener('click', _boardAddPin);
-        $('#boardNameInput')?.addEventListener('change', _boardSaveMeta);
-        $('#boardDescInput')?.addEventListener('change', _boardSaveMeta);
-        ws.addEventListener('keydown', e => {
-            if (e.key === 'Escape') closeBoardWorkspace();
-        });
-    }
-
-    /* ============================================================================
        SNIPPETS STORE
        Powers the prompt-editor side panel (search, insert-at-cursor, Quick-add).
        The standalone Snippets workspace was replaced by Quick Fill (2026-07).
@@ -14240,7 +14002,6 @@ Must avoid: [Anything sensitive or previously declined]`
         initXrayWorkspace(); // prompt x-ray workspace
         initSpliceWorkspace(); // prompt splicer workspace
         initBatchWorkspace(); // batch runner workspace
-        initBoardWorkspace(); // prompt board workspace
         initModalSidePanels(); // prompt modal side panels
         initOnboarding(); // spotlight tour auto-launch on first run
         initPromptViewer();

@@ -4,8 +4,9 @@
     {
       "name": "promptlib-preview",
       "runtimeExecutable": "venv/Scripts/python.exe",
-      "runtimeArgs": ["-c", "from app import app, init_db; init_db(); app.run(host='127.0.0.1', port=5055, debug=False, use_reloader=False)"],
-      "port": 5055
+      "runtimeArgs": ["-c", "import os; from app import app, init_db; init_db(); app.run(host='127.0.0.1', port=int(os.environ.get('PORT', 5055)), debug=False, use_reloader=False)"],
+      "port": 5055,
+      "autoPort": true
     }
   ]
 }

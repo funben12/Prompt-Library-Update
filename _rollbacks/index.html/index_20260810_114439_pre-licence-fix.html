@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" media="print" onload="this.media='all'">
 
-<link rel="stylesheet" href="/static/app.css?v=cf1f8800">
+<link rel="stylesheet" href="/static/app.css?v=7351ad0b">
 </head>
 <body>
 
@@ -49,11 +49,6 @@
       <button class="nav-item" data-view="workspaces" id="workspacesNavBtn" title="Workspaces — browse all tools">
         <span class="material-symbols-outlined">grid_view</span>
         <span>Workspaces</span>
-      </button>
-      <button class="nav-item premium-locked" data-view="board" data-premium="true" id="boardNavBtn" title="Prompt Board — pin prompts into curated boards">
-        <span class="material-symbols-outlined">dashboard_customize</span>
-        <span>Prompt Board</span>
-        <span class="nav-lock material-symbols-outlined">lock</span>
       </button>
     </nav>
 
@@ -998,7 +993,7 @@
           <span id="licenceStatusText">Not licensed — enter your key to unlock Pro features</span>
         </div>
         <div class="config-api-row">
-          <input type="text" id="settingsLicenceKeyInput" class="form-input" placeholder="Enter your licence key (PROMPTLIB-PRO-XXXX-XXXX-XXXX)" autocomplete="off" />
+          <input type="text" id="licenceKeyInput" class="form-input" placeholder="Enter your licence key (PROMPTLIB-PRO-XXXX-XXXX-XXXX)" autocomplete="off" />
         </div>
         <button type="button" class="btn btn-accent" id="licenceActivateBtn" style="width:100%; margin-top:var(--sp-2);">
           <span class="material-symbols-outlined">vpn_key</span> Activate Licence
@@ -3127,53 +3122,6 @@
 </div>
 
 <!-- ============================================================
-     WORKSPACE: Prompt Board
-     Pin prompts into curated boards -- cross-cutting collections
-     independent of folders and tags.
-     data-view="board"
-     ============================================================ -->
-<div id="boardWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Board">
-  <div class="ws-header">
-    <div class="ws-header-left">
-      <span class="material-symbols-outlined ws-header-icon">dashboard_customize</span>
-      <div>
-        <h2 class="ws-title">Prompt Board</h2>
-        <p class="ws-subtitle">Pin prompts into curated boards — cross-cutting collections independent of folders and tags.</p>
-      </div>
-    </div>
-    <div class="ws-header-actions">
-      <button class="icon-btn" id="closeBoardBtn" aria-label="Close Prompt Board"><span class="material-symbols-outlined">close</span></button>
-    </div>
-  </div>
-  <div class="ws-body board-wrap">
-    <div class="board-sidebar">
-      <div class="board-list" id="boardList"></div>
-      <div class="board-new-row">
-        <input type="text" id="boardNewName" class="forge-input" placeholder="New board name&hellip;" maxlength="80">
-        <button class="btn btn-accent" id="boardCreateBtn"><span class="material-symbols-outlined">add</span> Create</button>
-      </div>
-    </div>
-    <div class="board-main">
-      <div class="board-empty-state" id="boardEmptyState">
-        <span class="material-symbols-outlined">dashboard_customize</span>
-        <p>Select or create a board to start pinning prompts.</p>
-      </div>
-      <div class="board-detail-pane" id="boardDetailPane" style="display:none;">
-        <div class="board-detail-head">
-          <input type="text" id="boardNameInput" class="board-name-input" placeholder="Board name" maxlength="80">
-          <textarea id="boardDescInput" class="board-desc-input" rows="2" placeholder="What&#39;s this board for? (optional)"></textarea>
-        </div>
-        <div class="board-pin-picker-row">
-          <select id="boardPinPicker" class="forge-input qf-picker"><option value="">Add a prompt to this board&hellip;</option></select>
-          <button class="btn btn-ghost" id="boardAddPinBtn"><span class="material-symbols-outlined">push_pin</span> Pin</button>
-        </div>
-        <div class="board-pins-body" id="boardPinsBody"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================
      WORKSPACE: Workspaces Launcher
      data-view="workspaces"
      ============================================================ -->
@@ -3433,7 +3381,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=b7122ef1"></script>
+<script defer src="/static/app.js?v=89c28185"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

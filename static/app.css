@@ -670,19 +670,24 @@
   .icon-btn.danger:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
   .icon-btn .material-symbols-outlined { font-size: 18px; }
 
+  /* Library front page only: flat shadcn-style controls (rest of app stays neumorphic). */
+  #contentHeader .btn, #contentHeader .icon-btn { border-radius: var(--r-md); }
+  #contentHeader .btn { box-shadow: var(--shadow-sm); }
+  #contentHeader .btn:active { box-shadow: none; }
+
   #searchWrap {
     flex: 1 1 320px;
     min-width: 240px;
     max-width: 520px;
     display: flex; align-items: center; gap: var(--sp-3);
     padding: 8px var(--sp-4);
-    background: var(--surface-sunk);
+    background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--r-md);
-    box-shadow: var(--neu-inset);
+    box-shadow: var(--shadow-sm);
     transition: border-color var(--t-fast), box-shadow var(--t-fast);
   }
-  #searchWrap:focus-within { border-color: var(--accent); box-shadow: var(--ring), var(--neu-inset); }
+  #searchWrap:focus-within { border-color: var(--accent); box-shadow: var(--ring); }
   #searchWrap .material-symbols-outlined { color: var(--ink-3); font-size: 18px; }
   #searchInput { flex: 1; background: transparent; border: 0; outline: 0; font-size: var(--fs-sm); color: var(--ink); }
   #searchInput::placeholder { color: var(--ink-4); }
@@ -874,7 +879,7 @@
   }
   #promptsContainer.list-view .prompt-card:hover .card-actions,
   #promptsContainer.list-view .prompt-card:focus-within .card-actions { opacity: 1; }
-  #promptsContainer.list-view .card-desc { max-width: 760px; }
+  #promptsContainer.list-view .card-desc { max-width: min(100%, 100ch); }
 
   /* Grid view: cards. */
   #promptsContainer.grid-view {
@@ -8114,7 +8119,7 @@
    Library Pulse, Prompt X-Ray, Prompt Splicer (2026-07)
    ============================================================= */
 #fillWorkspace, #auditWorkspace, #diffWorkspace, #costWorkspace,
-#pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace {
+#pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace {
   display: none;
   position: fixed;
   inset: 0;
@@ -8124,7 +8129,7 @@
 }
 #fillWorkspace.open, #auditWorkspace.open, #diffWorkspace.open, #costWorkspace.open,
 #pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open,
-#batchWorkspace.open { display: flex; }
+#batchWorkspace.open, #boardWorkspace.open { display: flex; }
 
 /* -- Batch Runner -- */
 .br-body { display: grid; grid-template-columns: minmax(340px, 40%) 1fr; flex: 1; overflow: hidden; }
@@ -8356,6 +8361,40 @@
 .spl-side-text { white-space: pre-wrap; word-break: break-word; }
 .spl-preview { white-space: pre-wrap; min-height: 100px; }
 @media (max-width: 900px) { .spl-inputs, .spl-pair { grid-template-columns: 1fr; } }
+
+/* ── Prompt Board ── */
+.board-wrap { display: grid; grid-template-columns: 280px 1fr; flex: 1; overflow: hidden; }
+.board-sidebar { display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-5); border-right: 1px solid var(--line); overflow-y: auto; gap: var(--sp-3); }
+.board-list { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow-y: auto; }
+.board-row { display: flex; align-items: center; gap: var(--sp-2); padding: 8px var(--sp-3); border-radius: var(--r-md); font-size: var(--fs-sm); color: var(--ink-2); cursor: pointer; }
+.board-row:hover { background: var(--surface-2); }
+.board-row.active { background: color-mix(in oklch, var(--accent) 10%, transparent); color: var(--accent); font-weight: 600; }
+.board-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.board-row-count { font-size: 11px; font-weight: 700; color: var(--ink-4); font-variant-numeric: tabular-nums; }
+.board-row-del { font-size: 16px; color: var(--ink-4); background: none; border: none; cursor: pointer; padding: 2px; border-radius: var(--r-sm); opacity: 0; transition: opacity 0.12s; }
+.board-row:hover .board-row-del { opacity: 1; }
+.board-row-del:hover { color: var(--danger); background: var(--danger-soft); }
+.board-new-row { display: flex; flex-direction: column; gap: var(--sp-2); border-top: 1px solid var(--line); padding-top: var(--sp-3); }
+.board-main { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.board-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); flex: 1; color: var(--ink-3); text-align: center; padding: var(--sp-5); }
+.board-empty-state .material-symbols-outlined { font-size: 40px; color: var(--ink-4); }
+.board-detail-pane { display: flex; flex-direction: column; flex: 1; overflow: hidden; padding: var(--sp-4) var(--sp-5); gap: var(--sp-3); }
+.board-detail-head { display: flex; flex-direction: column; gap: var(--sp-2); }
+.board-name-input { font-size: var(--fs-lg); font-weight: 700; color: var(--ink-1); border: 1px solid transparent; background: transparent; padding: 4px 6px; border-radius: var(--r-md); }
+.board-name-input:hover, .board-name-input:focus { border-color: var(--line); background: var(--surface); }
+.board-desc-input { font-size: var(--fs-sm); color: var(--ink-2); border: 1px solid transparent; background: transparent; padding: 4px 6px; border-radius: var(--r-md); resize: vertical; }
+.board-desc-input:hover, .board-desc-input:focus { border-color: var(--line); background: var(--surface); }
+.board-pin-picker-row { display: flex; gap: var(--sp-2); }
+.board-pin-picker-row .qf-picker { flex: 1; margin-bottom: 0; }
+.board-pins-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--sp-3); overflow-y: auto; align-content: start; flex: 1; }
+.board-pin-card { position: relative; border: 1px solid var(--line); border-radius: var(--radius-lg, 10px); background: var(--surface); padding: var(--sp-3); cursor: pointer; display: flex; flex-direction: column; gap: 4px; transition: border-color 0.12s; }
+.board-pin-card:hover { border-color: var(--accent); }
+.board-pin-title { font-size: var(--fs-sm); font-weight: 600; color: var(--ink-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 20px; }
+.board-pin-desc { font-size: var(--fs-xs); color: var(--ink-3); line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.board-pin-remove { position: absolute; top: 6px; right: 6px; font-size: 15px; color: var(--ink-4); background: none; border: none; cursor: pointer; padding: 2px; border-radius: var(--r-sm); }
+.board-pin-remove:hover { color: var(--danger); background: var(--danger-soft); }
+.board-pins-empty { padding: var(--sp-3) 0; }
+@media (max-width: 900px) { .board-wrap { grid-template-columns: 1fr; } .board-sidebar { border-right: none; border-bottom: 1px solid var(--line); max-height: 240px; } }
 
 /* =============================================================
    AGENTS WORKSPACE — tabbed editor + live preview rail (2026-07)

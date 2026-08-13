@@ -85,33 +85,30 @@ _RAW_KEYS = [
 # Generated 2026-05-23, batch of 15. To add more: generate keys, hash with
 # sha256(KEY.strip().upper()), append the digests below, rebuild.
 _SALES_KEY_HASHES = {
-    # Personal / manually-issued keys, hashed 2026-08-10.
-    # Plaintext for these lives in keys_PRIVATE.txt only.
-    'e32d32c75e8eb45147ec866ea074855dd8f593213f70a0cd48927aa320b978dd',  # AND-001
-    'e25ee891aa9d3a211d48b6bb840aec6d2dd957f84431c12eabd5d3dc9a4fecd7',  # MASS-002
-    '5ec14ff5a2b5ec21e066ae8977929b1162cb51d4eab975bcdb10f61957e30755',  # DICE-003
-    'c1faad79e95d257ae64147a08aa50e2920be1d1ee68b7925891f2705a40e8ff1',  # EA-004
-    '51fcb156ed442c84409c8e3a49d3d14d0ed810d8658483795e6e2b02ef21a1f2',  # THOMAS-005
-    '2f6b228714c1248e7ff870a7fbe05096dda1f20951c82d02f7f01ffe6581fd1d',  # Warrior-006
-    '54422d25671d4a1de53645d4ae3e3757b1ce8f33bfe2037a05ae16f7752e8b3e',  # BloodBath-007
-    '0bee87191c9fe098a99f7585abf3d59cf64d2bb18e0970de2b55e2b1aabc0217',  # 0446
-    'b3eeb7cde34945a3b71e2877d587672c5c402d64862984397e2b788195bdc4d9',  # NorthCarolina357
-    'f7aee97ce78c59a538d1d2a9a2c8a42bc583c4263ef837a0560748db91db38d8',  # MX Phillips
-    '8931889167d1fc31010a1ec3e324d1c8ce19c990246300a6791d13f0bc5c9424',  # Eugene Phillips
-    '78426f6006c624ba7340f44f979cd07934227f30edce5b4be3b58ce938331a92',  # PROMPTLIB-PRO-2026
-    '2ee90cf3fb3ae94e79cfa3e89cdacdf765af3d5ee6c9c78ce412bcb304c0faa5',  # X9F7-8K2M
-    '454dcd7f58f263167a50f6470786fa2fbe587c1eb13bde35e67fa05928aef149',  # letmein
-    '435c554a2e9cd54d2d3431b8af2b5d7ba740c64f1dca92b7af8a76b05d484ef3',  # qwerty
-    '5fa3d8e800a65f4f983f7f37230a4d6ac21ebc612fc378f2f74b419f0ef7edfd',  # boardwalk
-    '0ac37f478294f4f9a9997cea7cac877380a26626d0b64343d85732b18294ea5a',  # catwalk
-    '88e1b911af2611f4d6c5a8975477fca4b87884886c5b0b4bb16c7a079b3a1dba',  # blueprint
-    '23c3bebf31826568ef891d4c8f852b3875d2e5beff0ca44e02bd310c892c0923',  # echo
-    '7e4e26183aacdb054b06f550fb2db860b40106ad27aa9d649e101d581f588b56',  # horizon
-    'd079e7e1ed0e0922106cc50fb80a27c68dcf83d7262a8ede9cd5ee976e1afced',  # delta
-    '73ab66a033c267e00b7429bb256f6deb2734ebc4cd4ff5b564a8c9f9b2c8a719',  # alpha
-    'f77ebc83d4ee51886072e270fbdcac1df96aac78cdcd2ad96a833a9e9f599fe2',  # omega
-    '517a877c6718e65c6b43bb591fe497767f9d38449a47b68269a9917ecb2ea268',  # phoenix
-    # --- generated sales batches ---
+    'AND-001',
+    'MASS-002',
+    'DICE-003',
+    'EA-004',
+    'THOMAS-005',
+    'Warrior-006',
+    'BloodBath-007',
+    '0446',
+    'NorthCarolina357',
+    'MX Phillips',
+    'Eugene Phillips',
+    'PROMPTLIB-PRO-2026',
+    'X9F7-8K2M'
+    'letmein',
+    'qwerty',
+    'boardwalk'
+    'catwalk' 
+    'blueprint'
+    'echo'
+    'horizon'
+    'delta'
+    'alpha'
+    'omega'
+    'phoenix' 
     '5e6b749dab5356b2b46471251c2c60740179ac4135315eef8453b780fbf53f80',
     'f99096058489900dd13baae40d700948541aebb25832be529f003e482dd6fd7b',
     'd58635051ac42ad66955e35f2b5a4b8660df284ff0fc4888bb2d336af0fc75fe',
@@ -358,27 +355,6 @@ def init_db():
         created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
-
-    # Curated prompt collections — pin prompts into named boards.
-    c.execute('''CREATE TABLE IF NOT EXISTS boards (
-        id           INTEGER PRIMARY KEY AUTOINCREMENT,
-        name         TEXT NOT NULL,
-        description  TEXT,
-        created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-
-    c.execute('''CREATE TABLE IF NOT EXISTS board_pins (
-        id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        board_id   INTEGER NOT NULL,
-        prompt_id  INTEGER NOT NULL,
-        added_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE,
-        FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE CASCADE,
-        UNIQUE(board_id, prompt_id)
-    )''')
-    c.execute('CREATE INDEX IF NOT EXISTS idx_board_pins_board_id  ON board_pins(board_id)')
-    c.execute('CREATE INDEX IF NOT EXISTS idx_board_pins_prompt_id ON board_pins(prompt_id)')
 
     # Reusable meta-prompt blueprints. Prompts that generate prompts.
     c.execute('''CREATE TABLE IF NOT EXISTS meta_blueprints (
@@ -1478,108 +1454,6 @@ def toggle_chain_favorite(cid):
     conn.commit()
     conn.close()
     return jsonify({'is_favorite': nv})
-
-
-# ============================================================
-# BOARDS — curated prompt collections (pin prompts into named boards)
-# ============================================================
-
-def serialize_board(row, pin_count=0):
-    b = dict(row)
-    b['pin_count'] = pin_count
-    return b
-
-def _board_payload(data):
-    return {
-        'name':        (data.get('name') or 'Untitled board').strip() or 'Untitled board',
-        'description': data.get('description') or '',
-    }
-
-@app.route('/api/boards', methods=['GET'])
-def list_boards():
-    conn = get_db()
-    rows = conn.execute('''
-        SELECT b.*, COUNT(bp.id) AS pin_count
-          FROM boards b
-          LEFT JOIN board_pins bp ON bp.board_id = b.id
-         GROUP BY b.id
-         ORDER BY b.updated_at DESC
-    ''').fetchall()
-    conn.close()
-    return jsonify([serialize_board(r, r['pin_count']) for r in rows])
-
-@app.route('/api/boards', methods=['POST'])
-def create_board():
-    p = _board_payload(_json_body())
-    conn = get_db()
-    try:
-        cur = conn.execute('INSERT INTO boards (name, description) VALUES (?,?)',
-                            (p['name'], p['description']))
-        bid = cur.lastrowid
-        conn.commit()
-    finally:
-        conn.close()
-    return jsonify({'id': bid})
-
-@app.route('/api/boards/<int:bid>', methods=['PUT'])
-def update_board(bid):
-    p = _board_payload(_json_body())
-    conn = get_db()
-    try:
-        conn.execute('''
-            UPDATE boards SET name=?, description=?, updated_at=CURRENT_TIMESTAMP
-             WHERE id=?
-        ''', (p['name'], p['description'], bid))
-        conn.commit()
-    finally:
-        conn.close()
-    return jsonify({'success': True})
-
-@app.route('/api/boards/<int:bid>', methods=['DELETE'])
-def delete_board(bid):
-    conn = get_db()
-    conn.execute('DELETE FROM boards WHERE id=?', (bid,))
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
-
-@app.route('/api/boards/<int:bid>/pins', methods=['GET'])
-def list_board_pins(bid):
-    conn = get_db()
-    rows = conn.execute('''
-        SELECT p.* FROM prompts p
-          JOIN board_pins bp ON bp.prompt_id = p.id
-         WHERE bp.board_id = ?
-         ORDER BY bp.added_at DESC
-    ''', (bid,)).fetchall()
-    conn.close()
-    return jsonify([serialize_prompt(r) for r in rows])
-
-@app.route('/api/boards/<int:bid>/pins', methods=['POST'])
-def add_board_pin(bid):
-    data = _json_body()
-    try:
-        prompt_id = int(data.get('prompt_id'))
-    except (TypeError, ValueError):
-        return jsonify({'error': 'prompt_id required'}), 400
-    conn = get_db()
-    try:
-        conn.execute('INSERT OR IGNORE INTO board_pins (board_id, prompt_id) VALUES (?,?)',
-                      (bid, prompt_id))
-        conn.execute('UPDATE boards SET updated_at=CURRENT_TIMESTAMP WHERE id=?', (bid,))
-        conn.commit()
-    finally:
-        conn.close()
-    return jsonify({'success': True})
-
-@app.route('/api/boards/<int:bid>/pins/<int:prompt_id>', methods=['DELETE'])
-def remove_board_pin(bid, prompt_id):
-    conn = get_db()
-    conn.execute('DELETE FROM board_pins WHERE board_id=? AND prompt_id=?', (bid, prompt_id))
-    conn.execute('UPDATE boards SET updated_at=CURRENT_TIMESTAMP WHERE id=?', (bid,))
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
 
 
 # ============================================================

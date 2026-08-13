@@ -55,7 +55,7 @@
         detailId: null,
         isPremium: false,
         licenceKey: '',
-        theme: 'light', // 'dark' | 'light'
+        theme: 'dark', // 'dark' | 'light'
     };
 
     // Bulk-select: prompt IDs currently checked in the Library view.
@@ -3478,7 +3478,7 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
     }
 
     function loadTheme() {
-        const saved = localStorage.getItem('promptlib.theme') || 'light';
+        const saved = localStorage.getItem('promptlib.theme') || 'dark';
         applyTheme(saved);
     }
 
@@ -3496,60 +3496,33 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
         $('#premiumModal').classList.remove('active');
     }
 
-    // Validate a key against the backend and persist it. Returns true on success.
-    // Shared by the premium modal and the Settings licence panel.
-    async function _validateAndStoreKey(key) {
-        const result = await api('/licence/validate', {
-            method: 'POST',
-            body: {
-                key
-            }
-        });
-        if (!result || !result.valid) return false;
-        state.isPremium = true;
-        state.licenceKey = key;
-        await api('/settings/licence', {
-            method: 'POST',
-            body: {
-                key
-            }
-        });
-        applyPremiumState();
-        return true;
-    }
-
     async function activateLicence() {
-        const input = $('#licenceKeyInput');
-        const btn = $('#activateLicenceBtn');
-        const err = $('#licenceError');
-        const key = input ? input.value.trim() : '';
-        if (!key) {
-            err.textContent = 'Enter your licence key first.';
-            err.classList.add('show');
-            if (input) input.focus();
-            return;
-        }
-        err.classList.remove('show');
-        if (btn) {
-            btn.disabled = true;
-            btn.textContent = 'Checking\u2026';
-        }
+        const key = $('#licenceKeyInput').value.trim();
+        if (!key) return;
         try {
-            if (await _validateAndStoreKey(key)) {
+            const result = await api('/licence/validate', {
+                method: 'POST',
+                body: {
+                    key
+                }
+            });
+            if (result.valid) {
+                state.isPremium = true;
+                state.licenceKey = key;
+                await api('/settings/licence', {
+                    method: 'POST',
+                    body: {
+                        key
+                    }
+                });
+                applyPremiumState();
                 closePremiumModal();
                 toast('Pro unlocked - thank you!', 'success');
             } else {
-                err.textContent = 'Invalid key - please check and try again.';
-                err.classList.add('show');
+                $('#licenceError').classList.add('show');
             }
-        } catch (e) {
-            err.textContent = 'Invalid key - please check and try again.';
-            err.classList.add('show');
-        } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.textContent = 'Activate';
-            }
+        } catch (err) {
+            $('#licenceError').classList.add('show');
         }
     }
 
@@ -3582,7 +3555,6 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
         if (state.isPremium) {
             $$('.premium-locked').forEach(el => el.classList.remove('premium-locked'));
         }
-        refreshLicencePanel();
     }
 
     /* ============================================================================
@@ -4036,7 +4008,7 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
             '#chainWorkspace', '#metaWorkspace', '#contextBankWorkspace', '#componentsWorkspace',
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
-            '#batchWorkspace', '#boardWorkspace',
+            '#batchWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -4173,10 +4145,6 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
                 }
                 if (v === 'splice') {
                     window.openSpliceWorkspace();
-                    return;
-                }
-                if (v === 'board') {
-                    window.openBoardWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -12899,240 +12867,6 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
-       PROMPT BOARD WORKSPACE
-       Pin prompts into curated boards -- cross-cutting collections independent of
-       folders/tags. Boards live server-side (boards + board_pins tables).
-       data-view="board" | openBoardWorkspace() | initBoardWorkspace()
-       ============================================================================ */
-
-    let _boardState = {
-        boards: [],
-        activeId: null,
-        pins: []
-    };
-
-    async function _boardLoadList(keepSelection) {
-        const listEl = $('#boardList');
-        if (listEl) listEl.innerHTML = '<div class="hint" style="padding:var(--sp-4);">\u23f3 Loading boards\u2026</div>';
-        try {
-            _boardState.boards = await api('/boards');
-        } catch {
-            _boardState.boards = [];
-        }
-        _boardRenderList();
-        const stillExists = _boardState.boards.some(b => b.id === _boardState.activeId);
-        if (keepSelection && stillExists) {
-            _boardLoadDetail(_boardState.activeId);
-        } else if (_boardState.boards.length) {
-            _boardSelect(_boardState.boards[0].id);
-        } else {
-            _boardState.activeId = null;
-            _boardRenderDetail();
-        }
-    }
-
-    function _boardRenderList() {
-        const listEl = $('#boardList');
-        if (!listEl) return;
-        if (!_boardState.boards.length) {
-            listEl.innerHTML = '<div class="hint" style="padding:var(--sp-4);">No boards yet. Create one below.</div>';
-            return;
-        }
-        listEl.innerHTML = _boardState.boards.map(b =>
-            '<div class="board-row' + (b.id === _boardState.activeId ? ' active' : '') + '" data-board-id="' + b.id + '">' +
-                '<span class="board-row-name">' + escapeHtml(b.name) + '</span>' +
-                '<span class="board-row-count">' + b.pin_count + '</span>' +
-                '<button class="board-row-del material-symbols-outlined" data-board-del="' + b.id + '" title="Delete board" aria-label="Delete board">delete</button>' +
-            '</div>'
-        ).join('');
-        listEl.querySelectorAll('[data-board-id]').forEach(row => {
-            row.addEventListener('click', (e) => {
-                if (e.target.closest('[data-board-del]')) return;
-                _boardSelect(Number(row.dataset.boardId));
-            });
-        });
-        listEl.querySelectorAll('[data-board-del]').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const id = Number(btn.dataset.boardDel);
-                const board = _boardState.boards.find(b => b.id === id);
-                if (!confirm('Delete board "' + (board ? board.name : '') + '"? Pins are removed, prompts are not.')) return;
-                try {
-                    await api('/boards/' + id, { method: 'DELETE' });
-                    if (_boardState.activeId === id) _boardState.activeId = null;
-                    toast('Board deleted', 'success');
-                    _boardLoadList(true);
-                } catch {
-                    toast('Could not delete board', 'error');
-                }
-            });
-        });
-    }
-
-    function _boardSelect(id) {
-        _boardState.activeId = id;
-        _boardRenderList();
-        _boardLoadDetail(id);
-    }
-
-    async function _boardLoadDetail(id) {
-        const body = $('#boardPinsBody');
-        if (body) body.innerHTML = '<div class="hint" style="padding:var(--sp-4);">\u23f3 Loading pins\u2026</div>';
-        try {
-            _boardState.pins = await api('/boards/' + id + '/pins');
-        } catch {
-            _boardState.pins = [];
-        }
-        _boardRenderDetail();
-    }
-
-    function _boardRenderDetail() {
-        const empty = $('#boardEmptyState');
-        const detail = $('#boardDetailPane');
-        const board = _boardState.boards.find(b => b.id === _boardState.activeId);
-        if (!board) {
-            if (empty) empty.style.display = 'flex';
-            if (detail) detail.style.display = 'none';
-            return;
-        }
-        if (empty) empty.style.display = 'none';
-        if (detail) detail.style.display = 'flex';
-
-        const nameInput = $('#boardNameInput');
-        const descInput = $('#boardDescInput');
-        if (nameInput && document.activeElement !== nameInput) nameInput.value = board.name;
-        if (descInput && document.activeElement !== descInput) descInput.value = board.description || '';
-
-        const body = $('#boardPinsBody');
-        if (!body) return;
-        if (!_boardState.pins.length) {
-            body.innerHTML = '<div class="board-pins-empty hint">No prompts pinned yet. Pick one above and add it.</div>';
-            return;
-        }
-        body.innerHTML = _boardState.pins.map(p =>
-            '<div class="board-pin-card" data-board-pin-id="' + p.id + '">' +
-                '<span class="board-pin-title">' + escapeHtml(p.title || 'Untitled') + '</span>' +
-                '<span class="board-pin-desc">' + escapeHtml((p.description || '').slice(0, 90)) + '</span>' +
-                '<button class="board-pin-remove material-symbols-outlined" data-board-unpin="' + p.id + '" title="Remove from board" aria-label="Remove from board">close</button>' +
-            '</div>'
-        ).join('');
-        body.querySelectorAll('[data-board-pin-id]').forEach(card => {
-            card.addEventListener('click', (e) => {
-                if (e.target.closest('[data-board-unpin]')) return;
-                const id = Number(card.dataset.boardPinId);
-                closeBoardWorkspace();
-                setTimeout(() => openDetail(id), 150);
-            });
-        });
-        body.querySelectorAll('[data-board-unpin]').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const promptId = Number(btn.dataset.boardUnpin);
-                try {
-                    await api('/boards/' + _boardState.activeId + '/pins/' + promptId, { method: 'DELETE' });
-                    _boardState.pins = _boardState.pins.filter(p => p.id !== promptId);
-                    _boardRenderDetail();
-                    _boardLoadList(true);
-                } catch {
-                    toast('Could not remove pin', 'error');
-                }
-            });
-        });
-    }
-
-    async function _boardCreate() {
-        const input = $('#boardNewName');
-        const name = (input?.value || '').trim();
-        if (!name) {
-            toast('Name the board first', 'warning');
-            return;
-        }
-        try {
-            const result = await api('/boards', { method: 'POST', body: { name } });
-            if (input) input.value = '';
-            await _boardLoadList(false);
-            if (result?.id) _boardSelect(result.id);
-        } catch {
-            toast('Could not create board', 'error');
-        }
-    }
-
-    async function _boardSaveMeta() {
-        if (!_boardState.activeId) return;
-        const name = ($('#boardNameInput')?.value || '').trim();
-        const description = $('#boardDescInput')?.value || '';
-        if (!name) return;
-        try {
-            await api('/boards/' + _boardState.activeId, { method: 'PUT', body: { name, description } });
-            const board = _boardState.boards.find(b => b.id === _boardState.activeId);
-            if (board) {
-                board.name = name;
-                board.description = description;
-            }
-            _boardRenderList();
-        } catch {
-            toast('Could not save board', 'error');
-        }
-    }
-
-    async function _boardAddPin() {
-        if (!_boardState.activeId) {
-            toast('Select or create a board first', 'warning');
-            return;
-        }
-        const p = _wsPickedPrompt('#boardPinPicker');
-        if (!p) {
-            toast('Pick a prompt to add', 'warning');
-            return;
-        }
-        try {
-            await api('/boards/' + _boardState.activeId + '/pins', { method: 'POST', body: { prompt_id: p.id } });
-            const picker = $('#boardPinPicker');
-            if (picker) picker.value = '';
-            await _boardLoadDetail(_boardState.activeId);
-            _boardLoadList(true);
-        } catch {
-            toast('Could not add pin', 'error');
-        }
-    }
-
-    window.openBoardWorkspace = function() {
-        if (!state.isPremium) {
-            showPremiumModal();
-            return;
-        }
-        const ws = $('#boardWorkspace');
-        if (!ws) return;
-        ws.classList.add('open');
-        document.body.style.overflow = 'hidden';
-        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'board'));
-        _boardLoadList(true);
-        _wsFillPromptPicker('#boardPinPicker');
-    };
-
-    function closeBoardWorkspace() {
-        $('#boardWorkspace')?.classList.remove('open');
-        document.body.style.overflow = '';
-        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
-    }
-
-    function initBoardWorkspace() {
-        const ws = $('#boardWorkspace');
-        if (!ws) return;
-        $('#closeBoardBtn')?.addEventListener('click', closeBoardWorkspace);
-        $('#boardCreateBtn')?.addEventListener('click', _boardCreate);
-        $('#boardNewName')?.addEventListener('keydown', e => {
-            if (e.key === 'Enter') _boardCreate();
-        });
-        $('#boardAddPinBtn')?.addEventListener('click', _boardAddPin);
-        $('#boardNameInput')?.addEventListener('change', _boardSaveMeta);
-        $('#boardDescInput')?.addEventListener('change', _boardSaveMeta);
-        ws.addEventListener('keydown', e => {
-            if (e.key === 'Escape') closeBoardWorkspace();
-        });
-    }
-
-    /* ============================================================================
        SNIPPETS STORE
        Powers the prompt-editor side panel (search, insert-at-cursor, Quick-add).
        The standalone Snippets workspace was replaced by Quick Fill (2026-07).
@@ -13282,84 +13016,131 @@ Must avoid: [Anything sensitive or previously declined]`
 
 
 
-    // Mask a licence key for display: keep the first 8 and last 4 chars.
-    function _maskLicenceKey(k) {
-        if (!k) return '';
-        if (k.length <= 12) return k;
-        return k.slice(0, 8) + '*'.repeat(Math.max(0, k.length - 12)) + k.slice(-4);
-    }
+    async function initLicenceUI() {
+        const activateBtn = $('licenceActivateBtn');
+        const keyInput = $('licenceKeyInput');
+        const statusDiv = $('licenceActivateStatus');
 
-    // Repaint the Settings > Licence Key panel from state. Safe to call any time.
-    function refreshLicencePanel() {
-        const box = $('#licenceStatus');
-        const text = $('#licenceStatusText');
-        const btn = $('#licenceActivateBtn');
-        const input = $('#settingsLicenceKeyInput');
-        if (!box || !text || !btn || !input) return;
+        if (!activateBtn) return; // Not in DOM yet
 
-        if (state.isPremium) {
-            box.style.borderLeftColor = 'var(--success)';
-            text.textContent = 'Licensed \u2014 Pro features unlocked';
-            text.style.color = 'var(--success)';
-            input.value = _maskLicenceKey(state.licenceKey);
-            input.disabled = true;
-            btn.disabled = true;
-            btn.innerHTML = '<span class="material-symbols-outlined">check</span> Activated';
-        } else {
-            box.style.borderLeftColor = 'var(--ink-3)';
-            text.textContent = 'Not licensed \u2014 enter your key to unlock Pro features';
-            text.style.color = 'var(--ink-3)';
-            input.disabled = false;
-            btn.disabled = false;
-            btn.innerHTML = '<span class="material-symbols-outlined">vpn_key</span> Activate Licence';
-        }
-    }
+        // Load current licence status on startup
+        await checkLicenceStatus();
 
-    function initLicenceUI() {
-        const btn = $('#licenceActivateBtn');
-        const input = $('#settingsLicenceKeyInput');
-        const status = $('#licenceActivateStatus');
-        if (!btn || !input || !status) return;
-
-        const run = async () => {
-            if (btn.disabled) return;
-            const key = input.value.trim();
+        // Activate button
+        activateBtn.addEventListener('click', async () => {
+            const key = keyInput.value.trim();
             if (!key) {
-                status.textContent = 'Enter a licence key';
-                status.style.color = 'var(--ink-3)';
-                input.focus();
+                statusDiv.textContent = '⚠ Enter a licence key';
+                statusDiv.style.color = 'var(--ink-3)';
                 return;
             }
-            btn.disabled = true;
-            status.textContent = 'Checking\u2026';
-            status.style.color = 'var(--ink-3)';
-            try {
-                if (await _validateAndStoreKey(key)) {
-                    status.textContent = 'Pro unlocked \u2014 thank you!';
-                    status.style.color = 'var(--success)';
-                    toast('Pro unlocked - thank you!', 'success');
-                    refreshLicencePanel();
-                } else {
-                    status.textContent = 'Invalid licence key';
-                    status.style.color = 'var(--danger)';
-                    btn.disabled = false;
-                }
-            } catch (e) {
-                status.textContent = 'Invalid licence key';
-                status.style.color = 'var(--danger)';
-                btn.disabled = false;
-            }
-        };
 
-        btn.addEventListener('click', run);
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                run();
+            activateBtn.disabled = true;
+            statusDiv.textContent = 'Validating…';
+            statusDiv.style.color = 'var(--ink-3)';
+
+            try {
+                const res = await fetch('/api/licence/validate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        key
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.valid) {
+                    statusDiv.textContent = '✓ ' + data.message;
+                    statusDiv.style.color = 'var(--success-color, #4caf50)';
+                    state.isPremium = true;
+                    keyInput.disabled = true;
+                    activateBtn.disabled = true;
+                    activateBtn.textContent = '✓ Activated';
+
+                    // Update status display
+                    await checkLicenceStatus();
+
+                    // Refresh feature visibility
+                    updatePremiumFeatures();
+
+                    // Show success toast
+                    showToast('Pro features unlocked!', 'success');
+                } else {
+                    statusDiv.textContent = '✗ ' + data.message;
+                    statusDiv.style.color = 'var(--error-color, #f44336)';
+                    activateBtn.disabled = false;
+                }
+            } catch (err) {
+                statusDiv.textContent = '✗ Error: ' + err.message;
+                statusDiv.style.color = 'var(--error-color, #f44336)';
+                activateBtn.disabled = false;
             }
         });
 
-        refreshLicencePanel();
+        // Allow Enter key to activate
+        keyInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') activateBtn.click();
+        });
+    }
+
+    async function checkLicenceStatus() {
+        try {
+            const res = await fetch('/api/licence/status');
+            const data = await res.json();
+
+            const statusDiv = $('licenceStatus');
+            const statusText = $('licenceStatusText');
+            const activateBtn = $('licenceActivateBtn');
+            const keyInput = $('licenceKeyInput');
+
+            if (data.licensed) {
+                state.isPremium = true;
+                statusDiv.style.borderLeftColor = 'var(--success-color, #4caf50)';
+                statusText.textContent = `✓ Licensed as of ${new Date(data.activated).toLocaleDateString()}`;
+                statusText.style.color = 'var(--success-color, #4caf50)';
+
+                keyInput.value = data.key;
+                keyInput.disabled = true;
+                activateBtn.disabled = true;
+                activateBtn.textContent = '✓ Activated';
+
+                updatePremiumFeatures();
+            } else {
+                state.isPremium = false;
+                statusDiv.style.borderLeftColor = 'var(--ink-3)';
+                statusText.textContent = 'Not licensed — enter your key to unlock Pro features';
+                statusText.style.color = 'var(--ink-3)';
+
+                keyInput.disabled = false;
+                activateBtn.disabled = false;
+                activateBtn.textContent = 'Activate Licence';
+            }
+        } catch (err) {
+            console.warn('Could not check licence status:', err);
+        }
+    }
+
+    function updatePremiumFeatures() {
+        // Show/hide premium elements based on state.isPremium
+        const premiumEls = $$('[data-premium="true"]');
+        const freeLimitEls = $$('[data-free-limit]');
+
+        premiumEls.forEach(el => {
+            el.style.display = state.isPremium ? 'block' : 'none';
+        });
+
+        freeLimitEls.forEach(el => {
+            if (!state.isPremium) {
+                el.style.opacity = '0.5';
+                el.style.pointerEvents = 'none';
+            } else {
+                el.style.opacity = '1';
+                el.style.pointerEvents = 'auto';
+            }
+        });
     }
 
     /* ============================================================================
@@ -14240,14 +14021,13 @@ Must avoid: [Anything sensitive or previously declined]`
         initXrayWorkspace(); // prompt x-ray workspace
         initSpliceWorkspace(); // prompt splicer workspace
         initBatchWorkspace(); // batch runner workspace
-        initBoardWorkspace(); // prompt board workspace
         initModalSidePanels(); // prompt modal side panels
         initOnboarding(); // spotlight tour auto-launch on first run
         initPromptViewer();
         initTagManager(); // tag manager modal (sidebar tags header)
         // Fire licence check and data load in parallel -- prompts render immediately,
         // premium UI applies once both settle (no unlocked flash risk).
-        initLicenceUI(); // wire Settings licence panel (sync)
+        initLicenceUI(); // wire licence key activation
         await Promise.all([loadStoredLicence(), loadAll()]);
     });
 
