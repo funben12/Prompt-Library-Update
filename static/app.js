@@ -14488,6 +14488,191 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
+       RELATIONSHIP GRAPH
+       data-view="relationship" | openRelationshipWorkspace() | initRelationshipWorkspace()
+       ============================================================================ */
+
+    let _relState = { centerId: null, centerPrompt: null, related: [], addPanelOpen: false };
+
+    function _relTruncate(text, n) {
+        if (!text) return '';
+        return text.length > n ? text.slice(0, n - 1) + '…' : text;
+    }
+
+    async function _relLoadCenter(promptId) {
+        _relState.centerId = promptId;
+        _relState.addPanelOpen = false;
+        $('#relPickerPanel').hidden = true;
+        $('#relOrphansPanel').hidden = true;
+        $('#relGraphPanel').hidden = false;
+        const svg = $('#relSvg');
+        if (svg) svg.innerHTML = '<text x="320" y="240" text-anchor="middle" class="rel-svg-hint">Loading…</text>';
+        try {
+            _relState.centerPrompt = state.prompts.find(p => p.id === promptId) || (await api(`/prompts/${promptId}`));
+            _relState.related = await api(`/prompts/${promptId}/relationships`);
+            _relRenderGraph();
+        } catch {
+            if (svg) svg.innerHTML = '<text x="320" y="240" text-anchor="middle" class="rel-svg-hint">Couldn\'t load relationships</text>';
+        }
+    }
+
+    function _relRenderGraph() {
+        const svg = $('#relSvg');
+        if (!svg) return;
+        const cx = 320, cy = 240, r = 170;
+        const center = _relState.centerPrompt;
+        const related = _relState.related;
+        let parts = [];
+        related.forEach((p, i) => {
+            const angle = (2 * Math.PI * i / Math.max(1, related.length)) - Math.PI / 2;
+            const nx = cx + r * Math.cos(angle);
+            const ny = cy + r * Math.sin(angle);
+            parts.push(`<line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" class="rel-edge" />`);
+            const midx = (cx + nx) / 2, midy = (cy + ny) / 2;
+            parts.push(`<text x="${midx.toFixed(1)}" y="${midy.toFixed(1)}" class="rel-edge-label" text-anchor="middle">${escapeHtml(p.rel_type || 'related')}</text>`);
+        });
+        parts.push(`<g class="rel-node rel-node-center">
+        <circle cx="${cx}" cy="${cy}" r="46" />
+        <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(_relTruncate(center ? center.title : '', 16))}</text>
+      </g>`);
+        related.forEach((p, i) => {
+            const angle = (2 * Math.PI * i / Math.max(1, related.length)) - Math.PI / 2;
+            const nx = cx + r * Math.cos(angle);
+            const ny = cy + r * Math.sin(angle);
+            parts.push(`<g class="rel-node" data-rel-node="${p.id}" tabindex="0">
+            <circle cx="${nx.toFixed(1)}" cy="${ny.toFixed(1)}" r="34" />
+            <text x="${nx.toFixed(1)}" y="${ny.toFixed(1)}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(_relTruncate(p.title, 14))}</text>
+            <title>${escapeHtml(p.title)}</title>
+          </g>
+          <g class="rel-node-remove" data-rel-remove="${p.id}">
+            <circle cx="${(nx + 24).toFixed(1)}" cy="${(ny - 24).toFixed(1)}" r="10" />
+            <text x="${(nx + 24).toFixed(1)}" y="${(ny - 24).toFixed(1)}" text-anchor="middle" dominant-baseline="middle">×</text>
+          </g>`);
+        });
+        svg.innerHTML = parts.join('');
+        if (!related.length) {
+            svg.innerHTML += `<text x="${cx}" y="${cy + 90}" text-anchor="middle" class="rel-svg-hint">No relationships yet — add one above.</text>`;
+        }
+    }
+
+    function _relOpenAddPanel() {
+        _relState.addPanelOpen = true;
+        const panel = $('#relAddPanel');
+        if (!panel) return;
+        panel.hidden = false;
+        panel.innerHTML = `
+      <select id="relAddPicker" class="forge-input qf-picker"><option value="">Load from library…</option></select>
+      <select id="relAddType" class="forge-input">
+        <option value="related">Related</option>
+        <option value="variant">Variant</option>
+        <option value="depends_on">Depends on</option>
+        <option value="inspired_by">Inspired by</option>
+      </select>
+      <button class="btn btn-accent" id="relAddConfirmBtn">Link</button>
+      <button class="btn btn-ghost" id="relAddCancelBtn">Cancel</button>`;
+        _wsFillPromptPicker('#relAddPicker');
+        $('#relAddConfirmBtn')?.addEventListener('click', async () => {
+            const otherId = parseInt($('#relAddPicker').value, 10);
+            if (!otherId) { toast('Pick a prompt first', 'warning'); return; }
+            if (otherId === _relState.centerId) { toast('Pick a different prompt', 'warning'); return; }
+            try {
+                await api(`/prompts/${_relState.centerId}/relationships`, {
+                    method: 'POST',
+                    body: { related_id: otherId, rel_type: $('#relAddType').value }
+                });
+                panel.hidden = true;
+                _relState.addPanelOpen = false;
+                await _relLoadCenter(_relState.centerId);
+                toast('Relationship added', 'success');
+            } catch {
+                toast('Could not add relationship', 'error');
+            }
+        });
+        $('#relAddCancelBtn')?.addEventListener('click', () => {
+            panel.hidden = true;
+            _relState.addPanelOpen = false;
+        });
+    }
+
+    async function _relDeleteRelationship(otherId) {
+        if (!confirm('Remove this relationship?')) return;
+        try {
+            await api(`/prompts/${_relState.centerId}/relationships/${otherId}`, { method: 'DELETE' });
+            await _relLoadCenter(_relState.centerId);
+            toast('Relationship removed', 'success');
+        } catch {
+            toast('Could not remove relationship', 'error');
+        }
+    }
+
+    async function _relShowOrphans() {
+        $('#relPickerPanel').hidden = true;
+        $('#relGraphPanel').hidden = true;
+        $('#relOrphansPanel').hidden = false;
+        const list = $('#relOrphansList');
+        if (list) list.innerHTML = '<p class="hint">Loading…</p>';
+        try {
+            const orphans = await api('/relationships/orphans');
+            if (list) {
+                list.innerHTML = orphans.length
+                    ? orphans.map(p => `<button class="rel-orphan-row" data-rel-orphan="${p.id}">${escapeHtml(p.title)}</button>`).join('')
+                    : '<p class="hint">No orphans — every prompt has at least one relationship.</p>';
+            }
+        } catch {
+            if (list) list.innerHTML = '<p class="hint">Couldn\'t load orphans.</p>';
+        }
+    }
+
+    window.openRelationshipWorkspace = function() {
+        const ws = $('#relationshipWorkspace');
+        if (!ws) return;
+        ws.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'relationship'));
+        _relState = { centerId: null, centerPrompt: null, related: [], addPanelOpen: false };
+        $('#relPickerPanel').hidden = false;
+        $('#relGraphPanel').hidden = true;
+        $('#relOrphansPanel').hidden = true;
+        _wsFillPromptPicker('#relCenterPicker');
+    };
+
+    function closeRelationshipWorkspace() {
+        $('#relationshipWorkspace')?.classList.remove('open');
+        document.body.style.overflow = '';
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    function initRelationshipWorkspace() {
+        const ws = $('#relationshipWorkspace');
+        if (!ws) return;
+        $('#closeRelationshipBtn')?.addEventListener('click', closeRelationshipWorkspace);
+        $('#relCenterPicker')?.addEventListener('change', (e) => {
+            const id = parseInt(e.target.value, 10);
+            if (id) _relLoadCenter(id);
+        });
+        $('#relAddBtn')?.addEventListener('click', () => {
+            if (!_relState.centerId) { toast('Pick a prompt to center on first', 'warning'); return; }
+            _relOpenAddPanel();
+        });
+        $('#relOrphansBtn')?.addEventListener('click', _relShowOrphans);
+        $('#relOrphansCloseBtn')?.addEventListener('click', () => {
+            $('#relOrphansPanel').hidden = true;
+            if (_relState.centerId) { $('#relGraphPanel').hidden = false; }
+            else { $('#relPickerPanel').hidden = false; }
+        });
+        $('#relOrphansList')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-rel-orphan]');
+            if (btn) _relLoadCenter(parseInt(btn.dataset.relOrphan, 10));
+        });
+        $('#relSvg')?.addEventListener('click', (e) => {
+            const remove = e.target.closest('[data-rel-remove]');
+            if (remove) { _relDeleteRelationship(parseInt(remove.dataset.relRemove, 10)); return; }
+            const node = e.target.closest('[data-rel-node]');
+            if (node) _relLoadCenter(parseInt(node.dataset.relNode, 10));
+        });
+    }
+
+    /* ============================================================================
        BOOTSTRAP
        ============================================================================ */
     document.addEventListener('DOMContentLoaded', async () => {

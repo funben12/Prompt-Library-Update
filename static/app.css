@@ -8612,3 +8612,24 @@
 .tax-tagged-row { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-2) var(--sp-3); background: var(--surface-2); border-radius: var(--radius-md, 8px); }
 .tax-tag-picker-list { max-height: 260px; overflow-y: auto; margin: var(--sp-3) 0; display: flex; flex-direction: column; gap: var(--sp-1); }
 .tax-tag-picker-row { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); padding: var(--sp-1) 0; }
+/* -- Relationship Graph -- */
+.rel-body { display: flex; flex-direction: column; flex: 1; overflow: hidden; padding: var(--sp-5); position: relative; }
+.rel-picker-panel { display: flex; flex-direction: column; gap: var(--sp-3); max-width: 420px; margin: var(--sp-7) auto; text-align: center; }
+.rel-graph-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+#relSvg { width: 100%; flex: 1; }
+.rel-node circle { fill: var(--surface-2); stroke: var(--line); stroke-width: 1.5; cursor: pointer; }
+.rel-node:hover circle { stroke: var(--accent); }
+.rel-node text { fill: var(--ink); font-size: 11px; pointer-events: none; }
+.rel-node-center circle { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; cursor: default; }
+.rel-node-center text { font-weight: 600; }
+.rel-edge { stroke: var(--line); stroke-width: 1.5; }
+.rel-edge-label { fill: var(--ink-3); font-size: 10px; }
+.rel-node-remove circle { fill: var(--danger); opacity: 0; transition: opacity .12s; cursor: pointer; }
+.rel-node-remove text { fill: #fff; font-size: 12px; pointer-events: none; opacity: 0; }
+.rel-node-remove:hover circle, .rel-node-remove:hover text { opacity: 1; }
+.rel-svg-hint { fill: var(--ink-3); font-size: 13px; }
+.rel-add-panel { display: flex; gap: var(--sp-2); align-items: center; padding: var(--sp-3); background: var(--surface-2); border-radius: var(--radius-md, 8px); margin-bottom: var(--sp-3); flex-wrap: wrap; }
+.rel-orphans-panel { flex: 1; overflow-y: auto; }
+.rel-orphans-header { display: flex; align-items: center; justify-content: space-between; font-weight: 600; margin-bottom: var(--sp-3); }
+.rel-orphan-row { display: block; width: 100%; text-align: left; padding: var(--sp-2) var(--sp-3); border: none; background: var(--surface-2); border-radius: var(--radius-md, 8px); margin-bottom: var(--sp-1); cursor: pointer; color: var(--ink); }
+.rel-orphan-row:hover { background: var(--accent-soft); }
