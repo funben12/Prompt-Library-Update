@@ -14673,6 +14673,162 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
+       VERSION TIMELINE
+       data-view="version" | openVersionWorkspace() | initVersionWorkspace()
+       ============================================================================ */
+
+    let _verState = { promptId: null, versions: [], selected: [] };
+
+    async function _verLoad(promptId) {
+        _verState.promptId = promptId;
+        _verState.selected = [];
+        $('#verPickerPanel').hidden = true;
+        $('#verTimelinePanel').hidden = false;
+        const list = $('#verTimelineList');
+        if (list) list.innerHTML = '<p class="hint">Loading…</p>';
+        try {
+            _verState.versions = await api(`/prompts/${promptId}/versions`);
+            _verRenderTimeline();
+            _verRenderDiff();
+        } catch {
+            if (list) list.innerHTML = '<p class="hint">Couldn\'t load version history — <a href="#" id="verRetryLink">retry</a></p>';
+            $('#verRetryLink')?.addEventListener('click', (e) => { e.preventDefault(); _verLoad(promptId); });
+        }
+    }
+
+    function _verRenderTimeline() {
+        const list = $('#verTimelineList');
+        if (!list) return;
+        if (!_verState.versions.length) {
+            list.innerHTML = '<p class="hint">No saved versions yet for this prompt.</p>';
+            return;
+        }
+        list.innerHTML = _verState.versions.map(v => `
+      <div class="ver-row ${_verState.selected.includes(v.id) ? 'selected' : ''}" data-version-id="${v.id}">
+        <input type="checkbox" data-ver-select="${v.id}" ${_verState.selected.includes(v.id) ? 'checked' : ''} />
+        <button class="ver-baseline-btn ${v.is_baseline ? 'active' : ''}" data-ver-baseline="${v.id}" title="${v.is_baseline ? 'Baseline version' : 'Mark as baseline'}">
+          <span class="material-symbols-outlined">${v.is_baseline ? 'star' : 'star_outline'}</span>
+        </button>
+        <div class="ver-row-main">
+          <input type="text" class="ver-label-input" data-ver-label="${v.id}" value="${escapeAttr(v.version_label || '')}" placeholder="Label this version…" />
+          <span class="ver-row-date">${relativeTime(v.saved_at)}</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" data-ver-restore="${v.id}">Restore</button>
+      </div>`).join('');
+    }
+
+    function _verRenderDiff() {
+        const panel = $('#verDiffPanel');
+        if (!panel) return;
+        if (_verState.selected.length !== 2) {
+            panel.innerHTML = '<span class="hint">Select two versions to compare.</span>';
+            return;
+        }
+        const [idA, idB] = _verState.selected;
+        const a = _verState.versions.find(v => v.id === idA);
+        const b = _verState.versions.find(v => v.id === idB);
+        if (!a || !b) return;
+        const ops = _diffTokens(a.content, b.content);
+        if (!ops) {
+            panel.innerHTML = '<span class="hint">Texts too large for word-level diff.</span>';
+            return;
+        }
+        let html = '';
+        ops.forEach(o => {
+            const esc = escapeHtml(o.text);
+            if (o.op === 'eq') html += esc;
+            else if (o.op === 'del') html += '<del class="dif-del">' + esc + '</del>';
+            else html += '<ins class="dif-ins">' + esc + '</ins>';
+        });
+        panel.innerHTML = `<div class="ver-diff-header">${escapeHtml(a.version_label || relativeTime(a.saved_at))} → ${escapeHtml(b.version_label || relativeTime(b.saved_at))}</div><div class="ver-diff-text">${html}</div>`;
+    }
+
+    function _verToggleSelect(vid) {
+        const idx = _verState.selected.indexOf(vid);
+        if (idx >= 0) {
+            _verState.selected.splice(idx, 1);
+        } else {
+            if (_verState.selected.length >= 2) _verState.selected.shift();
+            _verState.selected.push(vid);
+        }
+        _verRenderTimeline();
+        _verRenderDiff();
+    }
+
+    async function _verSaveLabel(vid, label) {
+        try {
+            await api(`/prompts/${_verState.promptId}/versions/${vid}`, { method: 'PUT', body: { version_label: label } });
+            const v = _verState.versions.find(x => x.id === vid);
+            if (v) v.version_label = label;
+        } catch {
+            toast('Could not save label', 'error');
+        }
+    }
+
+    async function _verToggleBaseline(vid) {
+        const v = _verState.versions.find(x => x.id === vid);
+        if (!v) return;
+        try {
+            await api(`/prompts/${_verState.promptId}/versions/${vid}`, { method: 'PUT', body: { is_baseline: !v.is_baseline } });
+            await _verLoad(_verState.promptId);
+        } catch {
+            toast('Could not update baseline', 'error');
+        }
+    }
+
+    async function _verRestore(vid) {
+        const v = _verState.versions.find(x => x.id === vid);
+        if (!confirm(`Restore "${v ? (v.version_label || relativeTime(v.saved_at)) : 'this version'}"? The current content will be saved as a new version first.`)) return;
+        try {
+            await api(`/prompts/${_verState.promptId}/versions/${vid}/restore`, { method: 'POST' });
+            toast('Version restored', 'success');
+            await _verLoad(_verState.promptId);
+        } catch {
+            toast('Could not restore version', 'error');
+        }
+    }
+
+    window.openVersionWorkspace = function() {
+        const ws = $('#versionWorkspace');
+        if (!ws) return;
+        ws.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'version'));
+        _verState = { promptId: null, versions: [], selected: [] };
+        $('#verPickerPanel').hidden = false;
+        $('#verTimelinePanel').hidden = true;
+        _wsFillPromptPicker('#verPicker');
+    };
+
+    function closeVersionWorkspace() {
+        $('#versionWorkspace')?.classList.remove('open');
+        document.body.style.overflow = '';
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    function initVersionWorkspace() {
+        const ws = $('#versionWorkspace');
+        if (!ws) return;
+        $('#closeVersionBtn')?.addEventListener('click', closeVersionWorkspace);
+        $('#verPicker')?.addEventListener('change', (e) => {
+            const id = parseInt(e.target.value, 10);
+            if (id) _verLoad(id);
+        });
+        $('#verTimelineList')?.addEventListener('click', (e) => {
+            const baseline = e.target.closest('[data-ver-baseline]');
+            const restore = e.target.closest('[data-ver-restore]');
+            const select = e.target.closest('[data-ver-select]');
+            if (baseline) { _verToggleBaseline(parseInt(baseline.dataset.verBaseline, 10)); return; }
+            if (restore) { _verRestore(parseInt(restore.dataset.verRestore, 10)); return; }
+            if (select) { _verToggleSelect(parseInt(select.dataset.verSelect, 10)); return; }
+        });
+        $('#verTimelineList')?.addEventListener('change', (e) => {
+            const labelInput = e.target.closest('[data-ver-label]');
+            if (labelInput) _verSaveLabel(parseInt(labelInput.dataset.verLabel, 10), labelInput.value.trim());
+        });
+    }
+
+    /* ============================================================================
        BOOTSTRAP
        ============================================================================ */
     document.addEventListener('DOMContentLoaded', async () => {
