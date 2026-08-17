@@ -14213,6 +14213,281 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
+       TAXONOMY STUDIO
+       data-view="taxonomy" | openTaxonomyWorkspace() | initTaxonomyWorkspace()
+       ============================================================================ */
+
+    let _taxState = { domains: [], selectedType: null, selectedId: null, tagPickerOpen: false, tagPickerQuery: '' };
+
+    async function _taxLoadTree() {
+        const list = $('#taxTreeList');
+        if (list) list.innerHTML = '<p class="hint">Loading…</p>';
+        try {
+            _taxState.domains = await api('/taxonomy');
+            _taxRenderTree();
+        } catch {
+            if (list) list.innerHTML = '<p class="hint">Couldn\'t load taxonomy — <a href="#" id="taxRetryLink">retry</a></p>';
+            $('#taxRetryLink')?.addEventListener('click', (e) => { e.preventDefault(); _taxLoadTree(); });
+        }
+    }
+
+    function _taxRenderTree() {
+        const list = $('#taxTreeList');
+        if (!list) return;
+        if (!_taxState.domains.length) {
+            list.innerHTML = '<p class="hint">No domains yet — add one to get started.</p>';
+            return;
+        }
+        list.innerHTML = _taxState.domains.map(d => `
+      <div class="tax-domain" data-domain-id="${d.id}">
+        <div class="tax-domain-row ${_taxState.selectedType === 'domain' && _taxState.selectedId === d.id ? 'active' : ''}" data-select-domain="${d.id}">
+          <span class="material-symbols-outlined tax-domain-icon">folder</span>
+          <span class="tax-node-name">${escapeHtml(d.name)}</span>
+          <span class="tax-node-count">${d.use_cases.length}</span>
+          <button class="folder-mini-btn" data-tax-rename-domain="${d.id}" title="Rename"><span class="material-symbols-outlined">edit</span></button>
+          <button class="folder-mini-btn danger" data-tax-delete-domain="${d.id}" title="Delete"><span class="material-symbols-outlined">delete</span></button>
+          <button class="folder-mini-btn" data-tax-add-usecase="${d.id}" title="Add use-case"><span class="material-symbols-outlined">add</span></button>
+        </div>
+        <div class="tax-usecase-list">
+          ${d.use_cases.length ? d.use_cases.map(u => `
+            <div class="tax-usecase-row ${_taxState.selectedType === 'usecase' && _taxState.selectedId === u.id ? 'active' : ''}" data-select-usecase="${u.id}">
+              <span class="material-symbols-outlined tax-usecase-icon">label</span>
+              <span class="tax-node-name">${escapeHtml(u.name)}</span>
+              <button class="folder-mini-btn" data-tax-rename-usecase="${u.id}" title="Rename"><span class="material-symbols-outlined">edit</span></button>
+              <button class="folder-mini-btn danger" data-tax-delete-usecase="${u.id}" title="Delete"><span class="material-symbols-outlined">delete</span></button>
+            </div>`).join('') : '<div class="tax-usecase-empty hint">No use-cases yet</div>'}
+        </div>
+      </div>`).join('');
+    }
+
+    async function _taxSelectNode(type, id) {
+        _taxState.selectedType = type;
+        _taxState.selectedId = id;
+        _taxState.tagPickerOpen = false;
+        _taxRenderTree();
+        await _taxRenderDetail();
+    }
+
+    async function _taxRenderDetail() {
+        const detail = $('#taxDetail');
+        if (!detail) return;
+        if (!_taxState.selectedType) {
+            detail.innerHTML = '<div class="tax-detail-empty hint">Select a domain or use-case to see details.</div>';
+            return;
+        }
+        if (_taxState.selectedType === 'domain') {
+            const d = _taxState.domains.find(x => x.id === _taxState.selectedId);
+            if (!d) return;
+            detail.innerHTML = `
+          <h3 class="tax-detail-title">${escapeHtml(d.name)}</h3>
+          <p class="hint">${d.use_cases.length} use-case${d.use_cases.length !== 1 ? 's' : ''} in this domain.</p>`;
+            return;
+        }
+        let uc = null, parentDomain = null;
+        for (const d of _taxState.domains) {
+            const found = d.use_cases.find(u => u.id === _taxState.selectedId);
+            if (found) { uc = found; parentDomain = d; break; }
+        }
+        if (!uc) return;
+        detail.innerHTML = `
+      <h3 class="tax-detail-title">${escapeHtml(uc.name)}</h3>
+      <p class="hint">In ${escapeHtml(parentDomain.name)}</p>
+      <div class="tax-tagged-list" id="taxTaggedList"><p class="hint">Loading tagged prompts…</p></div>
+      <button class="btn btn-ghost" id="taxTagMoreBtn"><span class="material-symbols-outlined">add</span> Tag more prompts</button>
+      <div id="taxTagPicker" hidden></div>`;
+        try {
+            const tagged = await api(`/taxonomy/use-cases/${uc.id}/prompts`);
+            const listEl = $('#taxTaggedList');
+            if (listEl) {
+                listEl.innerHTML = tagged.length
+                    ? tagged.map(p => `
+                    <div class="tax-tagged-row" data-prompt-id="${p.id}">
+                      <span class="tax-tagged-title">${escapeHtml(p.title)}</span>
+                      <button class="folder-mini-btn danger" data-tax-untag="${p.id}" title="Untag"><span class="material-symbols-outlined">close</span></button>
+                    </div>`).join('')
+                    : '<p class="hint">No prompts tagged yet.</p>';
+            }
+        } catch {
+            const listEl = $('#taxTaggedList');
+            if (listEl) listEl.innerHTML = '<p class="hint">Couldn\'t load tagged prompts.</p>';
+        }
+    }
+
+    function _taxRenderTagPicker() {
+        const picker = $('#taxTagPicker');
+        if (!picker) return;
+        const q = _taxState.tagPickerQuery.trim().toLowerCase();
+        const matches = state.prompts.filter(p => !q || (p.title || '').toLowerCase().includes(q));
+        picker.innerHTML = `
+      <input type="text" class="forge-input" id="taxTagPickerSearch" placeholder="Search prompts…" value="${escapeAttr(_taxState.tagPickerQuery)}" />
+      <div class="tax-tag-picker-list">
+        ${matches.slice(0, 50).map(p => `
+          <label class="tax-tag-picker-row">
+            <input type="checkbox" value="${p.id}" />
+            <span>${escapeHtml(p.title)}</span>
+          </label>`).join('')}
+      </div>
+      <button class="btn btn-accent" id="taxTagPickerApply">Tag selected</button>`;
+        $('#taxTagPickerSearch')?.addEventListener('input', (e) => {
+            _taxState.tagPickerQuery = e.target.value;
+            _taxRenderTagPicker();
+        });
+        $('#taxTagPickerApply')?.addEventListener('click', async () => {
+            const ids = $$('#taxTagPicker input[type="checkbox"]:checked').map(el => parseInt(el.value, 10));
+            if (!ids.length) { toast('Pick at least one prompt', 'warning'); return; }
+            try {
+                await api('/taxonomy/bulk-tag', { method: 'POST', body: { prompt_ids: ids, use_case_id: _taxState.selectedId, action: 'add' } });
+                toast(ids.length + ' prompt' + (ids.length !== 1 ? 's' : '') + ' tagged', 'success');
+                _taxState.tagPickerOpen = false;
+                await _taxRenderDetail();
+            } catch {
+                toast('Could not tag prompts', 'error');
+            }
+        });
+    }
+
+    async function _taxAddDomain() {
+        const name = prompt('Domain name:');
+        if (!name || !name.trim()) return;
+        try {
+            await api('/taxonomy/domains', { method: 'POST', body: { name: name.trim() } });
+            await _taxLoadTree();
+            toast('Domain added', 'success');
+        } catch {
+            toast('Could not add domain', 'error');
+        }
+    }
+
+    async function _taxRenameDomain(id) {
+        const d = _taxState.domains.find(x => x.id === id);
+        const name = prompt('Rename domain:', d ? d.name : '');
+        if (!name || !name.trim()) return;
+        try {
+            await api(`/taxonomy/domains/${id}`, { method: 'PUT', body: { name: name.trim() } });
+            await _taxLoadTree();
+        } catch {
+            toast('Could not rename domain', 'error');
+        }
+    }
+
+    async function _taxDeleteDomain(id) {
+        const d = _taxState.domains.find(x => x.id === id);
+        if (!confirm(`Delete domain "${d ? d.name : ''}" and all its use-cases? This can't be undone.`)) return;
+        try {
+            await api(`/taxonomy/domains/${id}`, { method: 'DELETE' });
+            if (_taxState.selectedType === 'domain' && _taxState.selectedId === id) {
+                _taxState.selectedType = null; _taxState.selectedId = null;
+            }
+            await _taxLoadTree();
+            await _taxRenderDetail();
+            toast('Domain deleted', 'success');
+        } catch {
+            toast('Could not delete domain', 'error');
+        }
+    }
+
+    async function _taxAddUseCase(domainId) {
+        const name = prompt('Use-case name:');
+        if (!name || !name.trim()) return;
+        try {
+            await api('/taxonomy/use-cases', { method: 'POST', body: { domain_id: domainId, name: name.trim() } });
+            await _taxLoadTree();
+            toast('Use-case added', 'success');
+        } catch {
+            toast('Could not add use-case', 'error');
+        }
+    }
+
+    async function _taxRenameUseCase(id) {
+        let current = '';
+        for (const d of _taxState.domains) {
+            const u = d.use_cases.find(x => x.id === id);
+            if (u) { current = u.name; break; }
+        }
+        const name = prompt('Rename use-case:', current);
+        if (!name || !name.trim()) return;
+        try {
+            await api(`/taxonomy/use-cases/${id}`, { method: 'PUT', body: { name: name.trim() } });
+            await _taxLoadTree();
+        } catch {
+            toast('Could not rename use-case', 'error');
+        }
+    }
+
+    async function _taxDeleteUseCase(id) {
+        if (!confirm('Delete this use-case and untag all its prompts?')) return;
+        try {
+            await api(`/taxonomy/use-cases/${id}`, { method: 'DELETE' });
+            if (_taxState.selectedType === 'usecase' && _taxState.selectedId === id) {
+                _taxState.selectedType = null; _taxState.selectedId = null;
+            }
+            await _taxLoadTree();
+            await _taxRenderDetail();
+            toast('Use-case deleted', 'success');
+        } catch {
+            toast('Could not delete use-case', 'error');
+        }
+    }
+
+    window.openTaxonomyWorkspace = function() {
+        const ws = $('#taxonomyWorkspace');
+        if (!ws) return;
+        ws.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'taxonomy'));
+        _taxState.selectedType = null;
+        _taxState.selectedId = null;
+        _taxLoadTree();
+        _taxRenderDetail();
+    };
+
+    function closeTaxonomyWorkspace() {
+        $('#taxonomyWorkspace')?.classList.remove('open');
+        document.body.style.overflow = '';
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    function initTaxonomyWorkspace() {
+        const ws = $('#taxonomyWorkspace');
+        if (!ws) return;
+        $('#closeTaxonomyBtn')?.addEventListener('click', closeTaxonomyWorkspace);
+        $('#taxAddDomainBtn')?.addEventListener('click', _taxAddDomain);
+        $('#taxTreeList')?.addEventListener('click', (e) => {
+            const selDomain = e.target.closest('[data-select-domain]');
+            const selUsecase = e.target.closest('[data-select-usecase]');
+            const renameDomain = e.target.closest('[data-tax-rename-domain]');
+            const deleteDomain = e.target.closest('[data-tax-delete-domain]');
+            const addUsecase = e.target.closest('[data-tax-add-usecase]');
+            const renameUsecase = e.target.closest('[data-tax-rename-usecase]');
+            const deleteUsecase = e.target.closest('[data-tax-delete-usecase]');
+            if (renameDomain) { _taxRenameDomain(parseInt(renameDomain.dataset.taxRenameDomain, 10)); return; }
+            if (deleteDomain) { _taxDeleteDomain(parseInt(deleteDomain.dataset.taxDeleteDomain, 10)); return; }
+            if (addUsecase) { _taxAddUseCase(parseInt(addUsecase.dataset.taxAddUsecase, 10)); return; }
+            if (renameUsecase) { _taxRenameUseCase(parseInt(renameUsecase.dataset.taxRenameUsecase, 10)); return; }
+            if (deleteUsecase) { _taxDeleteUseCase(parseInt(deleteUsecase.dataset.taxDeleteUsecase, 10)); return; }
+            if (selDomain) { _taxSelectNode('domain', parseInt(selDomain.dataset.selectDomain, 10)); return; }
+            if (selUsecase) { _taxSelectNode('usecase', parseInt(selUsecase.dataset.selectUsecase, 10)); return; }
+        });
+        $('#taxDetail')?.addEventListener('click', (e) => {
+            const tagMore = e.target.closest('#taxTagMoreBtn');
+            const untag = e.target.closest('[data-tax-untag]');
+            if (tagMore) {
+                _taxState.tagPickerOpen = true;
+                _taxState.tagPickerQuery = '';
+                $('#taxTagPicker').hidden = false;
+                _taxRenderTagPicker();
+                return;
+            }
+            if (untag) {
+                const pid = parseInt(untag.dataset.taxUntag, 10);
+                api('/taxonomy/bulk-tag', { method: 'POST', body: { prompt_ids: [pid], use_case_id: _taxState.selectedId, action: 'remove' } })
+                    .then(() => _taxRenderDetail())
+                    .catch(() => toast('Could not untag prompt', 'error'));
+            }
+        });
+    }
+
+    /* ============================================================================
        BOOTSTRAP
        ============================================================================ */
     document.addEventListener('DOMContentLoaded', async () => {
