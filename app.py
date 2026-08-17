@@ -1490,6 +1490,31 @@ def restore_version(pid, vid):
     return jsonify({'success': True})
 
 
+@app.route('/api/prompts/<int:pid>/versions/<int:vid>', methods=['PUT'])
+def update_version_meta(pid, vid):
+    data = _json_body()
+    conn = get_db()
+    try:
+        ver = conn.execute('SELECT id FROM prompt_versions WHERE id=? AND prompt_id=?', (vid, pid)).fetchone()
+        if not ver:
+            return jsonify({'error': 'Version not found'}), 404
+        if 'version_label' in data:
+            conn.execute('UPDATE prompt_versions SET version_label=? WHERE id=?',
+                         (data['version_label'], vid))
+        if 'version_notes' in data:
+            conn.execute('UPDATE prompt_versions SET version_notes=? WHERE id=?',
+                         (data['version_notes'], vid))
+        if 'is_baseline' in data:
+            if data['is_baseline']:
+                conn.execute('UPDATE prompt_versions SET is_baseline=0 WHERE prompt_id=?', (pid,))
+            conn.execute('UPDATE prompt_versions SET is_baseline=? WHERE id=?',
+                         (1 if data['is_baseline'] else 0, vid))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'success': True})
+
+
 @app.route('/api/variable-templates', methods=['GET'])
 def get_var_templates():
     conn  = get_db()
