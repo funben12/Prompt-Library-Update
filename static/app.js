@@ -14488,6 +14488,9 @@ Must avoid: [Anything sensitive or previously declined]`
                     .catch(() => toast('Could not untag prompt', 'error'));
             }
         });
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeTaxonomyWorkspace();
+        });
     }
 
     /* ============================================================================
@@ -14673,6 +14676,9 @@ Must avoid: [Anything sensitive or previously declined]`
             const node = e.target.closest('[data-rel-node]');
             if (node) _relLoadCenter(parseInt(node.dataset.relNode, 10));
         });
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeRelationshipWorkspace();
+        });
     }
 
     /* ============================================================================
@@ -14828,6 +14834,9 @@ Must avoid: [Anything sensitive or previously declined]`
         $('#verTimelineList')?.addEventListener('change', (e) => {
             const labelInput = e.target.closest('[data-ver-label]');
             if (labelInput) _verSaveLabel(parseInt(labelInput.dataset.verLabel, 10), labelInput.value.trim());
+        });
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeVersionWorkspace();
         });
     }
 
