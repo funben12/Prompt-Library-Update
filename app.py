@@ -493,6 +493,13 @@ def init_db():
         name      TEXT NOT NULL,
         UNIQUE(domain_id, name)
     )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS prompt_taxonomy (
+        prompt_id   INTEGER NOT NULL,
+        use_case_id INTEGER NOT NULL,
+        PRIMARY KEY (prompt_id, use_case_id),
+        FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE CASCADE,
+        FOREIGN KEY (use_case_id) REFERENCES taxonomy_use_cases(id) ON DELETE CASCADE
+    )''')
 
     # ── Prompt relationships table ───────────────────────────────────────────
     c.execute('''CREATE TABLE IF NOT EXISTS prompt_relationships (
