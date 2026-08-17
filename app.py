@@ -1291,6 +1291,34 @@ def add_prompt_relationship(pid):
     return jsonify({'success': True})
 
 
+@app.route('/api/prompts/<int:pid>/relationships/<int:other_id>', methods=['DELETE'])
+def delete_prompt_relationship(pid, other_id):
+    a, b = (pid, other_id) if pid < other_id else (other_id, pid)
+    conn = get_db()
+    try:
+        conn.execute('DELETE FROM prompt_relationships WHERE prompt_a=? AND prompt_b=?', (a, b))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/relationships/orphans', methods=['GET'])
+def get_relationship_orphans():
+    conn = get_db()
+    try:
+        rows = conn.execute('''
+            SELECT id, title, description FROM prompts
+            WHERE id NOT IN (SELECT prompt_a FROM prompt_relationships)
+              AND id NOT IN (SELECT prompt_b FROM prompt_relationships)
+            ORDER BY title
+        ''').fetchall()
+        result = [dict(r) for r in rows]
+    finally:
+        conn.close()
+    return jsonify(result)
+
+
 @app.route('/api/prompts/<int:pid>/favorite', methods=['POST'])
 def toggle_favorite(pid):
     conn = get_db()
