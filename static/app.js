@@ -14220,7 +14220,7 @@ Must avoid: [Anything sensitive or previously declined]`
        data-view="taxonomy" | openTaxonomyWorkspace() | initTaxonomyWorkspace()
        ============================================================================ */
 
-    let _taxState = { domains: [], selectedType: null, selectedId: null, tagPickerOpen: false, tagPickerQuery: '' };
+    let _taxState = { domains: [], selectedType: null, selectedId: null, tagPickerOpen: false, tagPickerQuery: '', tagPickerSelection: [] };
 
     async function _taxLoadTree() {
         const list = $('#taxTreeList');
@@ -14319,33 +14319,49 @@ Must avoid: [Anything sensitive or previously declined]`
     function _taxRenderTagPicker() {
         const picker = $('#taxTagPicker');
         if (!picker) return;
-        const q = _taxState.tagPickerQuery.trim().toLowerCase();
-        const matches = state.prompts.filter(p => !q || (p.title || '').toLowerCase().includes(q));
         picker.innerHTML = `
       <input type="text" class="forge-input" id="taxTagPickerSearch" placeholder="Search prompts…" value="${escapeAttr(_taxState.tagPickerQuery)}" />
-      <div class="tax-tag-picker-list">
-        ${matches.slice(0, 50).map(p => `
-          <label class="tax-tag-picker-row">
-            <input type="checkbox" value="${p.id}" />
-            <span>${escapeHtml(p.title)}</span>
-          </label>`).join('')}
-      </div>
+      <div class="tax-tag-picker-list" id="taxTagPickerList"></div>
       <button class="btn btn-accent" id="taxTagPickerApply">Tag selected</button>`;
+        _taxRenderTagPickerList();
         $('#taxTagPickerSearch')?.addEventListener('input', (e) => {
             _taxState.tagPickerQuery = e.target.value;
-            _taxRenderTagPicker();
+            _taxRenderTagPickerList();
         });
         $('#taxTagPickerApply')?.addEventListener('click', async () => {
-            const ids = $$('#taxTagPicker input[type="checkbox"]:checked').map(el => parseInt(el.value, 10));
+            const ids = _taxState.tagPickerSelection.slice();
             if (!ids.length) { toast('Pick at least one prompt', 'warning'); return; }
             try {
                 await api('/taxonomy/bulk-tag', { method: 'POST', body: { prompt_ids: ids, use_case_id: _taxState.selectedId, action: 'add' } });
                 toast(ids.length + ' prompt' + (ids.length !== 1 ? 's' : '') + ' tagged', 'success');
                 _taxState.tagPickerOpen = false;
+                _taxState.tagPickerSelection = [];
                 await _taxRenderDetail();
             } catch {
                 toast('Could not tag prompts', 'error');
             }
+        });
+    }
+
+    function _taxRenderTagPickerList() {
+        const list = $('#taxTagPickerList');
+        if (!list) return;
+        const q = _taxState.tagPickerQuery.trim().toLowerCase();
+        const matches = state.prompts.filter(p => !q || (p.title || '').toLowerCase().includes(q));
+        list.innerHTML = matches.slice(0, 50).map(p => `
+          <label class="tax-tag-picker-row">
+            <input type="checkbox" value="${p.id}" ${_taxState.tagPickerSelection.includes(p.id) ? 'checked' : ''} />
+            <span>${escapeHtml(p.title)}</span>
+          </label>`).join('');
+        $$('#taxTagPickerList input[type="checkbox"]').forEach(el => {
+            el.addEventListener('change', (e) => {
+                const id = parseInt(e.target.value, 10);
+                if (e.target.checked) {
+                    if (!_taxState.tagPickerSelection.includes(id)) _taxState.tagPickerSelection.push(id);
+                } else {
+                    _taxState.tagPickerSelection = _taxState.tagPickerSelection.filter(x => x !== id);
+                }
+            });
         });
     }
 
@@ -14433,6 +14449,10 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     window.openTaxonomyWorkspace = function() {
+        if (!state.isPremium) {
+            showPremiumModal();
+            return;
+        }
         const ws = $('#taxonomyWorkspace');
         if (!ws) return;
         ws.classList.add('open');
@@ -14477,6 +14497,7 @@ Must avoid: [Anything sensitive or previously declined]`
             if (tagMore) {
                 _taxState.tagPickerOpen = true;
                 _taxState.tagPickerQuery = '';
+                _taxState.tagPickerSelection = [];
                 $('#taxTagPicker').hidden = false;
                 _taxRenderTagPicker();
                 return;
@@ -14630,6 +14651,10 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     window.openRelationshipWorkspace = function() {
+        if (!state.isPremium) {
+            showPremiumModal();
+            return;
+        }
         const ws = $('#relationshipWorkspace');
         if (!ws) return;
         ws.classList.add('open');
@@ -14737,7 +14762,7 @@ Must avoid: [Anything sensitive or previously declined]`
         const a = _verState.versions.find(v => v.id === idA);
         const b = _verState.versions.find(v => v.id === idB);
         if (!a || !b) return;
-        const ops = _diffTokens(a.content, b.content);
+        const ops = _diffTokens(a.content || '', b.content || '');
         if (!ops) {
             panel.innerHTML = '<span class="hint">Texts too large for word-level diff.</span>';
             return;
@@ -14769,6 +14794,7 @@ Must avoid: [Anything sensitive or previously declined]`
             await api(`/prompts/${_verState.promptId}/versions/${vid}`, { method: 'PUT', body: { version_label: label } });
             const v = _verState.versions.find(x => x.id === vid);
             if (v) v.version_label = label;
+            toast('Label saved', 'success');
         } catch {
             toast('Could not save label', 'error');
         }
@@ -14798,6 +14824,10 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     window.openVersionWorkspace = function() {
+        if (!state.isPremium) {
+            showPremiumModal();
+            return;
+        }
         const ws = $('#versionWorkspace');
         if (!ws) return;
         ws.classList.add('open');

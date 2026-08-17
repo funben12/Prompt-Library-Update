@@ -1124,6 +1124,8 @@ def create_taxonomy_domain():
         conn.execute('INSERT INTO taxonomy_domains (name) VALUES (?)', (name,))
         conn.commit()
         row = conn.execute('SELECT id, name FROM taxonomy_domains WHERE name=?', (name,)).fetchone()
+    except sqlite3.IntegrityError:
+        return jsonify({'error': 'A domain with that name already exists'}), 400
     finally:
         conn.close()
     return jsonify({'id': row['id'], 'name': row['name']})
@@ -1139,6 +1141,8 @@ def rename_taxonomy_domain(did):
     try:
         conn.execute('UPDATE taxonomy_domains SET name=? WHERE id=?', (name, did))
         conn.commit()
+    except sqlite3.IntegrityError:
+        return jsonify({'error': 'A domain with that name already exists'}), 400
     finally:
         conn.close()
     return jsonify({'success': True})
@@ -1170,11 +1174,13 @@ def create_taxonomy_use_case():
         return jsonify({'error': 'domain_id and name are required'}), 400
     conn = get_db()
     try:
-        conn.execute('INSERT OR IGNORE INTO taxonomy_use_cases (domain_id, name) VALUES (?,?)',
+        conn.execute('INSERT INTO taxonomy_use_cases (domain_id, name) VALUES (?,?)',
                      (domain_id, name))
         conn.commit()
         row = conn.execute('SELECT id, name FROM taxonomy_use_cases WHERE domain_id=? AND name=?',
                             (domain_id, name)).fetchone()
+    except sqlite3.IntegrityError:
+        return jsonify({'error': 'A use case with that name already exists'}), 400
     finally:
         conn.close()
     return jsonify({'id': row['id'], 'name': row['name']})
@@ -1190,6 +1196,8 @@ def rename_taxonomy_use_case(uid):
     try:
         conn.execute('UPDATE taxonomy_use_cases SET name=? WHERE id=?', (name, uid))
         conn.commit()
+    except sqlite3.IntegrityError:
+        return jsonify({'error': 'A use case with that name already exists'}), 400
     finally:
         conn.close()
     return jsonify({'success': True})
