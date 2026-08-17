@@ -8119,7 +8119,8 @@
    Library Pulse, Prompt X-Ray, Prompt Splicer (2026-07)
    ============================================================= */
 #fillWorkspace, #auditWorkspace, #diffWorkspace, #costWorkspace,
-#pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace {
+#pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace,
+#taxonomyWorkspace, #relationshipWorkspace, #versionWorkspace {
   display: none;
   position: fixed;
   inset: 0;
@@ -8129,7 +8130,8 @@
 }
 #fillWorkspace.open, #auditWorkspace.open, #diffWorkspace.open, #costWorkspace.open,
 #pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open,
-#batchWorkspace.open, #boardWorkspace.open { display: flex; }
+#batchWorkspace.open, #boardWorkspace.open, #taxonomyWorkspace.open,
+#relationshipWorkspace.open, #versionWorkspace.open { display: flex; }
 
 /* -- Batch Runner -- */
 .br-body { display: grid; grid-template-columns: minmax(340px, 40%) 1fr; flex: 1; overflow: hidden; }

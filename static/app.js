@@ -3756,6 +3756,9 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
             ['Prompt Splicer', 'call_merge', 'openSpliceWorkspace', 'merge combine two prompts'],
             ['Agents', 'smart_toy', 'openRolesWorkspace', 'agents roles personas ai'],
             ['Playground', 'science', 'openPlaygroundWorkspace', 'playground sessions test freeform'],
+            ['Taxonomy Studio', 'sell', 'openTaxonomyWorkspace', 'taxonomy domain use case organise tag'],
+            ['Relationship Graph', 'device_hub', 'openRelationshipWorkspace', 'relationships graph links connections orphans'],
+            ['Version Timeline', 'history', 'openVersionWorkspace', 'version history restore baseline diff'],
         ];
         return table.map(([label, icon, fn, keywords]) => ({
             kind: 'workspace',
@@ -4036,7 +4039,7 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
             '#chainWorkspace', '#metaWorkspace', '#contextBankWorkspace', '#componentsWorkspace',
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
-            '#batchWorkspace', '#boardWorkspace',
+            '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#relationshipWorkspace', '#versionWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -14857,6 +14860,9 @@ Must avoid: [Anything sensitive or previously declined]`
         initSpliceWorkspace(); // prompt splicer workspace
         initBatchWorkspace(); // batch runner workspace
         initBoardWorkspace(); // prompt board workspace
+        initTaxonomyWorkspace(); // taxonomy studio workspace
+        initRelationshipWorkspace(); // relationship graph workspace
+        initVersionWorkspace(); // version timeline workspace
         initModalSidePanels(); // prompt modal side panels
         initOnboarding(); // spotlight tour auto-launch on first run
         initPromptViewer();
