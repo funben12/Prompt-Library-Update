@@ -1113,6 +1113,144 @@ def get_taxonomy():
     return jsonify(result)
 
 
+@app.route('/api/taxonomy/domains', methods=['POST'])
+def create_taxonomy_domain():
+    data = _json_body()
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Name is required'}), 400
+    conn = get_db()
+    try:
+        conn.execute('INSERT INTO taxonomy_domains (name) VALUES (?)', (name,))
+        conn.commit()
+        row = conn.execute('SELECT id, name FROM taxonomy_domains WHERE name=?', (name,)).fetchone()
+    finally:
+        conn.close()
+    return jsonify({'id': row['id'], 'name': row['name']})
+
+
+@app.route('/api/taxonomy/domains/<int:did>', methods=['PUT'])
+def rename_taxonomy_domain(did):
+    data = _json_body()
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Name is required'}), 400
+    conn = get_db()
+    try:
+        conn.execute('UPDATE taxonomy_domains SET name=? WHERE id=?', (name, did))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/taxonomy/domains/<int:did>', methods=['DELETE'])
+def delete_taxonomy_domain(did):
+    conn = get_db()
+    try:
+        uc_ids = [r['id'] for r in conn.execute(
+            'SELECT id FROM taxonomy_use_cases WHERE domain_id=?', (did,)).fetchall()]
+        if uc_ids:
+            placeholders = ','.join('?' * len(uc_ids))
+            conn.execute(f'DELETE FROM prompt_taxonomy WHERE use_case_id IN ({placeholders})', uc_ids)
+            conn.execute('DELETE FROM taxonomy_use_cases WHERE domain_id=?', (did,))
+        conn.execute('DELETE FROM taxonomy_domains WHERE id=?', (did,))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/taxonomy/use-cases', methods=['POST'])
+def create_taxonomy_use_case():
+    data = _json_body()
+    domain_id = data.get('domain_id')
+    name = (data.get('name') or '').strip()
+    if not domain_id or not name:
+        return jsonify({'error': 'domain_id and name are required'}), 400
+    conn = get_db()
+    try:
+        conn.execute('INSERT OR IGNORE INTO taxonomy_use_cases (domain_id, name) VALUES (?,?)',
+                     (domain_id, name))
+        conn.commit()
+        row = conn.execute('SELECT id, name FROM taxonomy_use_cases WHERE domain_id=? AND name=?',
+                            (domain_id, name)).fetchone()
+    finally:
+        conn.close()
+    return jsonify({'id': row['id'], 'name': row['name']})
+
+
+@app.route('/api/taxonomy/use-cases/<int:uid>', methods=['PUT'])
+def rename_taxonomy_use_case(uid):
+    data = _json_body()
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Name is required'}), 400
+    conn = get_db()
+    try:
+        conn.execute('UPDATE taxonomy_use_cases SET name=? WHERE id=?', (name, uid))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/taxonomy/use-cases/<int:uid>', methods=['DELETE'])
+def delete_taxonomy_use_case(uid):
+    conn = get_db()
+    try:
+        conn.execute('DELETE FROM prompt_taxonomy WHERE use_case_id=?', (uid,))
+        conn.execute('DELETE FROM taxonomy_use_cases WHERE id=?', (uid,))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/taxonomy/use-cases/<int:uid>/prompts', methods=['GET'])
+def get_taxonomy_use_case_prompts(uid):
+    conn = get_db()
+    try:
+        rows = conn.execute('''
+            SELECT p.id, p.title, p.description, p.folder_id, p.updated_at
+            FROM prompt_taxonomy pt
+            JOIN prompts p ON p.id = pt.prompt_id
+            WHERE pt.use_case_id=?
+            ORDER BY p.title
+        ''', (uid,)).fetchall()
+        result = [dict(r) for r in rows]
+    finally:
+        conn.close()
+    return jsonify(result)
+
+
+@app.route('/api/taxonomy/bulk-tag', methods=['POST'])
+def bulk_tag_taxonomy():
+    data = _json_body()
+    prompt_ids = data.get('prompt_ids') or []
+    use_case_id = data.get('use_case_id')
+    action = data.get('action', 'add')
+    if not prompt_ids or not use_case_id or action not in ('add', 'remove'):
+        return jsonify({'error': 'prompt_ids, use_case_id and a valid action are required'}), 400
+    conn = get_db()
+    try:
+        if action == 'add':
+            conn.executemany(
+                'INSERT OR IGNORE INTO prompt_taxonomy (prompt_id, use_case_id) VALUES (?,?)',
+                [(pid, use_case_id) for pid in prompt_ids]
+            )
+        else:
+            placeholders = ','.join('?' * len(prompt_ids))
+            conn.execute(
+                f'DELETE FROM prompt_taxonomy WHERE use_case_id=? AND prompt_id IN ({placeholders})',
+                [use_case_id] + prompt_ids
+            )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'success': True, 'count': len(prompt_ids)})
+
+
 @app.route('/api/prompts/<int:pid>/relationships', methods=['GET'])
 def get_prompt_relationships(pid):
     """Get all prompts related to this one (both directions)."""
