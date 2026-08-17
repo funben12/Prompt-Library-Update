@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" media="print" onload="this.media='all'">
 
-<link rel="stylesheet" href="/static/app.css?v=cf1f8800">
+<link rel="stylesheet" href="/static/app.css?v=04621f6a">
 </head>
 <body>
 
@@ -3348,11 +3348,124 @@
       </button>
         </div>
       </div>
+      <div class="launcher-group" data-group="organize">
+        <div class="launcher-group-label">
+          <span class="material-symbols-outlined">sell</span>
+          <span>Organize</span>
+          <span class="launcher-group-hint">Structure and connect your library</span>
+        </div>
+        <div class="launcher-grid">
+      <button class="launcher-card" data-open="openTaxonomyWorkspace" data-premium="true">
+        <span class="material-symbols-outlined launcher-card-icon">sell</span>
+        <span class="launcher-card-title">Taxonomy Studio</span>
+        <span class="launcher-card-desc">Organise prompts by domain and use-case</span>
+        <span class="launcher-card-pro">PRO</span>
+      </button>
+      <button class="launcher-card" data-open="openRelationshipWorkspace" data-premium="true">
+        <span class="material-symbols-outlined launcher-card-icon">device_hub</span>
+        <span class="launcher-card-title">Relationship Graph</span>
+        <span class="launcher-card-desc">See how your prompts connect to each other</span>
+        <span class="launcher-card-pro">PRO</span>
+      </button>
+      <button class="launcher-card" data-open="openVersionWorkspace" data-premium="true">
+        <span class="material-symbols-outlined launcher-card-icon">history</span>
+        <span class="launcher-card-title">Version Timeline</span>
+        <span class="launcher-card-desc">Browse, diff and restore a prompt's saved versions</span>
+        <span class="launcher-card-pro">PRO</span>
+      </button>
+        </div>
+      </div>
       <p class="launcher-empty" id="launcherEmpty" hidden>No tools match your search</p>
     </div>
   </div>
 </div>
 
+
+<div id="taxonomyWorkspace" role="dialog" aria-modal="true" aria-label="Taxonomy Studio">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">sell</span>
+      <div>
+        <h2 class="ws-title">Taxonomy Studio</h2>
+        <p class="ws-subtitle">Organise your library by domain and use-case, then tag prompts into them.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="icon-btn" id="closeTaxonomyBtn" aria-label="Close Taxonomy Studio"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body tax-body">
+    <div class="tax-tree" id="taxTree">
+      <div class="tax-tree-header">
+        <span>Domains</span>
+        <button class="icon-btn" id="taxAddDomainBtn" title="Add domain"><span class="material-symbols-outlined">add</span></button>
+      </div>
+      <div id="taxTreeList"></div>
+    </div>
+    <div class="tax-detail" id="taxDetail">
+      <div class="tax-detail-empty hint">Select a domain or use-case to see details.</div>
+    </div>
+  </div>
+</div>
+
+<div id="relationshipWorkspace" role="dialog" aria-modal="true" aria-label="Relationship Graph">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">device_hub</span>
+      <div>
+        <h2 class="ws-title">Relationship Graph</h2>
+        <p class="ws-subtitle">See how your prompts connect. Click a node to explore from there.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-ghost" id="relOrphansBtn"><span class="material-symbols-outlined">link_off</span> Orphans</button>
+      <button class="btn btn-accent" id="relAddBtn"><span class="material-symbols-outlined">add_link</span> Add relationship</button>
+      <button class="icon-btn" id="closeRelationshipBtn" aria-label="Close Relationship Graph"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body rel-body">
+    <div class="rel-picker-panel" id="relPickerPanel">
+      <p class="hint">Pick a prompt to center the graph on it.</p>
+      <select id="relCenterPicker" class="forge-input qf-picker"><option value="">Load from library…</option></select>
+    </div>
+    <div class="rel-graph-panel" id="relGraphPanel" hidden>
+      <div class="rel-add-panel" id="relAddPanel" hidden></div>
+      <svg id="relSvg" viewBox="0 0 640 480" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div class="rel-orphans-panel" id="relOrphansPanel" hidden>
+      <div class="rel-orphans-header">
+        <span>Prompts with no relationships</span>
+        <button class="icon-btn" id="relOrphansCloseBtn"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div id="relOrphansList"></div>
+    </div>
+  </div>
+</div>
+
+<div id="versionWorkspace" role="dialog" aria-modal="true" aria-label="Version Timeline">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">history</span>
+      <div>
+        <h2 class="ws-title">Version Timeline</h2>
+        <p class="ws-subtitle">Browse a prompt's saved versions, compare any two, or roll back.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="icon-btn" id="closeVersionBtn" aria-label="Close Version Timeline"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body ver-body">
+    <div class="ver-picker-panel" id="verPickerPanel">
+      <p class="hint">Pick a prompt to see its version history.</p>
+      <select id="verPicker" class="forge-input qf-picker"><option value="">Load from library…</option></select>
+    </div>
+    <div class="ver-timeline-panel" id="verTimelinePanel" hidden>
+      <div class="ver-timeline-list" id="verTimelineList"></div>
+      <div class="ver-diff-panel" id="verDiffPanel"><span class="hint">Select two versions to compare.</span></div>
+    </div>
+  </div>
+</div>
 
   <div id="promptViewer" aria-modal="true" aria-label="Prompt viewer" role="dialog">
     <div class="pv-header">
@@ -3433,7 +3546,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=b7122ef1"></script>
+<script defer src="/static/app.js?v=33369dde"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>
