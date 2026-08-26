@@ -1,0 +1,195 @@
+/* Prompt Playground — CSS extracted from static/app.css */
+
+/* ============================================================
+     PROMPT PLAYGROUND WORKSPACE
+     A full-screen scratch-pad for drafting, splitting, and
+     comparing prompts before adding them to the library.
+     ============================================================ */
+
+  #playgroundWorkspace {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal, 100);
+    background: var(--surface);
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+#playgroundWorkspace.open { display: flex; }
+
+/* ── Header ── */
+  .pg-header {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-5);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+    flex-shrink: 0;
+    z-index: 2;
+  }
+
+.pg-header-title {
+    font-family: var(--ff-display);
+    font-size: var(--fs-lg); font-weight: 500;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    flex: 1;
+  }
+
+.pg-header-sub {
+    font-size: 12px; color: var(--ink-4);
+    font-family: var(--ff-sans);
+    font-weight: 400;
+    margin-left: 8px;
+    letter-spacing: 0;
+  }
+
+.pg-header-actions { display: flex; gap: var(--sp-2); align-items: center; }
+
+/* ── Two-column layout: sessions list + canvas ── */
+  .pg-body {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+/* ── Sessions sidebar ── */
+  .pg-sessions {
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--surface-2);
+  }
+
+.pg-sessions-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--line);
+    flex-shrink: 0;
+  }
+
+.pg-sessions-title {
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+.pg-sessions-list {
+    flex: 1; overflow-y: auto;
+    padding: var(--sp-2);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+
+/* ── Canvas ── */
+  .pg-canvas {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+.pg-canvas-toolbar {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-5);
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+    flex-shrink: 0;
+  }
+
+.pg-session-title-input {
+    font-family: var(--ff-display);
+    font-size: var(--fs-md);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px dashed var(--line);
+    color: var(--ink);
+    padding: 2px 0;
+    width: 240px;
+    transition: border-color var(--t-fast);
+  }
+
+.pg-session-title-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+.pg-mode-toggle {
+    display: inline-flex;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    padding: 2px;
+    margin-left: auto;
+  }
+
+.pg-mode-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 12px; font-weight: 500;
+    color: var(--ink-3);
+    transition: background var(--t-fast), color var(--t-fast);
+  }
+
+.pg-mode-btn .material-symbols-outlined { font-size: 15px; }
+
+.pg-mode-btn:hover { color: var(--ink); }
+
+.pg-mode-btn.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+
+/* ── Panels grid ── */
+  .pg-panels {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+.pg-panels.split-2 { grid-template-columns: 1fr 1fr; }
+
+.pg-panels.split-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+/* ── Empty state ── */
+  .pg-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    flex: 1;
+    gap: var(--sp-4);
+    color: var(--ink-3);
+    padding: var(--sp-8);
+  }
+
+.pg-empty .material-symbols-outlined { font-size: 56px; color: var(--ink-4); }
+
+.pg-empty h3 {
+    font-family: var(--ff-display);
+    font-size: var(--fs-lg); font-weight: 400;
+    color: var(--ink-2);
+    letter-spacing: -0.01em;
+  }
+
+.pg-empty p { font-size: var(--fs-sm); color: var(--ink-3); max-width: 36ch; text-align: center; line-height: 1.6; }
+
+/* ── Note textarea in toolbar ── */
+  .pg-note-input {
+    font-size: 12px; color: var(--ink-3);
+    background: transparent;
+    border: 0;
+    border-bottom: 1px dashed transparent;
+    padding: 2px 0;
+    width: 220px;
+    font-family: var(--ff-sans);
+    transition: border-color var(--t-fast);
+    resize: none;
+    height: 22px;
+    overflow: hidden;
+  }
+
+.pg-note-input:focus { outline: none; border-color: var(--line); color: var(--ink); }
+
+.pg-note-input::placeholder { color: var(--ink-4); }

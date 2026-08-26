@@ -6,8 +6,8 @@
 ;  Purchase    : https://payhip.com/MXPhillips
 ;  Compiler    : Inno Setup 6.3+  (https://jrsoftware.org/isinfo.php)
 ;
-;  RELEASE     : Pre-Release 2  (v2.0.0)
-;  DATE        : 2026-06-23
+;  RELEASE     : Pre-Release 3  (v2.1.0)
+;  DATE        : 2026-08-15
 ;
 ;  PRE-COMPILE CHECKLIST
 ;  ─────────────────────
@@ -18,7 +18,7 @@
 ;
 ;  OUTPUT
 ;  ──────
-;  installer\PromptLibraryPro_Setup_PreRelease_2.exe
+;  installer\PromptLibraryPro_Setup_PreRelease_3.exe
 ;
 ; =============================================================================
 
@@ -29,8 +29,8 @@
 ; -----------------------------------------------------------------------------
 
 ; ── Semantic version (used for upgrade detection + Windows version info) ─────
-#define AppVersion        "2.0.0"
-#define AppVersionDisplay "Pre-Release 2"
+#define AppVersion        "2.1.0"
+#define AppVersionDisplay "Pre-Release 3"
 
 ; ── Identity ──────────────────────────────────────────────────────────────────
 #define AppName        "Prompt Library Pro"
@@ -97,17 +97,19 @@ ChangesAssociations=yes
 
 ; ── Output ────────────────────────────────────────────────────────────────────
 OutputDir=installer
-OutputBaseFilename=PromptLibraryPro_Setup_PreRelease_2
+OutputBaseFilename=PromptLibraryPro_Setup_PreRelease_3
 SetupIconFile=icon.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 UninstallDisplayName={#AppName} {#AppVersionDisplay}
 
 ; ── Compression ───────────────────────────────────────────────────────────────
-; LZMA2 ultra — smallest possible installer file.
-Compression=lzma2/ultra64
+; lzma2/max, single-threaded — ultra64 + 4 block threads was blowing past
+; ISCC.exe's 32-bit address space (each thread gets its own dictionary buffer).
+; max still gets solid LZMA2 compression, just with a smaller dictionary.
+Compression=lzma2/max
 SolidCompression=yes
 LZMAUseSeparateProcess=yes
-LZMANumBlockThreads=4
+LZMANumBlockThreads=1
 
 ; ── Wizard appearance ─────────────────────────────────────────────────────────
 WizardStyle=modern

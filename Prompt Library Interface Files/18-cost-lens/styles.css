@@ -1,0 +1,43 @@
+/* Cost Lens — CSS extracted from static/app.css */
+
+/* =============================================================
+   WORKSPACE SUITE — Quick Fill, Auditor, Diff Lens, Cost Lens,
+   Library Pulse, Prompt X-Ray, Prompt Splicer (2026-07)
+   ============================================================= */
+#fillWorkspace, #auditWorkspace, #diffWorkspace, #costWorkspace,
+#pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+}
+
+#fillWorkspace.open, #auditWorkspace.open, #diffWorkspace.open, #costWorkspace.open,
+#pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open,
+#batchWorkspace.open, #boardWorkspace.open { display: flex; }
+
+/* ── Cost Lens ── */
+.cl-body { display: grid; grid-template-columns: minmax(320px, 42%) 1fr; flex: 1; overflow: hidden; }
+
+.cl-left { display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-5); border-right: 1px solid var(--line); overflow-y: auto; }
+
+.cl-right { padding: var(--sp-4) var(--sp-5); overflow-y: auto; }
+
+.cl-meta { font-size: var(--fs-xs); color: var(--ink-3); margin: var(--sp-1) 0 var(--sp-3); min-height: 16px; }
+
+.cl-controls { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+
+.cl-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+
+.cl-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ink-3); padding: 6px 10px; border-bottom: 1px solid var(--line); }
+
+.cl-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--ink-2); }
+
+.cl-disclaimer { font-size: 11px; color: var(--ink-4); margin-top: var(--sp-3); }
+
+@media (max-width: 900px) {
+.cl-body { grid-template-columns: 1fr; }
+.cl-left { border-right: none; border-bottom: 1px solid var(--line); }
+}

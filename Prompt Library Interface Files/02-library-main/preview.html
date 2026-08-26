@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="en-GB" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Library main view (toolbar, grid, list, folders) — reference</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100..800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link rel="stylesheet" href="../_shared/shared.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main id="main">
+
+    <header id="contentHeader">
+      <div class="header-top">
+        <button class="icon-btn" id="sidebarToggleBtn" title="Toggle sidebar" aria-label="Toggle sidebar">
+          <span class="material-symbols-outlined">menu_open</span>
+        </button>
+        <div class="header-title-group">
+          <div id="breadcrumb"></div>
+          <h1 id="viewTitle">Library</h1>
+          <p class="header-substat">
+            <span id="viewCount">0 prompts</span>
+            <span class="header-substat-sep" id="viewFolderSep" hidden>&middot;</span>
+            <span id="viewFolderCount" hidden></span>
+          </p>
+        </div>
+        <div id="searchWrap">
+          <span class="material-symbols-outlined">search</span>
+          <input type="search" id="searchInput" placeholder="Search prompts, descriptions, tags..." autocomplete="off" />
+          <span class="search-kbd">/</span>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn premium-locked" data-premium="true" id="cmdBtn" title="Command palette (Ctrl+K) - Pro" aria-label="Open command palette">
+            <span class="material-symbols-outlined">bolt</span>
+          </button>
+          <button class="btn btn-accent" id="newPromptBtn">
+            <span class="material-symbols-outlined">add</span>
+            <span>New prompt</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="folderViewActions" class="filter-bar" style="display:none; margin-bottom: var(--sp-3);"></div>
+
+      <div class="header-controls" id="libraryFilterBar">
+        <input type="checkbox" id="bulkSelectAllCheckbox" title="Select all visible prompts" aria-label="Select all visible prompts" />
+
+        <div class="filter-pop-wrap">
+          <button class="chip" id="filtersBtn" aria-expanded="false" aria-controls="filtersPop" title="Filters">
+            <span class="material-symbols-outlined">filter_list</span>
+            Filters
+            <span class="chip-count" id="filtersCount" hidden>0</span>
+          </button>
+          <div class="filter-pop" id="filtersPop" hidden role="group" aria-label="Filters">
+            <button class="chip" id="filterFavChip">
+              <span class="material-symbols-outlined">star</span>
+              Favourites
+            </button>
+            <button class="chip premium-locked" id="filterRatedChip" data-premium="true">
+              <span class="material-symbols-outlined">star_rate</span>
+              Rated
+            </button>
+          </div>
+        </div>
+
+        <select id="sortSelect" aria-label="Sort prompts">
+          <optgroup label="Date">
+            <option value="updated">Recently updated</option>
+            <option value="created">Newest first</option>
+            <option value="created_asc">Oldest first</option>
+          </optgroup>
+          <optgroup label="Title">
+            <option value="title">Title A-Z</option>
+            <option value="title_desc">Title Z-A</option>
+          </optgroup>
+          <optgroup label="Usage">
+            <option value="used">Most used</option>
+            <option value="used_asc">Least used</option>
+          </optgroup>
+          <optgroup label="Other">
+            <option value="rating">Top rated</option>
+            <option value="favorites">Favourites first</option>
+            <option value="colour">By colour label</option>
+            <option value="manual">Manual order</option>
+          </optgroup>
+        </select>
+
+        <button class="chip" id="activeFilterPill" hidden>
+          <span class="material-symbols-outlined">close</span>
+          <span id="activeFilterLabel"></span>
+        </button>
+
+        <div class="header-controls-right">
+          <div class="view-toggle" id="viewToggle">
+            <button data-mode="list" class="active" title="List view" aria-label="List view">
+              <span class="material-symbols-outlined">view_agenda</span>
+            </button>
+            <button data-mode="grid" title="Grid view" aria-label="Grid view">
+              <span class="material-symbols-outlined">grid_view</span>
+            </button>
+          </div>
+          <button class="icon-btn" id="groupFolderBtn" title="Group by folder" aria-label="Group by folder">
+            <span class="material-symbols-outlined">folder_special</span>
+          </button>
+          <button class="icon-btn" id="surpriseMeBtn" title="Open a random prompt" aria-label="Surprise me">
+            <span class="material-symbols-outlined">shuffle</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="bulk-toolbar" id="bulkToolbar" hidden>
+      <span id="bulkCount">0 selected</span>
+      <select id="bulkTagSelect">
+        <option value="">Add tag…</option>
+        <option value="__new__">+ New tag…</option>
+      </select>
+      <select id="bulkFolderSelect">
+        <option value="">Move to folder…</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" id="bulkDeleteBtn">Delete</button>
+      <button class="btn btn-ghost btn-sm" id="bulkClearBtn">Clear selection</button>
+    </div>
+
+    <div id="content">
+      <div id="promptsContainer" class="list-view"></div>
+    </div>
+
+    <!-- ============================================================
+         DETAIL PANEL
+         ============================================================ -->
+    <aside id="detailPanel" aria-hidden="true">
+      <div class="detail-header">
+        <div class="detail-actions">
+          <button class="icon-btn" id="panelFavBtn" title="Toggle favourite">
+            <span class="material-symbols-outlined">favorite</span>
+          </button>
+          <button class="icon-btn premium-locked" id="panelDuplicateBtn" data-premium="true" title="Duplicate">
+            <span class="material-symbols-outlined">content_copy</span>
+          </button>
+          <button class="icon-btn" id="panelEditBtn" title="Edit">
+            <span class="material-symbols-outlined">edit</span>
+          </button>
+          <button class="icon-btn danger" id="panelDeleteBtn" title="Delete">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
+        </div>
+        <button class="icon-btn" id="closeDetailPanel" title="Close" aria-label="Close panel">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <nav class="detail-tabs">
+        <button class="detail-tab active" data-tab="prompt">Prompt</button>
+        <button class="detail-tab premium-locked" data-tab="notes" data-premium="true">Notes &amp; rating <span class="lock material-symbols-outlined">lock</span></button>
+        <button class="detail-tab premium-locked" data-tab="chain" data-premium="true">Chain <span class="lock material-symbols-outlined">lock</span></button>
+        <button class="detail-tab premium-locked" data-tab="history" data-premium="true">History <span class="lock material-symbols-outlined">lock</span></button>
+      </nav>
+
+      <div id="detailBody">
+
+        <div class="detail-tab-pane active" id="tab-prompt">
+          <div id="detailChips" class="detail-chips"></div>
+          <h2 id="detailTitle"></h2>
+          <div id="detailRoleChip" class="detail-role-chip" hidden></div>
+          <p id="detailDesc"></p>
+
+          <div class="detail-section-label">
+            Prompt
+            <span class="vars-badge" id="detailVarBadge" hidden>
+              <span class="material-symbols-outlined">token</span>
+              <span id="detailVarCount">0 variables</span>
+            </span>
+          </div>
+          <div id="detailPromptText"></div>
+
+          <div id="usePromptSection" hidden>
+            <div class="detail-section-label">
+              Fill variables
+              <span id="varFillProgress" style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;"></span>
+            </div>
+            <div class="var-fill-progress-bar"><div class="var-fill-progress-fill" id="varFillProgressFill" style="width:0%"></div></div>
+            <div id="variableFields"></div>
+            <div class="var-preview-wrap" id="varPreviewWrap" hidden>
+              <div class="var-preview-label">Live preview</div>
+              <div class="var-preview-box" id="varPreviewBox"></div>
+            </div>
+            <button class="btn btn-primary var-copy-btn" id="varCopyFilledBtn">
+              <span class="material-symbols-outlined">content_copy</span>
+              Copy filled prompt
+            </button>
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta-cell">
+              <span class="material-symbols-outlined">calendar_month</span>
+              <div>
+                <div class="meta-label">Created</div>
+                <div class="meta-value" id="metaCreated">-</div>
+              </div>
+            </div>
+            <div class="meta-cell">
+              <span class="material-symbols-outlined">bolt</span>
+              <div>
+                <div class="meta-label">Total uses</div>
+                <div class="meta-value" id="metaUseCount">0</div>
+              </div>
+            </div>
+            <div class="meta-cell">
+              <span class="material-symbols-outlined">folder</span>
+              <div>
+                <div class="meta-label">Folder</div>
+                <div class="meta-value" id="metaFolder">-</div>
+              </div>
+            </div>
+            <div class="meta-cell">
+              <span class="material-symbols-outlined">schedule</span>
+              <div>
+                <div class="meta-label">Last used</div>
+                <div class="meta-value" id="metaLastUsed">Never</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-tab-pane" id="tab-notes">
+          <div class="detail-section-label">Rating</div>
+          <div class="stars" id="detailRatingStars"></div>
+          <div class="detail-section-label" style="margin-top: var(--sp-5)">Personal notes</div>
+          <textarea class="form-textarea" id="detailNotes" rows="6" placeholder="Notes, reminders, things to revise..."></textarea>
+          <button class="btn btn-primary" id="saveNotesBtn" style="margin-top: var(--sp-3); width: 100%; justify-content: center;">
+            <span class="material-symbols-outlined">save</span>
+            Save notes &amp; rating
+          </button>
+        </div>
+
+        <div class="detail-tab-pane" id="tab-chain">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: var(--sp-3);">
+            <p style="font-size: var(--fs-sm); color: var(--ink-3); margin:0;">
+              Steps in this prompt's workflow.
+            </p>
+            <button class="btn btn-accent" id="runChainBtn" style="display:none; font-size: 12px; padding: 6px 12px;">
+              <span class="material-symbols-outlined" style="font-size:15px;">play_arrow</span>
+              Run chain
+            </button>
+          </div>
+          <div id="detailChainSteps"></div>
+          <div id="chainRunnerWrap" style="display:none;"></div>
+          <p id="detailChainEmpty" class="hidden" style="font-size: var(--fs-sm); color: var(--ink-3);">
+            No chain yet. Edit this prompt to add steps.
+          </p>
+        </div>
+
+        <div class="detail-tab-pane" id="tab-history">
+          <p style="font-size: var(--fs-sm); color: var(--ink-3); margin-bottom: var(--sp-3);">
+            Up to 20 versions kept per prompt. Click any version to restore.
+          </p>
+          <div id="versionList"></div>
+          <p id="versionEmpty" class="hidden" style="font-size: var(--fs-sm); color: var(--ink-3);">
+            No previous versions.
+          </p>
+        </div>
+
+      </div>
+
+      <div class="detail-footer">
+        <button class="icon-btn" id="footerExportBtn" title="Export this prompt as JSON">
+          <span class="material-symbols-outlined">ios_share</span>
+        </button>
+        <button class="icon-btn premium-locked" id="footerMdBtn" data-premium="true" title="Export as Markdown">
+          <span class="material-symbols-outlined">description</span>
+        </button>
+        <button class="btn btn-accent" id="copyToClipboardBtn">
+          <span class="material-symbols-outlined">content_copy</span>
+          Copy to clipboard
+        </button>
+      </div>
+    </aside>
+
+  
+  <!-- AGENT WORKSPACE -->
+  <div id="rolesWorkspace" role="dialog" aria-modal="true" aria-label="Agent workspace">
+
+    <!-- Header -->
+    <div class="roles-header">
+      <span class="material-symbols-outlined" style="font-size:24px;color:var(--accent)">smart_toy</span>
+      <h2>Agents</h2>
+      <button class="btn btn-ghost" id="rolesNewBtn"><span class="material-symbols-outlined">add</span> New agent</button>
+      <button class="icon-btn" id="rolesCloseBtn" title="Close" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+
+    <div class="roles-body">
+
+      <!-- Left pane: agent list -->
+      <div class="roles-list-pane">
+        <div class="roles-list-search">
+          <input type="search" id="rolesSearch" class="form-input" placeholder="Search agents…" autocomplete="off" />
+        </div>
+        <div class="roles-list-scroll" id="rolesListScroll">
+          <div class="roles-list-empty" id="rolesListEmpty" style="display:none;">
+            <span class="material-symbols-outlined" style="font-size:32px;display:block;margin-bottom:8px;">smart_toy</span>
+            No agents yet. Create one to get started.
+          </div>
+          <div id="rolesList"></div>
+        </div>
+        <!-- Stats -->
+        <div class="roles-sidebar-stats" id="rolesStats">
+          <div class="roles-stat-row">
+            <span class="material-symbols-outlined">smart_toy</span>
+            <span>Agents</span>
+            <span class="roles-stat-value" id="rolesStatAgents">0</span>
+          </div>
+          <div class="roles-stat-row">
+            <span class="material-symbols-outlined">star</span>
+            <span>Favourites</span>
+            <span class="roles-stat-value" id="rolesStatFavs">0</span>
+          </div>
+          <div class="roles-stat-row">
+            <span class="material-symbols-outlined">library_books</span>
+            <span>KB entries</span>
+            <span class="roles-stat-value" id="rolesStatKb">0</span>
+          </div>
+          <div class="roles-stat-row">
+            <span class="material-symbols-outlined">psychology</span>
+            <span>Skills</span>
+            <span class="roles-stat-value" id="rolesStatSkills">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right pane: editor -->
+      <div class="roles-editor-pane" id="rolesEditorPane">
+
+        <!-- Empty state -->
+        <div class="roles-editor-empty" id="rolesEditorEmpty">
+          <span class="material-symbols-outlined">smart_toy</span>
+          <p style="font-size:var(--fs-sm);margin:0;">Select an agent, create your own, or start from a preset:</p>
+          <div class="role-preset-grid">
+            <button type="button" class="role-preset-card" onclick="window.PL_newRoleFromPreset(0)"><span class="role-preset-icon">✍️</span><span class="role-preset-name">Senior Copywriter</span><span class="role-preset-desc">Conversion copy with zero fluff</span></button>
+            <button type="button" class="role-preset-card" onclick="window.PL_newRoleFromPreset(1)"><span class="role-preset-icon">🔍</span><span class="role-preset-name">Code Reviewer</span><span class="role-preset-desc">Severity-tagged findings, no padding</span></button>
+            <button type="button" class="role-preset-card" onclick="window.PL_newRoleFromPreset(2)"><span class="role-preset-icon">📊</span><span class="role-preset-name">Strategy Analyst</span><span class="role-preset-desc">Evidence-first structured analysis</span></button>
+            <button type="button" class="role-preset-card" onclick="window.PL_newRoleFromPreset(3)"><span class="role-preset-icon">🎓</span><span class="role-preset-name">Patient Teacher</span><span class="role-preset-desc">Analogies, small steps, no jargon</span></button>
+            <button type="button" class="role-preset-card" onclick="window.PL_newRoleFromPreset(4)"><span class="role-preset-icon">🧪</span><span class="role-preset-name">Prompt Engineer</span><span class="role-preset-desc">Diagnoses and rebuilds weak prompts</span></button>
+            <button type="button" class="role-preset-card" onclick="window.PL_newRoleFromPreset(5)"><span class="role-preset-icon">📝</span><span class="role-preset-name">Ruthless Editor</span><span class="role-preset-desc">Cuts 30% without losing meaning</span></button>
+          </div>
+        </div>
+
+        <!-- Editor form -->
+        <div id="rolesEditorForm" style="display:none;flex:1;overflow:hidden;">
+          <div class="roles-editor-main">
+
+          <div class="role-nav-tabs">
+            <button type="button" class="role-nav-tab active" data-section="identity"><span class="material-symbols-outlined">badge</span> Identity</button>
+            <button type="button" class="role-nav-tab" data-section="behaviour"><span class="material-symbols-outlined">tune</span> Behaviour</button>
+            <button type="button" class="role-nav-tab" data-section="output"><span class="material-symbols-outlined">output</span> Output &amp; Flow</button>
+            <button type="button" class="role-nav-tab" data-section="knowledge"><span class="material-symbols-outlined">library_books</span> Knowledge</button>
+            <button type="button" class="btn btn-ghost premium-locked" data-premium="true" id="rolesGenerateBtn" title="Generate entire agent with AI (Pro)" style="margin-left:auto;align-self:center;font-size:var(--fs-sm);padding:4px 12px;gap:6px;">
+              <span class="material-symbols-outlined" style="font-size:15px;">auto_awesome</span> Generate with AI
+            </button>
+          </div>
+
+          <div class="roles-editor-scroll">
+            <div id="role-section-identity" class="role-section-panel active">
+
+
+            <!-- ── CORE ───────────────────────────────────────────── -->
+            <div class="role-section-divider">
+              <span class="material-symbols-outlined">smart_toy</span>
+              <span class="role-section-divider-label">Core</span>
+            </div>
+
+            <div class="role-meta-row">
+              <button type="button" class="role-icon-picker" id="roleIconBtn" title="Click to change icon">🎯</button>
+              <div style="flex:1;">
+                <label class="form-label" for="roleNameInput">Agent name</label>
+                <input type="text" id="roleNameInput" class="form-input" placeholder="e.g. Senior Copywriter" maxlength="80" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Prompt starter</label>
+              <div class="role-starter-select">
+                <select id="rolePromptStarter" class="form-input">
+                  <option value="You are a">You are a</option>
+                  <option value="Act as a">Act as a</option>
+                  <option value="Act as an">Act as an</option>
+                  <option value="Act in the capacity of a">Act in the capacity of a</option>
+                  <option value="Act in the role of a">Act in the role of a</option>
+                  <option value="Act in the role of an">Act in the role of an</option>
+                  <option value="Act like a">Act like a</option>
+                  <option value="Act like an">Act like an</option>
+                  <option value="Adopt the persona of a">Adopt the persona of a</option>
+                  <option value="Adopt the role of a">Adopt the role of a</option>
+                  <option value="Adopt the role of an">Adopt the role of an</option>
+                  <option value="Adopt the viewpoint of a">Adopt the viewpoint of a</option>
+                  <option value="Adopt the viewpoint of an">Adopt the viewpoint of an</option>
+                  <option value="Adopt the voice of a">Adopt the voice of a</option>
+                  <option value="Assign a role to the assistant for">Assign a role to the assistant for</option>
+                  <option value="Assigned to act as a">Assigned to act as a</option>
+                  <option value="Assigned to act as an">Assigned to act as an</option>
+                  <option value="Assigned to behave as a">Assigned to behave as a</option>
+                  <option value="Assume identity as">Assume identity as</option>
+                  <option value="Assume the role of a">Assume the role of a</option>
+                  <option value="Be a">Be a</option>
+                  <option value="Be an">Be an</option>
+                  <option value="Behave as a">Behave as a</option>
+                  <option value="Behave like a">Behave like a</option>
+                  <option value="Channel the knowledge of a">Channel the knowledge of a</option>
+                  <option value="Channel the mindset of a">Channel the mindset of a</option>
+                  <option value="Channel the perspective of a">Channel the perspective of a</option>
+                  <option value="Channel the thought processes of a">Channel the thought processes of a</option>
+                  <option value="Channel the viewpoint of a">Channel the viewpoint of a</option>
+                  <option value="Chief Executive Officer (CEO)">Chief Executive Officer (CEO)</option>
+                  <option value="Chief Financial Officer (CFO)">Chief Financial Officer (CFO)</option>
+                  <option value="Chief Human Resources Officer (CHRO)">Chief Human Resources Officer (CHRO)</option>
+                  <option value="Chief Information Officer (CIO)">Chief Information Officer (CIO)</option>
+                  <option value="Chief Marketing Officer (CMO)">Chief Marketing Officer (CMO)</option>
+                  <option value="Chief Operating Officer (COO)">Chief Operating Officer (COO)</option>
+                  <option value="Chief Product Officer (CPO)">Chief Product Officer (CPO)</option>
+                  <option value="Chief Technology Officer (CTO)">Chief Technology Officer (CTO)</option>
+                  <option value="Conduct yourself as a">Conduct yourself as a</option>
+                  <option value="Configured to imitate a">Configured to imitate a</option>
+                  <option value="Conform to the role of a">Conform to the role of a</option>
+                  <option value="Conform to the role of an">Conform to the role of an</option>
+                  <option value="Crafted to function as a">Crafted to function as a</option>
+                  <option value="Created to embody a">Created to embody a</option>
+                  <option value="Designed to operate as a">Designed to operate as a</option>
+                  <option value="Developed to replicate a">Developed to replicate a</option>
+                  <option value="Engineered to serve as a">Engineered to serve as a</option>
+                  <option value="Explain how this prompt functions">Explain how this prompt functions</option>
+                  <option value="Function as a">Function as a</option>
+                  <option value="Generate four prompt styles for">Generate four prompt styles for</option>
+                  <option value="Generate three prompt styles for">Generate three prompt styles for</option>
+                  <option value="Generate two prompt styles for">Generate two prompt styles for</option>
+                  <option value="Handle tasks like a">Handle tasks like a</option>
+                  <option value="Handle the responsibilities of a">Handle the responsibilities of a</option>
+                  <option value="Harness insights of a">Harness insights of a</option>
+                  <option value="Harness the expertise of a">Harness the expertise of a</option>
+                  <option value="Harness the knowledge of a">Harness the knowledge of a</option>
+                  <option value="Harness the mindset of a">Harness the mindset of a</option>
+                  <option value="Head of Customer Success">Head of Customer Success</option>
+                  <option value="Head of Data Science">Head of Data Science</option>
+                  <option value="Head of Design">Head of Design</option>
+                  <option value="Head of Engineering">Head of Engineering</option>
+                  <option value="Head of Product">Head of Product</option>
+                  <option value="Head of Sales">Head of Sales</option>
+                  <option value="Head of Security">Head of Security</option>
+                  <option value="Head up as a">Head up as a</option>
+                  <option value="Help adopt the role of a">Help adopt the role of a</option>
+                  <option value="Help behave as a">Help behave as a</option>
+                  <option value="Help channel the mindset of a">Help channel the mindset of a</option>
+                  <option value="Help embody the role of a">Help embody the role of a</option>
+                  <option value="Help me think like a">Help me think like a</option>
+                  <option value="Help operate as a">Help operate as a</option>
+                  <option value="Help perform as a">Help perform as a</option>
+                  <option value="Highlight the thinking of a">Highlight the thinking of a</option>
+                  <option value="Hold the perspective of a">Hold the perspective of a</option>
+                  <option value="Hold the role of a">Hold the role of a</option>
+                  <option value="Hold yourself as a">Hold yourself as a</option>
+                  <option value="Hone skills like a">Hone skills like a</option>
+                  <option value="Honor the role of a">Honor the role of a</option>
+                  <option value="Hypothesize as a">Hypothesize as a</option>
+                  <option value="Identify as a">Identify as a</option>
+                  <option value="Imbibe the perspective of a">Imbibe the perspective of a</option>
+                  <option value="Imitate the role of a">Imitate the role of a</option>
+                  <option value="Implement the role of a">Implement the role of a</option>
+                  <option value="Indulge in the role of a">Indulge in the role of a</option>
+                  <option value="Inhabit the role of a">Inhabit the role of a</option>
+                  <option value="Inspired to act as a">Inspired to act as a</option>
+                  <option value="Inspired to act as an">Inspired to act as an</option>
+                  <option value="Inspired to behave as a">Inspired to behave as a</option>
+                  <option value="Instructed to behave as a">Instructed to behave as a</option>
+                  <option value="Integrate the expertise of a">Integrate the expertise of a</option>
+                  <option value="Invoke the mindset of a">Invoke the mindset of a</option>
+                  <option value="Invoke the persona of a">Invoke the persona of a</option>
+                  <option value="Mimic the behavior of a">Mimic the behavior of a</option>
+                  <option value="Mimic the role of a">Mimic the role of a</option>
+                  <option value="Now act as a">Now act as a</option>
+                  <option value="Now behave as a">Now behave as a</option>
+                  <option value="Now function as a">Now function as a</option>
+                  <option value="Now operate as a">Now operate as a</option>
+                  <option value="Now portray the role of a">Now portray the role of a</option>
+                  <option value="Now take on the role of a">Now take on the role of a</option>
+                  <option value="Now you are a">Now you are a</option>
+                  <option value="Now you are acting as an">Now you are acting as an</option>
+                  <option value="Now you are assigned the duties of a">Now you are assigned the duties of a</option>
+                  <option value="Now you are built to act as a">Now you are built to act as a</option>
+                  <option value="Now you are built to function as">Now you are built to function as</option>
+                  <option value="Now you are built to operate as">Now you are built to operate as</option>
+                  <option value="You are acting as an">You are acting as an</option>
+                  <option value="You are assigned the duties of a">You are assigned the duties of a</option>
+                  <option value="You are built to act as a">You are built to act as a</option>
+                  <option value="You are built to function as">You are built to function as</option>
+                  <option value="You are built to operate as">You are built to operate as</option>
+                  <option value="You are built to perform as">You are built to perform as</option>
+                  <option value="You are built to perform as a">You are built to perform as a</option>
+                  <option value="You are built to serve as">You are built to serve as</option>
+                  <option value="You are built to serve as a">You are built to serve as a</option>
+                  <option value="You are channeling the knowledge of a">You are channeling the knowledge of a</option>
+                  <option value="You are configured to function as">You are configured to function as</option>
+                  <option value="You are demonstrating the capabilities of a">You are demonstrating the capabilities of a</option>
+                  <option value="You are designed to act as a">You are designed to act as a</option>
+                  <option value="You are designed to function as">You are designed to function as</option>
+                  <option value="You are designed to function as a">You are designed to function as a</option>
+                  <option value="You are designed to operate as">You are designed to operate as</option>
+                  <option value="You are designed to operate as a">You are designed to operate as a</option>
+                  <option value="You are embodying the expertise of a">You are embodying the expertise of a</option>
+                  <option value="You are embodying the role of a">You are embodying the role of a</option>
+                  <option value="You are embodying the role of an">You are embodying the role of an</option>
+                  <option value="You are engineered to serve as a">You are engineered to serve as a</option>
+                  <option value="You are instructed to behave as a">You are instructed to behave as a</option>
+                  <option value="You are made to perform as">You are made to perform as</option>
+                  <option value="You are made to perform as a">You are made to perform as a</option>
+                  <option value="You are molded to perform as">You are molded to perform as</option>
+                  <option value="You are now acting as a">You are now acting as a</option>
+                  <option value="You are now adopting the role of a">You are now adopting the role of a</option>
+                  <option value="You are now channeling the mindset of a">You are now channeling the mindset of a</option>
+                  <option value="You are now functioning as a">You are now functioning as a</option>
+                  <option value="You are now operating in the capacity of a">You are now operating in the capacity of a</option>
+                  <option value="You are now portraying the role of a">You are now portraying the role of a</option>
+                  <option value="You are now speaking from the viewpoint of a">You are now speaking from the viewpoint of a</option>
+                  <option value="You are now taking on the role of a">You are now taking on the role of a</option>
+                  <option value="You are optimized to function as">You are optimized to function as</option>
+                  <option value="You are programmed to act as a">You are programmed to act as a</option>
+                  <option value="You are representing yourself as a">You are representing yourself as a</option>
+                  <option value="You are shaped to serve as">You are shaped to serve as</option>
+                  <option value="You are simulating the thought processes of a">You are simulating the thought processes of a</option>
+                  <option value="You are tailored to operate as">You are tailored to operate as</option>
+                  <option value="You are tasked with acting as">You are tasked with acting as</option>
+                  <option value="You are temporarily adopting the persona of a">You are temporarily adopting the persona of a</option>
+                  <option value="You are to assume the perspective of a">You are to assume the perspective of a</option>
+                  <option value="You are to personify a">You are to personify a</option>
+                  <option value="You have been designed as a">You have been designed as a</option>
+                  <option value="You have been designed to act as">You have been designed to act as</option>
+                  <option value="You have been trained to serve as">You have been trained to serve as</option>
+                  <option value="You were programmed to act as a">You were programmed to act as a</option>
+                  <option value="You were programmed to act as an">You were programmed to act as an</option>
+                  <option value="You were programmed to behave as a">You were programmed to behave as a</option>
+                  <option value="You were programmed to function as a">You were programmed to function as a</option>
+                  <option value="You were programmed to perform as a">You were programmed to perform as a</option>
+                  <option value="You were programmed to serve as a">You were programmed to serve as a</option>
+                  <option value="You will now act as a">You will now act as a</option>
+                  <option value="You will now behave as a">You will now behave as a</option>
+                  <option value="You will now function as a">You will now function as a</option>
+                  <option value="You will now operate as a">You will now operate as a</option>
+                  <option value="You will now portray the role of a">You will now portray the role of a</option>
+                  <option value="You will now take on the role of">You will now take on the role of</option>
+                  <option value="You will now take on the role of a">You will now take on the role of a</option>
+                  <option value="You will now take on the role of an">You will now take on the role of an</option>
+                  <option value="You will now you are a">You will now you are a</option>
+                  <option value="You will now you are acting as a">You will now you are acting as a</option>
+                  <option value="You will now you are acting as an">You will now you are acting as an</option>
+                  <option value="You will now you are acting in the role of a">You will now you are acting in the role of a</option>
+                  <option value="You will now you are acting in the role of an">You will now you are acting in the role of an</option>
+                </select>
+                <input type="text" id="roleTypeInput" class="form-input" placeholder="e.g. senior copywriter specialising in SaaS" />
+              </div>
+            </div>
+
+            <!-- ── IDENTITY & VOICE ───────────────────────────────── -->
+            <div class="role-section-divider">
+              <span class="material-symbols-outlined">record_voice_over</span>
+              <span class="role-section-divider-label">Identity &amp; Voice</span>
+            </div>
+
+            <div class="role-two-col">
+              <div class="form-group">
+                <label class="form-label" for="roleToneInput">Tone</label>
+                <input type="text" id="roleToneInput" class="form-input" placeholder="e.g. Confident, concise, no fluff" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="roleExpertiseInput">Expertise</label>
+                <input type="text" id="roleExpertiseInput" class="form-input" placeholder="e.g. Email marketing, B2B SaaS" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="rolePersonaInput">Persona <span style="color:var(--ink-4);font-weight:400;">(first-person voice — how the agent thinks and speaks)</span></label>
+              <textarea id="rolePersonaInput" class="form-input" rows="4" placeholder="e.g. I am a senior copywriter with 12 years in B2B SaaS. I write with precision, never padding. I lead with the point. My job is to make every word justify its presence…"></textarea>
+            </div>
+
+            <!-- ── GOALS & PURPOSE ───────────────────────────────── -->
+            <div class="role-section-divider">
+              <span class="material-symbols-outlined">flag</span>
+              <span class="role-section-divider-label">Goals & Purpose</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="roleGoalInput">Primary objective <span style="color:var(--ink-4);font-weight:400;">(what this agent is built to do)</span></label>
+              <input type="text" id="roleGoalInput" class="form-input" placeholder="e.g. Convert cold leads into discovery calls with high-quality outreach copy" />
+            </div>
+
+            <div class="role-two-col">
+              <div class="form-group">
+                <label class="form-label" for="roleOutcomeInput">Success looks like</label>
+                <input type="text" id="roleOutcomeInput" class="form-input" placeholder="e.g. Clear, concise output the user can send immediately" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="roleColourPicker">Agent colour</label>
+                <div class="role-colour-row">
+                  <input type="color" id="roleColourPicker" class="role-colour-input" value="#6366f1" />
+                  <span class="role-colour-label" id="roleColourLabel">#6366f1</span>
+                </div>
+              </div>
+            </div>
+
+            </div><!-- /role-section-identity -->
+            <div id="role-section-behaviour" class="role-section-panel">
+
+            <!-- ── BEHAVIOUR ──────────────────────────────────────── -->
+            <div class="role-section-divider">
+              <span class="material-symbols-outlined">tune</span>
+              <span class="role-section-divider-label">Behaviour</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Response style</label>
+              <div class="role-chip-group" id="roleStyleChips">
+                <button type="button" class="role-chip" data-val="formal">Formal</button>
+                <button type="button" class="role-chip" data-val="casual">Casual</button>
+                <button type="button" class="role-chip" data-val="direct">Direct</button>
+                <button type="button" class="role-chip" data-val="detailed">Detailed</button>
+                <button type="button" class="role-chip" data-val="concise">Concise</button>
+                <button type="button" class="role-chip" data-val="persuasive">Persuasive</button>
+                <button type="button" class="role-chip" data-val="educational">Educational</button>
+                <button type="button" class="role-chip" data-val="empathetic">Empathetic</button>
+              </div>
+              <input type="hidden" id="roleStyleInput" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="roleConstraintsInput">Constraints <span style="color:var(--ink-4);font-weight:400;">(what NOT to do)</span></label>
+              <textarea id="roleConstraintsInput" class="form-input" rows="3" placeholder="Never use jargon. Don't write lists unless asked. Avoid passive voice…"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Behaviour flags <span style="color:var(--ink-4);font-weight:400;">(rules this agent always follows)</span></label>
+              <div class="role-chip-group role-flag-chips" id="roleFlagChips">
+                <button type="button" class="role-chip role-flag-chip" data-val="no_hedging">No hedging</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="cite_sources">Cite sources</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="ask_clarify">Ask to clarify</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="step_by_step">Step-by-step</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="no_preamble">No preamble</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="show_reasoning">Show reasoning</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="use_examples">Use examples</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="stay_on_topic">Stay on topic</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="structured_output">Structured output</button>
+                <button type="button" class="role-chip role-flag-chip" data-val="no_repetition">No repetition</button>
+              </div>
+              <input type="hidden" id="roleFlagsInput" />
+            </div>
+
+            <!-- ── CONTEXT ─────────────────────────────────────────── -->
+            <div class="role-section-divider">
+              <span class="material-symbols-outlined">group</span>
+              <span class="role-section-divider-label">Context</span>
+            </div>
+
+            <div class="role-two-col">
+              <div class="form-group">
+                <label class="form-label" for="roleAudienceInput">Target audience</label>
+                <input type="text" id="roleAudienceInput" class="form-input" placeholder="e.g. B2B founders, early-stage SaaS" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="roleDomainInput">Domain / Industry</label>
+                <input type="text" id="roleDomainInput" class="form-input" placeholder="e.g. SaaS, E-commerce, Finance" />
+              </div>
+            </div>
+
+            </div><!-- /role-section-behaviour -->
+            <div id="role-section-output" class="role-section-panel">
+
+            <!-- ── OUTPUT CONTROL ────────────────────────────────── -->
+            <div class="role-section-divider">
+              <span class="material-symbols-outlined">output</span>
+              <span class="role-section-divider-label">Output Control</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Response depth</label>
+              <div class="role-chip-group role-single-select" id="roleDepthChips">
+                <button type="button" class="role-chip" data-val="quick">Quick</button>
+                <button type="button" class="role-chip" data-val="balanced">Balanced</button>
+                <button type="button" class="role-chip" data-val="deep_dive">Deep-dive</button>
+                <button type="button" class="role-chip" data-val="adaptive">Adaptive</button>
+              </div>
+              <input type="hidden" id="roleComplexityInput" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Format preference</label>
+              <div class="role-chip-group role-single-select" id="roleFormatModeChips">
+                <button type="button" class="role-chip" data-val="prose">Prose</button>
+                <button type="button" class="role-chip" data-val="bullets">Bullet-heavy</button>
+                <button type="button" class="role-chip" data-val="numbered">Numbered lists</button>
+                <button type="button" class="role-chip" data-val="headers">Sections & headers</button>
+                <button type="button" class="role-chip" data-val="code_blocks">Code blocks</button>
+              </div>
+              <input type="hidden" id="roleFormatModeInput" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="roleOutputFormatInput2">Custom output instructions <span style="color:var(--ink-4);font-weight:400;">(override format above)</span></label>
+              <input type="text" id="roleOutputFormatInput2" class="form-input" placeholder="e.g. Always end with a numbered action list. Use bold for key terms." />
+            </div>
+
+            <!-- ── WORKFLOW ────────────────────────────────────────── -->
+            <div class="role-section-divider">
+              <span class="material-symbols-outlined">account_tree</span>
+              <span class="role-section-divider-label">Workflow</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="roleTasksInput">Primary tasks <span style="color:var(--ink-4);font-weight:400;">(what this agent handles)</span></label>
+              <textarea id="roleTasksInput" class="form-input" rows="3" placeholder="Write cold emails, landing page copy, LinkedIn posts, and ad creative…"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="roleOutputFormatInput">Output format <span style="color:var(--ink-4);font-weight:400;">(how responses should be structured)</span></label>
+              <input type="text" id="roleOutputFormatInput" class="form-input" placeholder="e.g. Short paragraphs, no bullet points, end with a CTA" />
+            </div>
+
+            <!-- ── ADVANCED ──────────────────────────────────────── -->
+            <div class="role-section-divider">
+              <span class="material-symbols-outlined">settings_suggest</span>
+              <span class="role-section-divider-label">Advanced</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="roleInitInput">Opening message <span style="color:var(--ink-4);font-weight:400;">(what the agent says when first activated)</span></label>
+              <input type="text" id="roleInitInput" class="form-input" placeholder="e.g. Hi! Share what you're working on and I'll help craft the perfect copy." />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="roleMemoryInput">Persistent context <span style="color:var(--ink-4);font-weight:400;">(facts this agent always carries)</span></label>
+              <textarea id="roleMemoryInput" class="form-input" rows="3" placeholder="e.g. This agent always assumes the user is a B2B founder selling to mid-market. Product names are always capitalised." ></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="roleProcTypeInput">Interaction mode</label>
+              <div class="role-chip-group role-single-select" id="roleProcTypeChips">
+                <button type="button" class="role-chip" data-val="reactive">Reactive</button>
+                <button type="button" class="role-chip" data-val="proactive">Proactive</button>
+                <button type="button" class="role-chip" data-val="clarify_first">Clarify first</button>
+                <button type="button" class="role-chip" data-val="auto_proceed">Auto-proceed</button>
+              </div>
+              <input type="hidden" id="roleProcTypeInput" />
+            </div>
+
+            </div><!-- /role-section-output -->
+            <div id="role-section-knowledge" class="role-section-panel">
+
+            <!-- ── EXAMPLE PHRASES ─────────────────────────────────── -->
+            <div class="examples-section">
+              <div class="examples-section-header">
+                <span class="material-symbols-outlined" style="font-size:18px;color:var(--accent)">format_quote</span>
+                <span class="examples-section-title">Example phrases <span style="color:var(--ink-4);font-weight:400;font-size:11px;">(how this agent talks)</span></span>
+                <button type="button" class="btn btn-ghost examples-add-btn" onclick="window.PL_addExamplePhrase()">
+                  <span class="material-symbols-outlined">add</span> Add
+                </button>
+              </div>
+              <div id="examplePhrasesList"></div>
+            </div>
+
+            <!-- ── KNOWLEDGE BASE ──────────────────────────────────── -->
+            <div class="kb-section">
+              <div class="kb-section-header">
+                <span class="material-symbols-outlined" style="font-size:18px;color:var(--accent)">library_books</span>
+                <span class="kb-section-title">Knowledge Base</span>
+                <span class="kb-tooltip">
+                  <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle;">info</span>
+                  <span class="kb-tooltip-text">Keep entries short. Long entries hit context limits fast. Use for specific facts or examples the AI should know — not full documents.</span>
+                </span>
+                <button type="button" class="btn btn-ghost kb-add-btn" onclick="window.PL_addKbEntry()">
+                  <span class="material-symbols-outlined">add</span> Add entry
+                </button>
+              </div>
+              <div id="kbEntriesList"></div>
+            </div>
+
+            <!-- ── SKILLS ──────────────────────────────────────────── -->
+            <div class="skills-section">
+              <div class="skills-section-header">
+                <span class="material-symbols-outlined" style="font-size:18px;color:var(--accent)">psychology</span>
+                <span class="skills-section-title">Skills</span>
+                <span class="kb-tooltip">
+                  <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle;">info</span>
+                  <span class="kb-tooltip-text">Skills this agent can apply. Name, describe, and give an example of each.</span>
+                </span>
+                <button type="button" class="btn btn-ghost skills-add-btn" onclick="window.PL_addSkillEntry()">
+                  <span class="material-symbols-outlined">add</span> Add skill
+                </button>
+              </div>
+              <div id="skillEntriesList"></div>
+            </div>
+
+            </div><!-- /role-section-knowledge -->
+
+          </div><!-- /roles-editor-scroll -->
+
+          <div class="roles-editor-toolbar">
+            <button class="btn btn-accent" id="rolesSaveBtn"><span class="material-symbols-outlined">save</span> Save</button>
+            <button class="btn" id="rolesDuplicateBtn"><span class="material-symbols-outlined">content_copy</span> Duplicate</button>
+            <button class="btn btn-ghost" id="rolesDeleteBtn" style="margin-left:auto;color:var(--danger,#ef4444);"><span class="material-symbols-outlined">delete</span> Delete</button>
+          </div>
+          </div><!-- /roles-editor-main -->
+
+          <div class="roles-preview-rail">
+            <!-- ── BUILD PROMPT ────────────────────────────────────── -->
+            <div class="role-prompt-builder" id="rolePromptBuilder">
+              <div class="role-prompt-builder-header">
+                <span class="material-symbols-outlined" style="font-size:18px;color:var(--accent)">auto_awesome</span>
+                <span>Build Prompt</span>
+                <button type="button" class="btn btn-ghost premium-locked" data-premium="true" id="rolesGenerateBtn2" title="Generate persona with AI (Pro)" style="margin-left:auto;font-size:var(--fs-sm);padding:4px 10px;">
+                  <span class="material-symbols-outlined" style="font-size:15px;">auto_awesome</span> Generate with AI
+                </button>
+              </div>
+              <div class="role-prompt-preview" id="rolePromptPreview"><em>Fill in fields above to generate a formatted prompt…</em></div>
+              <div class="role-prompt-copy-row">
+                <button class="btn" onclick="window.PL_copyBuiltPrompt('structured')"><span class="material-symbols-outlined">segment</span> Copy Structured</button>
+                <button class="btn" onclick="window.PL_copyBuiltPrompt('xml')"><span class="material-symbols-outlined">code</span> Copy XML</button>
+                <button class="btn" onclick="window.PL_copyBuiltPrompt('prose')"><span class="material-symbols-outlined">article</span> Copy Prose</button>
+              </div>
+            </div>
+          </div><!-- /roles-preview-rail -->
+        </div><!-- /rolesEditorForm -->
+
+      </div><!-- /roles-editor-pane -->
+    </div><!-- /roles-body -->
+  </div><!-- /rolesWorkspace -->
+
+  <!-- CONFIG PANEL -->
+  <div id="configPanel">
+    <div class="config-panel-header">
+      <span class="material-symbols-outlined" style="font-size:18px;color:var(--accent)">settings</span>
+      <h4>Settings</h4>
+      <button class="icon-btn" id="configCloseBtn" aria-label="Close settings"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="config-panel-body">
+      <div>
+        <div class="config-section-label">AI Provider</div>
+        <div class="config-provider-tabs">
+          <button type="button" class="config-provider-tab active" data-provider="openai">OpenAI</button>
+          <button type="button" class="config-provider-tab" data-provider="anthropic">Anthropic</button>
+          <button type="button" class="config-provider-tab" data-provider="gemini">Gemini</button>
+          <button type="button" class="config-provider-tab" data-provider="openrouter">Open Router</button>
+        </div>
+        <div class="config-section-label">API Key</div>
+        <div class="config-api-row">
+          <input type="password" id="configApiKeyInput" class="form-input" placeholder="Paste your API key…" autocomplete="off" />
+        </div>
+        <div id="configModelRow" style="display:none;">
+          <div class="config-section-label" style="margin-top:var(--sp-3);">Model</div>
+          <div class="config-api-row">
+            <input type="text" id="configModelInput" class="form-input" placeholder="e.g. openai/gpt-4o-mini" autocomplete="off" />
+          </div>
+        </div>
+        <p style="font-size:11px;color:var(--ink-4);margin-top:var(--sp-2);line-height:1.5;">Stored in your local database file. Never sent anywhere except the selected provider.</p>
+      </div>
+      <button type="button" class="btn btn-accent" id="configSaveBtn" style="width:100%;">
+        <span class="material-symbols-outlined">save</span> Save settings
+      </button>
+      <div id="configStatus" style="font-size:11px;color:var(--ink-3);text-align:center;min-height:16px;"></div>
+      <hr style="margin: var(--sp-4) 0; border: none; border-top: 1px solid var(--ink-2);">
+      <div style="margin-top: var(--sp-4);">
+        <div class="config-section-label">Licence Key</div>
+        <div id="licenceStatus" style="font-size:12px;margin-bottom:var(--sp-2);padding:var(--sp-2);background:var(--bg-2);border-radius:var(--radius);border-left:4px solid var(--ink-3);">
+          <span id="licenceStatusText">Not licensed — enter your key to unlock Pro features</span>
+        </div>
+        <div class="config-api-row">
+          <input type="text" id="settingsLicenceKeyInput" class="form-input" placeholder="Enter your licence key (PROMPTLIB-PRO-XXXX-XXXX-XXXX)" autocomplete="off" />
+        </div>
+        <button type="button" class="btn btn-accent" id="licenceActivateBtn" style="width:100%; margin-top:var(--sp-2);">
+          <span class="material-symbols-outlined">vpn_key</span> Activate Licence
+        </button>
+        <div id="licenceActivateStatus" style="font-size:11px;color:var(--ink-3);text-align:center;min-height:16px;margin-top:var(--sp-2);"></div>
+        <p style="font-size:11px;color:var(--ink-4);margin-top:var(--sp-3);line-height:1.5;">
+          Don't have a key? <a href="https://payhip.com/b/WKSLO" target="_blank" style="color:var(--accent);text-decoration:none;">Buy Prompt Library Pro</a>
+        </p>
+      </div>
+    
+    </div>
+  </div>
+
+
+</main>
+
+<!-- Preview shim: workspaces are hidden until .open is set by the app. Force it visible. -->
+<script>
+(function () {
+  var root = document.body.firstElementChild;
+  if (!root) return;
+  root.classList.add('open', 'active', 'visible');
+  root.removeAttribute('hidden');
+  root.removeAttribute('aria-hidden');
+  root.style.display = '';
+  root.style.opacity = '1';
+  root.style.visibility = 'visible';
+  root.style.transform = 'none';
+  root.style.pointerEvents = 'auto';
+})();
+</script>
+
+<!-- Extracted logic. Expect console errors here: these functions were cut out of the
+     app.js IIFE and still expect state, api() and the rest of the app around them.
+     Preview is for layout and styling, not for running the feature. -->
+<script src="../_shared/shared.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

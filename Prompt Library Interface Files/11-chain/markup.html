@@ -1,0 +1,57 @@
+<div id="chainWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Chain">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">account_tree</span>
+      <div>
+        <h2 class="ws-title">Prompt Chain</h2>
+        <p class="ws-subtitle">Build a sequence of steps. Each step's output feeds the next as <code>{{input}}</code>.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-ghost" id="chainAddStepBtn"><span class="material-symbols-outlined">add</span> Add Step</button>
+      <button class="btn btn-ghost" id="chainClearBtn"><span class="material-symbols-outlined">restart_alt</span> Clear</button>
+      <button class="btn btn-ghost" id="chainAssembleBtn"><span class="material-symbols-outlined">read_more</span> Assemble</button>
+      <button class="btn btn-accent" id="chainSaveBtn"><span class="material-symbols-outlined">save</span> Save Chain</button>
+      <button class="icon-btn" id="closeChainBtn" aria-label="Close Chain"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body chain-body">
+    <!-- Step 0: Seed input -->
+    <div class="chain-seed" id="chainSeedWrap">
+      <div class="chain-seed-label">
+        <span class="material-symbols-outlined">input</span>
+        Initial Input
+        <span class="forge-hint" style="font-weight:400;color:var(--ink-3);">Passed into Step 1 as <code>{{input}}</code></span>
+      </div>
+      <textarea id="chainSeedInput" class="forge-input" rows="3" placeholder="Paste the raw material — a document, a brief, a question — that starts the chain..."></textarea>
+    </div>
+    <!-- Steps rendered by JS -->
+    <div class="chain-steps-wrap">
+      <div id="chainStepsList" class="chain-steps-list"></div>
+      <button class="chain-add-inline" id="chainAddInlineBtn" type="button">
+        <span class="material-symbols-outlined">add_circle</span> Add Step
+      </button>
+    </div>
+    <!-- Assembly preview panel (slides up from bottom) -->
+    <div class="chain-preview-panel collapsed" id="chainPreviewPanel">
+      <div class="chain-preview-header">
+        <span class="material-symbols-outlined">read_more</span>
+        Assembled Chain
+        <button class="icon-btn" id="chainPreviewCloseBtn" title="Collapse" aria-label="Collapse preview">
+          <span class="material-symbols-outlined">expand_more</span>
+        </button>
+      </div>
+      <div class="chain-preview-body">
+        <textarea id="chainPreviewText" class="chain-preview-ta" readonly placeholder="Click Assemble to preview the full prompt..."></textarea>
+        <div class="chain-preview-actions">
+          <button class="btn btn-ghost btn-sm" id="chainPreviewCopyBtn">
+            <span class="material-symbols-outlined">content_copy</span> Copy
+          </button>
+          <button class="btn btn-accent btn-sm" id="chainPreviewSaveBtn">
+            <span class="material-symbols-outlined">save</span> Save to Library
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

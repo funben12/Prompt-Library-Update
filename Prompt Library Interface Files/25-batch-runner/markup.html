@@ -1,0 +1,50 @@
+<div id="batchWorkspace" role="dialog" aria-modal="true" aria-label="Batch Runner">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">table_view</span>
+      <div>
+        <h2 class="ws-title">Batch Runner</h2>
+        <p class="ws-subtitle">Run one prompt across a list of inputs, then export the results.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-ghost" id="brClearBtn"><span class="material-symbols-outlined">restart_alt</span> Clear</button>
+      <button class="btn btn-ghost" id="brCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy all</button>
+      <button class="btn btn-ghost" id="brExportBtn"><span class="material-symbols-outlined">download</span> Export CSV</button>
+      <button class="btn btn-ghost" id="brStopBtn" hidden><span class="material-symbols-outlined">stop_circle</span> Stop</button>
+      <button class="btn btn-accent" id="brRunBtn" disabled><span class="material-symbols-outlined">play_arrow</span> Run batch</button>
+      <button class="icon-btn" id="closeBatchBtn" aria-label="Close Batch Runner"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body br-body">
+    <div class="br-left">
+      <div class="opt-section-label">Prompt <span class="qf-count-chip" id="brVarChip">0</span></div>
+      <select id="brPicker" class="forge-input qf-picker"><option value="">Load from library&hellip;</option></select>
+      <textarea id="brSource" class="forge-input" rows="7" placeholder="&hellip;or paste a prompt here. Variables like [[topic]] or {{tone}} get filled per row."></textarea>
+      <p class="br-hint" id="brModeHint">Pick a prompt or paste one to begin.</p>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">Input rows</div>
+      <textarea id="brRows" class="forge-input" rows="8" placeholder="One row per line.&#10;&#10;With 2+ variables, make the first line a CSV header naming them."></textarea>
+
+      <div class="br-controls">
+        <label class="br-model-label" for="brModel">Estimate against</label>
+        <select id="brModel" class="forge-input"></select>
+      </div>
+      <p class="br-stat" id="brStat">0 rows</p>
+      <p class="br-warn" id="brWarn" hidden></p>
+    </div>
+
+    <div class="br-right">
+      <div class="opt-section-label">Results <span class="br-progress" id="brProgress"></span></div>
+      <p class="br-empty" id="brResultsEmpty">Nothing run yet. Add rows on the left, then hit Run batch.</p>
+      <div class="br-results-wrap" id="brResultsWrap" hidden>
+        <table class="br-table">
+          <thead>
+            <tr><th>#</th><th>Input</th><th>Status</th><th>Output</th><th></th></tr>
+          </thead>
+          <tbody id="brResultsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

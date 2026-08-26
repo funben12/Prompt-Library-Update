@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en-GB" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Forge — reference</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100..800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link rel="stylesheet" href="../_shared/shared.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="forgeWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Forge">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">construction</span>
+      <div>
+        <h2 class="ws-title">Prompt Forge</h2>
+        <p class="ws-subtitle">Build a structured, production-ready prompt from its components.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-ghost" id="forgeClearBtn"><span class="material-symbols-outlined">restart_alt</span> Clear</button>
+      <button class="btn btn-accent" id="forgeSaveBtn"><span class="material-symbols-outlined">save</span> Save to Library</button>
+      <button class="icon-btn" id="closeForgeBtn" aria-label="Close Forge"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <!-- Toolbar: framework switcher + template chips -->
+  <div class="forge-toolbar">
+    <div class="forge-toolbar-section">
+      <span class="forge-toolbar-label">Framework</span>
+      <select id="forgeFrameworkSelect" class="form-input forge-framework-select">
+        <option value="custom">Custom — freestyle fields</option>
+        <option value="rtf">RTF — Role · Task · Format</option>
+        <option value="costar">CO-STAR — Context · Objective · Style · Audience · Response</option>
+        <option value="risen">RISEN — Role · Instructions · Steps · End Goal · Narrowing</option>
+        <option value="star">STAR — Situation · Task · Action · Result</option>
+        <option value="ape">APE — Action · Purpose · Expectation</option>
+        <option value="care">CARE — Context · Action · Result · Example</option>
+        <option value="craft">CRAFT — Context · Role · Action · Format · Tone</option>
+        <option value="rodes">RODES — Role · Objective · Details · Example · Steps</option>
+        <option value="trace">TRACE — Task · Reasoning · Action · Constraints · Evaluation</option>
+        <option value="code">CODE — Context · Objective · Details · Examples</option>
+        <option value="grwc">GRWC — Goal · Return Format · Warnings · Context Dump</option>
+        <option value="para">PARA — Purpose · Audience · Reasoning · Action</option>
+        <option value="scqa">SCQA — Situation · Complication · Question · Answer</option>
+        <option value="roses">ROSES — Role · Objective · Scenario · Expected Solution · Steps</option>
+        <option value="aida">AIDA — Attention · Interest · Desire · Action</option>
+        <option value="bab">BAB — Before · After · Bridge</option>
+        <option value="meta">META — Use Case · Model · Audience · Output</option>
+        <option value="grow">GROW — Goal · Reality · Options · Way Forward</option>
+        <option value="bluf">BLUF — Bottom Line · Support · Background · Action</option>
+        <option value="telos">TELOS — Task · Evidence · Logic · Output · Success</option>
+        <option value="pas">PAS — Problem · Agitate · Solution</option>
+        <option value="peel">PEEL — Point · Evidence · Explanation · Link</option>
+        <option value="prep">PREP — Point · Reason · Example · Point</option>
+        <option value="tada">TADA — Topic · Audience · Desired Outcome · Action</option>
+        <option value="costarplus">CO-STAR+ — CO-STAR with Constraints</option>
+        <option value="tot">ToT — Tree of Thought (3 paths)</option>
+
+      </select>
+    </div>
+    <div class="forge-toolbar-divider"></div>
+    <div class="forge-toolbar-section">
+      <span class="forge-toolbar-label">Templates</span>
+      <div class="forge-template-chips" id="forgeTemplateChips"></div>
+    </div>
+  </div>
+  <div class="ws-body forge-body">
+    <div class="forge-form">
+      <div id="forgeFields"><!-- Rendered by JS based on active framework --></div>
+      <div class="forge-meta-row">
+        <div class="forge-meta-group">
+          <label class="forge-meta-label" for="forgeTitleInput">Prompt title</label>
+          <input type="text" id="forgeTitleInput" class="form-input" placeholder="Give this prompt a name to save it..." />
+        </div>
+        <div class="forge-meta-group">
+          <label class="forge-meta-label" for="forgeToneSelect">Tone</label>
+          <select id="forgeToneSelect" class="form-input">
+            <option value="">— Not specified —</option>
+            <option>Professional</option><option>Conversational</option><option>Direct</option>
+            <option>Friendly</option><option>Formal</option><option>Concise</option><option>Analytical</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="forge-preview">
+      <div class="forge-preview-header">
+        <span class="forge-preview-title">Assembled prompt</span>
+        <div class="forge-preview-controls">
+          <div class="forge-format-tabs" id="forgeFormatTabs">
+            <button class="forge-format-tab active" data-format="markdown" title="Markdown headings">MD</button>
+            <button class="forge-format-tab" data-format="plain" title="Plain text">TXT</button>
+            <button class="forge-format-tab" data-format="xml" title="XML tags">XML</button>
+          </div>
+          <span id="forgeTokenCount" class="forge-char-count">~0 tokens</span>
+          <span id="forgeCharCount" class="forge-char-count">0 chars</span>
+          <button class="btn btn-ghost btn-sm" id="forgeCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy</button>
+        </div>
+      </div>
+      <div class="forge-quality-bar-wrap">
+        <div class="forge-quality-track">
+          <div class="forge-quality-bar" id="forgeQualityBar"></div>
+        </div>
+        <span class="forge-quality-label" id="forgeQualityLabel">Completeness: 0%</span>
+      </div>
+      <div id="forgeOutput" class="forge-output"><span class="hint">Fill in the fields on the left — your assembled prompt appears here live.</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Preview shim: workspaces are hidden until .open is set by the app. Force it visible. -->
+<script>
+(function () {
+  var root = document.body.firstElementChild;
+  if (!root) return;
+  root.classList.add('open', 'active', 'visible');
+  root.removeAttribute('hidden');
+  root.removeAttribute('aria-hidden');
+  root.style.display = '';
+  root.style.opacity = '1';
+  root.style.visibility = 'visible';
+  root.style.transform = 'none';
+  root.style.pointerEvents = 'auto';
+})();
+</script>
+
+<!-- Extracted logic. Expect console errors here: these functions were cut out of the
+     app.js IIFE and still expect state, api() and the rest of the app around them.
+     Preview is for layout and styling, not for running the feature. -->
+<script src="../_shared/shared.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<div id="costWorkspace" role="dialog" aria-modal="true" aria-label="Cost Lens">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">calculate</span>
+      <div>
+        <h2 class="ws-title">Cost Lens</h2>
+        <p class="ws-subtitle">Estimate tokens and running costs for a prompt across models.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="icon-btn" id="closeCostBtn" aria-label="Close Cost Lens"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body cl-body">
+    <div class="cl-left">
+      <div class="opt-section-label">Prompt</div>
+      <select id="costPicker" class="forge-input qf-picker"><option value="">Load from library…</option></select>
+      <textarea id="costInput" class="forge-input" rows="8" placeholder="Paste the prompt to estimate…"></textarea>
+      <div class="cl-meta" id="costMeta"></div>
+      <div class="cl-controls">
+        <div>
+          <label class="forge-label" for="costOutTokens">Expected output tokens</label>
+          <input type="number" id="costOutTokens" class="forge-input" value="500" min="0" step="100" />
+        </div>
+        <div>
+          <label class="forge-label" for="costRunsDay">Runs per day</label>
+          <input type="number" id="costRunsDay" class="forge-input" value="10" min="1" step="1" />
+        </div>
+      </div>
+      <div class="opt-actions" style="margin-top:var(--sp-3);">
+        <button class="btn btn-accent" id="costRunBtn"><span class="material-symbols-outlined">calculate</span> Estimate</button>
+      </div>
+    </div>
+    <div class="cl-right" id="costResults" style="display:none;">
+      <div class="opt-section-label">Cost per model</div>
+      <table class="cl-table">
+        <thead><tr><th>Model</th><th>Per run</th><th>Per day</th><th>Per month</th><th>Context used</th></tr></thead>
+        <tbody id="costTableBody"></tbody>
+      </table>
+      <p class="cl-disclaimer">Token counts are estimates (≈4 chars/token). Prices indicative as of mid-2026 — check your provider's current pricing.</p>
+    </div>
+  </div>
+</div>

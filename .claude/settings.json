@@ -1,0 +1,31 @@
+{
+  "autoMode": {
+    "environment": [
+      "$defaults",
+      "### Org-wide",
+      "**Organization**: None configured",
+      "**Cloud provider(s)**: None configured",
+      "**Repository visibility**: not queryable here — assume private (default heuristic); origin is github.com/funben12/Prompt-Library-Update",
+      "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
+      "**Secrets management**: None configured",
+      "**Default / protected branches**: main (default branch); protected-branch/ruleset status not queryable here",
+      "**CI/CD deploy targets**: None configured",
+      "**Network posture**: None configured",
+      "**Source control**: The trusted repo (funben12/Prompt-Library-Update) and its origin remote only",
+      "**Trusted internal domains**: None configured",
+      "**Trusted cloud buckets**: None configured",
+      "**Key internal services**: None configured",
+      "**Internal package registry**: None configured",
+      "**Sensitive data locations & audiences**: any file or store holding personal data, confidential business data, credentials, regulated data, or similarly sensitive material; preserve exact handles when known and share only with audiences cleared at the [named+specifics] bar",
+      "**Data retention / declassification**: None configured",
+      "**Sensitive remote targets**: any namespace, host, or container whose name carries `prod` or `production` as a whole word or name segment (hyphen/underscore/dot-delimited)",
+      "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic",
+      "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries `prod` or `production` as a whole word or name segment",
+      "### User-specific",
+      "**Primary use of Claude Code**: software development (local-first Windows desktop app, Prompt Library Pro)",
+      "**Trusted repo**: C:\\Users\\Eugene Phillips\\Documents\\GitHub\\Prompt-Library-Update and its origin remote (github.com/funben12/Prompt-Library-Update); visibility not confirmed so treat as private by default — confidential material OK there, secrets/personal/entrusted data never cleared by visibility alone",
+      "**Org-specific CLIs**: None configured",
+      "routine under Prompt-Library-Update/ prefix: bash + Python content.replace() edits to static/app.js and static/index.html (per CLAUDE.md hard rule 1, avoiding Edit/Write tool truncation on these two files); python3 update_hash.py after app.js/app.css changes; node --check static/app.js and python3 -m py_compile app.py as verification steps"
+    ]
+  }
+}

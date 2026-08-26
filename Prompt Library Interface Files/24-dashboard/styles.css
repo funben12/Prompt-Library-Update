@@ -1,0 +1,110 @@
+/* Dashboard — CSS extracted from static/app.css */
+
+/* =============================================================
+   DASHBOARD
+   ============================================================= */
+#dashboardWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+}
+
+#dashboardWorkspace.open { display: flex; }
+
+.dash-body {
+  overflow-y: auto;
+  padding: var(--sp-5);
+  gap: var(--sp-2);
+}
+
+.dash-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+}
+
+.dash-stat-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+.dash-stat-icon {
+  font-size: 22px;
+  color: var(--accent);
+}
+
+.dash-stat-num {
+  font-family: var(--ff-mono);
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.dash-stat-label {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dash-section-label {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-4);
+  margin: var(--sp-4) 0 var(--sp-2);
+}
+
+.dash-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--sp-2);
+}
+
+.dash-quick-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+
+.dash-quick-tile:hover {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.dash-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.dash-empty-hint {
+  font-size: var(--fs-sm);
+  color: var(--ink-3);
+  padding: var(--sp-3) 0;
+}
+
+@media (max-width: 700px) {
+.dash-stats { grid-template-columns: repeat(2, 1fr); }
+}

@@ -1,0 +1,17 @@
+<div id="onboardingOverlay" aria-modal="true" role="dialog" aria-label="App tour">
+  <div id="onboardingSpotlight"></div>
+  <div id="onboardingCard">
+    <div id="obProgressBar"><div id="obProgressFill"></div></div>
+    <div id="obIconWrap">
+      <span class="material-symbols-outlined" id="obIcon">auto_awesome</span>
+    </div>
+    <div id="obEyebrow"></div>
+    <div id="obTitle"></div>
+    <p id="obDesc"></p>
+    <div id="obDots"></div>
+    <div id="obActions">
+      <button class="btn btn-ghost" id="obSkipBtn" onclick="window.PL_skipOnboarding()">Skip tour</button>
+      <button class="btn btn-accent" id="obNextBtn" onclick="window.PL_onboardNext()">Next</button>
+    </div>
+  </div>
+</div>

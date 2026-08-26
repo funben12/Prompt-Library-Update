@@ -1,0 +1,312 @@
+/* Context Bank — CSS extracted from static/app.css */
+
+/* ── Context Bank ────────────────────────────────────────────────────────────
+   data-view="contextBank"  |  #contextBankWorkspace
+   ─────────────────────────────────────────────────────────────────────────── */
+
+#contextBankWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+}
+
+#contextBankWorkspace.open { display: flex; }
+
+/* Two-panel body */
+.ctx-body {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── List panel ─────────────────────────────────────────────── */
+.ctx-list-panel {
+  border-right: 1px solid var(--line);
+  background: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ctx-search-row {
+  position: relative;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.ctx-search-icon {
+  position: absolute;
+  left: calc(var(--sp-4) + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  color: var(--ink-4);
+  pointer-events: none;
+}
+
+.ctx-search-input {
+  width: 100%;
+  padding: 7px 10px 7px 32px;
+  font-size: var(--fs-sm);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  outline: none;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.ctx-search-input::placeholder { color: var(--ink-4); }
+
+.ctx-search-input:focus {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+
+.ctx-cat-row {
+  display: flex;
+  gap: 5px;
+  padding: var(--sp-3) var(--sp-4);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.ctx-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+  white-space: nowrap;
+}
+
+.ctx-pill:hover { background: var(--surface-3); color: var(--ink-2); }
+
+.ctx-pill.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+
+.ctx-meta-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.ctx-meta-stat {
+  font-size: 11px;
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.ctx-meta-stat span { font-weight: 700; color: var(--accent); }
+
+.ctx-meta-sep { color: var(--line-strong); font-size: 11px; }
+
+.ctx-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-2) 0;
+}
+
+.ctx-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-7) var(--sp-5);
+  color: var(--ink-4);
+  text-align: center;
+}
+
+.ctx-empty .material-symbols-outlined { font-size: 40px; opacity: 0.35; }
+
+.ctx-empty p { font-size: var(--fs-sm); line-height: 1.6; color: var(--ink-3); }
+
+.ctx-empty strong { color: var(--accent); }
+
+/* ── Editor panel ───────────────────────────────────────────── */
+.ctx-editor-panel {
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ctx-editor-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  flex: 1;
+  color: var(--ink-4);
+  text-align: center;
+  padding: var(--sp-7);
+}
+
+.ctx-editor-empty .material-symbols-outlined { font-size: 44px; opacity: 0.3; }
+
+.ctx-editor-empty p { font-size: var(--fs-sm); line-height: 1.7; color: var(--ink-3); }
+
+.ctx-editor-empty strong { color: var(--accent); }
+
+.ctx-editor-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.ctx-editor-top {
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+
+.ctx-editor-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.ctx-editor-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.ctx-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.ctx-field-grow { flex: 1; }
+
+.ctx-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.ctx-req { color: var(--danger); }
+
+.ctx-label-hint {
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-4);
+}
+
+.ctx-input, .ctx-select, .ctx-textarea {
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  padding: 8px 12px;
+  outline: none;
+  font-family: inherit;
+  width: 100%;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.ctx-input::placeholder, .ctx-textarea::placeholder { color: var(--ink-4); }
+
+.ctx-input:focus, .ctx-select:focus, .ctx-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+  background: var(--surface);
+}
+
+.ctx-select { cursor: pointer; }
+
+.ctx-textarea {
+  resize: vertical;
+  min-height: 200px;
+  line-height: 1.6;
+  font-family: var(--ff-mono);
+  font-size: 13px;
+}
+
+.ctx-save-confirm {
+  display: none;
+  font-size: var(--fs-sm);
+  color: var(--success);
+  font-weight: 600;
+  padding: 2px 0;
+}
+
+.ctx-editor-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+
+.ctx-delete-btn {
+  color: var(--danger) !important;
+}
+
+.ctx-delete-btn:hover {
+  background: var(--danger-soft) !important;
+  border-color: var(--danger) !important;
+}
+
+/* Entrance animation */
+#contextBankWorkspace.open .ctx-list-panel,
+#contextBankWorkspace.open .ctx-editor-panel {
+  animation: ws-fade-in var(--t-base) var(--ease-out-quart) both;
+}
+
+#contextBankWorkspace.open .ctx-editor-panel { animation-delay: 40ms; }
+
+/* =============================================================
+   LAYER: a11y - keyboard focus, asserted last.
+   The global :focus-visible rule near the top of this file is
+   defeated by later component rules that set `outline: none` on
+   their resting state (equal specificity, later in the cascade).
+   This block restores the ring for keyboard users. Do not move
+   it above those rules or it stops working.
+   ============================================================= */
+/* focus-visible re-assert */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible,
+.pcw-block-tile:focus-visible,
+.ctx-search-input:focus-visible,
+.pcw-palette-search:focus-visible,
+.sc-slider:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm, 4px);
+}

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en-GB" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Lab — reference</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100..800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link rel="stylesheet" href="../_shared/shared.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="labWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Lab">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">biotech</span>
+      <div>
+        <h2 class="ws-title">Prompt Lab</h2>
+        <p class="ws-subtitle">Write two variants. Compare. Score. Save the winner.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-ghost" id="labLoadBtn"><span class="material-symbols-outlined">download</span> Load from Library</button>
+      <button class="btn btn-ghost" id="labRunBtn"><span class="material-symbols-outlined">play_arrow</span> Run Both</button>
+      <button class="btn btn-ghost" id="labAiScoreBtn"><span class="material-symbols-outlined">psychology</span> AI Score</button>
+      <button class="btn btn-accent" id="labSaveWinnerBtn"><span class="material-symbols-outlined">emoji_events</span> Save Winner</button>
+      <button class="icon-btn" id="closeLabBtn" aria-label="Close Lab"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body lab-body">
+    <div class="lab-shared">
+      <label class="forge-label"><span class="material-symbols-outlined">input</span> Test Input <span class="forge-hint">The content both variants will process</span></label>
+      <textarea id="labInput" class="forge-input" rows="3" placeholder="Paste the input text both prompts will process..."></textarea>
+    </div>
+    <div class="lab-variants">
+      <div class="lab-variant" id="labVariantA">
+        <div class="lab-variant-header">
+          <span class="lab-variant-badge lab-badge-a">A</span>
+          <input type="text" class="lab-variant-title" placeholder="Variant A name..." value="Variant A" aria-label="Variant A name" />
+          <div class="lab-score-row">
+            <span class="lab-score-label">Score</span>
+            <div class="lab-stars" id="labStarsA"></div>
+            <input type="hidden" id="labScoreA" value="0" />
+          </div>
+        </div>
+        <textarea class="forge-input lab-variant-prompt" id="labPromptA" rows="12" placeholder="Paste or write Variant A here..."></textarea>
+        <div class="lab-output" id="labOutputA" hidden>
+          <div class="lab-output-header"><span class="material-symbols-outlined">smart_toy</span> AI Output — Variant A</div>
+          <div class="lab-output-body" id="labOutputABody"></div>
+        </div>
+        <textarea class="forge-input lab-notes" id="labNotesA" rows="2" placeholder="Notes on A — what worked, what didn't..."></textarea>
+        <button class="btn btn-ghost btn-sm lab-copy-btn" data-variant="A"><span class="material-symbols-outlined">content_copy</span> Copy A</button>
+      </div>
+      <div class="lab-vs">VS</div>
+      <div class="lab-variant" id="labVariantB">
+        <div class="lab-variant-header">
+          <span class="lab-variant-badge lab-badge-b">B</span>
+          <input type="text" class="lab-variant-title" placeholder="Variant B name..." value="Variant B" aria-label="Variant B name" />
+          <div class="lab-score-row">
+            <span class="lab-score-label">Score</span>
+            <div class="lab-stars" id="labStarsB"></div>
+            <input type="hidden" id="labScoreB" value="0" />
+          </div>
+        </div>
+        <textarea class="forge-input lab-variant-prompt" id="labPromptB" rows="12" placeholder="Paste or write Variant B here..."></textarea>
+        <div class="lab-output" id="labOutputB" hidden>
+          <div class="lab-output-header"><span class="material-symbols-outlined">smart_toy</span> AI Output — Variant B</div>
+          <div class="lab-output-body" id="labOutputBBody"></div>
+        </div>
+        <textarea class="forge-input lab-notes" id="labNotesB" rows="2" placeholder="Notes on B — what worked, what didn't..."></textarea>
+        <button class="btn btn-ghost btn-sm lab-copy-btn" data-variant="B"><span class="material-symbols-outlined">content_copy</span> Copy B</button>
+      </div>
+    </div>
+    <div class="lab-winner-bar" id="labWinnerBar" hidden>
+      <span class="material-symbols-outlined" style="color:var(--gold)">emoji_events</span>
+      <div style="flex:1;min-width:0;">
+        <span id="labWinnerText">Score both variants to see the winner.</span>
+        <div id="labAiReasoning" class="lab-ai-reasoning" hidden></div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="labSaveWinnerInlineBtn">Save winner to Library</button>
+    </div>
+  </div>
+</div>
+
+<!-- Preview shim: workspaces are hidden until .open is set by the app. Force it visible. -->
+<script>
+(function () {
+  var root = document.body.firstElementChild;
+  if (!root) return;
+  root.classList.add('open', 'active', 'visible');
+  root.removeAttribute('hidden');
+  root.removeAttribute('aria-hidden');
+  root.style.display = '';
+  root.style.opacity = '1';
+  root.style.visibility = 'visible';
+  root.style.transform = 'none';
+  root.style.pointerEvents = 'auto';
+})();
+</script>
+
+<!-- Extracted logic. Expect console errors here: these functions were cut out of the
+     app.js IIFE and still expect state, api() and the rest of the app around them.
+     Preview is for layout and styling, not for running the feature. -->
+<script src="../_shared/shared.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

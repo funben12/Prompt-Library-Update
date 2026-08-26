@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en-GB" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Playground — reference</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100..800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link rel="stylesheet" href="../_shared/shared.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="playgroundWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Playground">
+
+  <div class="pg-header">
+    <span class="material-symbols-outlined" style="font-size:22px;color:var(--accent)">science</span>
+    <span class="pg-header-title">Playground<span class="pg-header-sub">Draft, compare &amp; score prompt variants</span></span>
+    <div class="pg-header-actions">
+      <button class="btn" id="pgSaveAllBtn"><span class="material-symbols-outlined">save</span> Save</button>
+      <button class="icon-btn" id="pgCloseBtn" title="Close" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+
+  <div class="pg-body">
+
+    <div class="pg-sessions">
+      <div class="pg-sessions-header">
+        <span class="pg-sessions-title">Sessions <span id="pgSessionCount" style="color:var(--ink-2);font-weight:600">0</span></span>
+        <button class="icon-btn" id="pgNewSessionBtn" title="New session"><span class="material-symbols-outlined">add</span></button>
+      </div>
+      <div class="pg-sessions-list" id="pgSessionsList"></div>
+    </div>
+
+    <div class="pg-canvas">
+      <div class="pg-canvas-toolbar" id="pgCanvasToolbar" style="display:none;">
+        <input class="pg-session-title-input" id="pgSessionTitleInput" type="text" placeholder="Session name…" autocomplete="off" />
+        <input class="pg-note-input" id="pgSessionNoteInput" type="text" placeholder="Add a note…" autocomplete="off" />
+        <div class="pg-mode-toggle">
+          <button class="pg-mode-btn active" data-panels="1" title="Single"><span class="material-symbols-outlined">crop_square</span> 1</button>
+          <button class="pg-mode-btn" data-panels="2" title="A/B split"><span class="material-symbols-outlined">vertical_split</span> A/B</button>
+          <button class="pg-mode-btn" data-panels="3" title="3-way split"><span class="material-symbols-outlined">view_column</span> 3</button>
+        </div>
+      </div>
+      <div id="pgPanelsGrid" class="pg-panels">
+        <div class="pg-empty" id="pgEmptyState">
+          <span class="material-symbols-outlined">science</span>
+          <h3>No session selected</h3>
+          <p>Create a new session to start drafting and comparing prompt variations side-by-side.</p>
+          <button class="btn btn-accent" onclick="window._pgCreateSession()"><span class="material-symbols-outlined">add</span> New session</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Preview shim: workspaces are hidden until .open is set by the app. Force it visible. -->
+<script>
+(function () {
+  var root = document.body.firstElementChild;
+  if (!root) return;
+  root.classList.add('open', 'active', 'visible');
+  root.removeAttribute('hidden');
+  root.removeAttribute('aria-hidden');
+  root.style.display = '';
+  root.style.opacity = '1';
+  root.style.visibility = 'visible';
+  root.style.transform = 'none';
+  root.style.pointerEvents = 'auto';
+})();
+</script>
+
+<!-- Extracted logic. Expect console errors here: these functions were cut out of the
+     app.js IIFE and still expect state, api() and the rest of the app around them.
+     Preview is for layout and styling, not for running the feature. -->
+<script src="../_shared/shared.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

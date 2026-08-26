@@ -1,0 +1,66 @@
+<div id="dashboardWorkspace" role="dialog" aria-modal="true" aria-label="Dashboard">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">dashboard</span>
+      <div>
+        <h2 class="ws-title">Dashboard</h2>
+        <p class="ws-subtitle">Your library at a glance.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="icon-btn" id="closeDashboardBtn" aria-label="Close Dashboard"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body dash-body">
+    <div class="dash-stats">
+      <div class="dash-stat-tile">
+        <span class="material-symbols-outlined dash-stat-icon">menu_book</span>
+        <span class="dash-stat-num" id="dashStatPrompts">0</span>
+        <span class="dash-stat-label">Prompts</span>
+      </div>
+      <div class="dash-stat-tile">
+        <span class="material-symbols-outlined dash-stat-icon">star</span>
+        <span class="dash-stat-num" id="dashStatFavs">0</span>
+        <span class="dash-stat-label">Favourites</span>
+      </div>
+      <div class="dash-stat-tile">
+        <span class="material-symbols-outlined dash-stat-icon">category</span>
+        <span class="dash-stat-num" id="dashStatCategories">0</span>
+        <span class="dash-stat-label">Categories</span>
+      </div>
+      <div class="dash-stat-tile">
+        <span class="material-symbols-outlined dash-stat-icon">sell</span>
+        <span class="dash-stat-num" id="dashStatTags">0</span>
+        <span class="dash-stat-label">Tags</span>
+      </div>
+    </div>
+
+    <div class="dash-section-label">Quick Launch</div>
+    <div class="dash-quick-grid">
+      <button class="dash-quick-tile" data-open="openGenWorkspace">
+        <span class="material-symbols-outlined">bolt</span> Prompt Generator
+      </button>
+      <button class="dash-quick-tile" data-open="openOptimizerWorkspace">
+        <span class="material-symbols-outlined">rocket_launch</span> Prompt Optimizer
+      </button>
+      <button class="dash-quick-tile" data-open="openComponentsWorkspace">
+        <span class="material-symbols-outlined">extension</span> Prompt Components
+      </button>
+      <button class="dash-quick-tile" data-open="openForgeWorkspace">
+        <span class="material-symbols-outlined">construction</span> Prompt Forge
+      </button>
+      <button class="dash-quick-tile" id="dashSeeAllBtn">
+        <span class="material-symbols-outlined">grid_view</span> See all workspaces
+      </button>
+    </div>
+
+    <div class="dash-section-label">Recent Prompts</div>
+    <div class="dash-recent-list" id="dashRecentList">
+      <div class="dash-empty-hint">No prompts yet — create your first one from the Library.</div>
+    </div>
+
+    <button class="btn btn-accent" id="dashGoLibraryBtn" style="align-self:flex-start;margin-top:var(--sp-2);">
+      <span class="material-symbols-outlined">menu_book</span> Go to Library
+    </button>
+  </div>
+</div>

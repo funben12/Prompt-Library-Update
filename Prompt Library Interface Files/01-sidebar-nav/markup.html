@@ -1,0 +1,113 @@
+<aside id="sidebar">
+  <div class="brand">
+    <div class="brand-mark">P</div>
+    <div>
+      <span class="brand-name">Prompt Library</span>
+      <span class="brand-pro" id="premiumBadge" hidden>PRO</span>
+    </div>
+  </div>
+
+  <nav class="nav-section">
+    <button class="nav-item active" data-view="library" title="Library">
+      <span class="material-symbols-outlined">menu_book</span>
+      <span>Library</span>
+      <span class="nav-count" id="libraryCount">0</span>
+    </button>
+    <button class="nav-item" data-view="favorites">
+      <span class="material-symbols-outlined">star</span>
+      <span>Favourites</span>
+      <span class="nav-count" id="favCount">0</span>
+    </button>
+    <button class="nav-item premium-locked" data-view="analytics" data-premium="true" id="analyticsNavBtn">
+      <span class="material-symbols-outlined">monitoring</span>
+      <span>Analytics</span>
+      <span class="nav-lock material-symbols-outlined">lock</span>
+    </button>
+    <button class="nav-item" data-view="workspaces" id="workspacesNavBtn" title="Workspaces — browse all tools">
+      <span class="material-symbols-outlined">grid_view</span>
+      <span>Workspaces</span>
+    </button>
+    <button class="nav-item premium-locked" data-view="board" data-premium="true" id="boardNavBtn" title="Prompt Board — pin prompts into curated boards">
+      <span class="material-symbols-outlined">dashboard_customize</span>
+      <span>Prompt Board</span>
+      <span class="nav-lock material-symbols-outlined">lock</span>
+    </button>
+  </nav>
+
+  <div id="sidebarScroll">
+
+    <div class="nav-section">
+      <div class="nav-section-label" data-toggle="folders" aria-expanded="false">
+        <span>Folders <span class="nav-section-count" id="foldersSectionCount"></span></span>
+        <span style="display:inline-flex; align-items:center; gap:4px;">
+          <button class="nav-icon-btn" id="newFolderBtn" title="New folder" aria-label="New folder">
+            <span class="material-symbols-outlined">add</span>
+          </button>
+          <span class="material-symbols-outlined chev">expand_more</span>
+        </span>
+      </div>
+      <div class="nav-section-content" id="folders-content">
+        <div id="foldersList" class="filter-list"></div>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label" data-toggle="categories" aria-expanded="false">
+        <span>Categories <span class="nav-section-count" id="categoriesSectionCount"></span></span>
+        <span class="material-symbols-outlined chev">expand_more</span>
+      </div>
+      <div class="nav-section-content" id="categories-content">
+        <div id="categoriesList" class="filter-list"></div>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label" data-toggle="tags" aria-expanded="false">
+        <span>Tags <span class="nav-section-count" id="tagsSectionCount"></span></span>
+        <span style="display:inline-flex; align-items:center; gap:4px;">
+          <button class="nav-icon-btn" id="tagManagerBtn" title="Manage tags" aria-label="Manage tags">
+            <span class="material-symbols-outlined">tune</span>
+          </button>
+          <span class="material-symbols-outlined chev">expand_more</span>
+        </span>
+      </div>
+      <div class="nav-section-content" id="tags-content">
+        <div class="tag-search" id="tagSearchWrap" hidden>
+          <span class="material-symbols-outlined">search</span>
+          <input type="text" id="tagSearchInput" placeholder="Filter tags..." autocomplete="off" aria-label="Filter tags">
+        </div>
+        <div id="tagsList" class="filter-list"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-footer-row">
+      <button class="sidebar-footer-btn" id="importBtn">
+        <span class="material-symbols-outlined">upload</span>
+        <span>Import</span>
+      </button>
+      <button class="sidebar-footer-btn" id="exportBtn">
+        <span class="material-symbols-outlined">download</span>
+        <span>Export</span>
+      </button>
+    </div>
+    <button class="sidebar-footer-btn" id="themeToggleBtn">
+      <span class="material-symbols-outlined" id="themeIcon">dark_mode</span>
+      <span id="themeLabel">Dark mode</span>
+    </button>
+    <button class="sidebar-footer-btn" id="licenceBtn">
+      <span class="material-symbols-outlined">workspace_premium</span>
+      <span id="licenceBtnLabel">Unlock Pro</span>
+    </button>
+    <button class="sidebar-footer-btn" id="configToggleBtn" title="API settings" aria-label="Open API settings">
+      <span class="material-symbols-outlined">settings</span>
+      <span>API settings</span>
+    </button>
+    <button class="sidebar-footer-btn" id="tourBtn" title="App tour — replay the guided tour" aria-label="Replay app tour" onclick="window.PL_startOnboarding && window.PL_startOnboarding()">
+      <span class="material-symbols-outlined">auto_awesome</span>
+      <span>App tour</span>
+    </button>
+  </div>
+</aside>

@@ -1,0 +1,36 @@
+<div id="spliceWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Splicer">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">call_merge</span>
+      <div>
+        <h2 class="ws-title">Prompt Splicer</h2>
+        <p class="ws-subtitle">Take the best parts of two prompts and merge them into one.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-accent" id="splRunBtn"><span class="material-symbols-outlined">call_merge</span> Splice</button>
+      <button class="icon-btn" id="closeSpliceBtn" aria-label="Close Prompt Splicer"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body spl-body">
+    <div class="spl-inputs">
+      <div class="dif-col">
+        <div class="opt-section-label">Prompt A</div>
+        <select id="splPickerA" class="forge-input qf-picker"><option value="">Load from library…</option></select>
+        <textarea id="splInputA" class="forge-input" rows="6" placeholder="Paste prompt A…"></textarea>
+      </div>
+      <div class="dif-col">
+        <div class="opt-section-label">Prompt B</div>
+        <select id="splPickerB" class="forge-input qf-picker"><option value="">Load from library…</option></select>
+        <textarea id="splInputB" class="forge-input" rows="6" placeholder="Paste prompt B…"></textarea>
+      </div>
+    </div>
+    <div class="spl-grid" id="splGrid"></div>
+    <div class="opt-section-label" style="margin-top:var(--sp-2);">Hybrid result</div>
+    <div class="opt-output spl-preview" id="splPreview"><span class="hint">Splice two prompts to build a hybrid…</span></div>
+    <div class="opt-actions" id="splActions" style="display:none;">
+      <button class="btn btn-ghost" id="splCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy</button>
+      <button class="btn btn-accent" id="splSaveBtn"><span class="material-symbols-outlined">save</span> Save to Library</button>
+    </div>
+  </div>
+</div>

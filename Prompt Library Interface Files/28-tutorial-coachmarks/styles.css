@@ -1,0 +1,130 @@
+/* Tutorial coachmark card — CSS extracted from static/app.css */
+
+#tutorialCard {
+  position: fixed;
+  z-index: 9995;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25), 0 4px 16px rgba(0,0,0,0.12);
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  padding: 0;
+  display: none;
+  flex-direction: column;
+  overflow: visible;
+  transition: top 0.35s cubic-bezier(0.4,0,0.2,1),
+              left 0.35s cubic-bezier(0.4,0,0.2,1);
+}
+
+#tutorialCard.active {
+  display: flex;
+}
+
+.tour-progress {
+  display: flex;
+  gap: 5px;
+  padding: var(--sp-3) var(--sp-4) 0;
+}
+
+.tour-card-body {
+  padding: var(--sp-4) var(--sp-5) var(--sp-3);
+}
+
+.tour-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), color-mix(in oklch, var(--accent) 70%, white));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 18px;
+  margin-bottom: var(--sp-3);
+}
+
+.tour-icon .material-symbols-outlined {
+  font-size: 18px;
+  color: #fff;
+}
+
+.tour-title {
+  font-family: var(--ff-display);
+  font-size: var(--fs-lg);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--ink-1);
+  margin-bottom: var(--sp-2);
+}
+
+.tour-body {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  line-height: 1.65;
+}
+
+.tour-body p { margin-bottom: var(--sp-2); }
+
+.tour-body p:last-child { margin-bottom: 0; }
+
+.tour-body ul {
+  padding-left: var(--sp-4);
+  margin: var(--sp-2) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tour-body li { line-height: 1.5; }
+
+.tour-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  border-top: 1px solid var(--border);
+  gap: var(--sp-2);
+}
+
+.tour-skip {
+  font-size: 12px;
+  color: var(--ink-3);
+  padding: 4px 8px;
+}
+
+.tour-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.tour-back {
+  font-size: var(--fs-sm);
+  padding: 6px 12px;
+}
+
+.tour-next {
+  font-size: var(--fs-sm);
+  padding: 6px 14px;
+}
+
+/* Arrow pointer */
+.tour-arrow {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transform: rotate(45deg);
+  z-index: 9994;
+  display: none;
+}
+
+.tour-arrow.left { left: -7px;  top: 50%;  transform: translateY(-50%) rotate(45deg);  border-right: none; border-top: none; }
+
+.tour-arrow.right { right: -7px; top: 50%;  transform: translateY(-50%) rotate(45deg);  border-left: none; border-bottom: none; }
+
+.tour-arrow.top { top: -7px;   left: 50%; transform: translateX(-50%) rotate(45deg); border-right: none; border-bottom: none; }
+
+.tour-arrow.bottom { bottom: -7px; left: 50%; transform: translateX(-50%) rotate(45deg); border-left: none; border-top: none; }

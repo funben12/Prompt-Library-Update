@@ -1,0 +1,220 @@
+/* Sidebar / primary navigation — CSS extracted from static/app.css */
+
+@layer layout {
+body.sidebar-hidden #sidebar {
+    transform: translateX(calc(-1 * var(--sidebar-w)));
+    pointer-events: none;
+    opacity: 0;
+  }
+#sidebar {
+    grid-column: 1;
+    width: var(--sidebar-w);   /* explicit width — makes translateX(-sidebar-w) work */
+    background: var(--surface-2);
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    transition: transform var(--t-base) var(--ease-out-quart),
+                opacity var(--t-fast) linear;
+    z-index: var(--z-sidebar);
+  }
+}
+
+@layer components {
+.brand {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-5) var(--sp-5) var(--sp-4);
+  }
+.brand-mark {
+    width: 32px; height: 32px;
+    border-radius: var(--r-sm);
+    display: grid; place-items: center;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: var(--ff-display);
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: -0.02em;
+    font-variation-settings: "opsz" 24, "SOFT" 50;
+  }
+.brand-name {
+    font-family: var(--ff-display);
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    font-variation-settings: "opsz" 32, "SOFT" 40;
+  }
+.brand-pro {
+    font-family: var(--ff-sans);
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.16em;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 2px 6px; border-radius: 4px;
+    margin-left: 4px;
+  }
+.nav-section {
+    padding: 0 var(--sp-3);
+    margin-top: var(--sp-2);
+  }
+.nav-section + .nav-section { margin-top: var(--sp-4); }
+.nav-section-label {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--sp-2) var(--sp-3);
+    color: var(--ink-3);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+    cursor: pointer;
+    user-select: none;
+  }
+.nav-section-label:hover { color: var(--ink-2); }
+.nav-section-label .chev { transition: transform var(--t-base) var(--ease-out-quart); }
+.nav-section-content.collapsed { display: none; }
+.nav-section-content.collapsed ~ .chev,
+  .nav-section-label[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+.nav-icon-btn {
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    border-radius: 4px;
+    color: var(--ink-3);
+    transition: color var(--t-fast), background var(--t-fast);
+  }
+.nav-icon-btn:hover { color: var(--ink); background: var(--surface-3); }
+.nav-icon-btn .material-symbols-outlined { font-size: 16px; }
+.nav-item {
+    width: 100%;
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: 7px var(--sp-3);
+    border-radius: var(--r-sm);
+    color: var(--ink-2);
+    font-size: var(--fs-sm); font-weight: 500;
+    text-align: left;
+    transition: background var(--t-fast), color var(--t-fast);
+  }
+.nav-item:hover { background: var(--surface-3); color: var(--ink); }
+.nav-item.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+  }
+.nav-item .material-symbols-outlined { font-size: 18px; }
+.nav-count {
+    margin-left: auto;
+    font-size: 11px; font-weight: 600;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+.nav-item.active .nav-count { color: var(--accent); }
+.nav-lock { font-size: 14px !important; color: var(--ink-4); margin-left: auto; }
+/* Filter list (categories, tags) */
+  .filter-list {
+    display: flex; flex-direction: column; gap: 1px;
+  }
+/* Sidebar scroll area */
+  #sidebarScroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: var(--sp-3);
+  }
+.sidebar-footer {
+    padding: var(--sp-3);
+    border-top: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+.sidebar-footer-row { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+.sidebar-footer-btn {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: 7px var(--sp-3);
+    border-radius: var(--r-sm);
+    color: var(--ink-2);
+    font-size: var(--fs-sm);
+    transition: background var(--t-fast), color var(--t-fast);
+    justify-content: flex-start;
+  }
+.sidebar-footer-btn:hover { background: var(--surface-3); color: var(--ink); }
+.sidebar-footer-btn .material-symbols-outlined { font-size: 16px; color: var(--ink-3); }
+.sidebar-footer-btn:hover .material-symbols-outlined { color: var(--ink); }
+}
+
+@layer utilities {
+.premium-locked .nav-lock,
+  .premium-locked .lock { display: inline-flex; }
+}
+
+#configToggleBtn.active .material-symbols-outlined {
+    color: var(--accent);
+  }
+
+/* ── Nav active pip ──────────────────────────────────────────────────────── */
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 22px;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+  animation: pl-nav-pip 180ms var(--ease-out-expo) both;
+}
+
+.nav-item { position: relative; }
+
+/* ── Folder expand icon smooth ───────────────────────────────────────────── */
+.nav-section-label .chev {
+  transition: transform 200ms var(--ease-out-expo) !important;
+}
+
+/* =============================================================
+   SIDEBAR MENUS — tag cloud, tag search, section counts
+   ============================================================= */
+.nav-section-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
+#foldersList,
+#categoriesList {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+#tagsList {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.tag-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px var(--sp-3) 8px;
+  padding: 4px 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.tag-search .material-symbols-outlined {
+  font-size: 14px;
+  color: var(--ink-4);
+}
+
+.tag-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+}
+
+.tag-search:focus-within {
+  border-color: var(--accent-line);
+}

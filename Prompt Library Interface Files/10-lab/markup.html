@@ -1,0 +1,71 @@
+<div id="labWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Lab">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">biotech</span>
+      <div>
+        <h2 class="ws-title">Prompt Lab</h2>
+        <p class="ws-subtitle">Write two variants. Compare. Score. Save the winner.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-ghost" id="labLoadBtn"><span class="material-symbols-outlined">download</span> Load from Library</button>
+      <button class="btn btn-ghost" id="labRunBtn"><span class="material-symbols-outlined">play_arrow</span> Run Both</button>
+      <button class="btn btn-ghost" id="labAiScoreBtn"><span class="material-symbols-outlined">psychology</span> AI Score</button>
+      <button class="btn btn-accent" id="labSaveWinnerBtn"><span class="material-symbols-outlined">emoji_events</span> Save Winner</button>
+      <button class="icon-btn" id="closeLabBtn" aria-label="Close Lab"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body lab-body">
+    <div class="lab-shared">
+      <label class="forge-label"><span class="material-symbols-outlined">input</span> Test Input <span class="forge-hint">The content both variants will process</span></label>
+      <textarea id="labInput" class="forge-input" rows="3" placeholder="Paste the input text both prompts will process..."></textarea>
+    </div>
+    <div class="lab-variants">
+      <div class="lab-variant" id="labVariantA">
+        <div class="lab-variant-header">
+          <span class="lab-variant-badge lab-badge-a">A</span>
+          <input type="text" class="lab-variant-title" placeholder="Variant A name..." value="Variant A" aria-label="Variant A name" />
+          <div class="lab-score-row">
+            <span class="lab-score-label">Score</span>
+            <div class="lab-stars" id="labStarsA"></div>
+            <input type="hidden" id="labScoreA" value="0" />
+          </div>
+        </div>
+        <textarea class="forge-input lab-variant-prompt" id="labPromptA" rows="12" placeholder="Paste or write Variant A here..."></textarea>
+        <div class="lab-output" id="labOutputA" hidden>
+          <div class="lab-output-header"><span class="material-symbols-outlined">smart_toy</span> AI Output — Variant A</div>
+          <div class="lab-output-body" id="labOutputABody"></div>
+        </div>
+        <textarea class="forge-input lab-notes" id="labNotesA" rows="2" placeholder="Notes on A — what worked, what didn't..."></textarea>
+        <button class="btn btn-ghost btn-sm lab-copy-btn" data-variant="A"><span class="material-symbols-outlined">content_copy</span> Copy A</button>
+      </div>
+      <div class="lab-vs">VS</div>
+      <div class="lab-variant" id="labVariantB">
+        <div class="lab-variant-header">
+          <span class="lab-variant-badge lab-badge-b">B</span>
+          <input type="text" class="lab-variant-title" placeholder="Variant B name..." value="Variant B" aria-label="Variant B name" />
+          <div class="lab-score-row">
+            <span class="lab-score-label">Score</span>
+            <div class="lab-stars" id="labStarsB"></div>
+            <input type="hidden" id="labScoreB" value="0" />
+          </div>
+        </div>
+        <textarea class="forge-input lab-variant-prompt" id="labPromptB" rows="12" placeholder="Paste or write Variant B here..."></textarea>
+        <div class="lab-output" id="labOutputB" hidden>
+          <div class="lab-output-header"><span class="material-symbols-outlined">smart_toy</span> AI Output — Variant B</div>
+          <div class="lab-output-body" id="labOutputBBody"></div>
+        </div>
+        <textarea class="forge-input lab-notes" id="labNotesB" rows="2" placeholder="Notes on B — what worked, what didn't..."></textarea>
+        <button class="btn btn-ghost btn-sm lab-copy-btn" data-variant="B"><span class="material-symbols-outlined">content_copy</span> Copy B</button>
+      </div>
+    </div>
+    <div class="lab-winner-bar" id="labWinnerBar" hidden>
+      <span class="material-symbols-outlined" style="color:var(--gold)">emoji_events</span>
+      <div style="flex:1;min-width:0;">
+        <span id="labWinnerText">Score both variants to see the winner.</span>
+        <div id="labAiReasoning" class="lab-ai-reasoning" hidden></div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="labSaveWinnerInlineBtn">Save winner to Library</button>
+    </div>
+  </div>
+</div>

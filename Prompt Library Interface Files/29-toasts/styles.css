@@ -1,0 +1,14 @@
+/* Toast notifications — CSS extracted from static/app.css */
+
+@layer components {
+#toastContainer {
+    position: fixed;
+    bottom: var(--sp-5);
+    right: var(--sp-5);
+    display: flex;
+    flex-direction: column-reverse;
+    gap: var(--sp-2);
+    z-index: var(--z-toast);
+    pointer-events: none;
+  }
+}

@@ -1,0 +1,176 @@
+<div id="genWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Generator">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">bolt</span>
+      <div>
+        <h2 class="ws-title">Prompt Generator</h2>
+        <p class="ws-subtitle">Describe the task, pick a framework and techniques, and the AI engineers a complete prompt.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-accent" id="genSaveBtn"><span class="material-symbols-outlined">save</span> Save to Library</button>
+      <button class="icon-btn" id="closeGenBtn" aria-label="Close Generator"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body opt-body">
+
+    <!-- LEFT: Framework rail + prompt stats -->
+    <div class="opt-left">
+      <div class="opt-section-label">Framework</div>
+      <div class="opt-frameworks" id="genFrameworks">
+        <button class="opt-fw-btn active" data-fw="auto">Auto — AI picks the best fit</button>
+        <button class="opt-fw-btn" data-fw="rtf">RTF - Role-Task-Format</button>
+        <button class="opt-fw-btn" data-fw="costar">CO-STAR - Context-Objective-Style-Tone-Audience-Response</button>
+        <button class="opt-fw-btn" data-fw="craft">CRAFT - Context-Role-Action-Format-Tone</button>
+        <button class="opt-fw-btn" data-fw="risen">RISEN - Role-Instructions-Steps-End Goal-Narrowing</button>
+        <button class="opt-fw-btn" data-fw="ape">APE - Action-Purpose-Expectation</button>
+        <button class="opt-fw-btn" data-fw="care">CARE - Context-Action-Result-Example</button>
+        <button class="opt-fw-btn" data-fw="rodes">RODES - Role-Objective-Details-Example-Steps</button>
+        <button class="opt-fw-btn" data-fw="grwc">GRWC - Goal-Return Format-Warnings-Context</button>
+        <button class="opt-fw-btn" data-fw="scqa">SCQA - Situation-Complication-Question-Answer</button>
+        <button class="opt-fw-btn" data-fw="bab">BAB - Before-After-Bridge</button>
+        <button class="opt-fw-btn" data-fw="chain-of-thought">Chain of Thought</button>
+        <button class="opt-fw-btn" data-fw="few-shot">Few-Shot (with examples)</button>
+        <button class="opt-fw-btn" data-fw="tree-of-thought">Tree of Thought</button>
+      </div>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-5);">Prompt Stats</div>
+      <div class="opt-metrics">
+        <div class="opt-metric-row"><span>Words</span><span id="genStatWords">--</span></div>
+        <div class="opt-metric-row"><span>Tokens</span><span id="genStatTokens">--</span></div>
+        <div class="opt-metric-row"><span>Sections</span><span id="genStatSections">--</span></div>
+        <div class="opt-metric-row"><span>Placeholders</span><span id="genStatPlaceholders">--</span></div>
+      </div>
+    </div>
+
+    <!-- CENTER: Task + Techniques + Custom Instructions + Output -->
+    <div class="opt-center">
+      <div class="opt-section-label">What should the prompt do?</div>
+      <textarea id="genTaskInput" class="forge-input" rows="4" placeholder="Plain English — describe the task, not the prompt. e.g. Turn rough meeting notes into a client-ready summary email with action items..."></textarea>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">Domain</div>
+      <div class="gen-chip-row" id="genTypeChips">
+        <button class="gen-chip active" data-value="general" aria-pressed="true">General</button>
+        <button class="gen-chip" data-value="writing" aria-pressed="false">Writing</button>
+        <button class="gen-chip" data-value="coding" aria-pressed="false">Coding</button>
+        <button class="gen-chip" data-value="analysis" aria-pressed="false">Analysis</button>
+        <button class="gen-chip" data-value="business" aria-pressed="false">Business</button>
+        <button class="gen-chip" data-value="marketing" aria-pressed="false">Marketing</button>
+        <button class="gen-chip" data-value="creative" aria-pressed="false">Creative</button>
+        <button class="gen-chip" data-value="research" aria-pressed="false">Research</button>
+        <button class="gen-chip" data-value="education" aria-pressed="false">Education</button>
+      </div>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">Prompt Engineering Techniques</div>
+      <div style="display:flex;gap:var(--sp-2);margin-bottom:var(--sp-2);">
+        <button class="btn btn-ghost btn-sm" id="genSelectAllTechBtn">Select All</button>
+        <button class="btn btn-ghost btn-sm" id="genClearTechBtn">Clear</button>
+      </div>
+      <div class="opt-techniques" id="genTechniques">
+        <button class="opt-tech-btn" data-tech="persona">persona</button>
+        <button class="opt-tech-btn" data-tech="context">context</button>
+        <button class="opt-tech-btn" data-tech="chain-of-thought">chain-of-thought</button>
+        <button class="opt-tech-btn" data-tech="step-by-step">step-by-step</button>
+        <button class="opt-tech-btn" data-tech="few-shot">few-shot examples</button>
+        <button class="opt-tech-btn" data-tech="constraints">constraints</button>
+        <button class="opt-tech-btn" data-tech="guardrails">guardrails</button>
+        <button class="opt-tech-btn" data-tech="output-spec">output-spec</button>
+        <button class="opt-tech-btn" data-tech="placeholders">placeholders</button>
+        <button class="opt-tech-btn" data-tech="self-critique">self-critique</button>
+        <button class="opt-tech-btn" data-tech="edge-cases">edge-cases</button>
+        <button class="opt-tech-btn" data-tech="success-criteria">success-criteria</button>
+        <button class="opt-tech-btn" data-tech="audience-fit">audience-fit</button>
+        <button class="opt-tech-btn" data-tech="negative">negative prompts</button>
+        <button class="opt-tech-btn" data-tech="delimiters">delimiters</button>
+        <button class="opt-tech-btn" data-tech="xml-structure">xml-structure</button>
+        <button class="opt-tech-btn" data-tech="markdown-structure">markdown-structure</button>
+        <button class="opt-tech-btn" data-tech="verification">verification</button>
+        <button class="opt-tech-btn" data-tech="brevity">brevity</button>
+        <button class="opt-tech-btn" data-tech="depth">depth</button>
+        <button class="opt-tech-btn" data-tech="iteration-hook">iteration-hook</button>
+        <button class="opt-tech-btn" data-tech="tone-lock">tone-lock</button>
+      </div>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">Custom Instructions</div>
+      <textarea id="genCustomInstructions" class="forge-input" rows="2" placeholder="Anything specific — e.g. must mention our refund policy, keep under 200 words, British English..."></textarea>
+
+      <div class="opt-actions">
+        <button class="btn btn-accent" id="genRunBtn"><span class="material-symbols-outlined">bolt</span> Generate</button>
+        <button class="btn btn-ghost" id="genRegenBtn"><span class="material-symbols-outlined">refresh</span> Regenerate</button>
+      </div>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-4);">Generated Prompt</div>
+      <div class="opt-output" id="genOutput"><span class="hint">Describe your task above and click <strong>Generate</strong> — your engineered prompt appears here.</span></div>
+      <div id="genOutputActions" hidden>
+        <button class="btn btn-ghost btn-sm" id="genCopyBtn">
+          <span class="material-symbols-outlined">content_copy</span> Copy
+        </button>
+        <button class="btn btn-ghost btn-sm" id="genToOptimizerBtn">
+          <span class="material-symbols-outlined">rocket_launch</span> Send to Optimizer
+        </button>
+        <span id="genTokenCount" class="forge-char-count" style="margin-left:auto;"></span>
+      </div>
+    </div>
+
+    <!-- RIGHT: Output configuration rail -->
+    <div class="opt-right">
+      <div class="opt-section-label">Output Format</div>
+      <select id="genFormatSelect" class="form-input">
+        <option value="any">Any — let the AI decide</option>
+        <option value="a markdown document">Markdown document</option>
+        <option value="a bullet list">Bullet list</option>
+        <option value="a numbered list">Numbered list</option>
+        <option value="a table">Table</option>
+        <option value="JSON">JSON</option>
+        <option value="YAML">YAML</option>
+        <option value="CSV">CSV</option>
+        <option value="an email">Email</option>
+        <option value="a formal report">Formal report</option>
+        <option value="an essay">Essay</option>
+        <option value="a social media post">Social media post</option>
+        <option value="code with explanatory comments">Code with comments</option>
+        <option value="a checklist">Checklist</option>
+        <option value="Q&amp;A pairs">Q&amp;A pairs</option>
+        <option value="a dialogue script">Dialogue script</option>
+        <option value="a presentation outline">Presentation outline</option>
+        <option value="an executive summary">Executive summary</option>
+      </select>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">Tone</div>
+      <select id="genToneSelect" class="form-input">
+        <option value="">— Not specified —</option>
+        <option>Professional</option><option>Conversational</option><option>Direct</option>
+        <option>Friendly</option><option>Formal</option><option>Concise</option><option>Analytical</option>
+        <option>Persuasive</option><option>Empathetic</option><option>Authoritative</option>
+        <option>Playful</option><option>Inspirational</option><option>Technical</option>
+        <option>Academic</option><option>Casual</option><option>Witty</option>
+        <option>Urgent</option><option>Diplomatic</option><option>Storytelling</option>
+      </select>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">Detail Level</div>
+      <div class="gen-chip-row" id="genDetailChips">
+        <button class="gen-chip" data-value="concise" aria-pressed="false">Concise</button>
+        <button class="gen-chip active" data-value="standard" aria-pressed="true">Standard</button>
+        <button class="gen-chip" data-value="detailed" aria-pressed="false">Detailed</button>
+      </div>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">Creativity</div>
+      <div class="gen-chip-row" id="genCreativityChips">
+        <button class="gen-chip" data-value="precise" aria-pressed="false">Precise</button>
+        <button class="gen-chip active" data-value="balanced" aria-pressed="true">Balanced</button>
+        <button class="gen-chip" data-value="creative" aria-pressed="false">Creative</button>
+      </div>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">Target Model</div>
+      <select id="genModelSelect" class="form-input">
+        <option value="any">Any model</option>
+        <option value="ChatGPT (GPT-4o family)">ChatGPT</option>
+        <option value="Claude">Claude</option>
+        <option value="Gemini">Gemini</option>
+      </select>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">Audience</div>
+      <input type="text" id="genAudienceInput" class="form-input" placeholder="e.g. non-technical clients..." />
+    </div>
+  </div>
+</div>

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en-GB" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Board — reference</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100..800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link rel="stylesheet" href="../_shared/shared.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="boardWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Board">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">dashboard_customize</span>
+      <div>
+        <h2 class="ws-title">Prompt Board</h2>
+        <p class="ws-subtitle">Pin prompts into curated boards — cross-cutting collections independent of folders and tags.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="icon-btn" id="closeBoardBtn" aria-label="Close Prompt Board"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body board-wrap">
+    <div class="board-sidebar">
+      <div class="board-list" id="boardList"></div>
+      <div class="board-new-row">
+        <input type="text" id="boardNewName" class="forge-input" placeholder="New board name&hellip;" maxlength="80">
+        <button class="btn btn-accent" id="boardCreateBtn"><span class="material-symbols-outlined">add</span> Create</button>
+      </div>
+    </div>
+    <div class="board-main">
+      <div class="board-empty-state" id="boardEmptyState">
+        <span class="material-symbols-outlined">dashboard_customize</span>
+        <p>Select or create a board to start pinning prompts.</p>
+      </div>
+      <div class="board-detail-pane" id="boardDetailPane" style="display:none;">
+        <div class="board-detail-head">
+          <input type="text" id="boardNameInput" class="board-name-input" placeholder="Board name" maxlength="80">
+          <textarea id="boardDescInput" class="board-desc-input" rows="2" placeholder="What&#39;s this board for? (optional)"></textarea>
+        </div>
+        <div class="board-pin-picker-row">
+          <select id="boardPinPicker" class="forge-input qf-picker"><option value="">Add a prompt to this board&hellip;</option></select>
+          <button class="btn btn-ghost" id="boardAddPinBtn"><span class="material-symbols-outlined">push_pin</span> Pin</button>
+        </div>
+        <div class="board-pins-body" id="boardPinsBody"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Preview shim: workspaces are hidden until .open is set by the app. Force it visible. -->
+<script>
+(function () {
+  var root = document.body.firstElementChild;
+  if (!root) return;
+  root.classList.add('open', 'active', 'visible');
+  root.removeAttribute('hidden');
+  root.removeAttribute('aria-hidden');
+  root.style.display = '';
+  root.style.opacity = '1';
+  root.style.visibility = 'visible';
+  root.style.transform = 'none';
+  root.style.pointerEvents = 'auto';
+})();
+</script>
+
+<!-- Extracted logic. Expect console errors here: these functions were cut out of the
+     app.js IIFE and still expect state, api() and the rest of the app around them.
+     Preview is for layout and styling, not for running the feature. -->
+<script src="../_shared/shared.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

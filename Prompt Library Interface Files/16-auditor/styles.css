@@ -1,0 +1,47 @@
+/* Prompt Auditor — CSS extracted from static/app.css */
+
+/* =============================================================
+   WORKSPACE SUITE — Quick Fill, Auditor, Diff Lens, Cost Lens,
+   Library Pulse, Prompt X-Ray, Prompt Splicer (2026-07)
+   ============================================================= */
+#fillWorkspace, #auditWorkspace, #diffWorkspace, #costWorkspace,
+#pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+}
+
+#fillWorkspace.open, #auditWorkspace.open, #diffWorkspace.open, #costWorkspace.open,
+#pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open,
+#batchWorkspace.open, #boardWorkspace.open { display: flex; }
+
+/* ── Prompt Auditor ── */
+.aud-body { display: grid; grid-template-columns: minmax(320px, 44%) 1fr; flex: 1; overflow: hidden; }
+
+.aud-left { display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-5); border-right: 1px solid var(--line); overflow-y: auto; }
+
+.aud-right { padding: var(--sp-4) var(--sp-5); overflow-y: auto; }
+
+.aud-score-row { display: flex; align-items: center; gap: var(--sp-3); }
+
+.aud-score { font-size: 44px; font-weight: 800; color: var(--accent); line-height: 1; font-family: var(--ff-mono); }
+
+.aud-score-max { font-size: 16px; color: var(--ink-3); font-weight: 600; }
+
+.aud-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+
+.aud-badge.aud-good { background: color-mix(in oklch, #22c55e 18%, transparent); color: #16a34a; }
+
+.aud-badge.aud-mid { background: color-mix(in oklch, #f59e0b 18%, transparent); color: #d97706; }
+
+.aud-badge.aud-bad { background: color-mix(in oklch, #ef4444 18%, transparent); color: #dc2626; }
+
+.aud-meta { font-size: var(--fs-xs); color: var(--ink-3); margin-top: 4px; }
+
+@media (max-width: 900px) {
+.aud-body { grid-template-columns: 1fr; }
+.aud-left { border-right: none; border-bottom: 1px solid var(--line); }
+}

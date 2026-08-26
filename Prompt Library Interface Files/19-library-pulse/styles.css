@@ -1,0 +1,30 @@
+/* Library Pulse — CSS extracted from static/app.css */
+
+/* =============================================================
+   WORKSPACE SUITE — Quick Fill, Auditor, Diff Lens, Cost Lens,
+   Library Pulse, Prompt X-Ray, Prompt Splicer (2026-07)
+   ============================================================= */
+#fillWorkspace, #auditWorkspace, #diffWorkspace, #costWorkspace,
+#pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+}
+
+#fillWorkspace.open, #auditWorkspace.open, #diffWorkspace.open, #costWorkspace.open,
+#pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open,
+#batchWorkspace.open, #boardWorkspace.open { display: flex; }
+
+/* ── Library Pulse ── */
+.pulse-wrap { display: flex; flex-direction: column; flex: 1; overflow-y: auto; padding: var(--sp-4) var(--sp-5); }
+
+.pulse-score { font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2); margin-right: var(--sp-2); }
+
+.pulse-score span { font-family: var(--ff-mono); font-weight: 800; color: var(--accent); font-size: 18px; }
+
+.pulse-meta { font-size: var(--fs-xs); color: var(--ink-3); margin-bottom: var(--sp-3); }
+
+.pulse-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--sp-3); align-items: start; }

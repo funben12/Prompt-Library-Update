@@ -1,0 +1,184 @@
+<div id="forgeWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Forge">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">construction</span>
+      <div>
+        <h2 class="ws-title">Prompt Forge</h2>
+        <p class="ws-subtitle">Build a structured, production-ready prompt from its components.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-ghost" id="forgeClearBtn"><span class="material-symbols-outlined">restart_alt</span> Clear</button>
+      <button class="btn btn-accent" id="forgeSaveBtn"><span class="material-symbols-outlined">save</span> Save to Library</button>
+      <button class="icon-btn" id="closeForgeBtn" aria-label="Close Forge"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <!-- Toolbar: framework switcher + template chips -->
+  <div class="forge-toolbar">
+    <div class="forge-toolbar-section">
+      <span class="forge-toolbar-label">Framework</span>
+      <select id="forgeFrameworkSelect" class="form-input forge-framework-select">
+        <option value="custom">Custom — freestyle fields</option>
+        <option value="rtf">RTF — Role · Task · Format</option>
+        <option value="costar">CO-STAR — Context · Objective · Style · Audience · Response</option>
+        <option value="risen">RISEN — Role · Instructions · Steps · End Goal · Narrowing</option>
+        <option value="star">STAR — Situation · Task · Action · Result</option>
+        <option value="ape">APE — Action · Purpose · Expectation</option>
+        <option value="care">CARE — Context · Action · Result · Example</option>
+        <option value="craft">CRAFT — Context · Role · Action · Format · Tone</option>
+        <option value="rodes">RODES — Role · Objective · Details · Example · Steps</option>
+        <option value="trace">TRACE — Task · Reasoning · Action · Constraints · Evaluation</option>
+        <option value="code">CODE — Context · Objective · Details · Examples</option>
+        <option value="grwc">GRWC — Goal · Return Format · Warnings · Context Dump</option>
+        <option value="para">PARA — Purpose · Audience · Reasoning · Action</option>
+        <option value="scqa">SCQA — Situation · Complication · Question · Answer</option>
+        <option value="roses">ROSES — Role · Objective · Scenario · Expected Solution · Steps</option>
+        <option value="aida">AIDA — Attention · Interest · Desire · Action</option>
+        <option value="bab">BAB — Before · After · Bridge</option>
+        <option value="meta">META — Use Case · Model · Audience · Output</option>
+        <option value="grow">GROW — Goal · Reality · Options · Way Forward</option>
+        <option value="bluf">BLUF — Bottom Line · Support · Background · Action</option>
+        <option value="telos">TELOS — Task · Evidence · Logic · Output · Success</option>
+        <option value="pas">PAS — Problem · Agitate · Solution</option>
+        <option value="peel">PEEL — Point · Evidence · Explanation · Link</option>
+        <option value="prep">PREP — Point · Reason · Example · Point</option>
+        <option value="tada">TADA — Topic · Audience · Desired Outcome · Action</option>
+        <option value="costarplus">CO-STAR+ — CO-STAR with Constraints</option>
+        <option value="tot">ToT — Tree of Thought (3 paths)</option>
+        <option value="spade">SPADE — Situation · Problem · Analysis · Decision · Execution</option>
+        <option value="rule">RULE — Role · User · Logic · Example</option>
+        <option value="crystal">CRYSTAL — Context · Requirements · Your Task · Steps · Tone · Ask · Logistics</option>
+        <option value="cmo">CMO — Context · Mission · Objective</option>
+        <option value="pose">POSE — Problem · Objective · Solution · Evaluation</option>
+        <option value="raci">RACI — Responsible · Accountable · Consulted · Informed</option>
+        <option value="sos">SOS — Situation · Objective · Strategy</option>
+        <option value="tq">TQ — Task · Question</option>
+        <option value="pqa">PQA — Problem · Question · Answer</option>
+        <option value="qda">QDA — Question · Data · Analysis</option>
+        <option value="oas">OAS — Objective · Approach · Solution</option>
+        <option value="ira">IRA — Issue · Recommendation · Action</option>
+        <option value="pda">PDA — Problem · Decision · Action</option>
+        <option value="sma">SMA — Situation · Mission · Action</option>
+        <option value="tae">TAE — Task · Action · Expected Outcome</option>
+        <option value="dream">DREAM — Define · Review · Evaluate · Assess · Map</option>
+        <option value="smart">SMART — Specific · Measurable · Achievable · Relevant · Time-bound</option>
+        <option value="clear">CLEAR — Collaborative · Limited · Emotional · Appreciable · Refinable</option>
+        <option value="spain">SPAIN — Situation · Problem · Alternatives · Impact · Next</option>
+        <option value="socratic">SOCRATIC — Summarize · Question · Challenge · Reflect · Refine</option>
+        <option value="dmaic">DMAIC — Define · Measure · Analyze · Improve · Control</option>
+        <option value="dids">DIDS — Define · Identify · Decide · Solve</option>
+        <option value="sipoc">SIPOC — Suppliers · Inputs · Process · Outputs · Customers</option>
+        <option value="pdsa">PDSA — Plan · Do · Study · Act</option>
+        <option value="odt">ODT — Objective · Deliverable · Timeline</option>
+        <option value="srta">SRTA — Situation · Role · Task · Action</option>
+        <option value="orid">ORID — Objective · Reflective · Interpretive · Decisional</option>
+        <option value="pestle">PESTLE — Political · Economic · Social · Technological · Legal · Environmental</option>
+        <option value="swot">SWOT — Strengths · Weaknesses · Opportunities · Threats</option>
+        <option value="soar">SOAR — Strengths · Opportunities · Aspirations · Results</option>
+        <option value="moca">MOCA — Mission · Objective · Constraints · Assumptions</option>
+        <option value="rds">RDS — Role · Deliverable · Standard</option>
+        <option value="pop">POP — Point · Observation · Plan</option>
+        <option value="pbd">PBD — Problem · Background · Decision</option>
+        <option value="sdb">SDB — Situation · Decision · Background</option>
+        <option value="ada">ADA — Action · Detail · Alternative</option>
+        <option value="dive">DIVE — Define · Investigate · Verify · Execute</option>
+        <option value="idea">IDEA — Identify · Develop · Execute · Assess</option>
+        <option value="spark">SPARK — Situation · Problem · Action · Result · Knowledge</option>
+        <option value="force">FORCE — Facts · Options · Risks · Consequences · Evaluation</option>
+        <option value="gist">GIST — Goal · Issue · Solution · Task</option>
+        <option value="focus">FOCUS — Find · Organize · Clarify · Understand · Select</option>
+        <option value="fast">FAST — Focus · Analyze · Solve · Test</option>
+        <option value="bold">BOLD — Belief · Outcome · Logic · Determination</option>
+        <option value="guide">GUIDE — Goal · User · Insight · Detail · Execution</option>
+        <option value="quest">QUEST — Question · Understand · Explore · Solve · Test</option>
+        <option value="light">LIGHT — Learn · Investigate · Generate · Handle · Test</option>
+        <option value="bridge">BRIDGE — Before · Reality · Idea · Decision · Goal · Execute</option>
+        <option value="pulse">PULSE — Problem · User · Logic · Solution · Evaluation</option>
+        <option value="sprint">SPRINT — Sketch · Plan · Review · Iterate · Navigate · Test</option>
+        <option value="trio">TRIO — Task · Requirement · Insight · Output</option>
+        <option value="flux">FLUX — Frame · Listen · Understand · Execute</option>
+        <option value="coda">CODA — Context · Objective · Decision · Action</option>
+        <option value="zen">ZEN — Zero-in · Explore · Navigate</option>
+        <option value="aura">AURA — Audience · Use-case · Requirement · Action</option>
+        <option value="core">CORE — Context · Objective · Result · Example</option>
+        <option value="beam">BEAM — Background · Evidence · Analysis · Move</option>
+        <option value="pane">PANE — Problem · Analysis · Notation · Execution</option>
+        <option value="muse">MUSE — Mission · User · Solution · Evaluation</option>
+        <option value="lens">LENS — Look · Evaluate · Navigate · Solve</option>
+        <option value="vibe">VIBE — Vision · Intent · Behavior · Execution</option>
+        <option value="tilt">TILT — Task · Input · Logic · Turnaround</option>
+        <option value="surge">SURGE — Situation · Understanding · Response · Goal · Execution</option>
+        <option value="pivot">PIVOT — Problem · Investigation · Value · Outcome · Task</option>
+        <option value="spire">SPIRE — Scenario · Problem · Intent · Response · Execution</option>
+        <option value="forgefw">FORGE — Focus · Objective · Refine · Generate · Evaluate</option>
+        <option value="mirage">MIRAGE — Mission · Intent · Reality · Action · Goal · Execution</option>
+        <option value="beacon">BEACON — Background · Expectation · Action · Context · Outcome · Next</option>
+        <option value="compass">COMPASS — Context · Objective · Mission · Plan · Assess · Solve · Set</option>
+        <option value="horizon">HORIZON — How · Objective · Role · Intent · Zone · Output · Navigate</option>
+        <option value="lance">LANCE — Look · Ask · Note · Confirm · Execute</option>
+        <option value="piper">PIPER — Purpose · Insight · Plan · Execute · Review</option>
+        <option value="stone">STONE — Situation · Task · Outcome · Next · Evaluate</option>
+        <option value="ember">EMBER — Expectation · Mission · Background · Execution · Result</option>
+        <option value="torch">TORCH — Task · Objective · Role · Constraints · How</option>
+        <option value="stellar">STELLAR — Situation · Task · Expectation · Logic · Language · Action · Result</option>
+        <option value="nebula">NEBULA — Need · Expectation · Background · Understanding · Logic · Action</option>
+        <option value="eclipse">ECLIPSE — Evaluate · Context · Logic · Intent · Plan · Solve · Execute</option>
+        <option value="echo">ECHO — Expectation · Context · How · Outcome</option>
+        <option value="novel">NOVEL — Need · Objective · Vision · Execution · Logistics</option>
+        <option value="aura2">AURA — Action · Use-case · Result · Ask</option>
+        <option value="locus">LOCUS — Logic · Objective · Context · User · Solution</option>
+        <option value="mosaic">MOSAIC — Mission · Objective · Situation · Action · Intent · Constraints</option>
+        <option value="prism">PRISM — Problem · Reason · Intent · Solution · Method</option>
+        <option value="vertex">VERTEX — Vision · Expectation · Role · Task · Execution · X-factor</option>
+        <option value="strata">STRATA — Situation · Task · Role · Action · Tone · Ask</option>
+        <option value="clarity">CLARITY — Context · Logic · Ask · Response · Intent · Task · Your-role</option>
+        <option value="syntax">SYNTAX — Situation · Your-role · Need · Task · Action · X-factor</option>      </select>
+    </div>
+    <div class="forge-toolbar-divider"></div>
+    <div class="forge-toolbar-section">
+      <span class="forge-toolbar-label">Templates</span>
+      <div class="forge-template-chips" id="forgeTemplateChips"></div>
+    </div>
+  </div>
+  <div class="ws-body forge-body">
+    <div class="forge-form">
+      <div id="forgeFields"><!-- Rendered by JS based on active framework --></div>
+      <div class="forge-meta-row">
+        <div class="forge-meta-group">
+          <label class="forge-meta-label" for="forgeTitleInput">Prompt title</label>
+          <input type="text" id="forgeTitleInput" class="form-input" placeholder="Give this prompt a name to save it..." />
+        </div>
+        <div class="forge-meta-group">
+          <label class="forge-meta-label" for="forgeToneSelect">Tone</label>
+          <select id="forgeToneSelect" class="form-input">
+            <option value="">— Not specified —</option>
+            <option>Professional</option><option>Conversational</option><option>Direct</option>
+            <option>Friendly</option><option>Formal</option><option>Concise</option><option>Analytical</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="forge-preview">
+      <div class="forge-preview-header">
+        <span class="forge-preview-title">Assembled prompt</span>
+        <div class="forge-preview-controls">
+          <div class="forge-format-tabs" id="forgeFormatTabs">
+            <button class="forge-format-tab active" data-format="markdown" title="Markdown headings">MD</button>
+            <button class="forge-format-tab" data-format="plain" title="Plain text">TXT</button>
+            <button class="forge-format-tab" data-format="xml" title="XML tags">XML</button>
+          </div>
+          <span id="forgeTokenCount" class="forge-char-count">~0 tokens</span>
+          <span id="forgeCharCount" class="forge-char-count">0 chars</span>
+          <button class="btn btn-ghost btn-sm" id="forgeCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy</button>
+        </div>
+      </div>
+      <div class="forge-quality-bar-wrap">
+        <div class="forge-quality-track">
+          <div class="forge-quality-bar" id="forgeQualityBar"></div>
+        </div>
+        <span class="forge-quality-label" id="forgeQualityLabel">Completeness: 0%</span>
+      </div>
+      <div id="forgeOutput" class="forge-output"><span class="hint">Fill in the fields on the left — your assembled prompt appears here live.</span></div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,32 @@
+<div id="diffWorkspace" role="dialog" aria-modal="true" aria-label="Diff Lens">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">compare</span>
+      <div>
+        <h2 class="ws-title">Diff Lens</h2>
+        <p class="ws-subtitle">Compare two prompts word by word. Spot exactly what changed.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-ghost" id="diffSwapBtn"><span class="material-symbols-outlined">swap_horiz</span> Swap</button>
+      <button class="btn btn-accent" id="diffRunBtn"><span class="material-symbols-outlined">compare</span> Compare</button>
+      <button class="icon-btn" id="closeDiffBtn" aria-label="Close Diff Lens"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body dif-body">
+    <div class="dif-inputs">
+      <div class="dif-col">
+        <div class="opt-section-label">Version A</div>
+        <select id="diffPickerA" class="forge-input qf-picker"><option value="">Load from library…</option></select>
+        <textarea id="diffInputA" class="forge-input" rows="8" placeholder="Paste version A…"></textarea>
+      </div>
+      <div class="dif-col">
+        <div class="opt-section-label">Version B</div>
+        <select id="diffPickerB" class="forge-input qf-picker"><option value="">Load from library…</option></select>
+        <textarea id="diffInputB" class="forge-input" rows="8" placeholder="Paste version B…"></textarea>
+      </div>
+    </div>
+    <div class="dif-stats" id="diffStats"></div>
+    <div class="opt-output dif-output" id="diffOutput"><span class="hint">Removed words show struck out, added words highlighted.</span></div>
+  </div>
+</div>

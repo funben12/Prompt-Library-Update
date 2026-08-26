@@ -1,0 +1,34 @@
+/* Prompt Splicer — CSS extracted from static/app.css */
+
+/* =============================================================
+   WORKSPACE SUITE — Quick Fill, Auditor, Diff Lens, Cost Lens,
+   Library Pulse, Prompt X-Ray, Prompt Splicer (2026-07)
+   ============================================================= */
+#fillWorkspace, #auditWorkspace, #diffWorkspace, #costWorkspace,
+#pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+}
+
+#fillWorkspace.open, #auditWorkspace.open, #diffWorkspace.open, #costWorkspace.open,
+#pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open,
+#batchWorkspace.open, #boardWorkspace.open { display: flex; }
+
+.dif-col { display: flex; flex-direction: column; }
+
+/* ── Prompt Splicer ── */
+.spl-body { display: flex; flex-direction: column; flex: 1; overflow-y: auto; padding: var(--sp-4) var(--sp-5); gap: var(--sp-3); }
+
+.spl-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+
+.spl-grid { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.spl-preview { white-space: pre-wrap; min-height: 100px; }
+
+@media (max-width: 900px) {
+.spl-inputs, .spl-pair { grid-template-columns: 1fr; }
+}

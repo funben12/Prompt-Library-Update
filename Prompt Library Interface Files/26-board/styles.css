@@ -1,0 +1,57 @@
+/* Prompt Board — CSS extracted from static/app.css */
+
+/* =============================================================
+   WORKSPACE SUITE — Quick Fill, Auditor, Diff Lens, Cost Lens,
+   Library Pulse, Prompt X-Ray, Prompt Splicer (2026-07)
+   ============================================================= */
+#fillWorkspace, #auditWorkspace, #diffWorkspace, #costWorkspace,
+#pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+}
+
+#fillWorkspace.open, #auditWorkspace.open, #diffWorkspace.open, #costWorkspace.open,
+#pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open,
+#batchWorkspace.open, #boardWorkspace.open { display: flex; }
+
+/* ── Prompt Board ── */
+.board-wrap { display: grid; grid-template-columns: 280px 1fr; flex: 1; overflow: hidden; }
+
+.board-sidebar { display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-5); border-right: 1px solid var(--line); overflow-y: auto; gap: var(--sp-3); }
+
+.board-list { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow-y: auto; }
+
+.board-new-row { display: flex; flex-direction: column; gap: var(--sp-2); border-top: 1px solid var(--line); padding-top: var(--sp-3); }
+
+.board-main { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+.board-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); flex: 1; color: var(--ink-3); text-align: center; padding: var(--sp-5); }
+
+.board-empty-state .material-symbols-outlined { font-size: 40px; color: var(--ink-4); }
+
+.board-detail-pane { display: flex; flex-direction: column; flex: 1; overflow: hidden; padding: var(--sp-4) var(--sp-5); gap: var(--sp-3); }
+
+.board-detail-head { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.board-name-input { font-size: var(--fs-lg); font-weight: 700; color: var(--ink-1); border: 1px solid transparent; background: transparent; padding: 4px 6px; border-radius: var(--r-md); }
+
+.board-name-input:hover, .board-name-input:focus { border-color: var(--line); background: var(--surface); }
+
+.board-desc-input { font-size: var(--fs-sm); color: var(--ink-2); border: 1px solid transparent; background: transparent; padding: 4px 6px; border-radius: var(--r-md); resize: vertical; }
+
+.board-desc-input:hover, .board-desc-input:focus { border-color: var(--line); background: var(--surface); }
+
+.board-pin-picker-row { display: flex; gap: var(--sp-2); }
+
+.board-pin-picker-row .qf-picker { flex: 1; margin-bottom: 0; }
+
+.board-pins-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--sp-3); overflow-y: auto; align-content: start; flex: 1; }
+
+@media (max-width: 900px) {
+.board-wrap { grid-template-columns: 1fr; }
+.board-sidebar { border-right: none; border-bottom: 1px solid var(--line); max-height: 240px; }
+}

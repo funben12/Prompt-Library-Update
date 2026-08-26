@@ -1,0 +1,185 @@
+/* Workspaces launcher grid — CSS extracted from static/app.css */
+
+/* =============================================================
+   WORKSPACES LAUNCHER
+   ============================================================= */
+#workspacesLauncher {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+}
+
+#workspacesLauncher.open { display: flex; }
+
+.launcher-body {
+  overflow-y: auto;
+  padding: var(--sp-5);
+}
+
+.launcher-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--sp-3);
+}
+
+.launcher-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  text-align: left;
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  cursor: pointer;
+  transition: border-color var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
+}
+
+.launcher-card:hover {
+  border-color: var(--accent-line);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px oklch(0% 0 0 / 0.06);
+}
+
+.launcher-card-icon {
+  font-size: 26px;
+  color: var(--accent);
+}
+
+.launcher-card-title {
+  font-weight: 700;
+  font-size: var(--fs-base);
+  color: var(--ink);
+}
+
+.launcher-card-desc {
+  font-size: var(--fs-sm);
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+
+.launcher-card-pro {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  font-family: var(--ff-sans);
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em;
+  color: var(--ink-2);
+  background: color-mix(in oklch, var(--gold), transparent 80%);
+  border: 1px solid color-mix(in oklch, var(--gold), transparent 55%);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Category colour on the icon only. Frees --accent to mean primary action. */
+.launcher-group[data-group="build"]   .launcher-card-icon { color: var(--c-blue); }
+
+.launcher-group[data-group="refine"]  .launcher-card-icon { color: var(--c-purple); }
+
+.launcher-group[data-group="inspect"] .launcher-card-icon { color: var(--c-orange); }
+
+.launcher-group[data-group="run"]     .launcher-card-icon { color: var(--c-green); }
+
+.launcher-group[data-group="build"]   .launcher-group-label .material-symbols-outlined { color: var(--c-blue); }
+
+.launcher-group[data-group="refine"]  .launcher-group-label .material-symbols-outlined { color: var(--c-purple); }
+
+.launcher-group[data-group="inspect"] .launcher-group-label .material-symbols-outlined { color: var(--c-orange); }
+
+.launcher-group[data-group="run"]     .launcher-group-label .material-symbols-outlined { color: var(--c-green); }
+
+/* One landing point per group instead of 17 cards at identical weight. */
+.launcher-grid > .launcher-card:first-child .launcher-card-icon { font-size: 34px; }
+
+.launcher-grid > .launcher-card:first-child .launcher-card-title { font-size: var(--fs-md); }
+
+/* Jump back in */
+#launcherRecent { margin-bottom: var(--sp-6); }
+
+#launcherRecent[hidden] { display: none; }
+
+#launcherRecentRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+.launcher-recent-card .launcher-card-pro {
+  position: static;
+  margin-left: var(--sp-2);
+}
+
+/* Launcher groups + search */
+.launcher-toolbar {
+  margin-bottom: var(--sp-5);
+}
+
+.launcher-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: 420px;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+.launcher-search .material-symbols-outlined {
+  font-size: 18px;
+  color: var(--ink-4);
+}
+
+.launcher-search input {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+}
+
+.launcher-search:focus-within {
+  border-color: var(--accent-line);
+}
+
+.launcher-group {
+  margin-bottom: var(--sp-6);
+}
+
+.launcher-group-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+
+.launcher-group-label .material-symbols-outlined {
+  font-size: 16px;
+  color: var(--accent);
+}
+
+.launcher-group-hint {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: var(--fs-sm);
+  color: var(--ink-4);
+}
+
+.launcher-empty {
+  padding: var(--sp-6);
+  text-align: center;
+  color: var(--ink-3);
+}

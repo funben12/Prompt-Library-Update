@@ -1,0 +1,40 @@
+<div id="boardWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Board">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">dashboard_customize</span>
+      <div>
+        <h2 class="ws-title">Prompt Board</h2>
+        <p class="ws-subtitle">Pin prompts into curated boards — cross-cutting collections independent of folders and tags.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="icon-btn" id="closeBoardBtn" aria-label="Close Prompt Board"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body board-wrap">
+    <div class="board-sidebar">
+      <div class="board-list" id="boardList"></div>
+      <div class="board-new-row">
+        <input type="text" id="boardNewName" class="forge-input" placeholder="New board name&hellip;" maxlength="80">
+        <button class="btn btn-accent" id="boardCreateBtn"><span class="material-symbols-outlined">add</span> Create</button>
+      </div>
+    </div>
+    <div class="board-main">
+      <div class="board-empty-state" id="boardEmptyState">
+        <span class="material-symbols-outlined">dashboard_customize</span>
+        <p>Select or create a board to start pinning prompts.</p>
+      </div>
+      <div class="board-detail-pane" id="boardDetailPane" style="display:none;">
+        <div class="board-detail-head">
+          <input type="text" id="boardNameInput" class="board-name-input" placeholder="Board name" maxlength="80">
+          <textarea id="boardDescInput" class="board-desc-input" rows="2" placeholder="What&#39;s this board for? (optional)"></textarea>
+        </div>
+        <div class="board-pin-picker-row">
+          <select id="boardPinPicker" class="forge-input qf-picker"><option value="">Add a prompt to this board&hellip;</option></select>
+          <button class="btn btn-ghost" id="boardAddPinBtn"><span class="material-symbols-outlined">push_pin</span> Pin</button>
+        </div>
+        <div class="board-pins-body" id="boardPinsBody"></div>
+      </div>
+    </div>
+  </div>
+</div>

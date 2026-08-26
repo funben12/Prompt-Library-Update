@@ -1,0 +1,51 @@
+<div id="configPanel">
+  <div class="config-panel-header">
+    <span class="material-symbols-outlined" style="font-size:18px;color:var(--accent)">settings</span>
+    <h4>Settings</h4>
+    <button class="icon-btn" id="configCloseBtn" aria-label="Close settings"><span class="material-symbols-outlined">close</span></button>
+  </div>
+  <div class="config-panel-body">
+    <div>
+      <div class="config-section-label">AI Provider</div>
+      <div class="config-provider-tabs">
+        <button type="button" class="config-provider-tab active" data-provider="openai">OpenAI</button>
+        <button type="button" class="config-provider-tab" data-provider="anthropic">Anthropic</button>
+        <button type="button" class="config-provider-tab" data-provider="gemini">Gemini</button>
+        <button type="button" class="config-provider-tab" data-provider="openrouter">Open Router</button>
+      </div>
+      <div class="config-section-label">API Key</div>
+      <div class="config-api-row">
+        <input type="password" id="configApiKeyInput" class="form-input" placeholder="Paste your API key…" autocomplete="off" />
+      </div>
+      <div id="configModelRow" style="display:none;">
+        <div class="config-section-label" style="margin-top:var(--sp-3);">Model</div>
+        <div class="config-api-row">
+          <input type="text" id="configModelInput" class="form-input" placeholder="e.g. openai/gpt-4o-mini" autocomplete="off" />
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--ink-4);margin-top:var(--sp-2);line-height:1.5;">Stored in your local database file. Never sent anywhere except the selected provider.</p>
+    </div>
+    <button type="button" class="btn btn-accent" id="configSaveBtn" style="width:100%;">
+      <span class="material-symbols-outlined">save</span> Save settings
+    </button>
+    <div id="configStatus" style="font-size:11px;color:var(--ink-3);text-align:center;min-height:16px;"></div>
+    <hr style="margin: var(--sp-4) 0; border: none; border-top: 1px solid var(--ink-2);">
+    <div style="margin-top: var(--sp-4);">
+      <div class="config-section-label">Licence Key</div>
+      <div id="licenceStatus" style="font-size:12px;margin-bottom:var(--sp-2);padding:var(--sp-2);background:var(--bg-2);border-radius:var(--radius);border-left:4px solid var(--ink-3);">
+        <span id="licenceStatusText">Not licensed — enter your key to unlock Pro features</span>
+      </div>
+      <div class="config-api-row">
+        <input type="text" id="settingsLicenceKeyInput" class="form-input" placeholder="Enter your licence key (PROMPTLIB-PRO-XXXX-XXXX-XXXX)" autocomplete="off" />
+      </div>
+      <button type="button" class="btn btn-accent" id="licenceActivateBtn" style="width:100%; margin-top:var(--sp-2);">
+        <span class="material-symbols-outlined">vpn_key</span> Activate Licence
+      </button>
+      <div id="licenceActivateStatus" style="font-size:11px;color:var(--ink-3);text-align:center;min-height:16px;margin-top:var(--sp-2);"></div>
+      <p style="font-size:11px;color:var(--ink-4);margin-top:var(--sp-3);line-height:1.5;">
+        Don't have a key? <a href="https://payhip.com/b/WKSLO" target="_blank" style="color:var(--accent);text-decoration:none;">Buy Prompt Library Pro</a>
+      </p>
+    </div>
+  
+  </div>
+</div>

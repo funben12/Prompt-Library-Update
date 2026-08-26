@@ -1,0 +1,34 @@
+/* Diff Lens — CSS extracted from static/app.css */
+
+/* =============================================================
+   WORKSPACE SUITE — Quick Fill, Auditor, Diff Lens, Cost Lens,
+   Library Pulse, Prompt X-Ray, Prompt Splicer (2026-07)
+   ============================================================= */
+#fillWorkspace, #auditWorkspace, #diffWorkspace, #costWorkspace,
+#pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+}
+
+#fillWorkspace.open, #auditWorkspace.open, #diffWorkspace.open, #costWorkspace.open,
+#pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open,
+#batchWorkspace.open, #boardWorkspace.open { display: flex; }
+
+/* ── Diff Lens ── */
+.dif-body { display: flex; flex-direction: column; flex: 1; overflow-y: auto; padding: var(--sp-4) var(--sp-5); gap: var(--sp-3); }
+
+.dif-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+
+.dif-col { display: flex; flex-direction: column; }
+
+.dif-stats { display: flex; gap: var(--sp-4); font-size: var(--fs-xs); color: var(--ink-3); align-items: center; min-height: 20px; }
+
+.dif-output { white-space: pre-wrap; min-height: 120px; }
+
+@media (max-width: 900px) {
+.dif-inputs { grid-template-columns: 1fr; }
+}

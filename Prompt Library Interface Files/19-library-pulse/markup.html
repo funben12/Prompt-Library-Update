@@ -1,0 +1,20 @@
+<div id="pulseWorkspace" role="dialog" aria-modal="true" aria-label="Library Pulse">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">monitor_heart</span>
+      <div>
+        <h2 class="ws-title">Library Pulse</h2>
+        <p class="ws-subtitle">Health scan of your whole library. Click any row to fix it.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <div class="pulse-score">Health <span id="pulseScoreNum">–</span></div>
+      <button class="btn btn-ghost" id="pulseRescanBtn"><span class="material-symbols-outlined">refresh</span> Rescan</button>
+      <button class="icon-btn" id="closePulseBtn" aria-label="Close Library Pulse"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body pulse-wrap">
+    <div class="pulse-meta" id="pulseMeta"></div>
+    <div class="pulse-body" id="pulseBody"></div>
+  </div>
+</div>

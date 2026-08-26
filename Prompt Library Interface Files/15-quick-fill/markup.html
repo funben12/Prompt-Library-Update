@@ -1,0 +1,32 @@
+<div id="fillWorkspace" role="dialog" aria-modal="true" aria-label="Quick Fill">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">dynamic_form</span>
+      <div>
+        <h2 class="ws-title">Quick Fill</h2>
+        <p class="ws-subtitle">Pick a template, fill its placeholders, copy the finished prompt.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-ghost" id="qfClearBtn"><span class="material-symbols-outlined">restart_alt</span> Clear</button>
+      <button class="btn btn-ghost" id="qfCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy</button>
+      <button class="btn btn-accent" id="qfSaveBtn"><span class="material-symbols-outlined">save</span> Save as new</button>
+      <button class="icon-btn" id="closeFillBtn" aria-label="Close Quick Fill"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body qf-body">
+    <div class="qf-left">
+      <div class="opt-section-label">Template</div>
+      <select id="qfPicker" class="forge-input qf-picker"><option value="">Load from library…</option></select>
+      <textarea id="qfSource" class="forge-input" rows="8" placeholder="…or paste a template here. Placeholders like [audience] or {{product}} become form fields."></textarea>
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">Placeholders <span class="qf-count-chip" id="qfVarCount">0</span></div>
+      <div class="qf-var-list" id="qfVarList">
+        <div class="qf-empty">No placeholders found yet.</div>
+      </div>
+    </div>
+    <div class="qf-right">
+      <div class="opt-section-label">Result <span class="qf-fill-stat" id="qfFillStat"></span></div>
+      <div class="opt-output qf-preview" id="qfPreview"><span class="hint">Pick a prompt or paste a template on the left…</span></div>
+    </div>
+  </div>
+</div>

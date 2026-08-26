@@ -1,0 +1,20 @@
+<div id="tutorialCard" role="dialog" aria-label="Tutorial step" aria-modal="true">
+  <div class="tour-progress" id="tourProgress"></div>
+  <div class="tour-card-body">
+    <div class="tour-icon" id="tourIcon"></div>
+    <h3 class="tour-title" id="tourTitle"></h3>
+    <div class="tour-body" id="tourBody"></div>
+  </div>
+  <div class="tour-footer">
+    <button class="btn btn-ghost tour-skip" id="tourSkipBtn" onclick="window.PL_endTutorial()">Skip tour</button>
+    <div class="tour-nav">
+      <button class="btn btn-ghost tour-back" id="tourBackBtn" onclick="window.PL_tutorialBack()">
+        <span class="material-symbols-outlined">arrow_back</span> Back
+      </button>
+      <button class="btn btn-accent tour-next" id="tourNextBtn" onclick="window.PL_tutorialNext()">
+        Next <span class="material-symbols-outlined">arrow_forward</span>
+      </button>
+    </div>
+  </div>
+  <div class="tour-arrow" id="tourArrow"></div>
+</div>

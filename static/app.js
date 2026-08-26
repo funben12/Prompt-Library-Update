@@ -1358,7 +1358,15 @@
             percentage: 'percent',
             filepath: 'folder_open',
             imageurl: 'image',
+            datetime: 'event_available',
+            month: 'calendar_view_month',
+            week: 'date_range',
+            json: 'data_object',
             dropdown: 'arrow_drop_down',
+            multiselect: 'select_check_box',
+            radio: 'radio_button_checked',
+            choicechips: 'apps',
+            boolean: 'toggle_on',
             checkbox: 'checklist',
             tags: 'sell',
             togglegroup: 'toggle_on',
@@ -1379,10 +1387,41 @@
         <option value="">Select...</option>
         ${opts.map(o => `<option value="${escapeAttr(o)}"${def===o?' selected':''}>${escapeHtml(o)}</option>`).join('')}
       </select>`;
+            } else if (type === 'multiselect' && opts.length) {
+                const selected = def ? def.split(',').map(s => s.trim()) : [];
+                input = `<select class="var-select" data-var="${escapeAttr(v)}" multiple size="${Math.min(Math.max(opts.length, 3), 6)}">
+        ${opts.map(o => `<option value="${escapeAttr(o)}"${selected.includes(o)?' selected':''}>${escapeHtml(o)}</option>`).join('')}
+      </select>`;
+            } else if (type === 'radio' && opts.length) {
+                input = `<div class="var-radio-group" data-var="${escapeAttr(v)}">
+        ${opts.map((o, i) => `<label class="var-choice-line">
+          <input type="radio" class="var-radio-item" name="var-radio-${escapeAttr(v)}" value="${escapeAttr(o)}" ${def===o || (!def && i===0) ? 'checked' : ''} />
+          <span>${escapeHtml(o)}</span>
+        </label>`).join('')}
+        <input type="hidden" class="var-input var-radio-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def || opts[0] || '')}" />
+      </div>`;
+            } else if (type === 'choicechips' && opts.length) {
+                input = `<div class="var-toggle-group" data-var="${escapeAttr(v)}">
+        ${opts.map(o => `<span class="chip var-toggle-btn${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</span>`).join('')}
+        <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
+            } else if (type === 'boolean') {
+                const isOn = ['true', 'yes', 'on', '1'].includes(String(def).toLowerCase());
+                input = `<label class="var-switch">
+        <input type="checkbox" class="var-input var-boolean-input" data-var="${escapeAttr(v)}" value="Yes" ${isOn ? 'checked' : ''} />
+        <span class="var-switch-track"><span class="var-switch-thumb"></span></span>
+        <span class="var-switch-label">${isOn ? 'Yes' : 'No'}</span>
+      </label>`;
             } else if (type === 'number') {
                 input = `<input type="number" class="var-input" data-var="${escapeAttr(v)}" placeholder="Number" value="${escapeAttr(def)}" />`;
             } else if (type === 'date') {
                 input = `<input type="date" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
+            } else if (type === 'datetime') {
+                input = `<input type="datetime-local" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
+            } else if (type === 'month') {
+                input = `<input type="month" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
+            } else if (type === 'week') {
+                input = `<input type="week" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
             } else if (type === 'time') {
                 input = `<input type="time" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
             } else if (type === 'email') {
@@ -1402,6 +1441,8 @@
                 input = `<textarea class="var-input var-markdown" data-var="${escapeAttr(v)}" placeholder="Enter markdown… (# headings, **bold**, - lists)" rows="8" style="width:100%;resize:vertical;font-family:monospace;font-size:12px;">${escapeHtml(def)}</textarea>`;
             } else if (type === 'code') {
                 input = `<textarea class="var-input var-code" data-var="${escapeAttr(v)}" placeholder="Enter code…" rows="4" style="width:100%;resize:vertical;font-family:monospace;font-size:12px;">${escapeHtml(def)}</textarea>`;
+            } else if (type === 'json') {
+                input = `<textarea class="var-input var-code" data-var="${escapeAttr(v)}" placeholder='{"key": "value"}' rows="6" style="width:100%;resize:vertical;font-family:monospace;font-size:12px;">${escapeHtml(def)}</textarea>`;
             } else if (type === 'currency') {
                 input = `<div style="display:flex;align-items:center;gap:6px;">
         <span style="font-size:13px;color:var(--ink-2);font-weight:600;">$</span>
@@ -1471,21 +1512,30 @@
             } else {
                 input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter value…" value="${escapeAttr(def)}" />`;
             }
-            return `<div class="var-field" data-varfield="${escapeAttr(v)}">
-      <div class="var-field-label">
+            return `<details class="var-field" data-varfield="${escapeAttr(v)}" open>
+      <summary class="var-field-label">
         <span class="material-symbols-outlined var-field-icon">${icon}</span>
-        ${escapeHtml(v)}
+        <span class="var-field-name">${escapeHtml(v)}</span>
         <span class="var-field-type">${type}</span>
         <span class="material-symbols-outlined var-field-check">check_circle</span>
-      </div>
-      ${input}
-    </div>`;
+        <span class="material-symbols-outlined var-field-chevron">expand_more</span>
+      </summary>
+      <div class="var-field-body">${input}</div>
+    </details>`;
         }).join('');
 
         // Wire live preview listeners now that the DOM nodes exist
-        $$('#variableFields .var-input, #variableFields .var-select, #variableFields .var-checkbox').forEach(inp => {
+        $$('#variableFields .var-input, #variableFields .var-select, #variableFields .var-checkbox, #variableFields .var-radio-item').forEach(inp => {
             inp.addEventListener('input', _updateVarLivePreview);
             inp.addEventListener('change', _updateVarLivePreview);
+        });
+        $$('#variableFields .var-radio-item').forEach(inp => {
+            inp.addEventListener('change', () => {
+                const group = inp.closest('.var-radio-group');
+                const hidden = group?.querySelector('.var-radio-hidden');
+                if (hidden) hidden.value = inp.value;
+                _updateVarLivePreview();
+            });
         });
 
         // Seed preview with defaults and update filled states
@@ -1510,7 +1560,7 @@
         const map = {};
         fields.forEach(inp => {
             const v = inp.dataset.var;
-            const val = inp.type === 'checkbox' ? (inp.checked ? 'Yes' : 'No') : inp.value.trim();
+            const val = _readVarControlValue(inp);
             map[v] = val;
             const card = inp.closest('.var-field');
             if (card) card.classList.toggle('is-filled', val.length > 0);
@@ -1544,6 +1594,20 @@
         }
         previewWrap.hidden = false;
         previewBox.innerHTML = preview;
+    }
+
+    function _readVarControlValue(inp) {
+        if (!inp) return '';
+        if (inp.matches('select[multiple]')) {
+            return Array.from(inp.selectedOptions || []).map(o => o.value.trim()).filter(Boolean).join(', ');
+        }
+        if (inp.classList.contains('var-boolean-input')) {
+            const label = inp.closest('.var-switch')?.querySelector('.var-switch-label');
+            if (label) label.textContent = inp.checked ? 'Yes' : 'No';
+            return inp.checked ? 'Yes' : 'No';
+        }
+        if (inp.type === 'checkbox') return inp.checked ? 'Yes' : 'No';
+        return (inp.value || '').trim();
     }
 
     /* ---- New variable type interaction helpers (Tags / Toggle Group / Star Rating / Checklist / Image URL / Range) ---- */
@@ -2197,7 +2261,7 @@
             const map = {};
             if (vars.length > 0) {
                 $$('#variableFields .var-input, #variableFields .var-select').forEach(inp => {
-                    map[inp.dataset.var] = inp.value.trim() || `[${inp.dataset.var}]`;
+                    map[inp.dataset.var] = _readVarControlValue(inp) || `[${inp.dataset.var}]`;
                 });
             }
             let text = vars.length > 0 ? replaceVariables(p.content, map) : (p.content || '');
@@ -2541,9 +2605,9 @@
             list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
             return;
         }
-        const OPTIONS_TYPES = ['dropdown', 'checkbox', 'togglegroup'];
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'checkbox', 'togglegroup'];
         const meta = existing || collectVarMeta();
-        list.innerHTML = vars.map(v => {
+        list.innerHTML = vars.map((v, index) => {
             const m = meta[v] || {};
             const type = m.type || 'text';
             const def = m.default || '';
@@ -2552,9 +2616,17 @@
             const opts = (m.options || []).join(', ');
             const needsOptions = OPTIONS_TYPES.includes(type);
             return `
-      <div class="var-meta-row" data-var="${escapeAttr(v)}">
-        <div class="var-meta-head">
+      <details class="var-meta-row" data-var="${escapeAttr(v)}" ${index === 0 ? 'open' : ''}>
+        <summary class="var-meta-summary">
+          <span class="material-symbols-outlined var-meta-chevron">expand_more</span>
           <span class="var-meta-name">${escapeHtml(v)}</span>
+          <span class="var-meta-type-pill">${escapeHtml(type)}</span>
+          ${def ? `<span class="var-meta-default">${escapeHtml(def)}</span>` : ''}
+          <span class="var-meta-visible-state">${visible ? 'Shown' : 'Hidden'}</span>
+        </summary>
+        <div class="var-meta-body">
+        <div class="var-meta-head">
+          <span class="var-meta-subtitle">Variable settings</span>
           <label class="visibility-toggle">
             <input type="checkbox" data-field="visible" ${visible ? 'checked' : ''} />
             <span class="material-symbols-outlined" style="font-size: 14px;">visibility</span>
@@ -2578,15 +2650,23 @@
             <optgroup label="Input">
             <option value="number"     ${type === 'number'     ? 'selected' : ''}>Number</option>
             <option value="date"       ${type === 'date'       ? 'selected' : ''}>Date</option>
+            <option value="datetime"   ${type === 'datetime'   ? 'selected' : ''}>Date & Time</option>
+            <option value="month"      ${type === 'month'      ? 'selected' : ''}>Month</option>
+            <option value="week"       ${type === 'week'       ? 'selected' : ''}>Week</option>
             <option value="time"       ${type === 'time'       ? 'selected' : ''}>Time</option>
             <option value="color"      ${type === 'color'      ? 'selected' : ''}>Color</option>
             <option value="currency"   ${type === 'currency'   ? 'selected' : ''}>Currency</option>
             <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
             <option value="filepath"   ${type === 'filepath'   ? 'selected' : ''}>File Path</option>
             <option value="imageurl"   ${type === 'imageurl'   ? 'selected' : ''}>Image URL</option>
+            <option value="json"       ${type === 'json'       ? 'selected' : ''}>JSON</option>
             </optgroup>
             <optgroup label="Choice">
             <option value="dropdown"    ${type === 'dropdown'    ? 'selected' : ''}>Dropdown</option>
+            <option value="multiselect" ${type === 'multiselect' ? 'selected' : ''}>Multi-select</option>
+            <option value="radio"       ${type === 'radio'       ? 'selected' : ''}>Radio Buttons</option>
+            <option value="choicechips" ${type === 'choicechips' ? 'selected' : ''}>Choice Chips</option>
+            <option value="boolean"     ${type === 'boolean'     ? 'selected' : ''}>Yes / No Toggle</option>
             <option value="checkbox"    ${type === 'checkbox'    ? 'selected' : ''}>Checkbox List</option>
             <option value="tags"        ${type === 'tags'        ? 'selected' : ''}>Tags</option>
             <option value="togglegroup" ${type === 'togglegroup' ? 'selected' : ''}>Toggle Group</option>
@@ -2611,16 +2691,19 @@
           <textarea data-field="options" placeholder="Comma-separated options" rows="2"
                     style="width: 100%; padding: 6px 10px; font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; color: var(--ink); margin-top: 4px;">${escapeHtml(opts)}</textarea>
         </div>
-      </div>`;
+        </div>
+      </details>`;
         }).join('');
     }
     window.PL_onVarTypeChange = function(sel) {
-        const OPTIONS_TYPES = ['dropdown', 'checkbox', 'togglegroup'];
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'checkbox', 'togglegroup'];
         const row = sel.closest('.var-meta-row');
         const opts = row.querySelector('.dropdown-options');
         const sizeRow = row.querySelector('.paragraph-size');
+        const pill = row.querySelector('.var-meta-type-pill');
         if (opts) opts.style.display = OPTIONS_TYPES.includes(sel.value) ? 'block' : 'none';
         if (sizeRow) sizeRow.style.display = sel.value === 'paragraph' ? 'flex' : 'none';
+        if (pill) pill.textContent = sel.value;
     };
 
     function collectVarMeta() {
@@ -3751,13 +3834,12 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
             ['Prompt Auditor', 'fact_check', 'openAuditWorkspace', 'audit rubric score check'],
             ['Diff Lens', 'compare', 'openDiffWorkspace', 'diff compare two prompts'],
             ['Cost Lens', 'calculate', 'openCostWorkspace', 'tokens cost estimate price'],
-            ['Library Pulse', 'monitor_heart', 'openPulseWorkspace', 'health scan library quality'],
+            ['Library Organizer', 'monitor_heart', 'openPulseWorkspace', 'health scan library quality organize duplicates stale cleanup'],
             ['Prompt X-Ray', 'visibility', 'openXrayWorkspace', 'deconstruct analyse parts anatomy'],
             ['Prompt Splicer', 'call_merge', 'openSpliceWorkspace', 'merge combine two prompts'],
             ['Agents', 'smart_toy', 'openRolesWorkspace', 'agents roles personas ai'],
             ['Playground', 'science', 'openPlaygroundWorkspace', 'playground sessions test freeform'],
             ['Taxonomy Studio', 'sell', 'openTaxonomyWorkspace', 'taxonomy domain use case organise tag'],
-            ['Relationship Graph', 'device_hub', 'openRelationshipWorkspace', 'relationships graph links connections orphans'],
             ['Version Timeline', 'history', 'openVersionWorkspace', 'version history restore baseline diff'],
         ];
         return table.map(([label, icon, fn, keywords]) => ({
@@ -4039,7 +4121,7 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
             '#chainWorkspace', '#metaWorkspace', '#contextBankWorkspace', '#componentsWorkspace',
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
-            '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#relationshipWorkspace', '#versionWorkspace',
+            '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5458,6 +5540,20 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
     };
 
     /* ── Config Panel (API key storage) ─────────────────────────────────────── */
+    function _addProviderTab(slug, label) {
+        const existing = $(`.config-provider-tab[data-provider="${slug}"]`);
+        if (existing) return existing;
+        const tabsContainer = $('#configProviderTabs');
+        if (!tabsContainer) return null;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'config-provider-tab';
+        btn.dataset.provider = slug;
+        btn.textContent = label;
+        tabsContainer.appendChild(btn);
+        return btn;
+    }
+
     function initConfigPanel() {
         const toggleBtn = $('#configToggleBtn');
         const panel = $('#configPanel');
@@ -5467,8 +5563,14 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
         // the working copy callAI reads. Existing localStorage-only keys migrate up.
         (async () => {
             try {
-                const dbKeys = await api('/settings/ai-keys');
-                for (const p of ['openai', 'anthropic', 'gemini', 'openrouter']) {
+                const [dbKeys, dbBaseUrls, customProviders] = await Promise.all([
+                    api('/settings/ai-keys'),
+                    api('/settings/ai-baseurls').catch(() => ({})),
+                    api('/settings/ai-providers').catch(() => [])
+                ]);
+                (customProviders || []).forEach(cp => _addProviderTab(cp.slug, cp.label));
+                const presetSlugs = $$('.config-provider-tab').map(t => t.dataset.provider);
+                for (const p of presetSlugs) {
                     const local = localStorage.getItem(`pl_api_key_${p}`) || '';
                     const remote = (dbKeys && dbKeys[p]) || '';
                     if (remote && remote !== local) {
@@ -5479,6 +5581,19 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
                             body: {
                                 provider: p,
                                 key: local
+                            }
+                        });
+                    }
+                    const localUrl = localStorage.getItem(`pl_base_url_${p}`) || '';
+                    const remoteUrl = (dbBaseUrls && dbBaseUrls[p]) || '';
+                    if (remoteUrl && remoteUrl !== localUrl) {
+                        localStorage.setItem(`pl_base_url_${p}`, remoteUrl);
+                    } else if (localUrl && !remoteUrl) {
+                        await api('/settings/ai-baseurls', {
+                            method: 'POST',
+                            body: {
+                                provider: p,
+                                url: localUrl
                             }
                         });
                     }
@@ -5502,21 +5617,65 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
             toggleBtn.classList.remove('active');
         });
 
-        // Provider tab switching
-        $$('.config-provider-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                $$('.config-provider-tab').forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                const provider = tab.dataset.provider;
-                const saved = localStorage.getItem(`pl_api_key_${provider}`) || '';
-                const input = $('#configApiKeyInput');
-                if (input) input.value = saved;
-                const modelRow = $('#configModelRow');
-                const modelInput = $('#configModelInput');
-                if (modelRow) modelRow.style.display = provider === 'openrouter' ? '' : 'none';
-                if (modelInput && provider === 'openrouter') modelInput.value = localStorage.getItem('pl_openrouter_model') || '';
+        // Provider tab switching (delegated so dynamically-added tabs work too)
+        const tabsContainer = $('#configProviderTabs');
+        function _selectProviderTab(tab) {
+            $$('.config-provider-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            const provider = tab.dataset.provider;
+            const saved = localStorage.getItem(`pl_api_key_${provider}`) || '';
+            const input = $('#configApiKeyInput');
+            if (input) input.value = saved;
+            const needsEndpoint = !['openai','anthropic','gemini','openrouter','mistral','groq','deepseek','xai','cohere','perplexity'].includes(provider);
+            const modelRow = $('#configModelRow');
+            const modelInput = $('#configModelInput');
+            modelRow && (modelRow.style.display = (provider === 'openrouter' || needsEndpoint) ? '' : 'none');
+            if (modelInput) {
+                if (provider === 'openrouter') modelInput.value = localStorage.getItem('pl_openrouter_model') || '';
+                else if (needsEndpoint) modelInput.value = localStorage.getItem(`pl_model_${provider}`) || '';
+            }
+            const baseUrlRow = $('#configBaseUrlRow');
+            const baseUrlInput = $('#configBaseUrlInput');
+            baseUrlRow && (baseUrlRow.style.display = needsEndpoint ? '' : 'none');
+            if (baseUrlInput && needsEndpoint) baseUrlInput.value = localStorage.getItem(`pl_base_url_${provider}`) || '';
+        }
+        if (tabsContainer) {
+            tabsContainer.addEventListener('click', e => {
+                const tab = e.target.closest('.config-provider-tab');
+                if (tab) _selectProviderTab(tab);
             });
-        });
+        }
+
+        // "Add another provider" — name any API key type not in the presets.
+        const addProviderBtn = $('#configAddProviderBtn');
+        if (addProviderBtn) {
+            addProviderBtn.addEventListener('click', async () => {
+                const label = (prompt('Provider name (e.g. Stability, ElevenLabs, custom endpoint):') || '').trim();
+                if (!label) return;
+                const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+                if (!slug) {
+                    toast('Enter a name using letters or numbers', 'error');
+                    return;
+                }
+                if ($(`.config-provider-tab[data-provider="${slug}"]`)) {
+                    toast('That provider already exists', 'error');
+                    return;
+                }
+                try {
+                    await api('/settings/ai-providers', {
+                        method: 'POST',
+                        body: {
+                            slug,
+                            label
+                        }
+                    });
+                    const tab = _addProviderTab(slug, label);
+                    _selectProviderTab(tab);
+                } catch {
+                    toast('Could not add provider', 'error');
+                }
+            });
+        }
 
         // Save button
         const saveBtn = $('#configSaveBtn');
@@ -5524,10 +5683,25 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
             saveBtn.addEventListener('click', () => {
                 const provider = ($$('.config-provider-tab.active')[0]?.dataset.provider) || 'openai';
                 const key = $('#configApiKeyInput')?.value?.trim() || '';
+                const needsEndpoint = !['openai','anthropic','gemini','openrouter','mistral','groq','deepseek','xai','cohere','perplexity'].includes(provider);
                 if (provider === 'openrouter') {
                     const model = $('#configModelInput')?.value?.trim() || '';
                     if (model) localStorage.setItem('pl_openrouter_model', model);
                     else localStorage.removeItem('pl_openrouter_model');
+                } else if (needsEndpoint) {
+                    const model = $('#configModelInput')?.value?.trim() || '';
+                    if (model) localStorage.setItem(`pl_model_${provider}`, model);
+                    else localStorage.removeItem(`pl_model_${provider}`);
+                    const url = $('#configBaseUrlInput')?.value?.trim() || '';
+                    if (url) localStorage.setItem(`pl_base_url_${provider}`, url);
+                    else localStorage.removeItem(`pl_base_url_${provider}`);
+                    api('/settings/ai-baseurls', {
+                        method: 'POST',
+                        body: {
+                            provider,
+                            url
+                        }
+                    }).catch(() => {});
                 }
                 if (key) {
                     localStorage.setItem(`pl_api_key_${provider}`, key);
@@ -5582,10 +5756,18 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
         const key = localStorage.getItem(`pl_api_key_${provider}`) || '';
         const input = $('#configApiKeyInput');
         if (input) input.value = key;
+        const needsEndpoint = !['openai','anthropic','gemini','openrouter','mistral','groq','deepseek','xai','cohere','perplexity'].includes(provider);
         const modelRow = $('#configModelRow');
         const modelInput = $('#configModelInput');
-        if (modelRow) modelRow.style.display = provider === 'openrouter' ? '' : 'none';
-        if (modelInput && provider === 'openrouter') modelInput.value = localStorage.getItem('pl_openrouter_model') || '';
+        modelRow && (modelRow.style.display = (provider === 'openrouter' || needsEndpoint) ? '' : 'none');
+        if (modelInput) {
+            if (provider === 'openrouter') modelInput.value = localStorage.getItem('pl_openrouter_model') || '';
+            else if (needsEndpoint) modelInput.value = localStorage.getItem(`pl_model_${provider}`) || '';
+        }
+        const baseUrlRow = $('#configBaseUrlRow');
+        const baseUrlInput = $('#configBaseUrlInput');
+        baseUrlRow && (baseUrlRow.style.display = needsEndpoint ? '' : 'none');
+        if (baseUrlInput && needsEndpoint) baseUrlInput.value = localStorage.getItem(`pl_base_url_${provider}`) || '';
     }
 
     /* ── AI Role Generation ──────────────────────────────────────────────────── */
@@ -5706,7 +5888,7 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
                         'Authorization': `Bearer ${apiKey}`
                     },
                     body: JSON.stringify({
-                        model: 'gpt-4o-mini',
+                        model: 'gpt-5.4-mini',
                         response_format: {
                             type: 'json_object'
                         },
@@ -5750,7 +5932,7 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
                 responseText = data.content?.[0]?.text?.trim() || '';
 
             } else if (provider === 'gemini') {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -5772,7 +5954,7 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
                 responseText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
 
             } else if (provider === 'openrouter') {
-                const model = localStorage.getItem('pl_openrouter_model') || 'openai/gpt-4o-mini';
+                const model = localStorage.getItem('pl_openrouter_model') || 'openai/gpt-5.4-mini';
                 const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                     method: 'POST',
                     headers: {
@@ -12461,9 +12643,11 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
-       LIBRARY PULSE WORKSPACE
+       LIBRARY ORGANIZER (formerly Library Pulse)
        Health scan of the whole library — duplicates, missing metadata, stale and
-       thin prompts. Click any row to jump to that prompt. Offline computation.
+       thin prompts — plus fix actions: delete/keep duplicates, bulk-delete or
+       mark-reviewed stale prompts, suggest-and-apply tags/categories via nearest
+       neighbor (Jaccard over title+content, same scorer as Taxonomy auto-tag).
        data-view="pulse" | openPulseWorkspace() | initPulseWorkspace()
        ============================================================================ */
 
@@ -12533,31 +12717,59 @@ Must avoid: [Anything sensitive or previously declined]`
                 '<span class="pulse-row-title">' + escapeHtml(p.title || 'Untitled') + '</span>' +
                 '<span class="material-symbols-outlined">chevron_right</span></div>';
 
-            const section = (label, icon, arr, hintText) => {
+            const staleRowFor = p => '<div class="pulse-row pulse-row-checkable">' +
+                '<label class="pulse-row-check"><input type="checkbox" data-pulse-stale-id="' + escapeAttr(p.id) + '" /></label>' +
+                '<span class="pulse-row-title" data-pulse-id="' + escapeAttr(p.id) + '">' + escapeHtml(p.title || 'Untitled') + '</span>' +
+                '</div>';
+
+            const section = (label, icon, arr, hintText, actionKey) => {
                 const items = arr.slice(0, 15);
+                const suggestBtn = actionKey && arr.length ?
+                    '<button class="btn btn-ghost btn-xs" data-pulse-suggest="' + actionKey + '">Suggest</button>' : '';
                 return '<div class="pulse-card">' +
                     '<div class="pulse-card-head"><span class="material-symbols-outlined">' + icon + '</span>' +
-                    '<span>' + label + '</span><span class="pulse-count' + (arr.length ? '' : ' ok') + '">' + arr.length + '</span></div>' +
+                    '<span>' + label + '</span><span class="pulse-count' + (arr.length ? '' : ' ok') + '">' + arr.length + '</span>' + suggestBtn + '</div>' +
                     (arr.length ?
                         items.map(rowFor).join('') + (arr.length > 15 ? '<div class="hint" style="padding:6px 12px;">+' + (arr.length - 15) + ' more…</div>' : '') :
                         '<div class="pulse-clean">' + hintText + '</div>') +
                     '</div>';
             };
 
+            const staleArr = issues.stale;
+            const staleItems = staleArr.slice(0, 15);
+            const staleBulkBar = staleArr.length ?
+                '<div class="pulse-bulk-bar">' +
+                '<button class="btn btn-ghost btn-xs" id="pulseStaleReviewBtn">Mark reviewed</button>' +
+                '<button class="btn btn-danger btn-xs" id="pulseStaleDeleteBtn">Delete selected</button>' +
+                '</div>' : '';
+            const staleCard = '<div class="pulse-card">' +
+                '<div class="pulse-card-head"><span class="material-symbols-outlined">history</span>' +
+                '<span>Stale (90+ days)</span><span class="pulse-count' + (staleArr.length ? '' : ' ok') + '">' + staleArr.length + '</span></div>' +
+                (staleArr.length ?
+                    staleItems.map(staleRowFor).join('') +
+                    (staleArr.length > 15 ? '<div class="hint" style="padding:6px 12px;">+' + (staleArr.length - 15) + ' more…</div>' : '') +
+                    staleBulkBar :
+                    '<div class="pulse-clean">Library is fresh. ✓</div>') +
+                '</div>';
+
+            const dupSide = (keep, other) => '<div class="pulse-dup-side">' + rowFor(keep) +
+                '<button class="btn btn-ghost btn-xs pulse-dup-keepbtn" data-dup-keep-id="' + escapeAttr(keep.id) + '" data-dup-delete-id="' + escapeAttr(other.id) + '">Keep, delete other</button></div>';
+
             if (body) {
                 body.innerHTML =
-                    section('Untagged', 'label_important', issues.untagged, 'Every prompt is tagged. ✓') +
-                    section('No category', 'category', issues.uncategorised, 'Every prompt has a category. ✓') +
+                    section('Untagged', 'label_important', issues.untagged, 'Every prompt is tagged. ✓', 'tags') +
+                    section('No category', 'category', issues.uncategorised, 'Every prompt has a category. ✓', 'categories') +
                     section('No description', 'description', issues.undescribed, 'All prompts described. ✓') +
                     section('Thin content', 'compress', issues.thin, 'No under-developed prompts. ✓') +
-                    section('Stale (90+ days)', 'history', issues.stale, 'Library is fresh. ✓') +
+                    staleCard +
                     '<div class="pulse-card"><div class="pulse-card-head"><span class="material-symbols-outlined">content_copy</span>' +
                     '<span>Possible duplicates</span><span class="pulse-count' + (dupPairs.length ? '' : ' ok') + '">' + dupPairs.length + '</span></div>' +
                     (dupPairs.length ?
                         dupPairs.map(([a, b]) =>
-                            '<div class="pulse-dup-pair">' + rowFor(a) + '<span class="pulse-dup-tie">≈</span>' + rowFor(b) + '</div>').join('') :
+                            '<div class="pulse-dup-pair">' + dupSide(a, b) + '<span class="pulse-dup-tie">≈</span>' + dupSide(b, a) + '</div>').join('') :
                         '<div class="pulse-clean">No near-duplicates found. ✓</div>') +
                     '</div>';
+
                 body.querySelectorAll('[data-pulse-id]').forEach(row => {
                     row.addEventListener('click', () => {
                         const id = parseInt(row.dataset.pulseId, 10);
@@ -12565,12 +12777,140 @@ Must avoid: [Anything sensitive or previously declined]`
                         setTimeout(() => openDetail(id), 150);
                     });
                 });
+                body.querySelectorAll('.pulse-row-check input').forEach(cb => {
+                    cb.addEventListener('click', e => e.stopPropagation());
+                });
+                body.querySelectorAll('[data-pulse-suggest]').forEach(btn => {
+                    btn.addEventListener('click', () => _pulseSuggest(btn.dataset.pulseSuggest));
+                });
+                body.querySelectorAll('[data-dup-keep-id]').forEach(btn => {
+                    btn.addEventListener('click', () => _pulseDeleteDuplicate(parseInt(btn.dataset.dupDeleteId, 10)));
+                });
+                $('#pulseStaleReviewBtn')?.addEventListener('click', () => _pulseStaleBulk('review'));
+                $('#pulseStaleDeleteBtn')?.addEventListener('click', () => _pulseStaleBulk('delete'));
             }
         } catch (e) {
             if (body) body.innerHTML = '<div class="hint" style="padding:var(--sp-4);">Scan failed: ' + escapeHtml(e.message) + '</div>';
         } finally {
             if (scanBtn) scanBtn.disabled = false;
         }
+    }
+
+    async function _pulseDeleteDuplicate(deleteId) {
+        if (!confirm("Delete the other prompt in this pair? This can't be undone.")) return;
+        try {
+            await api(`/prompts/${deleteId}`, { method: 'DELETE' });
+            toast('Duplicate removed', 'success');
+            await _pulseScan();
+        } catch {
+            toast('Could not delete prompt', 'error');
+        }
+    }
+
+    async function _pulseStaleBulk(action) {
+        const ids = $$('#pulseBody [data-pulse-stale-id]:checked').map(cb => parseInt(cb.dataset.pulseStaleId, 10));
+        if (!ids.length) {
+            toast('Check at least one prompt first', 'warning');
+            return;
+        }
+        if (action === 'delete' && !confirm('Delete ' + ids.length + ' prompt' + (ids.length !== 1 ? 's' : '') + "? This can't be undone.")) return;
+        let ok = 0, failed = 0;
+        for (const id of ids) {
+            try {
+                if (action === 'delete') {
+                    await api(`/prompts/${id}`, { method: 'DELETE' });
+                } else {
+                    const p = state.prompts.find(x => x.id === id) || await api(`/prompts/${id}`);
+                    await api(`/prompts/${id}`, { method: 'PUT', body: p });
+                }
+                ok++;
+            } catch {
+                failed++;
+            }
+        }
+        toast(ok + (action === 'delete' ? ' deleted' : ' marked reviewed') + (failed ? ', ' + failed + ' failed' : ''), failed ? 'warning' : 'success');
+        await _pulseScan();
+    }
+
+    async function _pulseSuggest(field) {
+        const modal = $('#orgSuggestModal');
+        const hint = $('#orgSuggestHint');
+        const list = $('#orgSuggestList');
+        const applyBtn = $('#orgSuggestApplyBtn');
+        const titleEl = $('#orgSuggestTitle');
+        if (!modal) return;
+        modal.dataset.field = field;
+        if (titleEl) titleEl.textContent = field === 'tags' ? 'Suggested tags' : 'Suggested categories';
+        modal.classList.add('active');
+        if (applyBtn) applyBtn.disabled = true;
+        if (hint) hint.textContent = 'Scanning…';
+        if (list) list.innerHTML = '';
+
+        const isEmpty = p => !Array.isArray(p[field]) || !p[field].length;
+        const missing = state.prompts.filter(isEmpty);
+        const donors = state.prompts.filter(p => !isEmpty(p));
+        if (!missing.length || !donors.length) {
+            if (hint) hint.textContent = 'Nothing to suggest.';
+            return;
+        }
+        const donorSets = donors.map(p => ({ p, set: _pulseTokenSet((p.title || '') + ' ' + (p.content || '')) }));
+        const candidates = [];
+        missing.forEach(p => {
+            const pSet = _pulseTokenSet((p.title || '') + ' ' + (p.content || ''));
+            let best = null, bestScore = 0;
+            donorSets.forEach(({ p: dp, set }) => {
+                const score = _pulseJaccard(pSet, set);
+                if (score > bestScore) { bestScore = score; best = dp; }
+            });
+            const value = best ? best[field][0] : '';
+            if (best && bestScore >= 0.12 && value) candidates.push({ prompt: p, value, score: bestScore });
+        });
+
+        if (!candidates.length) {
+            if (hint) hint.textContent = 'No confident matches found.';
+            return;
+        }
+        candidates.sort((a, b) => b.score - a.score);
+        if (hint) hint.textContent = candidates.length + ' suggestion' + (candidates.length !== 1 ? 's' : '') + ' — review and apply.';
+        if (list) {
+            list.innerHTML = candidates.map(cnd => `
+          <label class="tax-autotag-row">
+            <input type="checkbox" checked data-pid="${cnd.prompt.id}" data-value="${escapeAttr(cnd.value)}" />
+            <span class="tax-autotag-title">${escapeHtml(cnd.prompt.title || 'Untitled')}</span>
+            <span class="material-symbols-outlined tax-autotag-arrow">arrow_forward</span>
+            <span class="tax-autotag-target">${escapeHtml(cnd.value)}</span>
+            <span class="tax-autotag-score">${cnd.score >= 0.3 ? 'High' : 'Medium'}</span>
+          </label>`).join('');
+        }
+        if (applyBtn) applyBtn.disabled = false;
+    }
+
+    async function _pulseApplySuggestions() {
+        const modal = $('#orgSuggestModal');
+        const field = modal?.dataset.field;
+        const checked = $$('#orgSuggestList input[type="checkbox"]:checked');
+        if (!field || !checked.length) {
+            toast('Nothing selected', 'warning');
+            return;
+        }
+        let ok = 0, failed = 0;
+        for (const cb of checked) {
+            const pid = parseInt(cb.dataset.pid, 10);
+            const value = cb.dataset.value;
+            const p = state.prompts.find(x => x.id === pid);
+            if (!p) { failed++; continue; }
+            const nextValues = Array.isArray(p[field]) ? p[field].slice() : [];
+            if (!nextValues.includes(value)) nextValues.push(value);
+            try {
+                await api(`/prompts/${pid}`, { method: 'PUT', body: { ...p, [field]: nextValues } });
+                ok++;
+            } catch {
+                failed++;
+            }
+        }
+        modal?.classList.remove('active');
+        toast(ok + ' applied' + (failed ? ', ' + failed + ' failed' : ''), failed ? 'warning' : 'success');
+        await _pulseScan();
     }
 
     window.openPulseWorkspace = function() {
@@ -12600,6 +12940,14 @@ Must avoid: [Anything sensitive or previously declined]`
         ws.addEventListener('keydown', e => {
             if (e.key === 'Escape') closePulseWorkspace();
         });
+        const orgSuggestModal = $('#orgSuggestModal');
+        const closeOrgSuggestModal = () => orgSuggestModal?.classList.remove('active');
+        $('#closeOrgSuggestBtn')?.addEventListener('click', closeOrgSuggestModal);
+        $('#orgSuggestCancelBtn')?.addEventListener('click', closeOrgSuggestModal);
+        orgSuggestModal?.addEventListener('click', e => {
+            if (e.target === orgSuggestModal) closeOrgSuggestModal();
+        });
+        $('#orgSuggestApplyBtn')?.addEventListener('click', _pulseApplySuggestions);
     }
 
     /* ============================================================================
@@ -13016,15 +13364,23 @@ Must avoid: [Anything sensitive or previously declined]`
             '<div class="board-pin-card" data-board-pin-id="' + p.id + '">' +
                 '<span class="board-pin-title">' + escapeHtml(p.title || 'Untitled') + '</span>' +
                 '<span class="board-pin-desc">' + escapeHtml((p.description || '').slice(0, 90)) + '</span>' +
+                '<span class="board-pin-body">' + escapeHtml((p.content || '').slice(0, 220)) + '</span>' +
+                '<button class="board-pin-copy material-symbols-outlined" data-board-copy="' + p.id + '" title="Copy prompt" aria-label="Copy prompt">content_copy</button>' +
                 '<button class="board-pin-remove material-symbols-outlined" data-board-unpin="' + p.id + '" title="Remove from board" aria-label="Remove from board">close</button>' +
             '</div>'
         ).join('');
         body.querySelectorAll('[data-board-pin-id]').forEach(card => {
             card.addEventListener('click', (e) => {
-                if (e.target.closest('[data-board-unpin]')) return;
+                if (e.target.closest('[data-board-unpin]') || e.target.closest('[data-board-copy]')) return;
                 const id = Number(card.dataset.boardPinId);
-                closeBoardWorkspace();
-                setTimeout(() => openDetail(id), 150);
+                const pin = _boardState.pins.find(p => p.id === id);
+                if (pin) _boardOpenLightbox(pin);
+            });
+        });
+        body.querySelectorAll('[data-board-copy]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window.PL_useFromCard(Number(btn.dataset.boardCopy));
             });
         });
         body.querySelectorAll('[data-board-unpin]').forEach(btn => {
@@ -13041,6 +13397,25 @@ Must avoid: [Anything sensitive or previously declined]`
                 }
             });
         });
+    }
+
+    function _boardOpenLightbox(pin) {
+        $('#boardLightboxTitle').textContent = pin.title || 'Untitled';
+        $('#boardLightboxDesc').textContent = pin.description || '';
+        $('#boardLightboxDesc').style.display = pin.description ? '' : 'none';
+        $('#boardLightboxContent').textContent = pin.content || '';
+        const copyBtn = $('#boardLightboxCopyBtn');
+        if (copyBtn) copyBtn.onclick = () => window.PL_useFromCard(pin.id);
+        const openBtn = $('#boardLightboxOpenBtn');
+        if (openBtn) openBtn.onclick = () => {
+            closeBoardWorkspace();
+            setTimeout(() => openDetail(pin.id), 150);
+        };
+        $('#boardPinLightbox').hidden = false;
+    }
+
+    function _boardCloseLightbox() {
+        $('#boardPinLightbox').hidden = true;
     }
 
     async function _boardCreate() {
@@ -13130,8 +13505,13 @@ Must avoid: [Anything sensitive or previously declined]`
         $('#boardAddPinBtn')?.addEventListener('click', _boardAddPin);
         $('#boardNameInput')?.addEventListener('change', _boardSaveMeta);
         $('#boardDescInput')?.addEventListener('change', _boardSaveMeta);
+        $('#boardLightboxCloseBtn')?.addEventListener('click', _boardCloseLightbox);
+        $('#boardPinLightboxBackdrop')?.addEventListener('click', _boardCloseLightbox);
         ws.addEventListener('keydown', e => {
-            if (e.key === 'Escape') closeBoardWorkspace();
+            if (e.key !== 'Escape') return;
+            const lightbox = $('#boardPinLightbox');
+            if (lightbox && !lightbox.hidden) _boardCloseLightbox();
+            else closeBoardWorkspace();
         });
     }
 
@@ -13859,6 +14239,12 @@ Must avoid: [Anything sensitive or previously declined]`
     const BR_MAX_ROWS = 50;
     const BR_WARN_ROWS = 25;
     const BR_SYSTEM = 'Execute the prompt exactly as written. Return only the result, with no preamble or commentary.';
+    const BR_TUTORIAL_KEY = 'pl_br_tutorial_seen';
+    const BR_EXAMPLE_SOURCE = 'Write a short, punchy product description for [[product]], aimed at [[audience]].';
+    const BR_EXAMPLE_ROWS = 'product,audience\n' +
+        'Wireless earbuds,Commuters who lose things\n' +
+        'Standing desk,Remote workers with bad posture\n' +
+        'Reusable water bottle,Gym-goers who forget theirs';
 
     let _brVars = [];
     let _brRows = [];
@@ -14103,6 +14489,28 @@ Must avoid: [Anything sensitive or previously declined]`
         } catch (e) { /* ignore malformed */ }
     }
 
+    // Fills the form with a worked example so a new user sees the CSV-header
+    // convention in action rather than guessing it from the placeholder text.
+    function _brLoadExample() {
+        if ($('#brSource')) $('#brSource').value = BR_EXAMPLE_SOURCE;
+        if ($('#brRows')) $('#brRows').value = BR_EXAMPLE_ROWS;
+        _brSyncSource();
+        toast('Example loaded', 'success');
+    }
+
+    // One-time tutorial card: auto-shown the first time Batch Runner opens,
+    // manually replayable afterwards via the header help button.
+    function _brShowTutorial() {
+        const el = $('#brTutorial');
+        if (el) el.hidden = false;
+    }
+
+    function _brHideTutorial() {
+        const el = $('#brTutorial');
+        if (el) el.hidden = true;
+        try { localStorage.setItem(BR_TUTORIAL_KEY, '1'); } catch (e) { /* non-essential */ }
+    }
+
     window.PL_brSaveRow = async function(i) {
         const r = _brResults[i];
         if (!r || r.status !== 'done' || !r.output.trim()) return;
@@ -14144,6 +14552,9 @@ Must avoid: [Anything sensitive or previously declined]`
         _brRestore();
         _brSyncSource();
         _brRenderResults();
+        try {
+            if (!localStorage.getItem(BR_TUTORIAL_KEY)) _brShowTutorial();
+        } catch (e) { /* non-essential */ }
     };
 
     function closeBatchWorkspace() {
@@ -14163,6 +14574,10 @@ Must avoid: [Anything sensitive or previously declined]`
         }
 
         $('#closeBatchBtn')?.addEventListener('click', closeBatchWorkspace);
+        $('#brHelpBtn')?.addEventListener('click', _brShowTutorial);
+        $('#brExampleBtn')?.addEventListener('click', _brLoadExample);
+        $('#brTutorialExampleBtn')?.addEventListener('click', () => { _brLoadExample(); _brHideTutorial(); });
+        $('#brTutorialGotItBtn')?.addEventListener('click', _brHideTutorial);
         $('#brSource')?.addEventListener('input', _brSyncSource);
         $('#brRows')?.addEventListener('input', _brSyncRows);
         $('#brModel')?.addEventListener('change', _brSyncRows);
@@ -14448,6 +14863,93 @@ Must avoid: [Anything sensitive or previously declined]`
         }
     }
 
+    async function _taxAutoTagScan() {
+        const modal = $('#taxAutoTagModal');
+        const hint = $('#taxAutoTagHint');
+        const list = $('#taxAutoTagList');
+        const applyBtn = $('#taxAutoTagApplyBtn');
+        if (!modal) return;
+        modal.classList.add('active');
+        if (applyBtn) applyBtn.disabled = true;
+        if (hint) hint.textContent = 'Scanning untagged prompts\u2026';
+        if (list) list.innerHTML = '';
+
+        const useCases = [];
+        _taxState.domains.forEach(d => d.use_cases.forEach(u => useCases.push({ id: u.id, name: u.name, domainName: d.name })));
+        if (!useCases.length) {
+            if (hint) hint.textContent = 'Add a domain and use-case first.';
+            return;
+        }
+
+        const taggedIds = new Set();
+        const corpora = [];
+        for (const uc of useCases) {
+            let taggedPrompts = [];
+            try {
+                taggedPrompts = await api(`/taxonomy/use-cases/${uc.id}/prompts`);
+            } catch { /* score this use-case on its name alone */ }
+            taggedPrompts.forEach(tp => taggedIds.add(tp.id));
+            const text = uc.name + ' ' + taggedPrompts.map(tp => (tp.title || '') + ' ' + (tp.content || '')).join(' ');
+            corpora.push({ uc, set: _pulseTokenSet(text) });
+        }
+
+        const candidates = [];
+        state.prompts.forEach(p => {
+            if (taggedIds.has(p.id)) return;
+            const pSet = _pulseTokenSet((p.title || '') + ' ' + (p.content || ''));
+            let best = null, bestScore = 0;
+            corpora.forEach(({ uc, set }) => {
+                const score = _pulseJaccard(pSet, set);
+                if (score > bestScore) { bestScore = score; best = uc; }
+            });
+            if (best && bestScore >= 0.12) candidates.push({ prompt: p, uc: best, score: bestScore });
+        });
+
+        if (!candidates.length) {
+            if (hint) hint.textContent = 'No confident matches found for untagged prompts.';
+            return;
+        }
+        candidates.sort((a, b) => b.score - a.score);
+        if (hint) hint.textContent = candidates.length + ' suggestion' + (candidates.length !== 1 ? 's' : '') + ' \u2014 review and apply.';
+        if (list) {
+            list.innerHTML = candidates.map(cnd => `
+          <label class="tax-autotag-row">
+            <input type="checkbox" checked data-pid="${cnd.prompt.id}" data-uc="${cnd.uc.id}" />
+            <span class="tax-autotag-title">${escapeHtml(cnd.prompt.title || 'Untitled')}</span>
+            <span class="material-symbols-outlined tax-autotag-arrow">arrow_forward</span>
+            <span class="tax-autotag-target">${escapeHtml(cnd.uc.domainName)} / ${escapeHtml(cnd.uc.name)}</span>
+            <span class="tax-autotag-score">${cnd.score >= 0.3 ? 'High' : 'Medium'}</span>
+          </label>`).join('');
+        }
+        if (applyBtn) applyBtn.disabled = false;
+    }
+
+    async function _taxAutoTagApply() {
+        const checked = $$('#taxAutoTagList input[type="checkbox"]:checked');
+        if (!checked.length) {
+            toast('Nothing selected', 'warning');
+            return;
+        }
+        const groups = {};
+        checked.forEach(cb => {
+            const ucId = cb.dataset.uc;
+            (groups[ucId] = groups[ucId] || []).push(parseInt(cb.dataset.pid, 10));
+        });
+        let taggedCount = 0, failed = 0;
+        for (const [ucId, ids] of Object.entries(groups)) {
+            try {
+                await api('/taxonomy/bulk-tag', { method: 'POST', body: { prompt_ids: ids, use_case_id: parseInt(ucId, 10), action: 'add' } });
+                taggedCount += ids.length;
+            } catch {
+                failed += ids.length;
+            }
+        }
+        $('#taxAutoTagModal')?.classList.remove('active');
+        if (failed) toast(taggedCount + ' tagged, ' + failed + ' failed', 'warning');
+        else toast(taggedCount + ' prompt' + (taggedCount !== 1 ? 's' : '') + ' auto-tagged', 'success');
+        if (_taxState.selectedType === 'usecase') await _taxRenderDetail();
+    }
+
     window.openTaxonomyWorkspace = function() {
         if (!state.isPremium) {
             showPremiumModal();
@@ -14475,6 +14977,15 @@ Must avoid: [Anything sensitive or previously declined]`
         if (!ws) return;
         $('#closeTaxonomyBtn')?.addEventListener('click', closeTaxonomyWorkspace);
         $('#taxAddDomainBtn')?.addEventListener('click', _taxAddDomain);
+        $('#taxAutoTagBtn')?.addEventListener('click', _taxAutoTagScan);
+        const taxAutoTagModal = $('#taxAutoTagModal');
+        const closeTaxAutoTagModal = () => taxAutoTagModal?.classList.remove('active');
+        $('#closeTaxAutoTagBtn')?.addEventListener('click', closeTaxAutoTagModal);
+        $('#taxAutoTagCancelBtn')?.addEventListener('click', closeTaxAutoTagModal);
+        taxAutoTagModal?.addEventListener('click', e => {
+            if (e.target === taxAutoTagModal) closeTaxAutoTagModal();
+        });
+        $('#taxAutoTagApplyBtn')?.addEventListener('click', _taxAutoTagApply);
         $('#taxTreeList')?.addEventListener('click', (e) => {
             const selDomain = e.target.closest('[data-select-domain]');
             const selUsecase = e.target.closest('[data-select-usecase]');
@@ -14511,198 +15022,6 @@ Must avoid: [Anything sensitive or previously declined]`
         });
         ws.addEventListener('keydown', e => {
             if (e.key === 'Escape') closeTaxonomyWorkspace();
-        });
-    }
-
-    /* ============================================================================
-       RELATIONSHIP GRAPH
-       data-view="relationship" | openRelationshipWorkspace() | initRelationshipWorkspace()
-       ============================================================================ */
-
-    let _relState = { centerId: null, centerPrompt: null, related: [], addPanelOpen: false };
-
-    function _relTruncate(text, n) {
-        if (!text) return '';
-        return text.length > n ? text.slice(0, n - 1) + '…' : text;
-    }
-
-    async function _relLoadCenter(promptId) {
-        _relState.centerId = promptId;
-        _relState.addPanelOpen = false;
-        $('#relPickerPanel').hidden = true;
-        $('#relOrphansPanel').hidden = true;
-        $('#relGraphPanel').hidden = false;
-        const svg = $('#relSvg');
-        if (svg) svg.innerHTML = '<text x="320" y="240" text-anchor="middle" class="rel-svg-hint">Loading…</text>';
-        try {
-            _relState.centerPrompt = state.prompts.find(p => p.id === promptId) || (await api(`/prompts/${promptId}`));
-            _relState.related = await api(`/prompts/${promptId}/relationships`);
-            _relRenderGraph();
-        } catch {
-            if (svg) svg.innerHTML = '<text x="320" y="240" text-anchor="middle" class="rel-svg-hint">Couldn\'t load relationships</text>';
-        }
-    }
-
-    function _relRenderGraph() {
-        const svg = $('#relSvg');
-        if (!svg) return;
-        const cx = 320, cy = 240, r = 170;
-        const center = _relState.centerPrompt;
-        const related = _relState.related;
-        let parts = [];
-        related.forEach((p, i) => {
-            const angle = (2 * Math.PI * i / Math.max(1, related.length)) - Math.PI / 2;
-            const nx = cx + r * Math.cos(angle);
-            const ny = cy + r * Math.sin(angle);
-            parts.push(`<line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" class="rel-edge" />`);
-            const midx = (cx + nx) / 2, midy = (cy + ny) / 2;
-            parts.push(`<text x="${midx.toFixed(1)}" y="${midy.toFixed(1)}" class="rel-edge-label" text-anchor="middle">${escapeHtml(p.rel_type || 'related')}</text>`);
-        });
-        parts.push(`<g class="rel-node rel-node-center">
-        <circle cx="${cx}" cy="${cy}" r="46" />
-        <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(_relTruncate(center ? center.title : '', 16))}</text>
-      </g>`);
-        related.forEach((p, i) => {
-            const angle = (2 * Math.PI * i / Math.max(1, related.length)) - Math.PI / 2;
-            const nx = cx + r * Math.cos(angle);
-            const ny = cy + r * Math.sin(angle);
-            parts.push(`<g class="rel-node" data-rel-node="${p.id}" tabindex="0">
-            <circle cx="${nx.toFixed(1)}" cy="${ny.toFixed(1)}" r="34" />
-            <text x="${nx.toFixed(1)}" y="${ny.toFixed(1)}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(_relTruncate(p.title, 14))}</text>
-            <title>${escapeHtml(p.title)}</title>
-          </g>
-          <g class="rel-node-remove" data-rel-remove="${p.id}">
-            <circle cx="${(nx + 24).toFixed(1)}" cy="${(ny - 24).toFixed(1)}" r="10" />
-            <text x="${(nx + 24).toFixed(1)}" y="${(ny - 24).toFixed(1)}" text-anchor="middle" dominant-baseline="middle">×</text>
-          </g>`);
-        });
-        svg.innerHTML = parts.join('');
-        if (!related.length) {
-            svg.innerHTML += `<text x="${cx}" y="${cy + 90}" text-anchor="middle" class="rel-svg-hint">No relationships yet — add one above.</text>`;
-        }
-    }
-
-    function _relOpenAddPanel() {
-        _relState.addPanelOpen = true;
-        const panel = $('#relAddPanel');
-        if (!panel) return;
-        panel.hidden = false;
-        panel.innerHTML = `
-      <select id="relAddPicker" class="forge-input qf-picker"><option value="">Load from library…</option></select>
-      <select id="relAddType" class="forge-input">
-        <option value="related">Related</option>
-        <option value="variant">Variant</option>
-        <option value="depends_on">Depends on</option>
-        <option value="inspired_by">Inspired by</option>
-      </select>
-      <button class="btn btn-accent" id="relAddConfirmBtn">Link</button>
-      <button class="btn btn-ghost" id="relAddCancelBtn">Cancel</button>`;
-        _wsFillPromptPicker('#relAddPicker');
-        $('#relAddConfirmBtn')?.addEventListener('click', async () => {
-            const otherId = parseInt($('#relAddPicker').value, 10);
-            if (!otherId) { toast('Pick a prompt first', 'warning'); return; }
-            if (otherId === _relState.centerId) { toast('Pick a different prompt', 'warning'); return; }
-            try {
-                await api(`/prompts/${_relState.centerId}/relationships`, {
-                    method: 'POST',
-                    body: { related_id: otherId, rel_type: $('#relAddType').value }
-                });
-                panel.hidden = true;
-                _relState.addPanelOpen = false;
-                await _relLoadCenter(_relState.centerId);
-                toast('Relationship added', 'success');
-            } catch {
-                toast('Could not add relationship', 'error');
-            }
-        });
-        $('#relAddCancelBtn')?.addEventListener('click', () => {
-            panel.hidden = true;
-            _relState.addPanelOpen = false;
-        });
-    }
-
-    async function _relDeleteRelationship(otherId) {
-        if (!confirm('Remove this relationship?')) return;
-        try {
-            await api(`/prompts/${_relState.centerId}/relationships/${otherId}`, { method: 'DELETE' });
-            await _relLoadCenter(_relState.centerId);
-            toast('Relationship removed', 'success');
-        } catch {
-            toast('Could not remove relationship', 'error');
-        }
-    }
-
-    async function _relShowOrphans() {
-        $('#relPickerPanel').hidden = true;
-        $('#relGraphPanel').hidden = true;
-        $('#relOrphansPanel').hidden = false;
-        const list = $('#relOrphansList');
-        if (list) list.innerHTML = '<p class="hint">Loading…</p>';
-        try {
-            const orphans = await api('/relationships/orphans');
-            if (list) {
-                list.innerHTML = orphans.length
-                    ? orphans.map(p => `<button class="rel-orphan-row" data-rel-orphan="${p.id}">${escapeHtml(p.title)}</button>`).join('')
-                    : '<p class="hint">No orphans — every prompt has at least one relationship.</p>';
-            }
-        } catch {
-            if (list) list.innerHTML = '<p class="hint">Couldn\'t load orphans.</p>';
-        }
-    }
-
-    window.openRelationshipWorkspace = function() {
-        if (!state.isPremium) {
-            showPremiumModal();
-            return;
-        }
-        const ws = $('#relationshipWorkspace');
-        if (!ws) return;
-        ws.classList.add('open');
-        document.body.style.overflow = 'hidden';
-        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'relationship'));
-        _relState = { centerId: null, centerPrompt: null, related: [], addPanelOpen: false };
-        $('#relPickerPanel').hidden = false;
-        $('#relGraphPanel').hidden = true;
-        $('#relOrphansPanel').hidden = true;
-        _wsFillPromptPicker('#relCenterPicker');
-    };
-
-    function closeRelationshipWorkspace() {
-        $('#relationshipWorkspace')?.classList.remove('open');
-        document.body.style.overflow = '';
-        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
-    }
-
-    function initRelationshipWorkspace() {
-        const ws = $('#relationshipWorkspace');
-        if (!ws) return;
-        $('#closeRelationshipBtn')?.addEventListener('click', closeRelationshipWorkspace);
-        $('#relCenterPicker')?.addEventListener('change', (e) => {
-            const id = parseInt(e.target.value, 10);
-            if (id) _relLoadCenter(id);
-        });
-        $('#relAddBtn')?.addEventListener('click', () => {
-            if (!_relState.centerId) { toast('Pick a prompt to center on first', 'warning'); return; }
-            _relOpenAddPanel();
-        });
-        $('#relOrphansBtn')?.addEventListener('click', _relShowOrphans);
-        $('#relOrphansCloseBtn')?.addEventListener('click', () => {
-            $('#relOrphansPanel').hidden = true;
-            if (_relState.centerId) { $('#relGraphPanel').hidden = false; }
-            else { $('#relPickerPanel').hidden = false; }
-        });
-        $('#relOrphansList')?.addEventListener('click', (e) => {
-            const btn = e.target.closest('[data-rel-orphan]');
-            if (btn) _relLoadCenter(parseInt(btn.dataset.relOrphan, 10));
-        });
-        $('#relSvg')?.addEventListener('click', (e) => {
-            const remove = e.target.closest('[data-rel-remove]');
-            if (remove) { _relDeleteRelationship(parseInt(remove.dataset.relRemove, 10)); return; }
-            const node = e.target.closest('[data-rel-node]');
-            if (node) _relLoadCenter(parseInt(node.dataset.relNode, 10));
-        });
-        ws.addEventListener('keydown', e => {
-            if (e.key === 'Escape') closeRelationshipWorkspace();
         });
     }
 
@@ -14900,7 +15219,6 @@ Must avoid: [Anything sensitive or previously declined]`
         initBatchWorkspace(); // batch runner workspace
         initBoardWorkspace(); // prompt board workspace
         initTaxonomyWorkspace(); // taxonomy studio workspace
-        initRelationshipWorkspace(); // relationship graph workspace
         initVersionWorkspace(); // version timeline workspace
         initModalSidePanels(); // prompt modal side panels
         initOnboarding(); // spotlight tour auto-launch on first run
@@ -15164,6 +15482,14 @@ Must avoid: [Anything sensitive or previously declined]`
        Supports OpenAI, Anthropic, Gemini. Reads provider + key from localStorage.
        callAI(systemPrompt, userMsg, maxTokens?) → Promise<string>
        ============================================================================ */
+    const AI_OPENAI_COMPAT = {
+        mistral:    { url: 'https://api.mistral.ai/v1/chat/completions', model: 'mistral-small-latest' },
+        groq:       { url: 'https://api.groq.com/openai/v1/chat/completions', model: 'openai/gpt-oss-120b' },
+        deepseek:   { url: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat' },
+        xai:        { url: 'https://api.x.ai/v1/chat/completions', model: 'grok-4-latest' },
+        perplexity: { url: 'https://api.perplexity.ai/chat/completions', model: 'sonar' },
+    };
+
     async function callAI(systemPrompt, userMsg, maxTokens) {
         maxTokens = maxTokens || 1200;
         const provider = localStorage.getItem('pl_ai_provider') || 'openai';
@@ -15178,7 +15504,7 @@ Must avoid: [Anything sensitive or previously declined]`
                     'Authorization': 'Bearer ' + apiKey
                 },
                 body: JSON.stringify({
-                    model: 'gpt-4o-mini',
+                    model: 'gpt-5.4-mini',
                     messages: [{
                         role: 'system',
                         content: systemPrompt
@@ -15217,7 +15543,7 @@ Must avoid: [Anything sensitive or previously declined]`
             return (data.content?.[0]?.text || '').trim();
 
         } else if (provider === 'gemini') {
-            const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey, {
+            const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -15238,7 +15564,7 @@ Must avoid: [Anything sensitive or previously declined]`
             return (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
 
         } else if (provider === 'openrouter') {
-            const model = localStorage.getItem('pl_openrouter_model') || 'openai/gpt-4o-mini';
+            const model = localStorage.getItem('pl_openrouter_model') || 'openai/gpt-5.4-mini';
             const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
                 headers: {
@@ -15260,8 +15586,86 @@ Must avoid: [Anything sensitive or previously declined]`
             const data = await res.json();
             if (data.error) throw new Error(data.error.message);
             return (data.choices?.[0]?.message?.content || '').trim();
+
+        } else if (provider === 'cohere') {
+            const res = await fetch('https://api.cohere.com/v2/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + apiKey
+                },
+                body: JSON.stringify({
+                    model: 'command-a-03-2025',
+                    messages: [{
+                        role: 'system',
+                        content: systemPrompt
+                    }, {
+                        role: 'user',
+                        content: userMsg
+                    }],
+                    max_tokens: maxTokens
+                }),
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+            const parts = data.message?.content || [];
+            return parts.map(p => p.text || '').join('').trim();
+
+        } else if (AI_OPENAI_COMPAT[provider]) {
+            const cfg = AI_OPENAI_COMPAT[provider];
+            const res = await fetch(cfg.url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + apiKey
+                },
+                body: JSON.stringify({
+                    model: cfg.model,
+                    messages: [{
+                        role: 'system',
+                        content: systemPrompt
+                    }, {
+                        role: 'user',
+                        content: userMsg
+                    }],
+                    max_tokens: maxTokens
+                }),
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+            return (data.choices?.[0]?.message?.content || '').trim();
+
+        } else {
+            // Azure OpenAI or a custom-added provider — both need a stored
+            // endpoint URL since there's no single well-known base URL.
+            const baseUrl = localStorage.getItem('pl_base_url_' + provider) || '';
+            if (!baseUrl) throw new Error(`No endpoint URL set for "${provider}" — add one in Settings`);
+            const isAzure = provider === 'azure_openai';
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (isAzure) headers['api-key'] = apiKey;
+            else headers['Authorization'] = 'Bearer ' + apiKey;
+            const model = localStorage.getItem('pl_model_' + provider) || '';
+            const res = await fetch(baseUrl, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    ...(model ? { model } : {}),
+                    messages: [{
+                        role: 'system',
+                        content: systemPrompt
+                    }, {
+                        role: 'user',
+                        content: userMsg
+                    }],
+                    max_tokens: maxTokens
+                }),
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+            return (data.choices?.[0]?.message?.content || '').trim();
         }
-        throw new Error('Unknown provider: ' + provider);
     }
 
     /* ============================================================================
@@ -16457,6 +16861,4069 @@ Must avoid: [Anything sensitive or previously declined]`
                     placeholder: 'e.g. Evaluate each path on: cost, scalability, impact on 90-day retention, feasibility.'
                 }
             ]
+        },
+        spade: {
+            label: 'SPADE',
+            fields: [{
+                        id: 'forgeSpadeSituation',
+                        label: 'Situation',
+                        icon: 'info',
+                        hint: 'The current state of affairs',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Describe the situation as it stands today...'
+                    },
+                    {
+                        id: 'forgeSpadeProblem',
+                        label: 'Problem',
+                        icon: 'report_problem',
+                        hint: 'What is going wrong or needs solving',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. State the core problem clearly...'
+                    },
+                    {
+                        id: 'forgeSpadeAnalysis',
+                        label: 'Analysis',
+                        icon: 'query_stats',
+                        hint: 'Break down what is driving the problem',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Analyse the key factors at play...'
+                    },
+                    {
+                        id: 'forgeSpadeDecision',
+                        label: 'Decision',
+                        icon: 'gavel',
+                        hint: 'The decision to be made or recommended',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. State the decision or recommendation...'
+                    },
+                    {
+                        id: 'forgeSpadeExecution',
+                        label: 'Execution',
+                        icon: 'rocket_launch',
+                        hint: 'How the decision gets carried out',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Describe how this should be executed...'
+                    }
+            ]
+        },
+        rule: {
+            label: 'RULE',
+            fields: [{
+                        id: 'forgeRuleRole',
+                        label: 'Role',
+                        icon: 'person',
+                        hint: 'Who is the AI acting as?',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. You are an expert in...'
+                    },
+                    {
+                        id: 'forgeRuleUser',
+                        label: 'User',
+                        icon: 'groups',
+                        hint: 'Who this is for',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Describe who will use this...'
+                    },
+                    {
+                        id: 'forgeRuleLogic',
+                        label: 'Logic',
+                        icon: 'psychology',
+                        hint: 'The reasoning the AI should follow',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Walk through the reasoning step by step...'
+                    },
+                    {
+                        id: 'forgeRuleExample',
+                        label: 'Example',
+                        icon: 'lightbulb',
+                        hint: 'Optional example to anchor the output',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Input: ... -> Output: ...'
+                    }
+            ]
+        },
+        crystal: {
+            label: 'CRYSTAL',
+            fields: [{
+                        id: 'forgeCrystalContext',
+                        label: 'Context',
+                        icon: 'info',
+                        hint: 'Background the AI needs to know',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The background is...'
+                    },
+                    {
+                        id: 'forgeCrystalRequirements',
+                        label: 'Requirements',
+                        icon: 'checklist',
+                        hint: 'What the output must satisfy',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The output must...'
+                    },
+                    {
+                        id: 'forgeCrystalYourtask',
+                        label: 'Your Task',
+                        icon: 'task_alt',
+                        hint: 'The core instruction',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Your task is to...'
+                    },
+                    {
+                        id: 'forgeCrystalSteps',
+                        label: 'Steps',
+                        icon: 'format_list_numbered',
+                        hint: 'The steps to follow',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. 1. ... 2. ... 3. ...'
+                    },
+                    {
+                        id: 'forgeCrystalTone',
+                        label: 'Tone',
+                        icon: 'record_voice_over',
+                        hint: 'The voice or tone to use',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Professional, warm, and concise.'
+                    },
+                    {
+                        id: 'forgeCrystalAsk',
+                        label: 'Ask',
+                        icon: 'help',
+                        hint: 'The exact thing you want back',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. What I need back is...'
+                    },
+                    {
+                        id: 'forgeCrystalLogistics',
+                        label: 'Logistics',
+                        icon: 'event_note',
+                        hint: 'Practical constraints — length, format, deadline',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Keep it under 300 words, markdown format...'
+                    }
+            ]
+        },
+        cmo: {
+            label: 'CMO',
+            fields: [{
+                        id: 'forgeCmoContext',
+                        label: 'Context',
+                        icon: 'info',
+                        hint: 'Background the AI needs to know',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The background is...'
+                    },
+                    {
+                        id: 'forgeCmoMission',
+                        label: 'Mission',
+                        icon: 'flag',
+                        hint: 'The overarching purpose',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The mission is to...'
+                    },
+                    {
+                        id: 'forgeCmoObjective',
+                        label: 'Objective',
+                        icon: 'ads_click',
+                        hint: 'What you want the AI to do',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Write a...'
+                    }
+            ]
+        },
+        pose: {
+            label: 'POSE',
+            fields: [{
+                        id: 'forgePoseProblem',
+                        label: 'Problem',
+                        icon: 'report_problem',
+                        hint: 'What is going wrong or needs solving',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. State the core problem clearly...'
+                    },
+                    {
+                        id: 'forgePoseObjective',
+                        label: 'Objective',
+                        icon: 'ads_click',
+                        hint: 'What you want the AI to do',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgePoseSolution',
+                        label: 'Solution',
+                        icon: 'build',
+                        hint: 'The proposed solution',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Propose a solution that...'
+                    },
+                    {
+                        id: 'forgePoseEvaluation',
+                        label: 'Evaluation',
+                        icon: 'balance',
+                        hint: 'How to judge success',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Judge success by...'
+                    }
+            ]
+        },
+        raci: {
+            label: 'RACI',
+            fields: [{
+                        id: 'forgeRaciResponsible',
+                        label: 'Responsible',
+                        icon: 'engineering',
+                        hint: 'Who does the work',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The person responsible is...'
+                    },
+                    {
+                        id: 'forgeRaciAccountable',
+                        label: 'Accountable',
+                        icon: 'verified_user',
+                        hint: 'Who owns the outcome',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Accountable owner is...'
+                    },
+                    {
+                        id: 'forgeRaciConsulted',
+                        label: 'Consulted',
+                        icon: 'forum',
+                        hint: 'Who should be consulted first',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Consult with...'
+                    },
+                    {
+                        id: 'forgeRaciInformed',
+                        label: 'Informed',
+                        icon: 'campaign',
+                        hint: 'Who needs to be kept informed',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Keep informed: ...'
+                    }
+            ]
+        },
+        sos: {
+            label: 'SOS',
+            fields: [{
+                        id: 'forgeSosSituation',
+                        label: 'Situation',
+                        icon: 'info',
+                        hint: 'The current state of affairs',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Describe the situation as it stands today...'
+                    },
+                    {
+                        id: 'forgeSosObjective',
+                        label: 'Objective',
+                        icon: 'ads_click',
+                        hint: 'What you want the AI to do',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeSosStrategy',
+                        label: 'Strategy',
+                        icon: 'route',
+                        hint: 'The overall approach',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. The strategy is to...'
+                    }
+            ]
+        },
+        tq: {
+            label: 'TQ',
+            fields: [{
+                        id: 'forgeTqTask',
+                        label: 'Task',
+                        icon: 'task_alt',
+                        hint: 'The core instruction',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeTqQuestion',
+                        label: 'Question',
+                        icon: 'help',
+                        hint: 'The question to answer',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. The question is...'
+                    }
+            ]
+        },
+        pqa: {
+            label: 'PQA',
+            fields: [{
+                        id: 'forgePqaProblem',
+                        label: 'Problem',
+                        icon: 'report_problem',
+                        hint: 'What is going wrong or needs solving',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. State the core problem clearly...'
+                    },
+                    {
+                        id: 'forgePqaQuestion',
+                        label: 'Question',
+                        icon: 'help',
+                        hint: 'The question to answer',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The question is...'
+                    },
+                    {
+                        id: 'forgePqaAnswer',
+                        label: 'Answer',
+                        icon: 'check_circle',
+                        hint: 'The answer, reasoned out',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Answer with...'
+                    }
+            ]
+        },
+        qda: {
+            label: 'QDA',
+            fields: [{
+                        id: 'forgeQdaQuestion',
+                        label: 'Question',
+                        icon: 'help',
+                        hint: 'The question to answer',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The question is...'
+                    },
+                    {
+                        id: 'forgeQdaData',
+                        label: 'Data',
+                        icon: 'dataset',
+                        hint: 'The data or evidence to consider',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Given this data...'
+                    },
+                    {
+                        id: 'forgeQdaAnalysis',
+                        label: 'Analysis',
+                        icon: 'query_stats',
+                        hint: 'Break down what is driving the problem',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Analyse the key factors at play...'
+                    }
+            ]
+        },
+        oas: {
+            label: 'OAS',
+            fields: [{
+                        id: 'forgeOasObjective',
+                        label: 'Objective',
+                        icon: 'ads_click',
+                        hint: 'What you want the AI to do',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeOasApproach',
+                        label: 'Approach',
+                        icon: 'route',
+                        hint: 'The method to use',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Approach this by...'
+                    },
+                    {
+                        id: 'forgeOasSolution',
+                        label: 'Solution',
+                        icon: 'build',
+                        hint: 'The proposed solution',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Propose a solution that...'
+                    }
+            ]
+        },
+        ira: {
+            label: 'IRA',
+            fields: [{
+                        id: 'forgeIraIssue',
+                        label: 'Issue',
+                        icon: 'report_problem',
+                        hint: 'The issue at hand',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The issue is...'
+                    },
+                    {
+                        id: 'forgeIraRecommendation',
+                        label: 'Recommendation',
+                        icon: 'thumb_up',
+                        hint: 'What you recommend',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Recommend that...'
+                    },
+                    {
+                        id: 'forgeIraAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. The next action is...'
+                    }
+            ]
+        },
+        pda: {
+            label: 'PDA',
+            fields: [{
+                        id: 'forgePdaProblem',
+                        label: 'Problem',
+                        icon: 'report_problem',
+                        hint: 'What is going wrong or needs solving',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. State the core problem clearly...'
+                    },
+                    {
+                        id: 'forgePdaDecision',
+                        label: 'Decision',
+                        icon: 'gavel',
+                        hint: 'The decision to be made or recommended',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. State the decision or recommendation...'
+                    },
+                    {
+                        id: 'forgePdaAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. The next action is...'
+                    }
+            ]
+        },
+        sma: {
+            label: 'SMA',
+            fields: [{
+                        id: 'forgeSmaSituation',
+                        label: 'Situation',
+                        icon: 'info',
+                        hint: 'The current state of affairs',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Describe the situation as it stands today...'
+                    },
+                    {
+                        id: 'forgeSmaMission',
+                        label: 'Mission',
+                        icon: 'flag',
+                        hint: 'The overarching purpose',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The mission is to...'
+                    },
+                    {
+                        id: 'forgeSmaAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. The next action is...'
+                    }
+            ]
+        },
+        tae: {
+            label: 'TAE',
+            fields: [{
+                        id: 'forgeTaeTask',
+                        label: 'Task',
+                        icon: 'task_alt',
+                        hint: 'The core instruction',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeTaeAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The next action is...'
+                    },
+                    {
+                        id: 'forgeTaeExpectedoutcome',
+                        label: 'Expected Outcome',
+                        icon: 'flag_circle',
+                        hint: 'What success looks like',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Success looks like...'
+                    }
+            ]
+        },
+        dream: {
+            label: 'DREAM',
+            fields: [{
+                        id: 'forgeDreamDefine',
+                        label: 'Define',
+                        icon: 'edit_note',
+                        hint: 'Define the problem or goal precisely',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Define exactly what...'
+                    },
+                    {
+                        id: 'forgeDreamReview',
+                        label: 'Review',
+                        icon: 'rate_review',
+                        hint: 'What to review',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Review the following...'
+                    },
+                    {
+                        id: 'forgeDreamEvaluate',
+                        label: 'Evaluate',
+                        icon: 'balance',
+                        hint: 'How to judge the result',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Judge success by...'
+                    },
+                    {
+                        id: 'forgeDreamAssess',
+                        label: 'Assess',
+                        icon: 'fact_check',
+                        hint: 'Assess the current state',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Assess where things stand...'
+                    },
+                    {
+                        id: 'forgeDreamMap',
+                        label: 'Map',
+                        icon: 'map',
+                        hint: 'Map out the path forward',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Map the steps from here to...'
+                    }
+            ]
+        },
+        smart: {
+            label: 'SMART',
+            fields: [{
+                        id: 'forgeSmartSpecific',
+                        label: 'Specific',
+                        icon: 'center_focus_strong',
+                        hint: 'Make the goal specific',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Specifically, the goal is...'
+                    },
+                    {
+                        id: 'forgeSmartMeasurable',
+                        label: 'Measurable',
+                        icon: 'straighten',
+                        hint: 'How progress will be measured',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Measured by...'
+                    },
+                    {
+                        id: 'forgeSmartAchievable',
+                        label: 'Achievable',
+                        icon: 'check_circle',
+                        hint: 'Why this is realistic',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. This is achievable because...'
+                    },
+                    {
+                        id: 'forgeSmartRelevant',
+                        label: 'Relevant',
+                        icon: 'push_pin',
+                        hint: 'Why this matters now',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. This matters because...'
+                    },
+                    {
+                        id: 'forgeSmartTimebound',
+                        label: 'Time-bound',
+                        icon: 'schedule',
+                        hint: 'The deadline or timeframe',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Due by...'
+                    }
+            ]
+        },
+        clear: {
+            label: 'CLEAR',
+            fields: [{
+                        id: 'forgeClearCollaborative',
+                        label: 'Collaborative',
+                        icon: 'groups',
+                        hint: 'Who is involved',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Involve...'
+                    },
+                    {
+                        id: 'forgeClearLimited',
+                        label: 'Limited',
+                        icon: 'block',
+                        hint: 'The scope boundaries',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Limit scope to...'
+                    },
+                    {
+                        id: 'forgeClearEmotional',
+                        label: 'Emotional',
+                        icon: 'favorite',
+                        hint: 'The emotional tone to strike',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The tone should feel...'
+                    },
+                    {
+                        id: 'forgeClearAppreciable',
+                        label: 'Appreciable',
+                        icon: 'visibility',
+                        hint: 'How progress will be made visible',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Progress will show as...'
+                    },
+                    {
+                        id: 'forgeClearRefinable',
+                        label: 'Refinable',
+                        icon: 'tune',
+                        hint: 'How this can be iterated on',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. This can be refined by...'
+                    }
+            ]
+        },
+        spain: {
+            label: 'SPAIN',
+            fields: [{
+                        id: 'forgeSpainSituation',
+                        label: 'Situation',
+                        icon: 'info',
+                        hint: 'The current state of affairs',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Describe the situation as it stands today...'
+                    },
+                    {
+                        id: 'forgeSpainProblem',
+                        label: 'Problem',
+                        icon: 'report_problem',
+                        hint: 'What is going wrong or needs solving',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. State the core problem clearly...'
+                    },
+                    {
+                        id: 'forgeSpainAlternatives',
+                        label: 'Alternatives',
+                        icon: 'compare_arrows',
+                        hint: 'Other options considered',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Alternatives considered...'
+                    },
+                    {
+                        id: 'forgeSpainImpact',
+                        label: 'Impact',
+                        icon: 'insights',
+                        hint: 'The expected impact',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The impact would be...'
+                    },
+                    {
+                        id: 'forgeSpainNext',
+                        label: 'Next',
+                        icon: 'arrow_forward',
+                        hint: 'The immediate next step',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Next, we should...'
+                    }
+            ]
+        },
+        socratic: {
+            label: 'SOCRATIC',
+            fields: [{
+                        id: 'forgeSocraticSummarize',
+                        label: 'Summarize',
+                        icon: 'summarize',
+                        hint: 'What to summarise first',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Summarise...'
+                    },
+                    {
+                        id: 'forgeSocraticQuestion',
+                        label: 'Question',
+                        icon: 'help',
+                        hint: 'The question to answer',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The question is...'
+                    },
+                    {
+                        id: 'forgeSocraticChallenge',
+                        label: 'Challenge',
+                        icon: 'psychology_alt',
+                        hint: 'The assumption to challenge',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Challenge the idea that...'
+                    },
+                    {
+                        id: 'forgeSocraticReflect',
+                        label: 'Reflect',
+                        icon: 'self_improvement',
+                        hint: 'What to reflect on',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Reflect on...'
+                    },
+                    {
+                        id: 'forgeSocraticRefine',
+                        label: 'Refine',
+                        icon: 'tune',
+                        hint: 'How to refine the answer',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Refine this by...'
+                    }
+            ]
+        },
+        dmaic: {
+            label: 'DMAIC',
+            fields: [{
+                        id: 'forgeDmaicDefine',
+                        label: 'Define',
+                        icon: 'edit_note',
+                        hint: 'Define the problem or goal precisely',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Define exactly what...'
+                    },
+                    {
+                        id: 'forgeDmaicMeasure',
+                        label: 'Measure',
+                        icon: 'straighten',
+                        hint: 'What is currently being measured',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Currently measuring...'
+                    },
+                    {
+                        id: 'forgeDmaicAnalyze',
+                        label: 'Analyze',
+                        icon: 'query_stats',
+                        hint: 'What to analyse',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Analyse...'
+                    },
+                    {
+                        id: 'forgeDmaicImprove',
+                        label: 'Improve',
+                        icon: 'trending_up',
+                        hint: 'What needs improving',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Improve...'
+                    },
+                    {
+                        id: 'forgeDmaicControl',
+                        label: 'Control',
+                        icon: 'shield',
+                        hint: 'How to keep it on track',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Keep this on track by...'
+                    }
+            ]
+        },
+        dids: {
+            label: 'DIDS',
+            fields: [{
+                        id: 'forgeDidsDefine',
+                        label: 'Define',
+                        icon: 'edit_note',
+                        hint: 'Define the problem or goal precisely',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Define exactly what...'
+                    },
+                    {
+                        id: 'forgeDidsIdentify',
+                        label: 'Identify',
+                        icon: 'search',
+                        hint: 'What needs identifying',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Identify...'
+                    },
+                    {
+                        id: 'forgeDidsDecide',
+                        label: 'Decide',
+                        icon: 'gavel',
+                        hint: 'The decision to make',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Decide...'
+                    },
+                    {
+                        id: 'forgeDidsSolve',
+                        label: 'Solve',
+                        icon: 'build',
+                        hint: 'What needs solving',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Solve for...'
+                    }
+            ]
+        },
+        sipoc: {
+            label: 'SIPOC',
+            fields: [{
+                        id: 'forgeSipocSuppliers',
+                        label: 'Suppliers',
+                        icon: 'local_shipping',
+                        hint: 'Where inputs come from',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Inputs come from...'
+                    },
+                    {
+                        id: 'forgeSipocInputs',
+                        label: 'Inputs',
+                        icon: 'input',
+                        hint: 'What goes in',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Inputs are...'
+                    },
+                    {
+                        id: 'forgeSipocProcess',
+                        label: 'Process',
+                        icon: 'settings',
+                        hint: 'The process itself',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The process is...'
+                    },
+                    {
+                        id: 'forgeSipocOutputs',
+                        label: 'Outputs',
+                        icon: 'output',
+                        hint: 'What comes out',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Outputs are...'
+                    },
+                    {
+                        id: 'forgeSipocCustomers',
+                        label: 'Customers',
+                        icon: 'groups',
+                        hint: 'Who receives the output',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. This is for...'
+                    }
+            ]
+        },
+        pdsa: {
+            label: 'PDSA',
+            fields: [{
+                        id: 'forgePdsaPlan',
+                        label: 'Plan',
+                        icon: 'event_note',
+                        hint: 'The plan to follow',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The plan is...'
+                    },
+                    {
+                        id: 'forgePdsaDo',
+                        label: 'Do',
+                        icon: 'play_arrow',
+                        hint: 'What gets done',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Do...'
+                    },
+                    {
+                        id: 'forgePdsaStudy',
+                        label: 'Study',
+                        icon: 'science',
+                        hint: 'What to study or check',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Study the results...'
+                    },
+                    {
+                        id: 'forgePdsaAct',
+                        label: 'Act',
+                        icon: 'bolt',
+                        hint: 'What to change based on results',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Act by...'
+                    }
+            ]
+        },
+        odt: {
+            label: 'ODT',
+            fields: [{
+                        id: 'forgeOdtObjective',
+                        label: 'Objective',
+                        icon: 'ads_click',
+                        hint: 'What you want the AI to do',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeOdtDeliverable',
+                        label: 'Deliverable',
+                        icon: 'inventory_2',
+                        hint: 'The concrete output expected',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Deliver...'
+                    },
+                    {
+                        id: 'forgeOdtTimeline',
+                        label: 'Timeline',
+                        icon: 'schedule',
+                        hint: 'The timeframe',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Timeline is...'
+                    }
+            ]
+        },
+        srta: {
+            label: 'SRTA',
+            fields: [{
+                        id: 'forgeSrtaSituation',
+                        label: 'Situation',
+                        icon: 'info',
+                        hint: 'The current state of affairs',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Describe the situation as it stands today...'
+                    },
+                    {
+                        id: 'forgeSrtaRole',
+                        label: 'Role',
+                        icon: 'person',
+                        hint: 'Who is the AI acting as?',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. You are an expert in...'
+                    },
+                    {
+                        id: 'forgeSrtaTask',
+                        label: 'Task',
+                        icon: 'task_alt',
+                        hint: 'The core instruction',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeSrtaAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. The next action is...'
+                    }
+            ]
+        },
+        orid: {
+            label: 'ORID',
+            fields: [{
+                        id: 'forgeOridObjective',
+                        label: 'Objective',
+                        icon: 'ads_click',
+                        hint: 'What you want the AI to do',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeOridReflective',
+                        label: 'Reflective',
+                        icon: 'self_improvement',
+                        hint: 'What happened, factually',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. What happened was...'
+                    },
+                    {
+                        id: 'forgeOridInterpretive',
+                        label: 'Interpretive',
+                        icon: 'psychology',
+                        hint: 'What it means',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. This suggests...'
+                    },
+                    {
+                        id: 'forgeOridDecisional',
+                        label: 'Decisional',
+                        icon: 'gavel',
+                        hint: 'What to do about it',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Given this, we should...'
+                    }
+            ]
+        },
+        pestle: {
+            label: 'PESTLE',
+            fields: [{
+                        id: 'forgePestlePolitical',
+                        label: 'Political',
+                        icon: 'account_balance',
+                        hint: 'Political factors',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Political factors include...'
+                    },
+                    {
+                        id: 'forgePestleEconomic',
+                        label: 'Economic',
+                        icon: 'payments',
+                        hint: 'Economic factors',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Economic factors include...'
+                    },
+                    {
+                        id: 'forgePestleSocial',
+                        label: 'Social',
+                        icon: 'groups',
+                        hint: 'Social factors',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Social factors include...'
+                    },
+                    {
+                        id: 'forgePestleTechnological',
+                        label: 'Technological',
+                        icon: 'memory',
+                        hint: 'Technological factors',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Technological factors include...'
+                    },
+                    {
+                        id: 'forgePestleLegal',
+                        label: 'Legal',
+                        icon: 'gavel',
+                        hint: 'Legal factors',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Legal factors include...'
+                    },
+                    {
+                        id: 'forgePestleEnvironmental',
+                        label: 'Environmental',
+                        icon: 'eco',
+                        hint: 'Environmental factors',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Environmental factors include...'
+                    }
+            ]
+        },
+        swot: {
+            label: 'SWOT',
+            fields: [{
+                        id: 'forgeSwotStrengths',
+                        label: 'Strengths',
+                        icon: 'fitness_center',
+                        hint: 'Current strengths',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Strengths include...'
+                    },
+                    {
+                        id: 'forgeSwotWeaknesses',
+                        label: 'Weaknesses',
+                        icon: 'report_problem',
+                        hint: 'Current weaknesses',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Weaknesses include...'
+                    },
+                    {
+                        id: 'forgeSwotOpportunities',
+                        label: 'Opportunities',
+                        icon: 'trending_up',
+                        hint: 'Opportunities available',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Opportunities include...'
+                    },
+                    {
+                        id: 'forgeSwotThreats',
+                        label: 'Threats',
+                        icon: 'warning',
+                        hint: 'Threats to watch',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Threats include...'
+                    }
+            ]
+        },
+        soar: {
+            label: 'SOAR',
+            fields: [{
+                        id: 'forgeSoarStrengths',
+                        label: 'Strengths',
+                        icon: 'fitness_center',
+                        hint: 'Current strengths',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Strengths include...'
+                    },
+                    {
+                        id: 'forgeSoarOpportunities',
+                        label: 'Opportunities',
+                        icon: 'trending_up',
+                        hint: 'Opportunities available',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Opportunities include...'
+                    },
+                    {
+                        id: 'forgeSoarAspirations',
+                        label: 'Aspirations',
+                        icon: 'flag',
+                        hint: 'What success would look like',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Aspiring to...'
+                    },
+                    {
+                        id: 'forgeSoarResults',
+                        label: 'Results',
+                        icon: 'insights',
+                        hint: 'The results to aim for',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Results should be...'
+                    }
+            ]
+        },
+        moca: {
+            label: 'MOCA',
+            fields: [{
+                        id: 'forgeMocaMission',
+                        label: 'Mission',
+                        icon: 'flag',
+                        hint: 'The overarching purpose',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The mission is to...'
+                    },
+                    {
+                        id: 'forgeMocaObjective',
+                        label: 'Objective',
+                        icon: 'ads_click',
+                        hint: 'What you want the AI to do',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeMocaConstraints',
+                        label: 'Constraints',
+                        icon: 'block',
+                        hint: 'What to avoid or limit',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Do not...'
+                    },
+                    {
+                        id: 'forgeMocaAssumptions',
+                        label: 'Assumptions',
+                        icon: 'help_center',
+                        hint: 'What is being assumed',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Assuming that...'
+                    }
+            ]
+        },
+        rds: {
+            label: 'RDS',
+            fields: [{
+                        id: 'forgeRdsRole',
+                        label: 'Role',
+                        icon: 'person',
+                        hint: 'Who is the AI acting as?',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. You are an expert in...'
+                    },
+                    {
+                        id: 'forgeRdsDeliverable',
+                        label: 'Deliverable',
+                        icon: 'inventory_2',
+                        hint: 'The concrete output expected',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Deliver...'
+                    },
+                    {
+                        id: 'forgeRdsStandard',
+                        label: 'Standard',
+                        icon: 'verified',
+                        hint: 'The bar this must meet',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Must meet the standard of...'
+                    }
+            ]
+        },
+        pop: {
+            label: 'POP',
+            fields: [{
+                        id: 'forgePopPoint',
+                        label: 'Point',
+                        icon: 'push_pin',
+                        hint: 'The main point',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The point is...'
+                    },
+                    {
+                        id: 'forgePopObservation',
+                        label: 'Observation',
+                        icon: 'visibility',
+                        hint: 'What was observed',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Observed that...'
+                    },
+                    {
+                        id: 'forgePopPlan',
+                        label: 'Plan',
+                        icon: 'event_note',
+                        hint: 'The plan to follow',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. The plan is...'
+                    }
+            ]
+        },
+        pbd: {
+            label: 'PBD',
+            fields: [{
+                        id: 'forgePbdProblem',
+                        label: 'Problem',
+                        icon: 'report_problem',
+                        hint: 'What is going wrong or needs solving',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. State the core problem clearly...'
+                    },
+                    {
+                        id: 'forgePbdBackground',
+                        label: 'Background',
+                        icon: 'info',
+                        hint: 'Relevant background',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Background: ...'
+                    },
+                    {
+                        id: 'forgePbdDecision',
+                        label: 'Decision',
+                        icon: 'gavel',
+                        hint: 'The decision to be made or recommended',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. State the decision or recommendation...'
+                    }
+            ]
+        },
+        sdb: {
+            label: 'SDB',
+            fields: [{
+                        id: 'forgeSdbSituation',
+                        label: 'Situation',
+                        icon: 'info',
+                        hint: 'The current state of affairs',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Describe the situation as it stands today...'
+                    },
+                    {
+                        id: 'forgeSdbDecision',
+                        label: 'Decision',
+                        icon: 'gavel',
+                        hint: 'The decision to be made or recommended',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. State the decision or recommendation...'
+                    },
+                    {
+                        id: 'forgeSdbBackground',
+                        label: 'Background',
+                        icon: 'info',
+                        hint: 'Relevant background',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Background: ...'
+                    }
+            ]
+        },
+        ada: {
+            label: 'ADA',
+            fields: [{
+                        id: 'forgeAdaAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The next action is...'
+                    },
+                    {
+                        id: 'forgeAdaDetail',
+                        label: 'Detail',
+                        icon: 'zoom_in',
+                        hint: 'The detail that matters most',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Specifically...'
+                    },
+                    {
+                        id: 'forgeAdaAlternative',
+                        label: 'Alternative',
+                        icon: 'compare_arrows',
+                        hint: 'An alternative worth considering',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Alternatively...'
+                    }
+            ]
+        },
+        dive: {
+            label: 'DIVE',
+            fields: [{
+                        id: 'forgeDiveDefine',
+                        label: 'Define',
+                        icon: 'edit_note',
+                        hint: 'Define the problem or goal precisely',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Define exactly what...'
+                    },
+                    {
+                        id: 'forgeDiveInvestigate',
+                        label: 'Investigate',
+                        icon: 'search',
+                        hint: 'What to investigate',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Investigate...'
+                    },
+                    {
+                        id: 'forgeDiveVerify',
+                        label: 'Verify',
+                        icon: 'fact_check',
+                        hint: 'How to verify the answer',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Verify by...'
+                    },
+                    {
+                        id: 'forgeDiveExecute',
+                        label: 'Execute',
+                        icon: 'rocket_launch',
+                        hint: 'How this gets executed',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Execute by...'
+                    }
+            ]
+        },
+        idea: {
+            label: 'IDEA',
+            fields: [{
+                        id: 'forgeIdeaIdentify',
+                        label: 'Identify',
+                        icon: 'search',
+                        hint: 'What needs identifying',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Identify...'
+                    },
+                    {
+                        id: 'forgeIdeaDevelop',
+                        label: 'Develop',
+                        icon: 'build',
+                        hint: 'What to develop',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Develop...'
+                    },
+                    {
+                        id: 'forgeIdeaExecute',
+                        label: 'Execute',
+                        icon: 'rocket_launch',
+                        hint: 'How this gets executed',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Execute by...'
+                    },
+                    {
+                        id: 'forgeIdeaAssess',
+                        label: 'Assess',
+                        icon: 'fact_check',
+                        hint: 'Assess the current state',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Assess where things stand...'
+                    }
+            ]
+        },
+        spark: {
+            label: 'SPARK',
+            fields: [{
+                        id: 'forgeSparkSituation',
+                        label: 'Situation',
+                        icon: 'info',
+                        hint: 'The current state of affairs',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Describe the situation as it stands today...'
+                    },
+                    {
+                        id: 'forgeSparkProblem',
+                        label: 'Problem',
+                        icon: 'report_problem',
+                        hint: 'What is going wrong or needs solving',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. State the core problem clearly...'
+                    },
+                    {
+                        id: 'forgeSparkAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The next action is...'
+                    },
+                    {
+                        id: 'forgeSparkResult',
+                        label: 'Result',
+                        icon: 'flag_circle',
+                        hint: 'The result to aim for',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Result should be...'
+                    },
+                    {
+                        id: 'forgeSparkKnowledge',
+                        label: 'Knowledge',
+                        icon: 'school',
+                        hint: 'Relevant knowledge or expertise',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Draw on knowledge of...'
+                    }
+            ]
+        },
+        force: {
+            label: 'FORCE',
+            fields: [{
+                        id: 'forgeForceFacts',
+                        label: 'Facts',
+                        icon: 'fact_check',
+                        hint: 'The known facts',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The facts are...'
+                    },
+                    {
+                        id: 'forgeForceOptions',
+                        label: 'Options',
+                        icon: 'compare_arrows',
+                        hint: 'The options available',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Options are...'
+                    },
+                    {
+                        id: 'forgeForceRisks',
+                        label: 'Risks',
+                        icon: 'warning',
+                        hint: 'The risks involved',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Risks include...'
+                    },
+                    {
+                        id: 'forgeForceConsequences',
+                        label: 'Consequences',
+                        icon: 'report_problem',
+                        hint: 'Consequences of each option',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Consequences would be...'
+                    },
+                    {
+                        id: 'forgeForceEvaluation',
+                        label: 'Evaluation',
+                        icon: 'balance',
+                        hint: 'How to judge success',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Judge success by...'
+                    }
+            ]
+        },
+        gist: {
+            label: 'GIST',
+            fields: [{
+                        id: 'forgeGistGoal',
+                        label: 'Goal',
+                        icon: 'flag',
+                        hint: 'The end goal',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The goal is...'
+                    },
+                    {
+                        id: 'forgeGistIssue',
+                        label: 'Issue',
+                        icon: 'report_problem',
+                        hint: 'The issue at hand',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The issue is...'
+                    },
+                    {
+                        id: 'forgeGistSolution',
+                        label: 'Solution',
+                        icon: 'build',
+                        hint: 'The proposed solution',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Propose a solution that...'
+                    },
+                    {
+                        id: 'forgeGistTask',
+                        label: 'Task',
+                        icon: 'task_alt',
+                        hint: 'The core instruction',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Write a...'
+                    }
+            ]
+        },
+        focus: {
+            label: 'FOCUS',
+            fields: [{
+                        id: 'forgeFocusFind',
+                        label: 'Find',
+                        icon: 'search',
+                        hint: 'What to find first',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Find...'
+                    },
+                    {
+                        id: 'forgeFocusOrganize',
+                        label: 'Organize',
+                        icon: 'category',
+                        hint: 'How to organise it',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Organise by...'
+                    },
+                    {
+                        id: 'forgeFocusClarify',
+                        label: 'Clarify',
+                        icon: 'help',
+                        hint: 'What needs clarifying',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Clarify...'
+                    },
+                    {
+                        id: 'forgeFocusUnderstand',
+                        label: 'Understand',
+                        icon: 'psychology',
+                        hint: 'What needs to be understood',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Understand...'
+                    },
+                    {
+                        id: 'forgeFocusSelect',
+                        label: 'Select',
+                        icon: 'checklist',
+                        hint: 'How to select the best option',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Select based on...'
+                    }
+            ]
+        },
+        fast: {
+            label: 'FAST',
+            fields: [{
+                        id: 'forgeFastFocus',
+                        label: 'Focus',
+                        icon: 'center_focus_strong',
+                        hint: 'What to focus on first',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Focus on...'
+                    },
+                    {
+                        id: 'forgeFastAnalyze',
+                        label: 'Analyze',
+                        icon: 'query_stats',
+                        hint: 'What to analyse',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Analyse...'
+                    },
+                    {
+                        id: 'forgeFastSolve',
+                        label: 'Solve',
+                        icon: 'build',
+                        hint: 'What needs solving',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Solve for...'
+                    },
+                    {
+                        id: 'forgeFastTest',
+                        label: 'Test',
+                        icon: 'science',
+                        hint: 'How to test it',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Test by...'
+                    }
+            ]
+        },
+        bold: {
+            label: 'BOLD',
+            fields: [{
+                        id: 'forgeBoldBelief',
+                        label: 'Belief',
+                        icon: 'psychology_alt',
+                        hint: 'The underlying belief or hypothesis',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The belief is...'
+                    },
+                    {
+                        id: 'forgeBoldOutcome',
+                        label: 'Outcome',
+                        icon: 'flag_circle',
+                        hint: 'The desired outcome',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Outcome should be...'
+                    },
+                    {
+                        id: 'forgeBoldLogic',
+                        label: 'Logic',
+                        icon: 'psychology',
+                        hint: 'The reasoning the AI should follow',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Walk through the reasoning step by step...'
+                    },
+                    {
+                        id: 'forgeBoldDetermination',
+                        label: 'Determination',
+                        icon: 'bolt',
+                        hint: 'The resolve or commitment behind it',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Committed to...'
+                    }
+            ]
+        },
+        guide: {
+            label: 'GUIDE',
+            fields: [{
+                        id: 'forgeGuideGoal',
+                        label: 'Goal',
+                        icon: 'flag',
+                        hint: 'The end goal',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The goal is...'
+                    },
+                    {
+                        id: 'forgeGuideUser',
+                        label: 'User',
+                        icon: 'groups',
+                        hint: 'Who this is for',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Describe who will use this...'
+                    },
+                    {
+                        id: 'forgeGuideInsight',
+                        label: 'Insight',
+                        icon: 'insights',
+                        hint: 'The key insight driving this',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The key insight is...'
+                    },
+                    {
+                        id: 'forgeGuideDetail',
+                        label: 'Detail',
+                        icon: 'zoom_in',
+                        hint: 'The detail that matters most',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Specifically...'
+                    },
+                    {
+                        id: 'forgeGuideExecution',
+                        label: 'Execution',
+                        icon: 'rocket_launch',
+                        hint: 'How the decision gets carried out',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Describe how this should be executed...'
+                    }
+            ]
+        },
+        quest: {
+            label: 'QUEST',
+            fields: [{
+                        id: 'forgeQuestQuestion',
+                        label: 'Question',
+                        icon: 'help',
+                        hint: 'The question to answer',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The question is...'
+                    },
+                    {
+                        id: 'forgeQuestUnderstand',
+                        label: 'Understand',
+                        icon: 'psychology',
+                        hint: 'What needs to be understood',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Understand...'
+                    },
+                    {
+                        id: 'forgeQuestExplore',
+                        label: 'Explore',
+                        icon: 'explore',
+                        hint: 'What to explore',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Explore...'
+                    },
+                    {
+                        id: 'forgeQuestSolve',
+                        label: 'Solve',
+                        icon: 'build',
+                        hint: 'What needs solving',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Solve for...'
+                    },
+                    {
+                        id: 'forgeQuestTest',
+                        label: 'Test',
+                        icon: 'science',
+                        hint: 'How to test it',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Test by...'
+                    }
+            ]
+        },
+        light: {
+            label: 'LIGHT',
+            fields: [{
+                        id: 'forgeLightLearn',
+                        label: 'Learn',
+                        icon: 'school',
+                        hint: 'What needs learning first',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Learn about...'
+                    },
+                    {
+                        id: 'forgeLightInvestigate',
+                        label: 'Investigate',
+                        icon: 'search',
+                        hint: 'What to investigate',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Investigate...'
+                    },
+                    {
+                        id: 'forgeLightGenerate',
+                        label: 'Generate',
+                        icon: 'auto_awesome',
+                        hint: 'What to generate',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Generate...'
+                    },
+                    {
+                        id: 'forgeLightHandle',
+                        label: 'Handle',
+                        icon: 'build',
+                        hint: 'How to handle edge cases',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Handle by...'
+                    },
+                    {
+                        id: 'forgeLightTest',
+                        label: 'Test',
+                        icon: 'science',
+                        hint: 'How to test it',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Test by...'
+                    }
+            ]
+        },
+        bridge: {
+            label: 'BRIDGE',
+            fields: [{
+                        id: 'forgeBridgeBefore',
+                        label: 'Before',
+                        icon: 'history',
+                        hint: 'The state before',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Before: ...'
+                    },
+                    {
+                        id: 'forgeBridgeReality',
+                        label: 'Reality',
+                        icon: 'visibility',
+                        hint: 'The current reality',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Currently...'
+                    },
+                    {
+                        id: 'forgeBridgeIdea',
+                        label: 'Idea',
+                        icon: 'lightbulb',
+                        hint: 'The idea being proposed',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The idea is...'
+                    },
+                    {
+                        id: 'forgeBridgeDecision',
+                        label: 'Decision',
+                        icon: 'gavel',
+                        hint: 'The decision to be made or recommended',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. State the decision or recommendation...'
+                    },
+                    {
+                        id: 'forgeBridgeGoal',
+                        label: 'Goal',
+                        icon: 'flag',
+                        hint: 'The end goal',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The goal is...'
+                    },
+                    {
+                        id: 'forgeBridgeExecute',
+                        label: 'Execute',
+                        icon: 'rocket_launch',
+                        hint: 'How this gets executed',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Execute by...'
+                    }
+            ]
+        },
+        pulse: {
+            label: 'PULSE',
+            fields: [{
+                        id: 'forgePulseProblem',
+                        label: 'Problem',
+                        icon: 'report_problem',
+                        hint: 'What is going wrong or needs solving',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. State the core problem clearly...'
+                    },
+                    {
+                        id: 'forgePulseUser',
+                        label: 'User',
+                        icon: 'groups',
+                        hint: 'Who this is for',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Describe who will use this...'
+                    },
+                    {
+                        id: 'forgePulseLogic',
+                        label: 'Logic',
+                        icon: 'psychology',
+                        hint: 'The reasoning the AI should follow',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Walk through the reasoning step by step...'
+                    },
+                    {
+                        id: 'forgePulseSolution',
+                        label: 'Solution',
+                        icon: 'build',
+                        hint: 'The proposed solution',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Propose a solution that...'
+                    },
+                    {
+                        id: 'forgePulseEvaluation',
+                        label: 'Evaluation',
+                        icon: 'balance',
+                        hint: 'How to judge success',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Judge success by...'
+                    }
+            ]
+        },
+        sprint: {
+            label: 'SPRINT',
+            fields: [{
+                        id: 'forgeSprintSketch',
+                        label: 'Sketch',
+                        icon: 'draw',
+                        hint: 'A rough first pass',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Sketch out...'
+                    },
+                    {
+                        id: 'forgeSprintPlan',
+                        label: 'Plan',
+                        icon: 'event_note',
+                        hint: 'The plan to follow',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The plan is...'
+                    },
+                    {
+                        id: 'forgeSprintReview',
+                        label: 'Review',
+                        icon: 'rate_review',
+                        hint: 'What to review',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Review the following...'
+                    },
+                    {
+                        id: 'forgeSprintIterate',
+                        label: 'Iterate',
+                        icon: 'autorenew',
+                        hint: 'How to iterate on it',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Iterate by...'
+                    },
+                    {
+                        id: 'forgeSprintNavigate',
+                        label: 'Navigate',
+                        icon: 'explore',
+                        hint: 'How to navigate the decision',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Navigate by...'
+                    },
+                    {
+                        id: 'forgeSprintTest',
+                        label: 'Test',
+                        icon: 'science',
+                        hint: 'How to test it',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Test by...'
+                    }
+            ]
+        },
+        trio: {
+            label: 'TRIO',
+            fields: [{
+                        id: 'forgeTrioTask',
+                        label: 'Task',
+                        icon: 'task_alt',
+                        hint: 'The core instruction',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeTrioRequirement',
+                        label: 'Requirement',
+                        icon: 'checklist',
+                        hint: 'What is required',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Required: ...'
+                    },
+                    {
+                        id: 'forgeTrioInsight',
+                        label: 'Insight',
+                        icon: 'insights',
+                        hint: 'The key insight driving this',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The key insight is...'
+                    },
+                    {
+                        id: 'forgeTrioOutput',
+                        label: 'Output',
+                        icon: 'output',
+                        hint: 'The expected output',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Output should be...'
+                    }
+            ]
+        },
+        flux: {
+            label: 'FLUX',
+            fields: [{
+                        id: 'forgeFluxFrame',
+                        label: 'Frame',
+                        icon: 'crop_free',
+                        hint: 'How to frame the problem',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Frame this as...'
+                    },
+                    {
+                        id: 'forgeFluxListen',
+                        label: 'Listen',
+                        icon: 'hearing',
+                        hint: 'What to listen for',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Listen for...'
+                    },
+                    {
+                        id: 'forgeFluxUnderstand',
+                        label: 'Understand',
+                        icon: 'psychology',
+                        hint: 'What needs to be understood',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Understand...'
+                    },
+                    {
+                        id: 'forgeFluxExecute',
+                        label: 'Execute',
+                        icon: 'rocket_launch',
+                        hint: 'How this gets executed',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Execute by...'
+                    }
+            ]
+        },
+        coda: {
+            label: 'CODA',
+            fields: [{
+                        id: 'forgeCodaContext',
+                        label: 'Context',
+                        icon: 'info',
+                        hint: 'Background the AI needs to know',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The background is...'
+                    },
+                    {
+                        id: 'forgeCodaObjective',
+                        label: 'Objective',
+                        icon: 'ads_click',
+                        hint: 'What you want the AI to do',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeCodaDecision',
+                        label: 'Decision',
+                        icon: 'gavel',
+                        hint: 'The decision to be made or recommended',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. State the decision or recommendation...'
+                    },
+                    {
+                        id: 'forgeCodaAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. The next action is...'
+                    }
+            ]
+        },
+        zen: {
+            label: 'ZEN',
+            fields: [{
+                        id: 'forgeZenZeroin',
+                        label: 'Zero-in',
+                        icon: 'center_focus_strong',
+                        hint: 'What to zero in on',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Zero in on...'
+                    },
+                    {
+                        id: 'forgeZenExplore',
+                        label: 'Explore',
+                        icon: 'explore',
+                        hint: 'What to explore',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Explore...'
+                    },
+                    {
+                        id: 'forgeZenNavigate',
+                        label: 'Navigate',
+                        icon: 'explore',
+                        hint: 'How to navigate the decision',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Navigate by...'
+                    }
+            ]
+        },
+        aura: {
+            label: 'AURA',
+            fields: [{
+                        id: 'forgeAuraAudience',
+                        label: 'Audience',
+                        icon: 'groups',
+                        hint: 'Who this is for',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. This is for...'
+                    },
+                    {
+                        id: 'forgeAuraUsecase',
+                        label: 'Use-case',
+                        icon: 'category',
+                        hint: 'The use case',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Use case: ...'
+                    },
+                    {
+                        id: 'forgeAuraRequirement',
+                        label: 'Requirement',
+                        icon: 'checklist',
+                        hint: 'What is required',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Required: ...'
+                    },
+                    {
+                        id: 'forgeAuraAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. The next action is...'
+                    }
+            ]
+        },
+        core: {
+            label: 'CORE',
+            fields: [{
+                        id: 'forgeCoreContext',
+                        label: 'Context',
+                        icon: 'info',
+                        hint: 'Background the AI needs to know',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The background is...'
+                    },
+                    {
+                        id: 'forgeCoreObjective',
+                        label: 'Objective',
+                        icon: 'ads_click',
+                        hint: 'What you want the AI to do',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeCoreResult',
+                        label: 'Result',
+                        icon: 'flag_circle',
+                        hint: 'The result to aim for',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Result should be...'
+                    },
+                    {
+                        id: 'forgeCoreExample',
+                        label: 'Example',
+                        icon: 'lightbulb',
+                        hint: 'Optional example to anchor the output',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Input: ... -> Output: ...'
+                    }
+            ]
+        },
+        beam: {
+            label: 'BEAM',
+            fields: [{
+                        id: 'forgeBeamBackground',
+                        label: 'Background',
+                        icon: 'info',
+                        hint: 'Relevant background',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Background: ...'
+                    },
+                    {
+                        id: 'forgeBeamEvidence',
+                        label: 'Evidence',
+                        icon: 'fact_check',
+                        hint: 'The supporting evidence',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Evidence: ...'
+                    },
+                    {
+                        id: 'forgeBeamAnalysis',
+                        label: 'Analysis',
+                        icon: 'query_stats',
+                        hint: 'Break down what is driving the problem',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Analyse the key factors at play...'
+                    },
+                    {
+                        id: 'forgeBeamMove',
+                        label: 'Move',
+                        icon: 'bolt',
+                        hint: 'The recommended move',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. The move is...'
+                    }
+            ]
+        },
+        pane: {
+            label: 'PANE',
+            fields: [{
+                        id: 'forgePaneProblem',
+                        label: 'Problem',
+                        icon: 'report_problem',
+                        hint: 'What is going wrong or needs solving',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. State the core problem clearly...'
+                    },
+                    {
+                        id: 'forgePaneAnalysis',
+                        label: 'Analysis',
+                        icon: 'query_stats',
+                        hint: 'Break down what is driving the problem',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Analyse the key factors at play...'
+                    },
+                    {
+                        id: 'forgePaneNotation',
+                        label: 'Notation',
+                        icon: 'edit_note',
+                        hint: 'How the output should be marked up',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Notation: ...'
+                    },
+                    {
+                        id: 'forgePaneExecution',
+                        label: 'Execution',
+                        icon: 'rocket_launch',
+                        hint: 'How the decision gets carried out',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Describe how this should be executed...'
+                    }
+            ]
+        },
+        muse: {
+            label: 'MUSE',
+            fields: [{
+                        id: 'forgeMuseMission',
+                        label: 'Mission',
+                        icon: 'flag',
+                        hint: 'The overarching purpose',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The mission is to...'
+                    },
+                    {
+                        id: 'forgeMuseUser',
+                        label: 'User',
+                        icon: 'groups',
+                        hint: 'Who this is for',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Describe who will use this...'
+                    },
+                    {
+                        id: 'forgeMuseSolution',
+                        label: 'Solution',
+                        icon: 'build',
+                        hint: 'The proposed solution',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Propose a solution that...'
+                    },
+                    {
+                        id: 'forgeMuseEvaluation',
+                        label: 'Evaluation',
+                        icon: 'balance',
+                        hint: 'How to judge success',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Judge success by...'
+                    }
+            ]
+        },
+        lens: {
+            label: 'LENS',
+            fields: [{
+                        id: 'forgeLensLook',
+                        label: 'Look',
+                        icon: 'visibility',
+                        hint: 'What to look at first',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Look at...'
+                    },
+                    {
+                        id: 'forgeLensEvaluate',
+                        label: 'Evaluate',
+                        icon: 'balance',
+                        hint: 'How to judge the result',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Judge success by...'
+                    },
+                    {
+                        id: 'forgeLensNavigate',
+                        label: 'Navigate',
+                        icon: 'explore',
+                        hint: 'How to navigate the decision',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Navigate by...'
+                    },
+                    {
+                        id: 'forgeLensSolve',
+                        label: 'Solve',
+                        icon: 'build',
+                        hint: 'What needs solving',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Solve for...'
+                    }
+            ]
+        },
+        vibe: {
+            label: 'VIBE',
+            fields: [{
+                        id: 'forgeVibeVision',
+                        label: 'Vision',
+                        icon: 'visibility',
+                        hint: 'The long-term vision',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The vision is...'
+                    },
+                    {
+                        id: 'forgeVibeIntent',
+                        label: 'Intent',
+                        icon: 'flag',
+                        hint: 'The underlying intent',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Intent is to...'
+                    },
+                    {
+                        id: 'forgeVibeBehavior',
+                        label: 'Behavior',
+                        icon: 'psychology',
+                        hint: 'The expected behaviour',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Should behave...'
+                    },
+                    {
+                        id: 'forgeVibeExecution',
+                        label: 'Execution',
+                        icon: 'rocket_launch',
+                        hint: 'How the decision gets carried out',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Describe how this should be executed...'
+                    }
+            ]
+        },
+        tilt: {
+            label: 'TILT',
+            fields: [{
+                        id: 'forgeTiltTask',
+                        label: 'Task',
+                        icon: 'task_alt',
+                        hint: 'The core instruction',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeTiltInput',
+                        label: 'Input',
+                        icon: 'input',
+                        hint: 'What goes in',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Input: ...'
+                    },
+                    {
+                        id: 'forgeTiltLogic',
+                        label: 'Logic',
+                        icon: 'psychology',
+                        hint: 'The reasoning the AI should follow',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Walk through the reasoning step by step...'
+                    },
+                    {
+                        id: 'forgeTiltTurnaround',
+                        label: 'Turnaround',
+                        icon: 'schedule',
+                        hint: 'The expected turnaround time',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Turnaround: ...'
+                    }
+            ]
+        },
+        surge: {
+            label: 'SURGE',
+            fields: [{
+                        id: 'forgeSurgeSituation',
+                        label: 'Situation',
+                        icon: 'info',
+                        hint: 'The current state of affairs',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Describe the situation as it stands today...'
+                    },
+                    {
+                        id: 'forgeSurgeUnderstanding',
+                        label: 'Understanding',
+                        icon: 'psychology',
+                        hint: 'What needs to be understood first',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Understanding: ...'
+                    },
+                    {
+                        id: 'forgeSurgeResponse',
+                        label: 'Response',
+                        icon: 'chat',
+                        hint: 'The expected response shape',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Respond with...'
+                    },
+                    {
+                        id: 'forgeSurgeGoal',
+                        label: 'Goal',
+                        icon: 'flag',
+                        hint: 'The end goal',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The goal is...'
+                    },
+                    {
+                        id: 'forgeSurgeExecution',
+                        label: 'Execution',
+                        icon: 'rocket_launch',
+                        hint: 'How the decision gets carried out',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Describe how this should be executed...'
+                    }
+            ]
+        },
+        pivot: {
+            label: 'PIVOT',
+            fields: [{
+                        id: 'forgePivotProblem',
+                        label: 'Problem',
+                        icon: 'report_problem',
+                        hint: 'What is going wrong or needs solving',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. State the core problem clearly...'
+                    },
+                    {
+                        id: 'forgePivotInvestigation',
+                        label: 'Investigation',
+                        icon: 'search',
+                        hint: 'What to investigate',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Investigate...'
+                    },
+                    {
+                        id: 'forgePivotValue',
+                        label: 'Value',
+                        icon: 'insights',
+                        hint: 'The value at stake',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The value is...'
+                    },
+                    {
+                        id: 'forgePivotOutcome',
+                        label: 'Outcome',
+                        icon: 'flag_circle',
+                        hint: 'The desired outcome',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Outcome should be...'
+                    },
+                    {
+                        id: 'forgePivotTask',
+                        label: 'Task',
+                        icon: 'task_alt',
+                        hint: 'The core instruction',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Write a...'
+                    }
+            ]
+        },
+        spire: {
+            label: 'SPIRE',
+            fields: [{
+                        id: 'forgeSpireScenario',
+                        label: 'Scenario',
+                        icon: 'theater_comedy',
+                        hint: 'The scenario to work through',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Scenario: ...'
+                    },
+                    {
+                        id: 'forgeSpireProblem',
+                        label: 'Problem',
+                        icon: 'report_problem',
+                        hint: 'What is going wrong or needs solving',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. State the core problem clearly...'
+                    },
+                    {
+                        id: 'forgeSpireIntent',
+                        label: 'Intent',
+                        icon: 'flag',
+                        hint: 'The underlying intent',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Intent is to...'
+                    },
+                    {
+                        id: 'forgeSpireResponse',
+                        label: 'Response',
+                        icon: 'chat',
+                        hint: 'The expected response shape',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Respond with...'
+                    },
+                    {
+                        id: 'forgeSpireExecution',
+                        label: 'Execution',
+                        icon: 'rocket_launch',
+                        hint: 'How the decision gets carried out',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Describe how this should be executed...'
+                    }
+            ]
+        },
+        forgefw: {
+            label: 'FORGE',
+            fields: [{
+                        id: 'forgeForgeFocus',
+                        label: 'Focus',
+                        icon: 'center_focus_strong',
+                        hint: 'What to focus on first',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Focus on...'
+                    },
+                    {
+                        id: 'forgeForgeObjective',
+                        label: 'Objective',
+                        icon: 'ads_click',
+                        hint: 'What you want the AI to do',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeForgeRefine',
+                        label: 'Refine',
+                        icon: 'tune',
+                        hint: 'How to refine the answer',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Refine this by...'
+                    },
+                    {
+                        id: 'forgeForgeGenerate',
+                        label: 'Generate',
+                        icon: 'auto_awesome',
+                        hint: 'What to generate',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Generate...'
+                    },
+                    {
+                        id: 'forgeForgeEvaluate',
+                        label: 'Evaluate',
+                        icon: 'balance',
+                        hint: 'How to judge the result',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Judge success by...'
+                    }
+            ]
+        },
+        mirage: {
+            label: 'MIRAGE',
+            fields: [{
+                        id: 'forgeMirageMission',
+                        label: 'Mission',
+                        icon: 'flag',
+                        hint: 'The overarching purpose',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The mission is to...'
+                    },
+                    {
+                        id: 'forgeMirageIntent',
+                        label: 'Intent',
+                        icon: 'flag',
+                        hint: 'The underlying intent',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Intent is to...'
+                    },
+                    {
+                        id: 'forgeMirageReality',
+                        label: 'Reality',
+                        icon: 'visibility',
+                        hint: 'The current reality',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Currently...'
+                    },
+                    {
+                        id: 'forgeMirageAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The next action is...'
+                    },
+                    {
+                        id: 'forgeMirageGoal',
+                        label: 'Goal',
+                        icon: 'flag',
+                        hint: 'The end goal',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The goal is...'
+                    },
+                    {
+                        id: 'forgeMirageExecution',
+                        label: 'Execution',
+                        icon: 'rocket_launch',
+                        hint: 'How the decision gets carried out',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Describe how this should be executed...'
+                    }
+            ]
+        },
+        beacon: {
+            label: 'BEACON',
+            fields: [{
+                        id: 'forgeBeaconBackground',
+                        label: 'Background',
+                        icon: 'info',
+                        hint: 'Relevant background',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Background: ...'
+                    },
+                    {
+                        id: 'forgeBeaconExpectation',
+                        label: 'Expectation',
+                        icon: 'visibility',
+                        hint: 'What is expected',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Expect: ...'
+                    },
+                    {
+                        id: 'forgeBeaconAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The next action is...'
+                    },
+                    {
+                        id: 'forgeBeaconContext',
+                        label: 'Context',
+                        icon: 'info',
+                        hint: 'Background the AI needs to know',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The background is...'
+                    },
+                    {
+                        id: 'forgeBeaconOutcome',
+                        label: 'Outcome',
+                        icon: 'flag_circle',
+                        hint: 'The desired outcome',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Outcome should be...'
+                    },
+                    {
+                        id: 'forgeBeaconNext',
+                        label: 'Next',
+                        icon: 'arrow_forward',
+                        hint: 'The immediate next step',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Next, we should...'
+                    }
+            ]
+        },
+        compass: {
+            label: 'COMPASS',
+            fields: [{
+                        id: 'forgeCompassContext',
+                        label: 'Context',
+                        icon: 'info',
+                        hint: 'Background the AI needs to know',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The background is...'
+                    },
+                    {
+                        id: 'forgeCompassObjective',
+                        label: 'Objective',
+                        icon: 'ads_click',
+                        hint: 'What you want the AI to do',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeCompassMission',
+                        label: 'Mission',
+                        icon: 'flag',
+                        hint: 'The overarching purpose',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The mission is to...'
+                    },
+                    {
+                        id: 'forgeCompassPlan',
+                        label: 'Plan',
+                        icon: 'event_note',
+                        hint: 'The plan to follow',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The plan is...'
+                    },
+                    {
+                        id: 'forgeCompassAssess',
+                        label: 'Assess',
+                        icon: 'fact_check',
+                        hint: 'Assess the current state',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Assess where things stand...'
+                    },
+                    {
+                        id: 'forgeCompassSolve',
+                        label: 'Solve',
+                        icon: 'build',
+                        hint: 'What needs solving',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Solve for...'
+                    },
+                    {
+                        id: 'forgeCompassSet',
+                        label: 'Set',
+                        icon: 'flag',
+                        hint: 'What to set as the target',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Set the target as...'
+                    }
+            ]
+        },
+        horizon: {
+            label: 'HORIZON',
+            fields: [{
+                        id: 'forgeHorizonHow',
+                        label: 'How',
+                        icon: 'help',
+                        hint: 'How this should happen',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. This should happen by...'
+                    },
+                    {
+                        id: 'forgeHorizonObjective',
+                        label: 'Objective',
+                        icon: 'ads_click',
+                        hint: 'What you want the AI to do',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeHorizonRole',
+                        label: 'Role',
+                        icon: 'person',
+                        hint: 'Who is the AI acting as?',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. You are an expert in...'
+                    },
+                    {
+                        id: 'forgeHorizonIntent',
+                        label: 'Intent',
+                        icon: 'flag',
+                        hint: 'The underlying intent',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Intent is to...'
+                    },
+                    {
+                        id: 'forgeHorizonZone',
+                        label: 'Zone',
+                        icon: 'place',
+                        hint: 'The area of focus',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Focus zone: ...'
+                    },
+                    {
+                        id: 'forgeHorizonOutput',
+                        label: 'Output',
+                        icon: 'output',
+                        hint: 'The expected output',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Output should be...'
+                    },
+                    {
+                        id: 'forgeHorizonNavigate',
+                        label: 'Navigate',
+                        icon: 'explore',
+                        hint: 'How to navigate the decision',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Navigate by...'
+                    }
+            ]
+        },
+        lance: {
+            label: 'LANCE',
+            fields: [{
+                        id: 'forgeLanceLook',
+                        label: 'Look',
+                        icon: 'visibility',
+                        hint: 'What to look at first',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Look at...'
+                    },
+                    {
+                        id: 'forgeLanceAsk',
+                        label: 'Ask',
+                        icon: 'help',
+                        hint: 'The exact thing you want back',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. What I need back is...'
+                    },
+                    {
+                        id: 'forgeLanceNote',
+                        label: 'Note',
+                        icon: 'edit_note',
+                        hint: 'Notes to capture along the way',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Note: ...'
+                    },
+                    {
+                        id: 'forgeLanceConfirm',
+                        label: 'Confirm',
+                        icon: 'fact_check',
+                        hint: 'What needs confirming before proceeding',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Confirm that...'
+                    },
+                    {
+                        id: 'forgeLanceExecute',
+                        label: 'Execute',
+                        icon: 'rocket_launch',
+                        hint: 'How this gets executed',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Execute by...'
+                    }
+            ]
+        },
+        piper: {
+            label: 'PIPER',
+            fields: [{
+                        id: 'forgePiperPurpose',
+                        label: 'Purpose',
+                        icon: 'flag',
+                        hint: 'The purpose behind this',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Purpose: ...'
+                    },
+                    {
+                        id: 'forgePiperInsight',
+                        label: 'Insight',
+                        icon: 'insights',
+                        hint: 'The key insight driving this',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The key insight is...'
+                    },
+                    {
+                        id: 'forgePiperPlan',
+                        label: 'Plan',
+                        icon: 'event_note',
+                        hint: 'The plan to follow',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The plan is...'
+                    },
+                    {
+                        id: 'forgePiperExecute',
+                        label: 'Execute',
+                        icon: 'rocket_launch',
+                        hint: 'How this gets executed',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Execute by...'
+                    },
+                    {
+                        id: 'forgePiperReview',
+                        label: 'Review',
+                        icon: 'rate_review',
+                        hint: 'What to review',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Review the following...'
+                    }
+            ]
+        },
+        stone: {
+            label: 'STONE',
+            fields: [{
+                        id: 'forgeStoneSituation',
+                        label: 'Situation',
+                        icon: 'info',
+                        hint: 'The current state of affairs',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Describe the situation as it stands today...'
+                    },
+                    {
+                        id: 'forgeStoneTask',
+                        label: 'Task',
+                        icon: 'task_alt',
+                        hint: 'The core instruction',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeStoneOutcome',
+                        label: 'Outcome',
+                        icon: 'flag_circle',
+                        hint: 'The desired outcome',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Outcome should be...'
+                    },
+                    {
+                        id: 'forgeStoneNext',
+                        label: 'Next',
+                        icon: 'arrow_forward',
+                        hint: 'The immediate next step',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Next, we should...'
+                    },
+                    {
+                        id: 'forgeStoneEvaluate',
+                        label: 'Evaluate',
+                        icon: 'balance',
+                        hint: 'How to judge the result',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Judge success by...'
+                    }
+            ]
+        },
+        ember: {
+            label: 'EMBER',
+            fields: [{
+                        id: 'forgeEmberExpectation',
+                        label: 'Expectation',
+                        icon: 'visibility',
+                        hint: 'What is expected',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Expect: ...'
+                    },
+                    {
+                        id: 'forgeEmberMission',
+                        label: 'Mission',
+                        icon: 'flag',
+                        hint: 'The overarching purpose',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The mission is to...'
+                    },
+                    {
+                        id: 'forgeEmberBackground',
+                        label: 'Background',
+                        icon: 'info',
+                        hint: 'Relevant background',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Background: ...'
+                    },
+                    {
+                        id: 'forgeEmberExecution',
+                        label: 'Execution',
+                        icon: 'rocket_launch',
+                        hint: 'How the decision gets carried out',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Describe how this should be executed...'
+                    },
+                    {
+                        id: 'forgeEmberResult',
+                        label: 'Result',
+                        icon: 'flag_circle',
+                        hint: 'The result to aim for',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Result should be...'
+                    }
+            ]
+        },
+        torch: {
+            label: 'TORCH',
+            fields: [{
+                        id: 'forgeTorchTask',
+                        label: 'Task',
+                        icon: 'task_alt',
+                        hint: 'The core instruction',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeTorchObjective',
+                        label: 'Objective',
+                        icon: 'ads_click',
+                        hint: 'What you want the AI to do',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeTorchRole',
+                        label: 'Role',
+                        icon: 'person',
+                        hint: 'Who is the AI acting as?',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. You are an expert in...'
+                    },
+                    {
+                        id: 'forgeTorchConstraints',
+                        label: 'Constraints',
+                        icon: 'block',
+                        hint: 'What to avoid or limit',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Do not...'
+                    },
+                    {
+                        id: 'forgeTorchHow',
+                        label: 'How',
+                        icon: 'help',
+                        hint: 'How this should happen',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. This should happen by...'
+                    }
+            ]
+        },
+        stellar: {
+            label: 'STELLAR',
+            fields: [{
+                        id: 'forgeStellarSituation',
+                        label: 'Situation',
+                        icon: 'info',
+                        hint: 'The current state of affairs',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Describe the situation as it stands today...'
+                    },
+                    {
+                        id: 'forgeStellarTask',
+                        label: 'Task',
+                        icon: 'task_alt',
+                        hint: 'The core instruction',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeStellarExpectation',
+                        label: 'Expectation',
+                        icon: 'visibility',
+                        hint: 'What is expected',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Expect: ...'
+                    },
+                    {
+                        id: 'forgeStellarLogic',
+                        label: 'Logic',
+                        icon: 'psychology',
+                        hint: 'The reasoning the AI should follow',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Walk through the reasoning step by step...'
+                    },
+                    {
+                        id: 'forgeStellarLanguage',
+                        label: 'Language',
+                        icon: 'translate',
+                        hint: 'The register or language to use',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Use language that is...'
+                    },
+                    {
+                        id: 'forgeStellarAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The next action is...'
+                    },
+                    {
+                        id: 'forgeStellarResult',
+                        label: 'Result',
+                        icon: 'flag_circle',
+                        hint: 'The result to aim for',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Result should be...'
+                    }
+            ]
+        },
+        nebula: {
+            label: 'NEBULA',
+            fields: [{
+                        id: 'forgeNebulaNeed',
+                        label: 'Need',
+                        icon: 'priority_high',
+                        hint: 'The underlying need',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Need: ...'
+                    },
+                    {
+                        id: 'forgeNebulaExpectation',
+                        label: 'Expectation',
+                        icon: 'visibility',
+                        hint: 'What is expected',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Expect: ...'
+                    },
+                    {
+                        id: 'forgeNebulaBackground',
+                        label: 'Background',
+                        icon: 'info',
+                        hint: 'Relevant background',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Background: ...'
+                    },
+                    {
+                        id: 'forgeNebulaUnderstanding',
+                        label: 'Understanding',
+                        icon: 'psychology',
+                        hint: 'What needs to be understood first',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Understanding: ...'
+                    },
+                    {
+                        id: 'forgeNebulaLogic',
+                        label: 'Logic',
+                        icon: 'psychology',
+                        hint: 'The reasoning the AI should follow',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Walk through the reasoning step by step...'
+                    },
+                    {
+                        id: 'forgeNebulaAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. The next action is...'
+                    }
+            ]
+        },
+        eclipse: {
+            label: 'ECLIPSE',
+            fields: [{
+                        id: 'forgeEclipseEvaluate',
+                        label: 'Evaluate',
+                        icon: 'balance',
+                        hint: 'How to judge the result',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Judge success by...'
+                    },
+                    {
+                        id: 'forgeEclipseContext',
+                        label: 'Context',
+                        icon: 'info',
+                        hint: 'Background the AI needs to know',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The background is...'
+                    },
+                    {
+                        id: 'forgeEclipseLogic',
+                        label: 'Logic',
+                        icon: 'psychology',
+                        hint: 'The reasoning the AI should follow',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Walk through the reasoning step by step...'
+                    },
+                    {
+                        id: 'forgeEclipseIntent',
+                        label: 'Intent',
+                        icon: 'flag',
+                        hint: 'The underlying intent',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Intent is to...'
+                    },
+                    {
+                        id: 'forgeEclipsePlan',
+                        label: 'Plan',
+                        icon: 'event_note',
+                        hint: 'The plan to follow',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The plan is...'
+                    },
+                    {
+                        id: 'forgeEclipseSolve',
+                        label: 'Solve',
+                        icon: 'build',
+                        hint: 'What needs solving',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Solve for...'
+                    },
+                    {
+                        id: 'forgeEclipseExecute',
+                        label: 'Execute',
+                        icon: 'rocket_launch',
+                        hint: 'How this gets executed',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Execute by...'
+                    }
+            ]
+        },
+        echo: {
+            label: 'ECHO',
+            fields: [{
+                        id: 'forgeEchoExpectation',
+                        label: 'Expectation',
+                        icon: 'visibility',
+                        hint: 'What is expected',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Expect: ...'
+                    },
+                    {
+                        id: 'forgeEchoContext',
+                        label: 'Context',
+                        icon: 'info',
+                        hint: 'Background the AI needs to know',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The background is...'
+                    },
+                    {
+                        id: 'forgeEchoHow',
+                        label: 'How',
+                        icon: 'help',
+                        hint: 'How this should happen',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. This should happen by...'
+                    },
+                    {
+                        id: 'forgeEchoOutcome',
+                        label: 'Outcome',
+                        icon: 'flag_circle',
+                        hint: 'The desired outcome',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Outcome should be...'
+                    }
+            ]
+        },
+        novel: {
+            label: 'NOVEL',
+            fields: [{
+                        id: 'forgeNovelNeed',
+                        label: 'Need',
+                        icon: 'priority_high',
+                        hint: 'The underlying need',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Need: ...'
+                    },
+                    {
+                        id: 'forgeNovelObjective',
+                        label: 'Objective',
+                        icon: 'ads_click',
+                        hint: 'What you want the AI to do',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeNovelVision',
+                        label: 'Vision',
+                        icon: 'visibility',
+                        hint: 'The long-term vision',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The vision is...'
+                    },
+                    {
+                        id: 'forgeNovelExecution',
+                        label: 'Execution',
+                        icon: 'rocket_launch',
+                        hint: 'How the decision gets carried out',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Describe how this should be executed...'
+                    },
+                    {
+                        id: 'forgeNovelLogistics',
+                        label: 'Logistics',
+                        icon: 'event_note',
+                        hint: 'Practical constraints — length, format, deadline',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Keep it under 300 words, markdown format...'
+                    }
+            ]
+        },
+        aura2: {
+            label: 'AURA',
+            fields: [{
+                        id: 'forgeAuraAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The next action is...'
+                    },
+                    {
+                        id: 'forgeAuraUsecase',
+                        label: 'Use-case',
+                        icon: 'category',
+                        hint: 'The use case',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Use case: ...'
+                    },
+                    {
+                        id: 'forgeAuraResult',
+                        label: 'Result',
+                        icon: 'flag_circle',
+                        hint: 'The result to aim for',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Result should be...'
+                    },
+                    {
+                        id: 'forgeAuraAsk',
+                        label: 'Ask',
+                        icon: 'help',
+                        hint: 'The exact thing you want back',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. What I need back is...'
+                    }
+            ]
+        },
+        locus: {
+            label: 'LOCUS',
+            fields: [{
+                        id: 'forgeLocusLogic',
+                        label: 'Logic',
+                        icon: 'psychology',
+                        hint: 'The reasoning the AI should follow',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Walk through the reasoning step by step...'
+                    },
+                    {
+                        id: 'forgeLocusObjective',
+                        label: 'Objective',
+                        icon: 'ads_click',
+                        hint: 'What you want the AI to do',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeLocusContext',
+                        label: 'Context',
+                        icon: 'info',
+                        hint: 'Background the AI needs to know',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The background is...'
+                    },
+                    {
+                        id: 'forgeLocusUser',
+                        label: 'User',
+                        icon: 'groups',
+                        hint: 'Who this is for',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Describe who will use this...'
+                    },
+                    {
+                        id: 'forgeLocusSolution',
+                        label: 'Solution',
+                        icon: 'build',
+                        hint: 'The proposed solution',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Propose a solution that...'
+                    }
+            ]
+        },
+        mosaic: {
+            label: 'MOSAIC',
+            fields: [{
+                        id: 'forgeMosaicMission',
+                        label: 'Mission',
+                        icon: 'flag',
+                        hint: 'The overarching purpose',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The mission is to...'
+                    },
+                    {
+                        id: 'forgeMosaicObjective',
+                        label: 'Objective',
+                        icon: 'ads_click',
+                        hint: 'What you want the AI to do',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeMosaicSituation',
+                        label: 'Situation',
+                        icon: 'info',
+                        hint: 'The current state of affairs',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Describe the situation as it stands today...'
+                    },
+                    {
+                        id: 'forgeMosaicAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The next action is...'
+                    },
+                    {
+                        id: 'forgeMosaicIntent',
+                        label: 'Intent',
+                        icon: 'flag',
+                        hint: 'The underlying intent',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Intent is to...'
+                    },
+                    {
+                        id: 'forgeMosaicConstraints',
+                        label: 'Constraints',
+                        icon: 'block',
+                        hint: 'What to avoid or limit',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Do not...'
+                    }
+            ]
+        },
+        prism: {
+            label: 'PRISM',
+            fields: [{
+                        id: 'forgePrismProblem',
+                        label: 'Problem',
+                        icon: 'report_problem',
+                        hint: 'What is going wrong or needs solving',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. State the core problem clearly...'
+                    },
+                    {
+                        id: 'forgePrismReason',
+                        label: 'Reason',
+                        icon: 'psychology',
+                        hint: 'The reasoning behind it',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Reasoning: ...'
+                    },
+                    {
+                        id: 'forgePrismIntent',
+                        label: 'Intent',
+                        icon: 'flag',
+                        hint: 'The underlying intent',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Intent is to...'
+                    },
+                    {
+                        id: 'forgePrismSolution',
+                        label: 'Solution',
+                        icon: 'build',
+                        hint: 'The proposed solution',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Propose a solution that...'
+                    },
+                    {
+                        id: 'forgePrismMethod',
+                        label: 'Method',
+                        icon: 'build',
+                        hint: 'The method to apply',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. Method: ...'
+                    }
+            ]
+        },
+        vertex: {
+            label: 'VERTEX',
+            fields: [{
+                        id: 'forgeVertexVision',
+                        label: 'Vision',
+                        icon: 'visibility',
+                        hint: 'The long-term vision',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The vision is...'
+                    },
+                    {
+                        id: 'forgeVertexExpectation',
+                        label: 'Expectation',
+                        icon: 'visibility',
+                        hint: 'What is expected',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Expect: ...'
+                    },
+                    {
+                        id: 'forgeVertexRole',
+                        label: 'Role',
+                        icon: 'person',
+                        hint: 'Who is the AI acting as?',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. You are an expert in...'
+                    },
+                    {
+                        id: 'forgeVertexTask',
+                        label: 'Task',
+                        icon: 'task_alt',
+                        hint: 'The core instruction',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeVertexExecution',
+                        label: 'Execution',
+                        icon: 'rocket_launch',
+                        hint: 'How the decision gets carried out',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Describe how this should be executed...'
+                    },
+                    {
+                        id: 'forgeVertexXfactor',
+                        label: 'X-factor',
+                        icon: 'auto_awesome',
+                        hint: 'The differentiator',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. What makes this stand out...'
+                    }
+            ]
+        },
+        strata: {
+            label: 'STRATA',
+            fields: [{
+                        id: 'forgeStrataSituation',
+                        label: 'Situation',
+                        icon: 'info',
+                        hint: 'The current state of affairs',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Describe the situation as it stands today...'
+                    },
+                    {
+                        id: 'forgeStrataTask',
+                        label: 'Task',
+                        icon: 'task_alt',
+                        hint: 'The core instruction',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeStrataRole',
+                        label: 'Role',
+                        icon: 'person',
+                        hint: 'Who is the AI acting as?',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. You are an expert in...'
+                    },
+                    {
+                        id: 'forgeStrataAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The next action is...'
+                    },
+                    {
+                        id: 'forgeStrataTone',
+                        label: 'Tone',
+                        icon: 'record_voice_over',
+                        hint: 'The voice or tone to use',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Professional, warm, and concise.'
+                    },
+                    {
+                        id: 'forgeStrataAsk',
+                        label: 'Ask',
+                        icon: 'help',
+                        hint: 'The exact thing you want back',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. What I need back is...'
+                    }
+            ]
+        },
+        clarity: {
+            label: 'CLARITY',
+            fields: [{
+                        id: 'forgeClarityContext',
+                        label: 'Context',
+                        icon: 'info',
+                        hint: 'Background the AI needs to know',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. The background is...'
+                    },
+                    {
+                        id: 'forgeClarityLogic',
+                        label: 'Logic',
+                        icon: 'psychology',
+                        hint: 'The reasoning the AI should follow',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Walk through the reasoning step by step...'
+                    },
+                    {
+                        id: 'forgeClarityAsk',
+                        label: 'Ask',
+                        icon: 'help',
+                        hint: 'The exact thing you want back',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. What I need back is...'
+                    },
+                    {
+                        id: 'forgeClarityResponse',
+                        label: 'Response',
+                        icon: 'chat',
+                        hint: 'The expected response shape',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Respond with...'
+                    },
+                    {
+                        id: 'forgeClarityIntent',
+                        label: 'Intent',
+                        icon: 'flag',
+                        hint: 'The underlying intent',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Intent is to...'
+                    },
+                    {
+                        id: 'forgeClarityTask',
+                        label: 'Task',
+                        icon: 'task_alt',
+                        hint: 'The core instruction',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeClarityYourrole',
+                        label: 'Your-role',
+                        icon: 'person',
+                        hint: 'Who is the AI acting as?',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. You are...'
+                    }
+            ]
+        },
+        syntax: {
+            label: 'SYNTAX',
+            fields: [{
+                        id: 'forgeSyntaxSituation',
+                        label: 'Situation',
+                        icon: 'info',
+                        hint: 'The current state of affairs',
+                        rows: 2,
+                        required: true,
+                        weight: 3,
+                        placeholder: 'e.g. Describe the situation as it stands today...'
+                    },
+                    {
+                        id: 'forgeSyntaxYourrole',
+                        label: 'Your-role',
+                        icon: 'person',
+                        hint: 'Who is the AI acting as?',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. You are...'
+                    },
+                    {
+                        id: 'forgeSyntaxNeed',
+                        label: 'Need',
+                        icon: 'priority_high',
+                        hint: 'The underlying need',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Need: ...'
+                    },
+                    {
+                        id: 'forgeSyntaxTask',
+                        label: 'Task',
+                        icon: 'task_alt',
+                        hint: 'The core instruction',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. Write a...'
+                    },
+                    {
+                        id: 'forgeSyntaxAction',
+                        label: 'Action',
+                        icon: 'bolt',
+                        hint: 'What should happen next',
+                        rows: 3,
+                        weight: 1.5,
+                        placeholder: 'e.g. The next action is...'
+                    },
+                    {
+                        id: 'forgeSyntaxXfactor',
+                        label: 'X-factor',
+                        icon: 'auto_awesome',
+                        hint: 'The differentiator',
+                        rows: 2,
+                        weight: 1,
+                        placeholder: 'e.g. What makes this stand out...'
+                    }
+            ]
+        },
+        contextsandwich: {
+            label: 'Context Sandwich',
+            fields: [{
+                    id: 'forgeCsWho',
+                    label: 'Who You Are',
+                    icon: 'person',
+                    hint: 'Long-lived identity: role, voice, preferences, standards, goals, audience',
+                    rows: 3,
+                    weight: 1.5,
+                    placeholder: 'e.g. You are a senior brand strategist who writes in a direct, confident voice. Standards: no jargon, always cite sources, UK English...'
+                },
+                {
+                    id: 'forgeCsContext',
+                    label: 'Context & Task',
+                    icon: 'task_alt',
+                    hint: 'The specific task plus the supporting corpus \u2014 transcripts, SOPs, playbooks, prior outputs or decisions',
+                    rows: 5,
+                    required: true,
+                    weight: 3,
+                    placeholder: 'e.g. Task: Summarise this week\'s leadership meeting into action items. Corpus: [paste transcript / SOPs / roadmap excerpts]...'
+                },
+                {
+                    id: 'forgeCsGood',
+                    label: 'What Good Looks Like',
+                    icon: 'checklist',
+                    hint: 'Explicit success criteria: output format, length, tone, style anchors, examples, acceptance tests',
+                    rows: 4,
+                    weight: 1.5,
+                    placeholder: 'e.g. Format: bullet list, max 150 words. Tone: matches attached example. Every action item must include an owner and deadline...'
+                }
+            ]
         }
 
     };
@@ -16528,6 +20995,62 @@ Must avoid: [Anything sensitive or previously declined]`
                 forgeCoStyle: 'Engaging, informative, and optimised for the target platform.',
                 forgeCoAudience: '[Describe your target audience]',
                 forgeCoResponse: 'Return the full piece, ready to publish. Include a title and any relevant subheadings.'
+            }
+        },
+        {
+            label: 'Job Description',
+            icon: 'work',
+            framework: 'rtf',
+            values: {
+                forgeRtfRole: 'You are a senior HR business partner and recruitment specialist with deep experience in writing compelling job descriptions.',
+                forgeRtfTask: 'Write a job description for the following role:\n\n[Job title and key details]',
+                forgeRtfFormat: 'Structure with: About the role, Key responsibilities, Required skills, Nice to have. Use concise bullet points and inclusive language.'
+            }
+        },
+        {
+            label: 'Social Media',
+            icon: 'share',
+            framework: 'costar',
+            values: {
+                forgeCoContext: 'I manage the social media presence for [brand/company] and need to post about [topic].',
+                forgeCoObjective: 'Create a social media post that drives engagement and [specific call to action].',
+                forgeCoStyle: 'Platform-native tone. Short sentences. Emojis only if appropriate.',
+                forgeCoAudience: '[Describe the followers/customers]',
+                forgeCoResponse: 'Return: the main post text, 5 relevant hashtags, and a suggested image description.'
+            }
+        },
+        {
+            label: 'Meeting Agenda',
+            icon: 'event_note',
+            framework: 'risen',
+            values: {
+                forgeRiRole: 'You are an executive assistant renowned for running efficient, productive meetings.',
+                forgeRiInstructions: 'Create a meeting agenda for the following:\n\n[Meeting purpose and attendees]',
+                forgeRiSteps: '1. Define the meeting objective.\n2. List topics in priority order.\n3. Assign a time slot to each topic.\n4. Add a decision or action required for each.',
+                forgeRiEndGoal: 'Attendees should arrive prepared and the meeting should end with clear action items.',
+                forgeRiNarrowing: 'Keep it to one page. Use a table format with Time, Topic, Lead, Desired Outcome.'
+            }
+        },
+        {
+            label: 'Product Description',
+            icon: 'shopping_bag',
+            framework: 'rtf',
+            values: {
+                forgeRtfRole: 'You are a senior copywriter specialising in e-commerce product descriptions that convert browsers into buyers.',
+                forgeRtfTask: 'Write a product description for:\n\n[Product name and details]',
+                forgeRtfFormat: 'Start with a one-line hook. Follow with 3-4 benefits (not just features). End with a subtle urgency or reassurance statement. 150 words max.'
+            }
+        },
+        {
+            label: 'Learning Plan',
+            icon: 'school',
+            framework: 'costar',
+            values: {
+                forgeCoContext: 'I want to learn [skill/topic] from scratch and have [X hours per week] available.',
+                forgeCoObjective: 'Create a structured 4-week learning plan to achieve [specific goal].',
+                forgeCoStyle: 'Practical and step-by-step. Focus on hands-on practice over theory.',
+                forgeCoAudience: 'Me — a beginner but committed learner.',
+                forgeCoResponse: 'Return: Week-by-week breakdown. For each week: focus area, 3 specific resources, 1 practical exercise, and a checkpoint question.'
             }
         }
     ];

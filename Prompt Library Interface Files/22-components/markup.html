@@ -1,0 +1,145 @@
+<div id="componentsWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Components">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">extension</span>
+      <div>
+        <h2 class="ws-title">Prompt Components</h2>
+        <p class="ws-subtitle">Browse the library, pick your components, and build your prompt on the canvas.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <span class="pcw-header-stats" id="pcwHeaderStats" aria-live="polite">0 blocks · 0 words · ~0 tokens</span>
+      <button class="btn btn-ghost" id="pcwBrowseBtn" title="Browse the component library"><span class="material-symbols-outlined">storefront</span> Browse</button>
+      <button class="btn btn-accent premium-locked" data-premium="true" id="pcwAiBuildBtn" title="AI Build — describe your prompt, watch the AI assemble it (Pro)"><span class="material-symbols-outlined">auto_awesome</span> AI Build</button>
+      <button class="btn btn-ghost" id="pcwClearBtn"><span class="material-symbols-outlined">restart_alt</span> Clear canvas</button>
+      <button class="icon-btn" id="closeComponentsBtn" aria-label="Close Prompt Components"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body pcw-body">
+
+    <!-- Right: canvas -->
+    <div class="pcw-canvas">
+      <div class="pcw-canvas-inner">
+        <div class="pcw-drop-zone pcw-infinite" id="pcwDropZone">
+          <div class="pcw-world" id="pcwWorld"><!-- canvas blocks injected here --></div>
+          <div class="pcw-view-tools">
+            <button type="button" class="icon-btn" id="pcwZoomOutBtn" title="Zoom out"><span class="material-symbols-outlined">remove</span></button>
+            <span class="pcw-zoom-label" id="pcwZoomLabel">100%</span>
+            <button type="button" class="icon-btn" id="pcwZoomInBtn" title="Zoom in"><span class="material-symbols-outlined">add</span></button>
+            <button type="button" class="icon-btn" id="pcwFitBtn" title="Fit all blocks in view"><span class="material-symbols-outlined">fit_screen</span></button>
+          </div>
+          <div class="pcw-drop-hint" id="pcwDropHint">
+            <span class="material-symbols-outlined">drag_indicator</span>
+            <p>Your canvas is empty.<br>Open the library and pick your components.</p>
+            <div class="pcw-quickstarts" id="pcwQuickstarts">
+              <button type="button" class="pcw-qs-btn pcw-qs-primary" id="pcwBrowseBtnEmpty"><span class="material-symbols-outlined">storefront</span> Open component library</button>
+              <span class="pcw-qs-label">Quick start</span>
+              <button type="button" class="pcw-qs-btn" data-qs="essential"><span class="material-symbols-outlined">bolt</span> Essential structure</button>
+              <button type="button" class="pcw-qs-btn" data-qs="reasoning"><span class="material-symbols-outlined">psychology</span> Reasoning prompt</button>
+              <button type="button" class="pcw-qs-btn" data-qs="frameworks"><span class="material-symbols-outlined">extension</span> Browse frameworks</button>
+            </div>
+          </div>
+          <!-- canvas blocks injected here -->
+        </div>
+      </div>
+      <!-- Assembled prompt preview sheet (slides up on Preview click) -->
+      <div class="pcw-preview-sheet" id="pcwPreviewSheet" aria-hidden="true">
+        <div class="pcw-preview-sheet-header">
+          <span class="material-symbols-outlined" style="color:var(--accent);font-size:18px;">auto_awesome</span>
+          <span class="pcw-preview-sheet-title">Assembled Prompt</span>
+          <span class="pcw-preview-sheet-count" id="pcwPreviewWordCount"></span>
+          <button class="icon-btn pcw-preview-close" id="pcwPreviewClose" title="Close preview" aria-label="Close preview">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div class="pcw-preview-sheet-body">
+          <pre class="pcw-preview-text" id="pcwPreviewText"></pre>
+        </div>
+        <div class="pcw-preview-sheet-footer">
+          <select id="pcwFolderSelect" class="form-input pcw-save-folder" title="Save into folder" aria-label="Folder">
+            <option value="">No folder</option>
+          </select>
+          <input type="text" id="pcwTagsInput" class="form-input pcw-save-tags" placeholder="Tags (comma separated)" aria-label="Tags" />
+          <button class="btn btn-ghost" id="pcwPreviewCopyBtn">
+            <span class="material-symbols-outlined">content_copy</span> Copy to clipboard
+          </button>
+          <button class="btn btn-accent" id="pcwPreviewSaveBtn">
+            <span class="material-symbols-outlined">save</span> Save to library
+          </button>
+        </div>
+      </div>
+
+      <div class="pcw-footer">
+        <input type="text" id="pcwTitleInput" class="form-input pcw-footer-title" placeholder="Prompt title (required to save)…" />
+        <span class="pcw-block-count" id="pcwBlockCount">0 blocks</span>
+        <span class="pcw-blanks-chip-footer" id="pcwBlanksChip" hidden>0 blanks</span>
+        <button id="pcwCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy</button>
+        <button class="btn btn-ghost" id="pcwPreviewBtn"><span class="material-symbols-outlined">visibility</span> Preview</button>
+        <button class="btn btn-accent" id="pcwSaveBtnFooter"><span class="material-symbols-outlined">save</span> Save to Library</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Component gallery (shop-style browse) -->
+  <div class="pcw-gallery" id="pcwGallery" hidden>
+    <div class="pcw-gallery-head">
+      <button type="button" class="icon-btn" id="pcwGalBack" hidden aria-label="Back"><span class="material-symbols-outlined">arrow_back</span></button>
+      <span class="material-symbols-outlined pcw-gallery-icon" id="pcwGalIcon">storefront</span>
+      <h3 id="pcwGalTitle">Component Library</h3>
+      <button type="button" class="pcw-gallery-cart" id="pcwGalCartBtn" title="View kit" aria-label="View kit"><span class="material-symbols-outlined">inventory_2</span> 0</button>
+      <div class="pcw-gallery-search">
+        <input type="search" id="pcwGallerySearch" placeholder="Search all blocks &amp; frameworks…" autocomplete="off" />
+      </div>
+      <button type="button" class="icon-btn" id="pcwGalClose" aria-label="Close library"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="pcw-gallery-body" id="pcwGalBody"><!-- injected by JS --></div>
+    <div class="pcw-gal-cartbar" id="pcwGalCartBar" hidden>
+      <span class="pcw-gal-cartbar-label" id="pcwGalCartBarLabel">0 components in your kit</span>
+      <button type="button" class="btn btn-ghost" id="pcwGalCartViewBtn"><span class="material-symbols-outlined">inventory_2</span> View kit</button>
+      <button type="button" class="btn btn-accent" id="pcwGalCartGoBtn"><span class="material-symbols-outlined">arrow_forward</span> Add all to canvas</button>
+    </div>
+  </div>
+
+  <!-- AI Build dialog -->
+  <div class="pcw-ai-overlay" id="pcwAiOverlay" hidden>
+    <div class="pcw-ai-dialog" role="dialog" aria-modal="true" aria-label="AI Build">
+      <div class="pcw-ai-head">
+        <span class="material-symbols-outlined">auto_awesome</span>
+        <h3>AI Build</h3>
+        <button type="button" class="icon-btn" id="pcwAiClose" aria-label="Close AI Build"><span class="material-symbols-outlined">close</span></button>
+      </div>
+
+      <div class="pcw-ai-step" id="pcwAiStepAsk">
+        <label class="form-label" for="pcwAiInput">Describe the prompt you're trying to build</label>
+        <textarea id="pcwAiInput" class="form-input" rows="4" placeholder="e.g. A prompt that turns rough meeting notes into a client-ready summary email"></textarea>
+        <div class="pcw-ai-depth" id="pcwAiLevels">
+          <span class="pcw-qs-label">Level</span>
+          <button type="button" class="pcw-ai-depth-btn" data-level="basic">Basic</button>
+          <button type="button" class="pcw-ai-depth-btn active" data-level="intermediate">Intermediate</button>
+          <button type="button" class="pcw-ai-depth-btn" data-level="advanced">Advanced</button>
+          <button type="button" class="pcw-ai-depth-btn" data-level="veryadvanced">Very advanced</button>
+          <button type="button" class="pcw-ai-depth-btn" data-level="engineer">Prompt engineer</button>
+        </div>
+        <button type="button" class="btn btn-accent" id="pcwAiAskBtn" style="width:100%;justify-content:center;"><span class="material-symbols-outlined">auto_awesome</span> Read my request</button>
+        <div class="pcw-ai-status" id="pcwAiStatus" aria-live="polite"></div>
+      </div>
+
+      <div class="pcw-ai-step" id="pcwAiStepConfirm" hidden>
+        <div class="pcw-ai-restate-label">Three ways to build it — pick one</div>
+        <div class="pcw-ai-options" id="pcwAiOptions"></div>
+        <div class="pcw-ai-restate-label">Here's what I understood</div>
+        <div class="pcw-ai-restate" id="pcwAiRestate"></div>
+        <div class="pcw-ai-restate-label">Blocks I'll use (<span id="pcwAiBlockCount">0</span>)</div>
+        <div class="pcw-ai-chips" id="pcwAiChips"></div>
+        <div class="pcw-ai-actions">
+          <button type="button" class="btn btn-ghost" id="pcwAiBackBtn"><span class="material-symbols-outlined">arrow_back</span> Rephrase</button>
+          <button type="button" class="btn btn-ghost" id="pcwAiReplaceBtn" hidden><span class="material-symbols-outlined">restart_alt</span> Replace canvas</button>
+          <button type="button" class="btn btn-ghost" id="pcwAiToGenBtn" title="Send this outline to the Prompt Generator"><span class="material-symbols-outlined">bolt</span> Send to Generator</button>
+          <button type="button" class="btn btn-accent" id="pcwAiGoBtn"><span class="material-symbols-outlined">play_arrow</span> Build it</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button type="button" class="pcw-ai-skip" id="pcwAiSkip" hidden><span class="material-symbols-outlined">skip_next</span> Skip animation</button>
+</div>

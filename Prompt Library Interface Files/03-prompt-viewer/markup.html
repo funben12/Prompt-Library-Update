@@ -1,0 +1,50 @@
+<div id="promptViewer" aria-modal="true" aria-label="Prompt viewer" role="dialog">
+  <div class="pv-header">
+    <button class="pv-back-btn" id="pvCloseBtn" title="Back to library">
+      <span class="material-symbols-outlined">arrow_back</span>
+      Back
+    </button>
+    <div class="pv-header-title" id="pvTitle"></div>
+    <div class="pv-header-chips" id="pvChips"></div>
+    <button class="icon-btn" id="pvEditBtn" title="Edit prompt">
+      <span class="material-symbols-outlined">edit</span>
+    </button>
+    <button class="icon-btn" id="pvFavBtn" title="Toggle favourite">
+      <span class="material-symbols-outlined">favorite</span>
+    </button>
+  </div>
+  <div class="pv-body">
+    <div class="pv-main">
+      <div class="pv-desc" id="pvDesc" hidden></div>
+      <div>
+        <div class="pv-prompt-label">
+          <span class="material-symbols-outlined" style="font-size:14px">code</span>
+          Prompt
+        </div>
+        <div class="pv-prompt-block" id="pvPromptBlock"></div>
+      </div>
+      <div class="pv-meta-strip" id="pvMetaStrip"></div>
+    </div>
+    <aside class="pv-sidebar">
+      <div>
+        <div class="pv-section-label">Actions</div>
+        <button class="btn btn-accent pv-copy-btn" id="pvCopyBtn">
+          <span class="material-symbols-outlined">content_copy</span>
+          Copy to clipboard
+        </button>
+      </div>
+      <div id="pvVarSection" hidden>
+        <div class="pv-section-label">Fill variables</div>
+        <div class="pv-var-fields" id="pvVarFields"></div>
+        <button class="btn btn-primary pv-copy-btn" id="pvCopyFilledBtn" style="margin-top:8px;">
+          <span class="material-symbols-outlined">content_copy</span>
+          Copy filled prompt
+        </button>
+      </div>
+      <div id="pvTagsSection" hidden>
+        <div class="pv-section-label">Tags</div>
+        <div id="pvTags" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+      </div>
+    </aside>
+  </div>
+</div>

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en-GB" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Optimizer — reference</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100..800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link rel="stylesheet" href="../_shared/shared.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="optimizerWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Optimizer">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">rocket_launch</span>
+      <div>
+        <h2 class="ws-title">Prompt Optimizer</h2>
+        <p class="ws-subtitle">Select a framework, add techniques, and let AI optimize your prompt with quality scoring.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-accent" id="optSaveBtn"><span class="material-symbols-outlined">save</span> Save</button>
+      <button class="icon-btn" id="closeOptimizerBtn" aria-label="Close Optimizer"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body opt-body">
+
+    <!-- LEFT: Frameworks + Score Ring -->
+    <div class="opt-left">
+      <div class="opt-section-label">Framework</div>
+      <div class="opt-frameworks">
+        <button class="opt-fw-btn" data-fw="par">PAR - Problem-Action-Result</button>
+        <button class="opt-fw-btn" data-fw="star">STAR - Situation-Task-Action-Result</button>
+        <button class="opt-fw-btn" data-fw="5w1h">5W1H - Who-What-When-Where-Why-How</button>
+        <button class="opt-fw-btn" data-fw="chain-of-thought">Chain of Thought</button>
+        <button class="opt-fw-btn" data-fw="tree-of-thought">Tree of Thought</button>
+        <button class="opt-fw-btn" data-fw="role-prompting">Role Prompting</button>
+        <button class="opt-fw-btn" data-fw="few-shot">Few-Shot Learning</button>
+        <button class="opt-fw-btn" data-fw="step-by-step">Step-by-Step</button>
+        <button class="opt-fw-btn" data-fw="zero-shot">Zero-Shot</button>
+        <button class="opt-fw-btn" data-fw="scamper">SCAMPER</button>
+        <button class="opt-fw-btn" data-fw="before-after-bridge">Before-After-Bridge</button>
+        <button class="opt-fw-btn" data-fw="ipo">Input-Process-Output</button>
+      </div>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-5);">Quality Score</div>
+      <div class="opt-score-wrap">
+        <svg class="opt-score-svg" viewBox="0 0 88 88" aria-label="Quality score ring">
+          <circle class="opt-ring-track" cx="44" cy="44" r="36"/>
+          <circle class="opt-ring-fill" id="optRingFill" cx="44" cy="44" r="36"/>
+        </svg>
+        <div class="opt-score-center">
+          <div class="opt-score-num" id="optScoreNum">--</div>
+          <div class="opt-score-label">/100</div>
+        </div>
+      </div>
+
+      <div class="opt-metrics">
+        <div class="opt-metric-row"><span>Clarity</span><span id="optClarity">--</span></div>
+        <div class="opt-metric-row"><span>Specificity</span><span id="optSpecificity">--</span></div>
+        <div class="opt-metric-row"><span>Context</span><span id="optContext">--</span></div>
+        <div class="opt-metric-row"><span>Structure</span><span id="optStructure">--</span></div>
+        <div class="opt-metric-row"><span>Actionability</span><span id="optActionability">--</span></div>
+      </div>
+    </div>
+
+    <!-- CENTER: Input + Techniques + Actions + Output -->
+    <div class="opt-center">
+      <div class="opt-section-label">Prompt Input</div>
+      <textarea id="optPromptInput" class="forge-input" rows="5" placeholder="Paste your prompt or describe your goal here..."></textarea>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">Enhancement Techniques</div>
+      <div style="display:flex;gap:var(--sp-2);margin-bottom:var(--sp-2);">
+        <button class="btn btn-ghost btn-sm" id="optSelectAllTechBtn">Select All</button>
+        <button class="btn btn-ghost btn-sm" id="optClearTechBtn">Clear</button>
+      </div>
+      <div class="opt-techniques">
+        <button class="opt-tech-btn" data-tech="clarity">clarity</button>
+        <button class="opt-tech-btn" data-tech="context">context</button>
+        <button class="opt-tech-btn" data-tech="specificity">specificity</button>
+        <button class="opt-tech-btn" data-tech="tone">tone</button>
+        <button class="opt-tech-btn" data-tech="format">format</button>
+        <button class="opt-tech-btn" data-tech="examples">examples</button>
+        <button class="opt-tech-btn" data-tech="persona">persona</button>
+        <button class="opt-tech-btn" data-tech="reasoning">reasoning</button>
+        <button class="opt-tech-btn" data-tech="constraints">constraints</button>
+        <button class="opt-tech-btn" data-tech="audience">audience</button>
+        <button class="opt-tech-btn" data-tech="creativity">creativity</button>
+        <button class="opt-tech-btn" data-tech="logic">logic</button>
+        <button class="opt-tech-btn" data-tech="output-type">output-type</button>
+        <button class="opt-tech-btn" data-tech="structure">structure</button>
+        <button class="opt-tech-btn" data-tech="voice">voice</button>
+        <button class="opt-tech-btn" data-tech="summarization">summarization</button>
+        <button class="opt-tech-btn" data-tech="storytelling">storytelling</button>
+        <button class="opt-tech-btn" data-tech="brainstorming">brainstorming</button>
+        <button class="opt-tech-btn" data-tech="instruction">instruction</button>
+        <button class="opt-tech-btn" data-tech="prioritization">prioritization</button>
+        <button class="opt-tech-btn" data-tech="risk-assessment">risk-assessment</button>
+        <button class="opt-tech-btn" data-tech="transparency">transparency</button>
+        <button class="opt-tech-btn" data-tech="emotion">emotion</button>
+        <button class="opt-tech-btn" data-tech="validation">validation</button>
+        <button class="opt-tech-btn" data-tech="chain-of-thought">chain-of-thought</button>
+        <button class="opt-tech-btn" data-tech="few-shot">few-shot</button>
+        <button class="opt-tech-btn" data-tech="analogies">analogies</button>
+        <button class="opt-tech-btn" data-tech="role-play">role-play</button>
+        <button class="opt-tech-btn" data-tech="hypothetical">hypothetical</button>
+        <button class="opt-tech-btn" data-tech="decomposition">decomposition</button>
+        <button class="opt-tech-btn" data-tech="compression">compression</button>
+        <button class="opt-tech-btn" data-tech="counterpoint">counterpoint</button>
+        <button class="opt-tech-btn" data-tech="socratic">socratic</button>
+        <button class="opt-tech-btn" data-tech="precision">precision</button>
+        <button class="opt-tech-btn" data-tech="empathy">empathy</button>
+        <button class="opt-tech-btn" data-tech="urgency">urgency</button>
+        <button class="opt-tech-btn" data-tech="iterative">iterative</button>
+        <button class="opt-tech-btn" data-tech="meta-cognition">meta-cognition</button>
+        <button class="opt-tech-btn" data-tech="comparative">comparative</button>
+        <button class="opt-tech-btn" data-tech="step-by-step">step-by-step</button>
+      </div>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">Custom Instructions</div>
+      <textarea id="optCustomInstructions" class="forge-input" rows="2" placeholder="e.g. MECE principle, step-by-step output, include risk assessment..."></textarea>
+
+      <div class="opt-actions">
+        <button class="btn btn-accent" id="optOptimizeBtn"><span class="material-symbols-outlined">rocket_launch</span> Optimize</button>
+        <button class="btn btn-ghost" id="optAnalyzeBtn"><span class="material-symbols-outlined">analytics</span> Analyze</button>
+      </div>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-4);">Output</div>
+      <div class="opt-output" id="optOutput"><span class="hint">Optimized output will appear here...</span></div>
+      <div id="optOutputActions" style="display:none;" class="opt-actions">
+        <button class="btn btn-ghost btn-sm" id="optCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: History + Compare -->
+    <div class="opt-right">
+      <div class="opt-section-label">Version History</div>
+      <div id="optHistory"><span class="hint" style="font-size:var(--fs-xs);">Run Optimize or Analyze to build history.</span></div>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-4);">Compare Versions</div>
+      <div id="optComparePanel"><span class="hint" style="font-size:var(--fs-xs);">Select two history items to compare.</span></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Preview shim: workspaces are hidden until .open is set by the app. Force it visible. -->
+<script>
+(function () {
+  var root = document.body.firstElementChild;
+  if (!root) return;
+  root.classList.add('open', 'active', 'visible');
+  root.removeAttribute('hidden');
+  root.removeAttribute('aria-hidden');
+  root.style.display = '';
+  root.style.opacity = '1';
+  root.style.visibility = 'visible';
+  root.style.transform = 'none';
+  root.style.pointerEvents = 'auto';
+})();
+</script>
+
+<!-- Extracted logic. Expect console errors here: these functions were cut out of the
+     app.js IIFE and still expect state, api() and the rest of the app around them.
+     Preview is for layout and styling, not for running the feature. -->
+<script src="../_shared/shared.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<div id="xrayWorkspace" role="dialog" aria-modal="true" aria-label="Prompt X-Ray">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">visibility</span>
+      <div>
+        <h2 class="ws-title">Prompt X-Ray</h2>
+        <p class="ws-subtitle">See inside any prompt — role, context, task, constraints, format.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="icon-btn" id="closeXrayBtn" aria-label="Close Prompt X-Ray"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body xr-body">
+    <div class="xr-left">
+      <div class="opt-section-label">Prompt</div>
+      <select id="xrayPicker" class="forge-input qf-picker"><option value="">Load from library…</option></select>
+      <textarea id="xrayInput" class="forge-input" rows="10" placeholder="Paste any prompt to deconstruct…"></textarea>
+      <div class="opt-actions" style="margin-top:var(--sp-3);">
+        <button class="btn btn-accent" id="xrayRunBtn"><span class="material-symbols-outlined">visibility</span> Deconstruct</button>
+      </div>
+    </div>
+    <div class="xr-right">
+      <div class="xr-grid" id="xrayGrid">
+        <div class="hint" style="padding:var(--sp-4);">Components appear here after deconstruction. Edit any section, then copy or save the rebuilt prompt.</div>
+      </div>
+      <div class="opt-actions" id="xrayActions" style="display:none;margin-top:var(--sp-3);">
+        <button class="btn btn-ghost" id="xrayCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy structured</button>
+        <button class="btn btn-accent" id="xraySaveBtn"><span class="material-symbols-outlined">save</span> Save to Library</button>
+      </div>
+    </div>
+  </div>
+</div>

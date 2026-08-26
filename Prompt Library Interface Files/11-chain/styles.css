@@ -1,0 +1,227 @@
+/* Prompt Chain — CSS extracted from static/app.css */
+
+@layer components {
+.nav-section-content.collapsed { display: none; }
+.nav-section-content.collapsed ~ .chev,
+  .nav-section-label[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+}
+
+/* =============================================================
+   PROMPT CHAIN WORKSPACE
+   ============================================================= */
+#chainWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+}
+
+#chainWorkspace.open { display: flex; }
+
+/* ── Chain workspace redesign ─────────────────────────────────────── */
+.chain-body {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  position: relative;
+  padding-bottom: 0;
+}
+
+.chain-seed {
+  border: 1.5px dashed var(--accent-line);
+  border-radius: var(--r-md);
+  padding: var(--sp-4);
+  background: var(--surface-2);
+  margin-bottom: var(--sp-3);
+  flex-shrink: 0;
+}
+
+.chain-seed-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: var(--sp-2);
+}
+
+.chain-seed-label .material-symbols-outlined { font-size: 16px; color: var(--accent); }
+
+#chainWorkspace .chain-step {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  overflow: hidden;
+  transition: border-color var(--t-fast);
+}
+
+#chainWorkspace .chain-step.expanded { border-color: var(--accent-line); }
+
+#chainWorkspace .chain-step-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  cursor: pointer;
+  user-select: none;
+  background: var(--surface);
+  transition: background var(--t-fast);
+}
+
+#chainWorkspace .chain-step-header:hover { background: var(--surface-2); }
+
+#chainWorkspace .chain-step-num {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-family: var(--ff-display);
+  font-size: 13px; font-weight: 600;
+  display: grid; place-items: center;
+  flex-shrink: 0;
+}
+
+#chainWorkspace .chain-step-label-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-family: var(--ff-sans);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+  outline: none;
+  padding: 0;
+  min-width: 0;
+}
+
+#chainWorkspace .chain-step-body {
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  border-top: 1px solid var(--line);
+  display: none;
+}
+
+#chainWorkspace .chain-step.expanded .chain-step-body { display: block; }
+
+.chain-add-inline {
+  width: 100%;
+  margin-top: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1.5px dashed var(--line);
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+  flex-shrink: 0;
+}
+
+.chain-add-inline:hover {
+  background: var(--surface-2);
+  border-color: var(--accent-line);
+  color: var(--ink);
+}
+
+.chain-add-inline .material-symbols-outlined { font-size: 18px; }
+
+.chain-preview-panel {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface-3);
+  border-top: 1px solid var(--line);
+  max-height: 320px;
+  overflow: hidden;
+  transition: max-height 300ms var(--ease-out-expo);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.chain-preview-panel.collapsed { max-height: 0; border-top: none; }
+
+.chain-preview-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+  flex-shrink: 0;
+}
+
+.chain-preview-header .material-symbols-outlined { font-size: 16px; color: var(--accent); }
+
+.chain-preview-header .icon-btn { margin-left: auto; }
+
+.chain-preview-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  overflow: hidden;
+  flex: 1;
+}
+
+.chain-preview-ta {
+  flex: 1;
+  min-height: 100px;
+  max-height: 160px;
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: var(--sp-3);
+  resize: vertical;
+  color: var(--ink);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.chain-preview-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+.chain-steps-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
+}
+
+.chain-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+@media (max-width: 900px) {
+#chainWorkspace .ws-header-actions .btn span:last-child { display: none; }
+}
+
+.pcw-palette-section:not(.collapsed) { border-left-color: var(--cat-color); }
+
+.pcw-palette-section.collapsed .pcw-block-grid,
+.pcw-palette-section.collapsed .pcw-fw-list { display: none; }
+
+.pcw-palette-section.collapsed .pcw-section-chevron { transform: rotate(-90deg); }
+
+.pcw-canvas-block.collapsed .pcw-block-snippet { display: block; }
+
+.pcw-canvas-block.collapsed .pcw-block-body { display: none; }
+
+.pcw-canvas-block.collapsed .pcw-block-header { border-bottom: none; }
