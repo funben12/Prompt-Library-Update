@@ -1194,7 +1194,7 @@
   }
   .var-input:focus, .var-select:focus { border-color: var(--accent); box-shadow: var(--ring); }
 
-  /* ---- New variable type widgets (Tags / Checklist / Toggle Group / Star Rating / Image URL) ---- */
+  /* ---- Variable type widgets (Tags / Checklist / Toggle Group / Star Rating) ---- */
   .var-tags-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
   .var-tags-chips:empty { margin-bottom: 0; }
   .var-tag-chip { cursor: default; }
@@ -1269,9 +1269,7 @@
   .var-star { transition: color var(--t-fast); }
   .var-star:hover { transform: scale(1.1); }
 
-  .var-imageurl-preview img { display: block; object-fit: cover; }
-
-  .var-code, .var-markdown { font-family: var(--ff-mono); }
+  .var-code { font-family: var(--ff-mono); }
 
 
   .var-preview-wrap { margin-top: var(--sp-4); }

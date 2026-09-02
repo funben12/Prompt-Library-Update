@@ -1344,7 +1344,6 @@
         const typeIcon = {
             text: 'abc',
             paragraph: 'subject',
-            markdown: 'article',
             code: 'code',
             password: 'lock',
             email: 'email',
@@ -1355,9 +1354,9 @@
             time: 'schedule',
             color: 'palette',
             currency: 'payments',
-            percentage: 'percent',
-            filepath: 'folder_open',
-            imageurl: 'image',
+            duration: 'timer',
+            timezone: 'public',
+            language: 'translate',
             datetime: 'event_available',
             month: 'calendar_view_month',
             week: 'date_range',
@@ -1437,8 +1436,6 @@
             } else if (type === 'paragraph') {
                 const pRows = m.size === 'short' ? 3 : (m.size === 'tall' ? 10 : 6);
                 input = `<textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter paragraph…" rows="${pRows}" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>`;
-            } else if (type === 'markdown') {
-                input = `<textarea class="var-input var-markdown" data-var="${escapeAttr(v)}" placeholder="Enter markdown… (# headings, **bold**, - lists)" rows="8" style="width:100%;resize:vertical;font-family:monospace;font-size:12px;">${escapeHtml(def)}</textarea>`;
             } else if (type === 'code') {
                 input = `<textarea class="var-input var-code" data-var="${escapeAttr(v)}" placeholder="Enter code…" rows="4" style="width:100%;resize:vertical;font-family:monospace;font-size:12px;">${escapeHtml(def)}</textarea>`;
             } else if (type === 'json') {
@@ -1448,20 +1445,23 @@
         <span style="font-size:13px;color:var(--ink-2);font-weight:600;">$</span>
         <input type="number" step="0.01" class="var-input" data-var="${escapeAttr(v)}" placeholder="0.00" value="${escapeAttr(def)}" style="flex:1;" />
       </div>`;
-            } else if (type === 'percentage') {
-                input = `<div style="display:flex;align-items:center;gap:6px;">
-        <input type="number" min="0" max="100" class="var-input" data-var="${escapeAttr(v)}" placeholder="0" value="${escapeAttr(def)}" style="flex:1;" />
-        <span style="font-size:13px;color:var(--ink-2);font-weight:600;">%</span>
-      </div>`;
-            } else if (type === 'filepath') {
-                input = `<input type="text" class="var-input var-code" data-var="${escapeAttr(v)}" placeholder="C:\\path\\to\\file.ext" value="${escapeAttr(def)}" style="font-family:monospace;font-size:12px;" />`;
-            } else if (type === 'imageurl') {
-                input = `<div>
-        <input type="url" class="var-input var-imageurl-input" data-var="${escapeAttr(v)}" placeholder="https://example.com/image.png" value="${escapeAttr(def)}" oninput="window._PL_previewImageUrl(this)" />
-        <div class="var-imageurl-preview" style="margin-top:6px;${def ? '' : 'display:none;'}">
-          <img src="${escapeAttr(def)}" style="max-width:120px;max-height:80px;border-radius:6px;border:1px solid var(--line);" onerror="this.parentElement.style.display='none';" onload="this.parentElement.style.display='block';" />
-        </div>
-      </div>`;
+            } else if (type === 'duration') {
+                input = `<input type="text" class="var-input" list="var-duration-list" data-var="${escapeAttr(v)}" placeholder="e.g. 30 minutes, 2h 15m" value="${escapeAttr(def)}" />
+      <datalist id="var-duration-list">
+        <option value="15 minutes"></option><option value="30 minutes"></option>
+        <option value="1 hour"></option><option value="2 hours"></option>
+        <option value="1 day"></option><option value="1 week"></option>
+      </datalist>`;
+            } else if (type === 'timezone') {
+                input = `<input type="text" class="var-input" list="var-timezone-list" data-var="${escapeAttr(v)}" placeholder="e.g. UTC, EST, PST" value="${escapeAttr(def)}" />
+      <datalist id="var-timezone-list">
+        ${['UTC','GMT','EST','CST','MST','PST','CET','EET','IST','JST','KST','AEST','ACST','AWST','NZST','BRT','ART','SAST','WAT','MSK','GST','SGT','HKT','ChST','AKST','HST'].map(z => `<option value="${z}"></option>`).join('')}
+      </datalist>`;
+            } else if (type === 'language') {
+                input = `<input type="text" class="var-input" list="var-language-list" data-var="${escapeAttr(v)}" placeholder="e.g. English, Spanish" value="${escapeAttr(def)}" />
+      <datalist id="var-language-list">
+        ${['English','Spanish','French','German','Italian','Portuguese','Dutch','Russian','Mandarin Chinese','Japanese','Korean','Arabic','Hindi','Bengali','Turkish','Vietnamese','Polish','Ukrainian','Swedish','Greek','Hebrew','Thai','Indonesian','Tagalog','Swahili'].map(l => `<option value="${l}"></option>`).join('')}
+      </datalist>`;
             } else if (type === 'tags') {
                 const tagList = def ? def.split(',').map(s => s.trim()).filter(Boolean) : [];
                 input = `<div class="var-tags-field" data-var="${escapeAttr(v)}">
@@ -1610,19 +1610,7 @@
         return (inp.value || '').trim();
     }
 
-    /* ---- New variable type interaction helpers (Tags / Toggle Group / Star Rating / Checklist / Image URL / Range) ---- */
-    window._PL_previewImageUrl = function(input) {
-        const wrap = input.parentElement.querySelector('.var-imageurl-preview');
-        if (!wrap) return;
-        const img = wrap.querySelector('img');
-        if (input.value.trim()) {
-            img.src = input.value.trim();
-            wrap.style.display = 'block';
-        } else {
-            wrap.style.display = 'none';
-        }
-    };
-
+    /* ---- Variable type interaction helpers (Tags / Toggle Group / Star Rating / Checklist / Range) ---- */
     window._PL_addTagKey = function(evt, input) {
         if (evt.key !== 'Enter') return;
         evt.preventDefault();
@@ -2638,7 +2626,6 @@
             <optgroup label="Text">
             <option value="text"      ${type === 'text'      ? 'selected' : ''}>Text</option>
             <option value="paragraph" ${type === 'paragraph' ? 'selected' : ''}>Paragraph</option>
-            <option value="markdown"  ${type === 'markdown'  ? 'selected' : ''}>Markdown</option>
             <option value="code"      ${type === 'code'      ? 'selected' : ''}>Code</option>
             <option value="password"  ${type === 'password'  ? 'selected' : ''}>Password</option>
             </optgroup>
@@ -2656,9 +2643,9 @@
             <option value="time"       ${type === 'time'       ? 'selected' : ''}>Time</option>
             <option value="color"      ${type === 'color'      ? 'selected' : ''}>Color</option>
             <option value="currency"   ${type === 'currency'   ? 'selected' : ''}>Currency</option>
-            <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
-            <option value="filepath"   ${type === 'filepath'   ? 'selected' : ''}>File Path</option>
-            <option value="imageurl"   ${type === 'imageurl'   ? 'selected' : ''}>Image URL</option>
+            <option value="duration"   ${type === 'duration'   ? 'selected' : ''}>Duration</option>
+            <option value="timezone"   ${type === 'timezone'   ? 'selected' : ''}>Timezone</option>
+            <option value="language"   ${type === 'language'   ? 'selected' : ''}>Language</option>
             <option value="json"       ${type === 'json'       ? 'selected' : ''}>JSON</option>
             </optgroup>
             <optgroup label="Choice">
