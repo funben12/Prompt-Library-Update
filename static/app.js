@@ -1483,8 +1483,10 @@
             } else if (type === 'checkbox') {
                 input = `<p style="font-size:12px;color:var(--ink-3);">Add options in the variable editor to use this checklist.</p>`;
             } else if (type === 'togglegroup' && opts.length) {
-                input = `<div class="var-toggle-group" data-var="${escapeAttr(v)}">
-        ${opts.map(o => `<span class="chip var-toggle-btn${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</span>`).join('')}
+                const isMulti = !!m.multi;
+                const activeVals = isMulti ? (def ? def.split(',').map(s => s.trim()) : []) : [def];
+                input = `<div class="var-toggle-group" data-var="${escapeAttr(v)}" data-multi="${isMulti ? '1' : '0'}">
+        ${opts.map(o => `<span class="chip var-toggle-btn${activeVals.includes(o)?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</span>`).join('')}
         <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
             } else if (type === 'togglegroup') {
@@ -1648,10 +1650,16 @@
 
     window._PL_selectToggle = function(btn) {
         const group = btn.closest('.var-toggle-group');
-        group.querySelectorAll('.var-toggle-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
         const hidden = group.querySelector('.var-toggle-hidden');
-        hidden.value = btn.dataset.value;
+        if (group.dataset.multi === '1') {
+            btn.classList.toggle('active');
+            const active = Array.from(group.querySelectorAll('.var-toggle-btn.active')).map(b => b.dataset.value);
+            hidden.value = active.join(', ');
+        } else {
+            group.querySelectorAll('.var-toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            hidden.value = btn.dataset.value;
+        }
         hidden.dispatchEvent(new Event('input', {
             bubbles: true
         }));
@@ -2674,6 +2682,12 @@
             <option value="tall"   ${size === 'tall'   ? 'selected' : ''}>Tall (10 rows)</option>
           </select>
         </div>
+        <div class="togglegroup-multi" style="display: ${type === 'togglegroup' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);cursor:pointer;">
+            <input type="checkbox" data-field="multi" ${m.multi ? 'checked' : ''} />
+            Allow multiple selections
+          </label>
+        </div>
         <div class="dropdown-options" style="display: ${needsOptions ? 'block' : 'none'};">
           <textarea data-field="options" placeholder="Comma-separated options" rows="2"
                     style="width: 100%; padding: 6px 10px; font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; color: var(--ink); margin-top: 4px;">${escapeHtml(opts)}</textarea>
@@ -2687,9 +2701,11 @@
         const row = sel.closest('.var-meta-row');
         const opts = row.querySelector('.dropdown-options');
         const sizeRow = row.querySelector('.paragraph-size');
+        const multiRow = row.querySelector('.togglegroup-multi');
         const pill = row.querySelector('.var-meta-type-pill');
         if (opts) opts.style.display = OPTIONS_TYPES.includes(sel.value) ? 'block' : 'none';
         if (sizeRow) sizeRow.style.display = sel.value === 'paragraph' ? 'flex' : 'none';
+        if (multiRow) multiRow.style.display = sel.value === 'togglegroup' ? 'flex' : 'none';
         if (pill) pill.textContent = sel.value;
     };
 
@@ -2704,6 +2720,7 @@
             const options = optsEl?.value ?
                 optsEl.value.split(',').map(o => o.trim()).filter(Boolean) : [];
             const sizeEl = row.querySelector('[data-field="size"]');
+            const multiEl = row.querySelector('[data-field="multi"]');
             const entry = {
                 type,
                 default: def,
@@ -2711,6 +2728,7 @@
                 options
             };
             if (type === 'paragraph' && sizeEl) entry.size = sizeEl.value;
+            if (type === 'togglegroup' && multiEl) entry.multi = multiEl.checked;
             meta[v] = entry;
         });
         return meta;
