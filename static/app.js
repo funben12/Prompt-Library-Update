@@ -1552,7 +1552,7 @@
           <span class="var-matrix-row-label">${escapeHtml(row)}</span>
           ${MATRIX_COLS.map((c, ci) => `<span class="var-matrix-cell${matrixVal[row]===ci?' active':''}" data-col="${ci}" onclick="window._PL_selectMatrixCell(this)"></span>`).join('')}
         </div>`).join('')}
-        <input type="hidden" class="var-input var-matrix-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(JSON.stringify(matrixVal))}" />
+        <input type="hidden" class="var-input var-matrix-hidden" data-var="${escapeAttr(v)}" value="${def ? escapeAttr(JSON.stringify(matrixVal)) : ''}" />
       </div>`;
             } else if (type === 'matrix') {
                 input = `<p style="font-size:12px;color:var(--ink-3);">Add row items (options) in the variable editor to build the grid.</p>`;

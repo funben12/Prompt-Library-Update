@@ -2125,9 +2125,9 @@ def parse_raw_import():
 
     blocks = _split(r'\n[-=]{3,}\n', text)
     if len(blocks) < 2:
-        blocks = _split(r'\n{2,}', text)
-    if len(blocks) < 2:
         blocks = _split(r'\n(?=\s*(?:\d+[.)]\s|Prompt\s+\d+|#{1,2}\s))', text)
+    if len(blocks) < 2:
+        blocks = _split(r'\n{3,}', text)
     if not blocks:
         blocks = [text]
 
