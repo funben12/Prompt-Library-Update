@@ -2109,6 +2109,53 @@ def import_json():
         conn.close()
     return jsonify({'imported': imported})
 
+@app.route('/api/import/parse-raw', methods=['POST'])
+def parse_raw_import():
+    """Heuristically split an unformatted text blob into candidate prompts.
+    Body: {text: '...'}. Returns {candidates: [{title, content}, ...]}.
+    Read-only — never writes to the database."""
+    data = _json_body()
+    text = (data.get('text') or '').strip() if isinstance(data, dict) else ''
+    if not text:
+        return jsonify({'candidates': []})
+
+    def _split(pattern, s):
+        parts = re.split(pattern, s)
+        return [p.strip() for p in parts if p.strip()]
+
+    blocks = _split(r'\n[-=]{3,}\n', text)
+    if len(blocks) < 2:
+        blocks = _split(r'\n{2,}', text)
+    if len(blocks) < 2:
+        blocks = _split(r'\n(?=\s*(?:\d+[.)]\s|Prompt\s+\d+|#{1,2}\s))', text)
+    if not blocks:
+        blocks = [text]
+
+    candidates = []
+    for block in blocks:
+        lines = block.split('\n')
+        title_line = ''
+        rest_start = 0
+        for i, line in enumerate(lines):
+            if line.strip():
+                title_line = line.strip()
+                rest_start = i + 1
+                break
+        if not title_line:
+            continue
+        title = re.sub(
+            r'^#{1,2}\s*|^\d+[.)]\s*|^Prompt\s+\d+:?\s*', '',
+            title_line, flags=re.IGNORECASE
+        ).strip()
+        if len(title) > 80:
+            title = title[:77].rstrip() + '...'
+        content = '\n'.join(lines[rest_start:]).strip()
+        if not content:
+            continue
+        candidates.append({'title': title, 'content': content})
+
+    return jsonify({'candidates': candidates})
+
 # ============================================================
 #  ROLES  –  AI persona / system prompt manager
 # ============================================================
