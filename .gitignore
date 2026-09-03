@@ -2,3 +2,21 @@
 __pycache__/
 *.pyc
 *.pyo
+
+# Build/installer output (regenerate via Build.bat / BUILD_INSTALLER.bat)
+/build/
+/installer/
+
+# Local data that should never be committed
+/PromptLibrary.db
+/PromptLibrary.db-journal
+/error.log
+*.bak
+
+# Licence key material (generate locally, never commit)
+keys_PRIVATE.txt
+keys_batch_*.txt
+all_keys_to_load.txt
+
+# Editor/vault noise picked up by accident
+.obsidian/
