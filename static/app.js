@@ -3163,13 +3163,62 @@
        IMPORT / EXPORT
        ============================================================================ */
     let _importFmt = 'json';
+    let _smartPasteCandidates = [];
 
     function openImportModal() {
         $('#importForm').reset();
         _importFmt = 'json';
         _switchImportFmt('json');
+        const fsel = $('#importFolder');
+        if (fsel) {
+            fsel.innerHTML = '<option value="">No folder</option>' +
+                state.folders.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+        }
+        _smartPasteCandidates = [];
+        const results = $('#smartPasteResults');
+        if (results) results.innerHTML = '';
         $('#importModal').classList.add('active');
     }
+
+    function _applyBatchFolder(prompts) {
+        const folderId = $('#importFolder')?.value || '';
+        if (!folderId) return prompts;
+        return prompts.map(p => ({
+            ...p,
+            folder_id: (p.folder_id !== undefined && p.folder_id !== null && p.folder_id !== '') ? p.folder_id : folderId
+        }));
+    }
+
+    window.PL_analyzeSmartPaste = async function() {
+        const raw = $('#importSmartContent').value.trim();
+        const results = $('#smartPasteResults');
+        if (!raw) {
+            toast('Paste some text first', 'warning');
+            return;
+        }
+        try {
+            const res = await api('/import/parse-raw', { method: 'POST', body: { text: raw } });
+            const candidates = res.candidates || [];
+            if (!candidates.length) {
+                results.innerHTML = '<p class="smart-paste-empty">No prompts detected. Check your paste.</p>';
+                return;
+            }
+            results.innerHTML = `<p class="smart-paste-count">${candidates.length} prompt${candidates.length !== 1 ? 's' : ''} found</p>` +
+                candidates.map(c => `
+        <div class="smart-paste-item" data-content="${escapeAttr(c.content)}">
+          <label class="smart-paste-item-head">
+            <input type="checkbox" class="smart-paste-include" checked />
+            <input type="text" class="smart-paste-title" value="${escapeAttr(c.title)}" />
+          </label>
+          <details class="smart-paste-excerpt">
+            <summary>Preview</summary>
+            <pre>${escapeHtml(c.content.slice(0, 400))}${c.content.length > 400 ? '…' : ''}</pre>
+          </details>
+        </div>`).join('');
+        } catch (err) {
+            toast('Could not analyze paste', 'error');
+        }
+    };
 
     function closeImportModal() {
         $('#importModal').classList.remove('active');
@@ -3344,7 +3393,8 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
             json: '#importPanelJson',
             markdown: '#importPanelMarkdown',
             file: '#importPanelFile',
-            template: '#importPanelTemplate'
+            template: '#importPanelTemplate',
+            smart: '#importPanelSmart'
         };
         Object.entries(panels).forEach(([f, sel]) => {
             const el = $(sel);
@@ -3439,7 +3489,7 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
                     toast('Invalid JSON — paste an array of prompt objects', 'warning');
                     return;
                 }
-                await _doImport(prompts);
+                await _doImport(_applyBatchFolder(prompts));
 
             } else if (_importFmt === 'markdown') {
                 const raw = $('#importMdContent').value.trim();
@@ -3448,7 +3498,7 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
                     return;
                 }
                 const prompts = parseMarkdownImport(raw);
-                await _doImport(prompts);
+                await _doImport(_applyBatchFolder(prompts));
 
             } else if (_importFmt === 'file') {
                 const fileInput = $('#importFileInput');
@@ -3471,7 +3521,19 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
                     // Markdown file
                     prompts = parseMarkdownImport(text);
                 }
-                await _doImport(prompts);
+                await _doImport(_applyBatchFolder(prompts));
+
+            } else if (_importFmt === 'smart') {
+                const rows = $$('#smartPasteResults .smart-paste-item').filter(row => row.querySelector('.smart-paste-include').checked);
+                if (!rows.length) {
+                    toast('No prompts selected to import', 'warning');
+                    return;
+                }
+                const prompts = rows.map(row => ({
+                    title: row.querySelector('.smart-paste-title').value.trim(),
+                    content: row.dataset.content
+                }));
+                await _doImport(_applyBatchFolder(prompts));
             }
         } catch (err) {
             console.error('import error:', err);
