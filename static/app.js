@@ -3386,23 +3386,29 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
         }
     };
 
-    const _MARKDOWN_TEMPLATE_SHORT_TEXT = `Format each prompt like this, separated by "---" on its own line:
+    const _MARKDOWN_TEMPLATE_SHORT_TEXT = `Format each prompt using this structure. If I give you multiple prompts, format each the same way and separate them with "---" on its own line.
 
-## Title (3-8 words, sentence case)
-*One-sentence description, starts with a verb*
-**Categories:** Comma, Separated
-**Tags:** lowercase-hyphenated, 2-5 tags
+## Title
+3-8 words, sentence case, no trailing punctuation. Example: "Cold Email Hook", not "COLD EMAIL HOOK GENERATOR!!!".
+
+*One-sentence description*
+Starts with a verb (Write, Generate, Analyze, Convert, Summarize, etc.), 8-15 words, explains what the prompt does rather than how to use it.
+
+**Categories:** Comma-separated, 1-3 broad buckets such as Writing, Code, Business, Design, Analysis, Marketing. Pick the closest fit rather than inventing a new one.
+
+**Tags:** Comma-separated, 2-5 items, lowercase and hyphenated. Use "cold-email" and "api-design", never "cold email", "coldemail", or "API_Design".
 
 \`\`\`
-Full prompt text here. Use [[snake_case]] for any placeholder value,
-e.g. [[company_name]], [[word_count]].
+Full prompt text here, exactly as it should run. Replace any value that
+should vary between uses with a placeholder in double square brackets,
+lowercase with underscores: [[company_name]], [[word_count]],
+[[target_audience]]. Preserve line breaks, bullet points, and any other
+formatting from the source text.
 \`\`\`
 
 ---
 
-Rules: no text outside this structure. If description/categories/tags
-are missing from what I give you, infer them. Keep placeholders
-lowercase with underscores. Return only the formatted Markdown, nothing else.`;
+Rules: nothing outside this structure -- no preamble, no explanation, no numbered list wrapper around the prompts. If a description, category, or tag is missing from what I give you, infer a reasonable one instead of leaving it blank. Keep every placeholder lowercase with underscores, never spaces or camelCase. Return only the formatted Markdown, nothing else.`;
 
     window.PL_copyMarkdownTemplateShort = async function() {
         try {
@@ -3461,17 +3467,17 @@ lowercase with underscores. Return only the formatted Markdown, nothing else.`;
 
             for (const line of lines) {
                 const trimmed = line.trim();
-                if (!firstNonEmpty && trimmed && !/^\*/.test(trimmed) && !/^```/.test(trimmed)) {
+                if (!firstNonEmpty && trimmed && !inCode && !/^\*/.test(trimmed) && !/^```/.test(trimmed)) {
                     firstNonEmpty = trimmed;
                 }
                 if (/^#{1,2}\s+/.test(line) && !inCode) {
                     title = line.replace(/^#{1,2}\s+/, '').trim();
                 } else if (/^\*[^*].*[^*]\*$/.test(trimmed) && !inCode) {
                     description = trimmed.replace(/^\*|\*$/g, '').trim();
-                } else if (/^\*\*Categories:?\*\*:?/i.test(trimmed) && !inCode) {
-                    categories = trimmed.replace(/^\*\*Categories:?\*\*:?/i, '').trim();
-                } else if (/^\*\*Tags:?\*\*:?/i.test(trimmed) && !inCode) {
-                    tags = trimmed.replace(/^\*\*Tags:?\*\*:?/i, '').trim();
+                } else if (/^\*\*Categories\*\*:|^\*\*Categories:\*\*/i.test(trimmed) && !inCode) {
+                    categories = trimmed.replace(/^\*\*Categories\*\*:|^\*\*Categories:\*\*/i, '').trim();
+                } else if (/^\*\*Tags\*\*:|^\*\*Tags:\*\*/i.test(trimmed) && !inCode) {
+                    tags = trimmed.replace(/^\*\*Tags\*\*:|^\*\*Tags:\*\*/i, '').trim();
                 } else if (trimmed === '```') {
                     inCode = !inCode;
                 } else if (inCode) {
