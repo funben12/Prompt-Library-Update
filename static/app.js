@@ -3386,6 +3386,33 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
         }
     };
 
+    const _MARKDOWN_TEMPLATE_SHORT_TEXT = `Format each prompt like this, separated by "---" on its own line:
+
+## Title (3-8 words, sentence case)
+*One-sentence description, starts with a verb*
+**Categories:** Comma, Separated
+**Tags:** lowercase-hyphenated, 2-5 tags
+
+\`\`\`
+Full prompt text here. Use [[snake_case]] for any placeholder value,
+e.g. [[company_name]], [[word_count]].
+\`\`\`
+
+---
+
+Rules: no text outside this structure. If description/categories/tags
+are missing from what I give you, infer them. Keep placeholders
+lowercase with underscores. Return only the formatted Markdown, nothing else.`;
+
+    window.PL_copyMarkdownTemplateShort = async function() {
+        try {
+            await navigator.clipboard.writeText(_MARKDOWN_TEMPLATE_SHORT_TEXT);
+            toast('Short template copied — paste into your AI’s custom instructions', 'success');
+        } catch {
+            toast('Copy failed', 'error');
+        }
+    };
+
     function _switchImportFmt(fmt) {
         _importFmt = fmt;
         $$('.import-fmt-tab').forEach(t => t.classList.toggle('active', t.dataset.fmt === fmt));
@@ -3418,32 +3445,41 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
      */
     function parseMarkdownImport(md) {
         const prompts = [];
-        // Split on horizontal rules that separate prompts
-        const blocks = md.split(/\n---+\n/);
+        // Normalise blank-line-padded separators, then split on --- or === rules
+        const normalised = md.replace(/\n{2,}([-=]{3,})\n{2,}/g, '\n$1\n');
+        const blocks = normalised.split(/\n[-=]{3,}\n/);
         for (const block of blocks) {
             const lines = block.split('\n');
             let title = '',
                 description = '',
                 content = '',
                 categories = '',
-                tags = '';
+                tags = '',
+                firstNonEmpty = '';
             let inCode = false;
             const contentLines = [];
 
             for (const line of lines) {
+                const trimmed = line.trim();
+                if (!firstNonEmpty && trimmed && !/^\*/.test(trimmed) && !/^```/.test(trimmed)) {
+                    firstNonEmpty = trimmed;
+                }
                 if (/^#{1,2}\s+/.test(line) && !inCode) {
                     title = line.replace(/^#{1,2}\s+/, '').trim();
-                } else if (/^\*[^*].*[^*]\*$/.test(line.trim()) && !inCode && !title === false) {
-                    description = line.trim().replace(/^\*|\*$/g, '').trim();
-                } else if (/^\*\*Categories:\*\*/.test(line) && !inCode) {
-                    categories = line.replace(/^\*\*Categories:\*\*/, '').trim();
-                } else if (/^\*\*Tags:\*\*/.test(line) && !inCode) {
-                    tags = line.replace(/^\*\*Tags:\*\*/, '').trim();
-                } else if (line.trim() === '```') {
+                } else if (/^\*[^*].*[^*]\*$/.test(trimmed) && !inCode) {
+                    description = trimmed.replace(/^\*|\*$/g, '').trim();
+                } else if (/^\*\*Categories:?\*\*:?/i.test(trimmed) && !inCode) {
+                    categories = trimmed.replace(/^\*\*Categories:?\*\*:?/i, '').trim();
+                } else if (/^\*\*Tags:?\*\*:?/i.test(trimmed) && !inCode) {
+                    tags = trimmed.replace(/^\*\*Tags:?\*\*:?/i, '').trim();
+                } else if (trimmed === '```') {
                     inCode = !inCode;
                 } else if (inCode) {
                     contentLines.push(line);
                 }
+            }
+            if (!title && firstNonEmpty) {
+                title = firstNonEmpty;
             }
             content = contentLines.join('\n').trim();
             if (title && content) {
