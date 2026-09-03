@@ -1552,7 +1552,7 @@
           <span class="var-matrix-row-label">${escapeHtml(row)}</span>
           ${MATRIX_COLS.map((c, ci) => `<span class="var-matrix-cell${matrixVal[row]===ci?' active':''}" data-col="${ci}" onclick="window._PL_selectMatrixCell(this)"></span>`).join('')}
         </div>`).join('')}
-        <input type="hidden" class="var-input var-matrix-hidden" data-var="${escapeAttr(v)}" value='${escapeAttr(JSON.stringify(matrixVal))}' />
+        <input type="hidden" class="var-input var-matrix-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(JSON.stringify(matrixVal))}" />
       </div>`;
             } else if (type === 'matrix') {
                 input = `<p style="font-size:12px;color:var(--ink-3);">Add row items (options) in the variable editor to build the grid.</p>`;
@@ -1779,6 +1779,7 @@
         const target = evt.target.closest('.var-ranked-item');
         if (!target || !_rankDragEl || target === _rankDragEl) return;
         const list = target.closest('.var-ranked-list');
+        if (_rankDragEl.closest('.var-ranked-list') !== list) return;
         const items = Array.from(list.querySelectorAll('.var-ranked-item'));
         const dragIdx = items.indexOf(_rankDragEl);
         const dropIdx = items.indexOf(target);
