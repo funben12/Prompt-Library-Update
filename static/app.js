@@ -1371,7 +1371,12 @@
             togglegroup: 'toggle_on',
             range: 'stacked_line_chart',
             slider: 'linear_scale',
-            rating: 'star'
+            rating: 'star',
+            rangeslider: 'linear_scale',
+            rankedlist: 'reorder',
+            iconpicker: 'category',
+            matrix: 'grid_on',
+            emojipicker: 'mood'
         };
 
         wrap.innerHTML = visible.map(v => {
@@ -1510,6 +1515,52 @@
                 input = `<div class="var-star-rating" data-var="${escapeAttr(v)}">
         ${[1,2,3,4,5].map(n => `<span class="material-symbols-outlined var-star${n<=ratingVal?' filled':''}" data-value="${n}" onclick="window._PL_selectStar(this)" style="cursor:pointer;font-size:22px;color:${n<=ratingVal?'var(--accent)':'var(--ink-3)'};">${n<=ratingVal?'star':'star_outline'}</span>`).join('')}
         <input type="hidden" class="var-input var-star-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
+            } else if (type === 'rangeslider') {
+                const [rsMinRaw, rsMaxRaw] = def ? def.split(',').map(s => s.trim()) : ['25', '75'];
+                const rsMin = rsMinRaw || '25', rsMax = rsMaxRaw || '75';
+                input = `<div class="var-rangeslider" data-var="${escapeAttr(v)}">
+        <div class="var-rangeslider-track">
+          <input type="range" class="var-rangeslider-min" min="0" max="100" value="${escapeAttr(rsMin)}" />
+          <input type="range" class="var-rangeslider-max" min="0" max="100" value="${escapeAttr(rsMax)}" />
+        </div>
+        <div class="var-rangeslider-labels"><span class="var-rangeslider-min-label">${escapeHtml(rsMin)}</span><span class="var-rangeslider-max-label">${escapeHtml(rsMax)}</span></div>
+        <input type="hidden" class="var-input var-rangeslider-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(rsMin)}, ${escapeAttr(rsMax)}" />
+      </div>`;
+            } else if (type === 'rankedlist' && opts.length) {
+                const order = def ? def.split(',').map(s => s.trim()).filter(o => opts.includes(o)) : [];
+                const finalOrder = order.length ? order.concat(opts.filter(o => !order.includes(o))) : opts;
+                input = `<div class="var-ranked-list" data-var="${escapeAttr(v)}">
+        ${finalOrder.map((o, i) => `<div class="var-ranked-item" draggable="true" data-value="${escapeAttr(o)}" ondragstart="window._PL_rankDragStart(event)" ondragover="window._PL_rankDragOver(event)" ondrop="window._PL_rankDrop(event)"><span class="var-ranked-num">${i + 1}</span><span class="material-symbols-outlined var-ranked-handle">drag_indicator</span><span class="var-ranked-label">${escapeHtml(o)}</span></div>`).join('')}
+        <input type="hidden" class="var-input var-ranked-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(finalOrder.join(', '))}" />
+      </div>`;
+            } else if (type === 'rankedlist') {
+                input = `<p style="font-size:12px;color:var(--ink-3);">Add options in the variable editor to rank them.</p>`;
+            } else if (type === 'iconpicker') {
+                const ICON_CHOICES = ['rocket_launch','lightbulb','target','flag','star','bolt','favorite','psychology','trending_up','build','auto_awesome','emoji_objects','shield','diamond','local_fire_department','eco'];
+                input = `<div class="var-icon-picker" data-var="${escapeAttr(v)}">
+        ${ICON_CHOICES.map(ic => `<span class="material-symbols-outlined var-icon-choice${def===ic?' active':''}" data-value="${ic}" onclick="window._PL_selectIcon(this)">${ic}</span>`).join('')}
+        <input type="hidden" class="var-input var-icon-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
+            } else if (type === 'matrix' && opts.length) {
+                const MATRIX_COLS = ['Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree'];
+                let matrixVal = {};
+                try { matrixVal = def ? JSON.parse(def) : {}; } catch (e) { matrixVal = {}; }
+                input = `<div class="var-matrix" data-var="${escapeAttr(v)}">
+        <div class="var-matrix-header"><span></span>${MATRIX_COLS.map(c => `<span class="var-matrix-col-label">${escapeHtml(c)}</span>`).join('')}</div>
+        ${opts.map(row => `<div class="var-matrix-row" data-row="${escapeAttr(row)}">
+          <span class="var-matrix-row-label">${escapeHtml(row)}</span>
+          ${MATRIX_COLS.map((c, ci) => `<span class="var-matrix-cell${matrixVal[row]===ci?' active':''}" data-col="${ci}" onclick="window._PL_selectMatrixCell(this)"></span>`).join('')}
+        </div>`).join('')}
+        <input type="hidden" class="var-input var-matrix-hidden" data-var="${escapeAttr(v)}" value='${escapeAttr(JSON.stringify(matrixVal))}' />
+      </div>`;
+            } else if (type === 'matrix') {
+                input = `<p style="font-size:12px;color:var(--ink-3);">Add row items (options) in the variable editor to build the grid.</p>`;
+            } else if (type === 'emojipicker') {
+                const EMOJI_CHOICES = ['😀','😊','😎','🤔','😅','🥳','😴','🔥','✨','💡','🚀','⭐','❤️','👍','👎','🎯','📈','📉','⚡','🌟','🎉','🙌','💬','📝','✅','❌','⏰','🌈'];
+                input = `<div class="var-emoji-picker" data-var="${escapeAttr(v)}">
+        ${EMOJI_CHOICES.map(em => `<span class="var-emoji-choice${def===em?' active':''}" data-value="${em}" onclick="window._PL_selectEmoji(this)">${em}</span>`).join('')}
+        <input type="hidden" class="var-input var-emoji-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
             } else {
                 input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter value…" value="${escapeAttr(def)}" />`;
@@ -1682,6 +1733,66 @@
         }));
     };
 
+    window._PL_selectIcon = function(el) {
+        const wrap = el.closest('.var-icon-picker');
+        wrap.querySelectorAll('.var-icon-choice').forEach(i => i.classList.remove('active'));
+        el.classList.add('active');
+        const hidden = wrap.querySelector('.var-icon-hidden');
+        hidden.value = el.dataset.value;
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    window._PL_selectEmoji = function(el) {
+        const wrap = el.closest('.var-emoji-picker');
+        wrap.querySelectorAll('.var-emoji-choice').forEach(i => i.classList.remove('active'));
+        el.classList.add('active');
+        const hidden = wrap.querySelector('.var-emoji-hidden');
+        hidden.value = el.dataset.value;
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    window._PL_selectMatrixCell = function(el) {
+        const wrap = el.closest('.var-matrix');
+        const row = el.closest('.var-matrix-row');
+        const rowKey = row.dataset.row;
+        const col = parseInt(el.dataset.col, 10);
+        row.querySelectorAll('.var-matrix-cell').forEach(c => c.classList.remove('active'));
+        el.classList.add('active');
+        const hidden = wrap.querySelector('.var-matrix-hidden');
+        let val = {};
+        try { val = hidden.value ? JSON.parse(hidden.value) : {}; } catch (e) { val = {}; }
+        val[rowKey] = col;
+        hidden.value = JSON.stringify(val);
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    let _rankDragEl = null;
+    window._PL_rankDragStart = function(evt) {
+        _rankDragEl = evt.target.closest('.var-ranked-item');
+        evt.dataTransfer.effectAllowed = 'move';
+    };
+    window._PL_rankDragOver = function(evt) {
+        evt.preventDefault();
+    };
+    window._PL_rankDrop = function(evt) {
+        evt.preventDefault();
+        const target = evt.target.closest('.var-ranked-item');
+        if (!target || !_rankDragEl || target === _rankDragEl) return;
+        const list = target.closest('.var-ranked-list');
+        const items = Array.from(list.querySelectorAll('.var-ranked-item'));
+        const dragIdx = items.indexOf(_rankDragEl);
+        const dropIdx = items.indexOf(target);
+        if (dragIdx < dropIdx) target.after(_rankDragEl);
+        else target.before(_rankDragEl);
+        list.querySelectorAll('.var-ranked-item').forEach((el, i) => {
+            el.querySelector('.var-ranked-num').textContent = i + 1;
+        });
+        const hidden = list.querySelector('.var-ranked-hidden');
+        hidden.value = Array.from(list.querySelectorAll('.var-ranked-item')).map(el => el.dataset.value).join(', ');
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+        _rankDragEl = null;
+    };
+
     // Checklist (multi-option checkbox) and Range fields sync their hidden input via delegated listeners
     document.addEventListener('change', function(evt) {
         const checklistItem = evt.target.closest('.var-checklist-item');
@@ -1702,6 +1813,22 @@
             const maxEl = container.querySelector('.var-range-max');
             const hidden = container.querySelector('.var-range-hidden');
             hidden.value = (minEl.value || '') + ', ' + (maxEl.value || '');
+        }
+    });
+    document.addEventListener('input', function(evt) {
+        if (evt.target.classList && (evt.target.classList.contains('var-rangeslider-min') || evt.target.classList.contains('var-rangeslider-max'))) {
+            const wrap = evt.target.closest('.var-rangeslider');
+            const minEl = wrap.querySelector('.var-rangeslider-min');
+            const maxEl = wrap.querySelector('.var-rangeslider-max');
+            if (parseInt(minEl.value, 10) > parseInt(maxEl.value, 10)) {
+                if (evt.target === minEl) minEl.value = maxEl.value;
+                else maxEl.value = minEl.value;
+            }
+            wrap.querySelector('.var-rangeslider-min-label').textContent = minEl.value;
+            wrap.querySelector('.var-rangeslider-max-label').textContent = maxEl.value;
+            const hidden = wrap.querySelector('.var-rangeslider-hidden');
+            hidden.value = minEl.value + ', ' + maxEl.value;
+            hidden.dispatchEvent(new Event('input', { bubbles: true }));
         }
     });
 
@@ -2601,7 +2728,7 @@
             list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
             return;
         }
-        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'checkbox', 'togglegroup'];
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'checkbox', 'togglegroup', 'rankedlist', 'matrix'];
         const meta = existing || collectVarMeta();
         list.innerHTML = vars.map((v, index) => {
             const m = meta[v] || {};
@@ -2668,8 +2795,13 @@
             <option value="range"       ${type === 'range'       ? 'selected' : ''}>Range</option>
             </optgroup>
             <optgroup label="Advanced">
-            <option value="slider"    ${type === 'slider'    ? 'selected' : ''}>Slider</option>
-            <option value="rating"    ${type === 'rating'    ? 'selected' : ''}>Star Rating</option>
+            <option value="slider"      ${type === 'slider'      ? 'selected' : ''}>Slider</option>
+            <option value="rating"      ${type === 'rating'      ? 'selected' : ''}>Star Rating</option>
+            <option value="rangeslider" ${type === 'rangeslider' ? 'selected' : ''}>Range Slider (min-max)</option>
+            <option value="rankedlist"  ${type === 'rankedlist'  ? 'selected' : ''}>Ranked List</option>
+            <option value="iconpicker"  ${type === 'iconpicker'  ? 'selected' : ''}>Icon Picker</option>
+            <option value="matrix"      ${type === 'matrix'      ? 'selected' : ''}>Matrix / Likert Grid</option>
+            <option value="emojipicker" ${type === 'emojipicker' ? 'selected' : ''}>Emoji Picker</option>
             </optgroup>
           </select>
           <input type="text" data-field="default" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
@@ -2697,7 +2829,7 @@
         }).join('');
     }
     window.PL_onVarTypeChange = function(sel) {
-        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'checkbox', 'togglegroup'];
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'checkbox', 'togglegroup', 'rankedlist', 'matrix'];
         const row = sel.closest('.var-meta-row');
         const opts = row.querySelector('.dropdown-options');
         const sizeRow = row.querySelector('.paragraph-size');
