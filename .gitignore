@@ -2,3 +2,7 @@
 __pycache__/
 *.pyc
 *.pyo
+
+# Local DB — carries live licence key once activated, never ship this
+PromptLibrary.db
+PromptLibrary.db-journal
