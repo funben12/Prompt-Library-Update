@@ -55,6 +55,7 @@
         detailId: null,
         isPremium: false,
         licenceKey: '',
+        licenceSavedToDb: false,
         theme: 'light', // 'dark' | 'light'
     };
 
@@ -3821,7 +3822,8 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
         $('#premiumModal').classList.remove('active');
     }
 
-    // Validate a key against the backend and persist it. Returns true on success.
+    // Validate a key against the backend. Unlocks Pro for this session only --
+    // does NOT persist to DB. Call _saveLicenceKeyToDb() separately to persist.
     // Shared by the premium modal and the Settings licence panel.
     async function _validateAndStoreKey(key) {
         const result = await api('/licence/validate', {
@@ -3833,13 +3835,23 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
         if (!result || !result.valid) return false;
         state.isPremium = true;
         state.licenceKey = key;
+        state.licenceSavedToDb = false;
+        applyPremiumState();
+        return true;
+    }
+
+    // Persist the already-validated key to prompts.db. User-triggered only --
+    // TODO before ship: decide whether activation should auto-save again, or
+    // keep this manual save-to-DB step. Tracked in project memory.
+    async function _saveLicenceKeyToDb() {
+        if (!state.licenceKey) return false;
         await api('/settings/licence', {
             method: 'POST',
             body: {
-                key
+                key: state.licenceKey
             }
         });
-        applyPremiumState();
+        state.licenceSavedToDb = true;
         return true;
     }
 
@@ -3862,7 +3874,8 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
         try {
             if (await _validateAndStoreKey(key)) {
                 closePremiumModal();
-                toast('Pro unlocked - thank you!', 'success');
+                toast('Pro unlocked for this session -- save it in Settings to keep it after restart.', 'success');
+                refreshLicencePanel();
             } else {
                 err.textContent = 'Invalid key - please check and try again.';
                 err.classList.add('show');
@@ -3891,6 +3904,7 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
                 if (result.valid) {
                     state.isPremium = true;
                     state.licenceKey = settings.licence;
+                    state.licenceSavedToDb = true;
                 }
             }
         } catch (err) {
@@ -13920,23 +13934,36 @@ Must avoid: [Anything sensitive or previously declined]`
         const text = $('#licenceStatusText');
         const btn = $('#licenceActivateBtn');
         const input = $('#settingsLicenceKeyInput');
+        const saveBtn = $('#licenceSaveDbBtn');
         if (!box || !text || !btn || !input) return;
 
-        if (state.isPremium) {
+        if (state.isPremium && state.licenceSavedToDb) {
             box.style.borderLeftColor = 'var(--success)';
             text.textContent = 'Licensed \u2014 Pro features unlocked';
             text.style.color = 'var(--success)';
             input.value = _maskLicenceKey(state.licenceKey);
             input.disabled = true;
             btn.disabled = true;
+            btn.hidden = false;
             btn.innerHTML = '<span class="material-symbols-outlined">check</span> Activated';
+            if (saveBtn) saveBtn.hidden = true;
+        } else if (state.isPremium && !state.licenceSavedToDb) {
+            box.style.borderLeftColor = 'var(--success)';
+            text.textContent = 'Pro unlocked for this session \u2014 not saved to DB yet';
+            text.style.color = 'var(--success)';
+            input.value = _maskLicenceKey(state.licenceKey);
+            input.disabled = true;
+            btn.hidden = true;
+            if (saveBtn) saveBtn.hidden = false;
         } else {
             box.style.borderLeftColor = 'var(--ink-3)';
             text.textContent = 'Not licensed \u2014 enter your key to unlock Pro features';
             text.style.color = 'var(--ink-3)';
             input.disabled = false;
             btn.disabled = false;
+            btn.hidden = false;
             btn.innerHTML = '<span class="material-symbols-outlined">vpn_key</span> Activate Licence';
+            if (saveBtn) saveBtn.hidden = true;
         }
     }
 
@@ -13983,6 +14010,26 @@ Must avoid: [Anything sensitive or previously declined]`
                 run();
             }
         });
+
+        const saveBtn = $('#licenceSaveDbBtn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', async () => {
+                saveBtn.disabled = true;
+                status.textContent = 'Saving\u2026';
+                status.style.color = 'var(--ink-3)';
+                try {
+                    await _saveLicenceKeyToDb();
+                    status.textContent = 'Saved \u2014 licence will persist after restart';
+                    status.style.color = 'var(--success)';
+                    toast('Licence key saved', 'success');
+                    refreshLicencePanel();
+                } catch (e) {
+                    status.textContent = 'Could not save licence key';
+                    status.style.color = 'var(--danger)';
+                    saveBtn.disabled = false;
+                }
+            });
+        }
 
         refreshLicencePanel();
     }

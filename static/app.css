@@ -566,6 +566,30 @@
     padding-bottom: var(--sp-3);
   }
 
+  .sidebar-licence-widget {
+    margin: 0 var(--sp-3) var(--sp-3);
+    padding: var(--sp-3);
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--ink-3);
+    border-radius: var(--radius);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+  .sidebar-licence-widget #licenceStatusText { color: var(--ink-3); }
+  .sidebar-licence-widget .form-input { width: 100%; font-size: var(--fs-sm); }
+  .sidebar-licence-widget .btn { width: 100%; margin: 0; }
+  .sidebar-licence-widget #licenceActivateStatus {
+    font-size: 11px; color: var(--ink-3); text-align: center; min-height: 16px;
+  }
+  .sidebar-licence-widget .sidebar-licence-buy {
+    font-size: 11px; color: var(--ink-4); line-height: 1.5; margin: 0;
+  }
+  .sidebar-licence-widget .sidebar-licence-buy a { color: var(--accent); text-decoration: none; }
+
   .sidebar-footer {
     padding: var(--sp-3);
     border-top: 1px solid var(--line);
@@ -8829,6 +8853,7 @@
 
 /* Author display:flex beats the UA [hidden] rule - restore it. */
 .bulk-toolbar[hidden] { display: none; }
+#licenceSaveDbBtn[hidden], #licenceActivateBtn[hidden] { display: none; }
 
 .bulk-toolbar select {
   padding: 4px 8px;
