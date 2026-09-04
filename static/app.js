@@ -3855,6 +3855,20 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
         return true;
     }
 
+    // Remove the persisted key from prompts.db. Pro stays unlocked for the
+    // rest of this session (state.isPremium untouched) -- only DB persistence
+    // is undone, so it won't survive the next restart unless re-saved.
+    async function _unsaveLicenceKeyFromDb() {
+        await api('/settings/licence', {
+            method: 'POST',
+            body: {
+                key: ''
+            }
+        });
+        state.licenceSavedToDb = false;
+        return true;
+    }
+
     async function activateLicence() {
         const input = $('#licenceKeyInput');
         const btn = $('#activateLicenceBtn');
@@ -13935,6 +13949,7 @@ Must avoid: [Anything sensitive or previously declined]`
         const btn = $('#licenceActivateBtn');
         const input = $('#settingsLicenceKeyInput');
         const saveBtn = $('#licenceSaveDbBtn');
+        const unsaveBtn = $('#licenceUnsaveDbBtn');
         if (!box || !text || !btn || !input) return;
 
         if (state.isPremium && state.licenceSavedToDb) {
@@ -13947,6 +13962,7 @@ Must avoid: [Anything sensitive or previously declined]`
             btn.hidden = false;
             btn.innerHTML = '<span class="material-symbols-outlined">check</span> Activated';
             if (saveBtn) saveBtn.hidden = true;
+            if (unsaveBtn) unsaveBtn.hidden = false;
         } else if (state.isPremium && !state.licenceSavedToDb) {
             box.style.borderLeftColor = 'var(--success)';
             text.textContent = 'Pro unlocked for this session \u2014 not saved to DB yet';
@@ -13955,6 +13971,7 @@ Must avoid: [Anything sensitive or previously declined]`
             input.disabled = true;
             btn.hidden = true;
             if (saveBtn) saveBtn.hidden = false;
+            if (unsaveBtn) unsaveBtn.hidden = true;
         } else {
             box.style.borderLeftColor = 'var(--ink-3)';
             text.textContent = 'Not licensed \u2014 enter your key to unlock Pro features';
@@ -13964,6 +13981,7 @@ Must avoid: [Anything sensitive or previously declined]`
             btn.hidden = false;
             btn.innerHTML = '<span class="material-symbols-outlined">vpn_key</span> Activate Licence';
             if (saveBtn) saveBtn.hidden = true;
+            if (unsaveBtn) unsaveBtn.hidden = true;
         }
     }
 
@@ -14028,6 +14046,54 @@ Must avoid: [Anything sensitive or previously declined]`
                     status.style.color = 'var(--danger)';
                     saveBtn.disabled = false;
                 }
+            });
+        }
+
+        const unsaveBtn = $('#licenceUnsaveDbBtn');
+        if (unsaveBtn) {
+            unsaveBtn.addEventListener('click', async () => {
+                unsaveBtn.disabled = true;
+                status.textContent = 'Removing\u2026';
+                status.style.color = 'var(--ink-3)';
+                try {
+                    await _unsaveLicenceKeyFromDb();
+                    status.textContent = 'Removed \u2014 no longer saved to DB';
+                    status.style.color = 'var(--ink-3)';
+                    toast('Licence key removed from DB', 'success');
+                    refreshLicencePanel();
+                } catch (e) {
+                    status.textContent = 'Could not remove licence key';
+                    status.style.color = 'var(--danger)';
+                } finally {
+                    unsaveBtn.disabled = false;
+                }
+            });
+        }
+
+        const widgetHeader = $('#licenceWidgetHeader');
+        const widgetToggle = $('#licenceWidgetToggle');
+        const widgetBody = $('#licenceWidgetBody');
+        if (widgetHeader && widgetBody) {
+            const applyCollapsed = (collapsed) => {
+                widgetBody.classList.toggle('collapsed', collapsed);
+                widgetHeader.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                if (widgetToggle) {
+                    const chev = widgetToggle.querySelector('.chev');
+                    if (chev) chev.style.transform = collapsed ? 'rotate(-90deg)' : '';
+                }
+            };
+            let collapsed = false;
+            try {
+                collapsed = localStorage.getItem('pl_licenceWidgetCollapsed') === '1';
+            } catch (e) {}
+            applyCollapsed(collapsed);
+            widgetHeader.addEventListener('click', (e) => {
+                if (e.target.closest('#settingsLicenceKeyInput')) return;
+                collapsed = !widgetBody.classList.contains('collapsed');
+                applyCollapsed(collapsed);
+                try {
+                    localStorage.setItem('pl_licenceWidgetCollapsed', collapsed ? '1' : '0');
+                } catch (e) {}
             });
         }
 

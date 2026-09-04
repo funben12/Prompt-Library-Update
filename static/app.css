@@ -575,10 +575,23 @@
     border-radius: var(--radius);
     box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     font-size: 12px;
+  }
+  .sidebar-licence-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    cursor: pointer;
+  }
+  .sidebar-licence-header #licenceStatusText { flex: 1; }
+  .sidebar-licence-header .nav-icon-btn .chev { transition: transform var(--t-fast); }
+  .sidebar-licence-body {
     display: flex;
     flex-direction: column;
     gap: var(--sp-2);
+    margin-top: var(--sp-2);
   }
+  .sidebar-licence-body.collapsed { display: none; margin-top: 0; }
   .sidebar-licence-widget #licenceStatusText { color: var(--ink-3); }
   .sidebar-licence-widget .form-input { width: 100%; font-size: var(--fs-sm); }
   .sidebar-licence-widget .btn { width: 100%; margin: 0; }
@@ -8853,7 +8866,7 @@
 
 /* Author display:flex beats the UA [hidden] rule - restore it. */
 .bulk-toolbar[hidden] { display: none; }
-#licenceSaveDbBtn[hidden], #licenceActivateBtn[hidden] { display: none; }
+#licenceSaveDbBtn[hidden], #licenceActivateBtn[hidden], #licenceUnsaveDbBtn[hidden] { display: none; }
 
 .bulk-toolbar select {
   padding: 4px 8px;
