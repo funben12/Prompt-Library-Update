@@ -13,6 +13,10 @@ PromptLibrary.db-journal
 # Build/installer output (regenerate via Build.bat / BUILD_INSTALLER.bat)
 /build/
 /installer/
+/dist/
+
+# Python virtualenv
+/venv/
 
 # Local data that should never be committed
 /PromptLibrary.db
