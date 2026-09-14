@@ -64,6 +64,7 @@
 
     // Bulk-select: prompt IDs currently checked in the Library view.
     let _bulkSelection = new Set();
+    let _editingVaultPath = null; // relative_path of the vault prompt being edited, or null when creating
 
     /* ============================================================================
        DOM HELPERS
@@ -1129,6 +1130,7 @@
         state.librarySource = source;
         state.view = 'library';
         state.vaultBrowsePath = '';
+        state.vaultFolders = [];
         state.detailId = null;
         closeDetailPanel();
         await renderVaultSwitcher();
@@ -1136,6 +1138,11 @@
             // Rescan-on-open per the vault spec's Sync section.
             await rescanCurrentVault(true);
         } else {
+            const bcEl = $('#breadcrumb');
+            const fvaEl = $('#folderViewActions');
+            if (bcEl) bcEl.innerHTML = '';
+            if (fvaEl) fvaEl.style.display = 'none';
+            await loadPrompts();
             setView('library');
         }
     }
@@ -2577,7 +2584,19 @@
 
     async function deletePromptById(id) {
         if (state.librarySource && state.librarySource.type === 'vault') {
-            toast('Deleting vault prompts from inside the app is not available yet', 'info');
+            const p = state.prompts.find(x => x.id === id);
+            if (!p) { toast('Could not find that vault prompt', 'error'); return; }
+            if (!confirm('Delete this file from the vault? This removes it from disk and cannot be undone.')) return;
+            try {
+                await api(`/vaults/${state.librarySource.vaultId}/prompts/${encodeVaultPath(p.relative_path)}`, {
+                    method: 'DELETE',
+                });
+                if (state.detailId === id) closeDetailPanel();
+                await loadVaultBrowseData();
+                toast('Prompt file deleted', 'info');
+            } catch (err) {
+                toast(err && err.message ? err.message : 'Could not delete prompt file', 'error');
+            }
             return;
         }
         if (!confirm('Delete this prompt? This cannot be undone.')) return;
@@ -2746,6 +2765,7 @@
        PROMPT EDITOR MODAL
        ============================================================================ */
     function openNewPromptModal() {
+        _editingVaultPath = null;
         $('#modalTitle').textContent = 'New prompt';
         $('#submitBtnText').textContent = 'Create prompt';
         $('#promptId').value = '';
@@ -2806,9 +2826,32 @@
         $('#promptModal').classList.remove('active');
     }
 
+    function encodeVaultPath(relativePath) {
+        return relativePath.split('/').map(encodeURIComponent).join('/');
+    }
+
     async function editPrompt(id) {
         if (state.librarySource && state.librarySource.type === 'vault') {
-            toast('Editing vault prompts from inside the app is not available yet', 'info');
+            const p = state.prompts.find(x => x.id === id);
+            if (!p) { toast('Could not find that vault prompt', 'error'); return; }
+            _editingVaultPath = p.relative_path;
+            $('#modalTitle').textContent = 'Edit vault prompt';
+            $('#submitBtnText').textContent = 'Save changes';
+            $('#promptId').value = '';
+            $('#promptTitle').value = p.title || '';
+            $('#promptDesc').value = '';
+            $('#promptContent').value = p.content || '';
+            resetCategoryChips();
+            setChipCategories(p.categories || []);
+            resetTagInput('tagsTagInput');
+            setTagInputValues('tagsTagInput', p.tags || []);
+            updateEditorPreview();
+            updateTokenCounter(p.content || '');
+            renderVarMetaList({});
+            switchEditorTab('variables');
+            switchPromptBlockTab('system');
+            $('#promptModal').classList.add('active');
+            setTimeout(() => $('#promptTitle').focus(), 50);
             return;
         }
         try {
@@ -2910,20 +2953,31 @@
                 content: $('#promptContent').value.trim(),
                 categories: getChipCategories().join(','),
                 tags: getTagInputValues('tagsTagInput').join(','),
-                path: state.vaultBrowsePath || '',
             };
             if (!vaultData.title || !vaultData.content) {
                 toast('Title and content are required', 'warning');
                 return;
             }
+            const vaultId = state.librarySource.vaultId;
+            const editingPath = _editingVaultPath;
             try {
-                await api(`/vaults/${state.librarySource.vaultId}/prompts`, {
-                    method: 'POST',
-                    body: vaultData,
-                });
+                if (editingPath) {
+                    await api(`/vaults/${vaultId}/prompts/${encodeVaultPath(editingPath)}`, {
+                        method: 'PUT',
+                        body: vaultData,
+                    });
+                    _editingVaultPath = null;
+                    toast('Prompt updated', 'success');
+                } else {
+                    vaultData.path = state.vaultBrowsePath || '';
+                    await api(`/vaults/${vaultId}/prompts`, {
+                        method: 'POST',
+                        body: vaultData,
+                    });
+                    toast('Prompt created in vault', 'success');
+                }
                 closePromptModal();
                 await loadVaultBrowseData();
-                toast('Prompt created in vault', 'success');
             } catch (err) {
                 toast(err && err.message ? err.message : 'Could not save prompt', 'error');
             }

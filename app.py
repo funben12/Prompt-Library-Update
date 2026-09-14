@@ -1242,6 +1242,91 @@ def create_vault_prompt(vault_id):
     return jsonify({'success': True, 'relative_path': rel_path, 'filename': filename})
 
 
+def _retitle_vault_filename(old_filename, new_title):
+    """New filename for a retitled vault prompt: slug of the new title,
+    keeping the old file's -vN version suffix (defaulting to v1) so a
+    rename in the app doesn't churn the version number."""
+    stem = _slugify_filename(new_title)
+    m = re.search(r'-v(\d+)\.md$', old_filename, re.IGNORECASE)
+    version = m.group(1) if m else '1'
+    return f"{stem}-v{version}.md"
+
+
+@app.route('/api/vaults/<int:vault_id>/prompts/<path:relative_path>', methods=['PUT'])
+def update_vault_prompt(vault_id, relative_path):
+    """Rewrite a vault prompt's file in place. Obsidian-style: the title is
+    the filename, so retitling renames the file on disk (version suffix and
+    folder are kept)."""
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Vault not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+    full_path = _resolve_vault_subpath(vault['path'], relative_path)
+    if full_path is None or not os.path.isfile(full_path):
+        return jsonify({'error': 'Prompt file not found'}), 404
+    data = request.json or {}
+    title = (data.get('title') or '').strip()
+    if not title:
+        return jsonify({'error': 'title is required'}), 400
+
+    markdown = _prompt_to_markdown({
+        'title': title,
+        'categories': data.get('categories', ''),
+        'tags': data.get('tags', ''),
+        'content': data.get('content', ''),
+    })
+
+    dirpath = os.path.dirname(full_path)
+    old_filename = os.path.basename(full_path)
+    new_filename = _retitle_vault_filename(old_filename, title)
+    new_full_path = os.path.join(dirpath, new_filename)
+    if new_filename != old_filename:
+        counter = 2
+        stem = new_filename[:-len('.md')]
+        while os.path.exists(new_full_path) and os.path.normcase(new_full_path) != os.path.normcase(full_path):
+            new_full_path = os.path.join(dirpath, f"{stem}-{counter}.md")
+            counter += 1
+
+    with open(full_path, 'w', encoding='utf-8') as f:
+        f.write(markdown)
+    if os.path.normcase(new_full_path) != os.path.normcase(full_path):
+        os.replace(full_path, new_full_path)
+        full_path = new_full_path
+
+    rescan_vault_index(vault['path'])
+    conn = get_db()
+    conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    rel_path = os.path.relpath(full_path, vault['path']).replace(os.sep, '/')
+    return jsonify({'success': True, 'relative_path': rel_path})
+
+
+@app.route('/api/vaults/<int:vault_id>/prompts/<path:relative_path>', methods=['DELETE'])
+def delete_vault_prompt(vault_id, relative_path):
+    """Deletes the prompt's .md file on disk -- vaults have no DB row, the
+    file itself is the source of truth, so this is the only way to remove one."""
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Vault not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+    full_path = _resolve_vault_subpath(vault['path'], relative_path)
+    if full_path is None or not os.path.isfile(full_path):
+        return jsonify({'error': 'Prompt file not found'}), 404
+    try:
+        os.remove(full_path)
+    except OSError as e:
+        return jsonify({'error': f'Could not delete file: {e}'}), 400
+    rescan_vault_index(vault['path'])
+    conn = get_db()
+    conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
 def _cats(data):
     return _list_for_db(data.get('categories', ''))
 
