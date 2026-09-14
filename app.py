@@ -11,6 +11,7 @@ import zipfile
 import sys
 import os
 import threading
+import vault_scanner
 
 def _hash_key(k):
     return hashlib.sha256(k.strip().upper().encode()).hexdigest()
@@ -288,6 +289,14 @@ def init_db():
         use_count    INTEGER DEFAULT 0,
         is_favorite  INTEGER DEFAULT 0,
         FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS vaults (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT NOT NULL,
+        path       TEXT NOT NULL UNIQUE,
+        last_scan  TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
     # Indexes for the prompts table — list view sorts by updated_at and filters
@@ -810,6 +819,162 @@ def delete_folder(fid):
     conn.commit()
     conn.close()
     return jsonify({'success': True})
+
+
+# ---------------------------------------------------------------------------
+# Vaults -- Obsidian-style file-backed prompt folders, alongside PromptLibrary.db
+# See docs/superpowers/specs/2026-09-14-vault-system-design.md
+# ---------------------------------------------------------------------------
+
+def get_vault_index_conn(vault_path):
+    """Open (creating if needed) the .promptvault/index.db cache for a vault folder."""
+    index_dir = os.path.join(vault_path, '.promptvault')
+    os.makedirs(index_dir, exist_ok=True)
+    index_db_path = os.path.join(index_dir, 'index.db')
+    conn = sqlite3.connect(index_db_path)
+    conn.row_factory = sqlite3.Row
+    conn.execute('''CREATE TABLE IF NOT EXISTS prompts (
+        relative_path   TEXT PRIMARY KEY,
+        title           TEXT,
+        category        TEXT,
+        subcategory     TEXT,
+        tags            TEXT,
+        difficulty      TEXT,
+        target_audience TEXT,
+        inputs          TEXT,
+        expected_output TEXT,
+        related_prompts TEXT,
+        version         TEXT,
+        last_updated    TEXT,
+        body            TEXT,
+        parse_error     TEXT,
+        scanned_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+    conn.commit()
+    return conn
+
+
+def rescan_vault_index(vault_path):
+    """Walk vault_path, upsert every .md file into .promptvault/index.db,
+    drop rows for files no longer on disk. Returns count of files indexed
+    (including unparseable ones, which are kept with parse_error set)."""
+    results = vault_scanner.scan_vault(vault_path)
+    conn = get_vault_index_conn(vault_path)
+    on_disk = {r['relative_path'] for r in results}
+    existing = {row['relative_path'] for row in conn.execute('SELECT relative_path FROM prompts')}
+    for stale in existing - on_disk:
+        conn.execute('DELETE FROM prompts WHERE relative_path = ?', (stale,))
+    for r in results:
+        m = r['metadata']
+        conn.execute('''INSERT INTO prompts
+            (relative_path, title, category, subcategory, tags, difficulty,
+             target_audience, inputs, expected_output, related_prompts,
+             version, last_updated, body, parse_error, scanned_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(relative_path) DO UPDATE SET
+                title=excluded.title, category=excluded.category,
+                subcategory=excluded.subcategory, tags=excluded.tags,
+                difficulty=excluded.difficulty,
+                target_audience=excluded.target_audience,
+                inputs=excluded.inputs, expected_output=excluded.expected_output,
+                related_prompts=excluded.related_prompts, version=excluded.version,
+                last_updated=excluded.last_updated, body=excluded.body,
+                parse_error=excluded.parse_error, scanned_at=excluded.scanned_at''',
+            (r['relative_path'], m.get('title'), m.get('category'),
+             m.get('subcategory'),
+             json.dumps(m.get('tags', []) if isinstance(m.get('tags'), list) else []),
+             m.get('difficulty'), m.get('target_audience'), m.get('inputs'),
+             m.get('expected_output'),
+             json.dumps(m.get('related_prompts', []) if isinstance(m.get('related_prompts'), list) else []),
+             m.get('version'), m.get('last_updated'), r['body'], r['error']))
+    conn.commit()
+    conn.close()
+    return len(results)
+
+
+def _get_vault_or_404(vault_id):
+    conn = get_db()
+    row = conn.execute('SELECT * FROM vaults WHERE id = ?', (vault_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+@app.route('/api/vaults', methods=['GET'])
+def get_vaults():
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM vaults ORDER BY name').fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route('/api/vaults', methods=['POST'])
+def create_vault():
+    data = request.json
+    name = (data.get('name') or '').strip()
+    path = (data.get('path') or '').strip()
+    if not name or not path:
+        return jsonify({'error': 'name and path are required'}), 400
+    if not os.path.isdir(path):
+        return jsonify({'error': f'Folder not found: {path}'}), 400
+    conn = get_db()
+    try:
+        cur = conn.execute('INSERT INTO vaults (name, path) VALUES (?, ?)', (name, path))
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'error': 'That folder is already a connected vault'}), 400
+    vault_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    rescan_vault_index(path)
+    conn = get_db()
+    conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'id': vault_id, 'name': name, 'path': path})
+
+
+@app.route('/api/vaults/<int:vault_id>', methods=['DELETE'])
+def delete_vault(vault_id):
+    # Forgets the vault connection only -- never touches the folder on disk.
+    conn = get_db()
+    conn.execute('DELETE FROM vaults WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/vaults/<int:vault_id>/rescan', methods=['POST'])
+def rescan_vault(vault_id):
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Vault not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+    count = rescan_vault_index(vault['path'])
+    conn = get_db()
+    conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'count': count})
+
+
+@app.route('/api/vaults/<int:vault_id>/prompts', methods=['GET'])
+def get_vault_prompts(vault_id):
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Vault not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+    conn = get_vault_index_conn(vault['path'])
+    rows = conn.execute('SELECT * FROM prompts ORDER BY title').fetchall()
+    conn.close()
+    out = []
+    for r in rows:
+        d = dict(r)
+        d['tags'] = json.loads(d['tags']) if d['tags'] else []
+        d['related_prompts'] = json.loads(d['related_prompts']) if d['related_prompts'] else []
+        out.append(d)
+    return jsonify(out)
 
 
 def _cats(data):
