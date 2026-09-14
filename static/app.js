@@ -40,6 +40,7 @@
     };
 
     const state = {
+        librarySource: { type: 'db' }, // { type: 'db' } | { type: 'vault', vaultId, vaultName }
         prompts: [],
         folders: [],
         filters: {
@@ -523,7 +524,9 @@
 
     async function loadPrompts() {
         try {
-            state.prompts = await api('/prompts');
+            state.prompts = (state.librarySource && state.librarySource.type === 'vault')
+                ? await api(`/vaults/${state.librarySource.vaultId}/prompts`)
+                : await api('/prompts');
             renderPrompts();
             updateCounts();
             updateChainSelect(null);
@@ -1073,6 +1076,67 @@
     }
 
     /* ============================================================================
+       VAULTS -- Obsidian-style file-backed prompt folders, alongside My Library
+       ============================================================================ */
+    async function renderVaultSwitcher() {
+        const list = $('#vaultSwitcherList');
+        if (!list) return;
+        let vaults = [];
+        try {
+            vaults = await api('/vaults');
+        } catch {
+            vaults = [];
+        }
+        const current = state.librarySource || { type: 'db' };
+        const rows = [
+            `<div class="filter-list-item${current.type === 'db' ? ' active' : ''}" data-source-db="1">` +
+            `<span class="material-symbols-outlined">menu_book</span><span>My Library</span></div>`,
+        ];
+        vaults.forEach(v => {
+            const active = current.type === 'vault' && current.vaultId === v.id;
+            rows.push(
+                `<div class="filter-list-item${active ? ' active' : ''}" data-source-vault="${v.id}" data-vault-name="${escapeAttr(v.name)}">` +
+                `<span class="material-symbols-outlined">folder_special</span><span>${escapeHtml(v.name)}</span></div>`
+            );
+        });
+        list.innerHTML = rows.join('');
+        list.querySelectorAll('[data-source-db]').forEach(el => {
+            el.addEventListener('click', () => switchLibrarySource({ type: 'db' }));
+        });
+        list.querySelectorAll('[data-source-vault]').forEach(el => {
+            el.addEventListener('click', () => switchLibrarySource({
+                type: 'vault',
+                vaultId: parseInt(el.dataset.sourceVault, 10),
+                vaultName: el.dataset.vaultName,
+            }));
+        });
+    }
+
+    async function switchLibrarySource(source) {
+        state.librarySource = source;
+        state.view = 'library';
+        state.detailId = null;
+        closeDetailPanel();
+        await renderVaultSwitcher();
+        await loadPrompts();
+    }
+
+    async function addVaultFromPrompt() {
+        const path = prompt('Vault folder path (must already exist):');
+        if (!path || !path.trim()) return;
+        const defaultName = path.trim().split(/[\\/]/).filter(Boolean).pop() || 'Vault';
+        const name = prompt('Name this vault:', defaultName);
+        if (!name || !name.trim()) return;
+        try {
+            await api('/vaults', { method: 'POST', body: { name: name.trim(), path: path.trim() } });
+            await renderVaultSwitcher();
+            toast('Vault connected', 'success');
+        } catch (err) {
+            toast('Could not connect that folder as a vault', 'error');
+        }
+    }
+
+    /* ============================================================================
        TAG MANAGER -- rename, merge or delete tags across the whole library
        ============================================================================ */
     function renderTagManager() {
@@ -1192,6 +1256,22 @@
        ============================================================================ */
     async function openDetail(id) {
         try {
+            // Vault prompts aren't DB rows -- /api/prompts/:id would either
+            // 404 or, worse, return an unrelated My Library prompt whose id
+            // happens to match. Render straight from the already-loaded
+            // (and already-normalised, see get_vault_prompts) vault prompt.
+            if (state.librarySource && state.librarySource.type === 'vault') {
+                const p = state.prompts.find(x => x.id === id);
+                if (!p) { toast('Could not load prompt', 'error'); return; }
+                state.detailId = id;
+                renderDetailPanel(p);
+                $('#detailPanel').classList.add('open');
+                $('#detailPanel').setAttribute('aria-hidden', 'false');
+                $$('.prompt-card').forEach(el => {
+                    el.classList.toggle('active', Number(el.dataset.id) === id);
+                });
+                return;
+            }
             const p = await api(`/prompts/${id}`);
             state.detailId = id;
             renderDetailPanel(p);
@@ -2312,6 +2392,10 @@
        PROMPT ACTIONS (favourite, delete, use, copy, duplicate)
        ============================================================================ */
     async function toggleFav(id) {
+        if (state.librarySource && state.librarySource.type === 'vault') {
+            toast('Favouriting vault prompts is not available yet', 'info');
+            return;
+        }
         try {
             await api(`/prompts/${id}/favorite`, {
                 method: 'POST'
@@ -2330,6 +2414,10 @@
     }
 
     async function deletePromptById(id) {
+        if (state.librarySource && state.librarySource.type === 'vault') {
+            toast('Deleting vault prompts from inside the app is not available yet', 'info');
+            return;
+        }
         if (!confirm('Delete this prompt? This cannot be undone.')) return;
         try {
             await api(`/prompts/${id}`, {
@@ -2350,7 +2438,9 @@
 
     async function useFromCard(id) {
         try {
-            const p = await api(`/prompts/${id}`);
+            const isVault = state.librarySource && state.librarySource.type === 'vault';
+            const p = isVault ? state.prompts.find(x => x.id === id) : await api(`/prompts/${id}`);
+            if (!p) { toast('Could not load prompt', 'error'); return; }
             const vars = detectVariables(p.content);
             const meta = p.variable_meta || {};
             const visible = vars.filter(v => (meta[v] || {}).visible !== false);
@@ -2555,6 +2645,10 @@
     }
 
     async function editPrompt(id) {
+        if (state.librarySource && state.librarySource.type === 'vault') {
+            toast('Editing vault prompts from inside the app is not available yet', 'info');
+            return;
+        }
         try {
             const p = await api(`/prompts/${id}`);
             $('#modalTitle').textContent = 'Edit prompt';
@@ -4565,6 +4659,8 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
 
         $('#newPromptBtn')?.addEventListener('click', openNewPromptModal);
         $('#surpriseMeBtn')?.addEventListener('click', handleSurpriseMe);
+        $('#addVaultBtn')?.addEventListener('click', addVaultFromPrompt);
+        renderVaultSwitcher();
         $('#newFolderBtn')?.addEventListener('click', (e) => {
             e.stopPropagation();
             openNewFolderModal();

@@ -59,6 +59,20 @@
 
     <div id="sidebarScroll">
 
+      <div class="nav-section" id="vaultSwitcherSection">
+        <div class="nav-section-label" data-toggle="vaultswitcher" aria-expanded="true">
+          <span>Library source</span>
+          <span style="display:inline-flex; align-items:center; gap:4px;">
+            <button class="nav-icon-btn" id="addVaultBtn" title="Add vault" aria-label="Add vault">
+              <span class="material-symbols-outlined">add</span>
+            </button>
+          </span>
+        </div>
+        <div class="nav-section-content" id="vaultswitcher-content">
+          <div id="vaultSwitcherList" class="filter-list"></div>
+        </div>
+      </div>
+
       <div class="nav-section">
         <div class="nav-section-label" data-toggle="folders" aria-expanded="false">
           <span>Folders <span class="nav-section-count" id="foldersSectionCount"></span></span>
@@ -3702,7 +3716,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=b285d672"></script>
+<script defer src="/static/app.js?v=0847cb4b"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

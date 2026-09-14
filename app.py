@@ -966,13 +966,36 @@ def get_vault_prompts(vault_id):
     if not os.path.isdir(vault['path']):
         return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
     conn = get_vault_index_conn(vault['path'])
-    rows = conn.execute('SELECT * FROM prompts ORDER BY title').fetchall()
+    rows = conn.execute('SELECT rowid, * FROM prompts ORDER BY title').fetchall()
     conn.close()
     out = []
     for r in rows:
         d = dict(r)
         d['tags'] = json.loads(d['tags']) if d['tags'] else []
         d['related_prompts'] = json.loads(d['related_prompts']) if d['related_prompts'] else []
+        # Normalise onto the same shape /api/prompts returns, so the
+        # existing renderPromptCard() / getFilteredPrompts() work unchanged
+        # for vault-sourced prompts. `id` must be a real int, not the
+        # relative_path string -- renderPromptCard() embeds it unquoted
+        # into onclick="...(${p.id})", so a string with dots/dashes in it
+        # (any real filename) would produce invalid JS. SQLite's implicit
+        # rowid is stable across UPDATEs (our upsert never deletes+reinserts
+        # an unchanged row), so it works here even though `relative_path`
+        # is the real primary key. Vault prompts have no DB-only actions
+        # (favourite, rating, edit, delete) wired up in v1, so this id only
+        # needs to be a safe, stable-enough number to embed, not a key
+        # anything else looks up by.
+        d['id'] = d['rowid']
+        d['content'] = d.get('body') or ''
+        d['description'] = ''
+        d['categories'] = [d['category']] if d.get('category') else []
+        d['folder_id'] = None
+        d['is_favorite'] = 0
+        d['rating'] = 0
+        d['colour_label'] = ''
+        d['use_count'] = 0
+        d['updated_at'] = d.get('scanned_at')
+        d['created_at'] = d.get('scanned_at')
         out.append(d)
     return jsonify(out)
 
