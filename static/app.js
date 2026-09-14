@@ -14346,6 +14346,11 @@ Must avoid: [Anything sensitive or previously declined]`
         const unsaveBtn = $('#licenceUnsaveDbBtn');
         if (unsaveBtn) {
             unsaveBtn.addEventListener('click', async () => {
+                // Removing the persisted key is a one-way trip until the key is
+                // re-entered and saved again -- require the user to type REMOVE
+                // rather than acting on a single click.
+                const typed = prompt('This removes your licence key from the database. It stays unlocked for this session but won\'t persist after restart.\n\nType REMOVE to confirm:');
+                if (typed !== 'REMOVE') return;
                 unsaveBtn.disabled = true;
                 status.textContent = 'Removing\u2026';
                 status.style.color = 'var(--ink-3)';
