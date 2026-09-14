@@ -1111,7 +1111,7 @@
             rows.push(
                 `<div class="filter-list-item${active ? ' active' : ''}" data-source-vault="${v.id}" data-vault-name="${escapeAttr(v.name)}">` +
                 `<span class="material-symbols-outlined">folder_special</span><span>${escapeHtml(v.name)}</span>` +
-                `<button class="folder-mini-btn danger" data-remove-vault="${v.id}" data-remove-vault-name="${escapeAttr(v.name)}" title="Remove vault (keeps the files on disk)">` +
+                `<button class="folder-mini-btn danger" data-remove-vault="${v.id}" data-remove-vault-name="${escapeAttr(v.name)}" title="Remove local library (keeps the files on disk)">` +
                 `<span class="material-symbols-outlined">close</span></button></div>`
             );
         });
@@ -1143,9 +1143,9 @@
             } else {
                 await renderVaultSwitcher();
             }
-            toast('Vault removed from sidebar', 'success');
+            toast('Local library removed from sidebar', 'success');
         } catch (err) {
-            toast(err && err.message ? err.message : 'Could not remove vault', 'error');
+            toast(err && err.message ? err.message : 'Could not remove local library', 'error');
         }
     }
 
@@ -1287,15 +1287,15 @@
 
     async function addVaultFromPrompt() {
         const createNew = confirm(
-            'Create a brand new vault folder?\n\nOK = create a new folder\nCancel = connect an existing folder'
+            'Create a brand new local library folder?\n\nOK = create a new folder\nCancel = connect an existing folder'
         );
 
         if (createNew) {
-            const name = prompt('Name this vault:');
+            const name = prompt('Name this local library:');
             if (!name || !name.trim()) return;
             let parent = await pickFolderNative();
             if (parent === undefined) {
-                parent = prompt('Where should this vault live? (parent folder path)');
+                parent = prompt('Where should this local library live? (parent folder path)');
             }
             if (!parent || !parent.trim()) return;
             try {
@@ -1304,27 +1304,27 @@
                     body: { name: name.trim(), parent_path: parent.trim(), create_new: true },
                 });
                 await renderVaultSwitcher();
-                toast('Vault created', 'success');
+                toast('Local library created', 'success');
             } catch (err) {
-                toast(err && err.message ? err.message : 'Could not create that vault', 'error');
+                toast(err && err.message ? err.message : 'Could not create that local library', 'error');
             }
             return;
         }
 
         let path = await pickFolderNative();
         if (path === undefined) {
-            path = prompt('Vault folder path (must already exist):');
+            path = prompt('Local library folder path (must already exist):');
         }
         if (!path || !path.trim()) return;
-        const defaultName = path.trim().split(/[\\/]/).filter(Boolean).pop() || 'Vault';
-        const name = prompt('Name this vault:', defaultName);
+        const defaultName = path.trim().split(/[\\/]/).filter(Boolean).pop() || 'Local Library';
+        const name = prompt('Name this local library:', defaultName);
         if (!name || !name.trim()) return;
         try {
             await api('/vaults', { method: 'POST', body: { name: name.trim(), path: path.trim() } });
             await renderVaultSwitcher();
-            toast('Vault connected', 'success');
+            toast('Local library connected', 'success');
         } catch (err) {
-            toast(err && err.message ? err.message : 'Could not connect that folder as a vault', 'error');
+            toast(err && err.message ? err.message : 'Could not connect that folder as a local library', 'error');
         }
     }
 
@@ -2585,7 +2585,7 @@
        ============================================================================ */
     async function toggleFav(id) {
         if (state.librarySource && state.librarySource.type === 'vault') {
-            toast('Favouriting vault prompts is not available yet', 'info');
+            toast('Favouriting local library prompts is not available yet', 'info');
             return;
         }
         try {
@@ -2608,8 +2608,8 @@
     async function deletePromptById(id) {
         if (state.librarySource && state.librarySource.type === 'vault') {
             const p = state.prompts.find(x => x.id === id);
-            if (!p) { toast('Could not find that vault prompt', 'error'); return; }
-            if (!confirm('Delete this file from the vault? This removes it from disk and cannot be undone.')) return;
+            if (!p) { toast('Could not find that local library prompt', 'error'); return; }
+            if (!confirm('Delete this file from the local library? This removes it from disk and cannot be undone.')) return;
             try {
                 await api(`/vaults/${state.librarySource.vaultId}/prompts/${encodeVaultPath(p.relative_path)}`, {
                     method: 'DELETE',
@@ -2856,9 +2856,9 @@
     async function editPrompt(id) {
         if (state.librarySource && state.librarySource.type === 'vault') {
             const p = state.prompts.find(x => x.id === id);
-            if (!p) { toast('Could not find that vault prompt', 'error'); return; }
+            if (!p) { toast('Could not find that local library prompt', 'error'); return; }
             _editingVaultPath = p.relative_path;
-            $('#modalTitle').textContent = 'Edit vault prompt';
+            $('#modalTitle').textContent = 'Edit local library prompt';
             $('#submitBtnText').textContent = 'Save changes';
             $('#promptId').value = '';
             $('#promptTitle').value = p.title || '';
@@ -2997,7 +2997,7 @@
                         method: 'POST',
                         body: vaultData,
                     });
-                    toast('Prompt created in vault', 'success');
+                    toast('Prompt created in local library', 'success');
                 }
                 closePromptModal();
                 await loadVaultBrowseData();

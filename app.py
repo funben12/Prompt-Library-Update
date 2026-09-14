@@ -965,7 +965,7 @@ def create_vault():
         cur = conn.execute('INSERT INTO vaults (name, path) VALUES (?, ?)', (name, path))
     except sqlite3.IntegrityError:
         conn.close()
-        return jsonify({'error': 'That folder is already a connected vault'}), 400
+        return jsonify({'error': 'That folder is already a connected local library'}), 400
     vault_id = cur.lastrowid
     conn.commit()
     conn.close()
@@ -991,9 +991,9 @@ def delete_vault(vault_id):
 def rescan_vault(vault_id):
     vault = _get_vault_or_404(vault_id)
     if not vault:
-        return jsonify({'error': 'Vault not found'}), 404
+        return jsonify({'error': 'Local library not found'}), 404
     if not os.path.isdir(vault['path']):
-        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
     count = rescan_vault_index(vault['path'])
     conn = get_db()
     conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
@@ -1008,9 +1008,9 @@ def get_vault_folders(vault_id):
     listing, not derived from the index, so empty folders show too."""
     vault = _get_vault_or_404(vault_id)
     if not vault:
-        return jsonify({'error': 'Vault not found'}), 404
+        return jsonify({'error': 'Local library not found'}), 404
     if not os.path.isdir(vault['path']):
-        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
     rel_path = request.args.get('path', '')
     full = _resolve_vault_subpath(vault['path'], rel_path)
     if full is None or not os.path.isdir(full):
@@ -1033,9 +1033,9 @@ def get_vault_folders(vault_id):
 def create_vault_folder(vault_id):
     vault = _get_vault_or_404(vault_id)
     if not vault:
-        return jsonify({'error': 'Vault not found'}), 404
+        return jsonify({'error': 'Local library not found'}), 404
     if not os.path.isdir(vault['path']):
-        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
     data = request.json or {}
     parent = (data.get('path') or '').strip()
     name = _sanitize_folder_name((data.get('name') or '').strip())
@@ -1059,9 +1059,9 @@ def delete_vault_folder(vault_id):
     shutil.rmtree ever runs, and the vault root itself can't be targeted."""
     vault = _get_vault_or_404(vault_id)
     if not vault:
-        return jsonify({'error': 'Vault not found'}), 404
+        return jsonify({'error': 'Local library not found'}), 404
     if not os.path.isdir(vault['path']):
-        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
     data = request.json or {}
     rel = (data.get('path') or '').strip()
     if not rel:
@@ -1069,7 +1069,7 @@ def delete_vault_folder(vault_id):
     full = _resolve_vault_subpath(vault['path'], rel)
     vault_abs = os.path.normpath(vault['path'])
     if full is None or full == vault_abs:
-        return jsonify({'error': 'Cannot delete the vault root'}), 400
+        return jsonify({'error': 'Cannot delete the local library root'}), 400
     if not os.path.isdir(full):
         return jsonify({'error': 'Folder not found'}), 404
     try:
@@ -1088,9 +1088,9 @@ def delete_vault_folder(vault_id):
 def get_vault_prompts(vault_id):
     vault = _get_vault_or_404(vault_id)
     if not vault:
-        return jsonify({'error': 'Vault not found'}), 404
+        return jsonify({'error': 'Local library not found'}), 404
     if not os.path.isdir(vault['path']):
-        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
     folder_path = request.args.get('path', '').strip('/\\')
     conn = get_vault_index_conn(vault['path'])
     rows = conn.execute('SELECT rowid, * FROM prompts ORDER BY title').fetchall()
@@ -1169,9 +1169,9 @@ def export_to_vault():
         return jsonify({'error': 'prompt_ids and vault_id are required'}), 400
     vault = _get_vault_or_404(vault_id)
     if not vault:
-        return jsonify({'error': 'Vault not found'}), 404
+        return jsonify({'error': 'Local library not found'}), 404
     if not os.path.isdir(vault['path']):
-        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
 
     conn = get_db()
     placeholders = ','.join('?' for _ in prompt_ids)
@@ -1203,9 +1203,9 @@ def create_vault_prompt(vault_id):
     no DB row for a prompt -- the file itself is the source of truth."""
     vault = _get_vault_or_404(vault_id)
     if not vault:
-        return jsonify({'error': 'Vault not found'}), 404
+        return jsonify({'error': 'Local library not found'}), 404
     if not os.path.isdir(vault['path']):
-        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
     data = request.json or {}
     title = (data.get('title') or '').strip()
     if not title:
@@ -1259,9 +1259,9 @@ def update_vault_prompt(vault_id, relative_path):
     folder are kept)."""
     vault = _get_vault_or_404(vault_id)
     if not vault:
-        return jsonify({'error': 'Vault not found'}), 404
+        return jsonify({'error': 'Local library not found'}), 404
     if not os.path.isdir(vault['path']):
-        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
     full_path = _resolve_vault_subpath(vault['path'], relative_path)
     if full_path is None or not os.path.isfile(full_path):
         return jsonify({'error': 'Prompt file not found'}), 404
@@ -1309,9 +1309,9 @@ def delete_vault_prompt(vault_id, relative_path):
     file itself is the source of truth, so this is the only way to remove one."""
     vault = _get_vault_or_404(vault_id)
     if not vault:
-        return jsonify({'error': 'Vault not found'}), 404
+        return jsonify({'error': 'Local library not found'}), 404
     if not os.path.isdir(vault['path']):
-        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
     full_path = _resolve_vault_subpath(vault['path'], relative_path)
     if full_path is None or not os.path.isfile(full_path):
         return jsonify({'error': 'Prompt file not found'}), 404
