@@ -977,6 +977,71 @@ def get_vault_prompts(vault_id):
     return jsonify(out)
 
 
+def _slugify_filename(title):
+    """Turn a prompt title into a safe filename stem: 'My Prompt!' -> 'My-Prompt'."""
+    stem = re.sub(r'[^\w\s-]', '', title or '').strip()
+    stem = re.sub(r'\s+', '-', stem)
+    return stem or 'Untitled'
+
+
+def _prompt_to_markdown(prompt_row):
+    """Serialise a PromptLibrary.db prompt row (dict) into vault front
+    matter + body, matching the existing export convention. categories/tags
+    are stored comma-joined (see _list_for_db), not JSON -- reuse
+    _normalise_list rather than json.loads."""
+    categories = _normalise_list(prompt_row.get('categories') or prompt_row.get('category') or '')
+    tags = _normalise_list(prompt_row.get('tags') or '')
+    lines = [
+        '---',
+        f"title: {prompt_row['title']}",
+        f"category: {categories[0] if categories else ''}",
+        f"tags: [{', '.join(tags)}]",
+        "version: 1",
+        f"last_updated: {datetime.now().strftime('%Y-%m-%d')}",
+        '---',
+        '',
+        prompt_row.get('content') or '',
+    ]
+    return '\n'.join(lines)
+
+
+@app.route('/api/library/export-to-vault', methods=['POST'])
+def export_to_vault():
+    data = request.json
+    prompt_ids = data.get('prompt_ids') or []
+    vault_id = data.get('vault_id')
+    remove_originals = bool(data.get('remove_originals'))
+    if not prompt_ids or not vault_id:
+        return jsonify({'error': 'prompt_ids and vault_id are required'}), 400
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Vault not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+
+    conn = get_db()
+    placeholders = ','.join('?' for _ in prompt_ids)
+    rows = conn.execute(f'SELECT * FROM prompts WHERE id IN ({placeholders})', prompt_ids).fetchall()
+    exported = []
+    for row in rows:
+        prompt = dict(row)
+        filename = f"EXP-{_slugify_filename(prompt['title'])}-v1.md"
+        full_path = os.path.join(vault['path'], filename)
+        with open(full_path, 'w', encoding='utf-8') as f:
+            f.write(_prompt_to_markdown(prompt))
+        exported.append(filename)
+        if remove_originals:
+            conn.execute('DELETE FROM prompts WHERE id = ?', (prompt['id'],))
+    conn.commit()
+    conn.close()
+    rescan_vault_index(vault['path'])
+    conn = get_db()
+    conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'exported': exported})
+
+
 def _cats(data):
     return _list_for_db(data.get('categories', ''))
 
