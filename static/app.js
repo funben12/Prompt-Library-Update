@@ -1109,7 +1109,7 @@
         vaults.forEach(v => {
             const active = current.type === 'vault' && current.vaultId === v.id;
             rows.push(
-                `<div class="filter-list-item${active ? ' active' : ''}" data-source-vault="${v.id}" data-vault-name="${escapeAttr(v.name)}">` +
+                `<div class="filter-list-item${active ? ' active' : ''}" data-source-vault="${v.id}" data-vault-name="${escapeAttr(v.name)}" data-vault-path="${escapeAttr(v.path)}" title="${escapeAttr(v.path)}">` +
                 `<span class="material-symbols-outlined">folder_special</span><span>${escapeHtml(v.name)}</span>` +
                 `<button class="folder-mini-btn danger" data-remove-vault="${v.id}" data-remove-vault-name="${escapeAttr(v.name)}" title="Remove local library (keeps the files on disk)">` +
                 `<span class="material-symbols-outlined">close</span></button></div>`
@@ -1124,6 +1124,7 @@
                 type: 'vault',
                 vaultId: parseInt(el.dataset.sourceVault, 10),
                 vaultName: el.dataset.vaultName,
+                vaultPath: el.dataset.vaultPath,
             }));
         });
         list.querySelectorAll('[data-remove-vault]').forEach(el => {
@@ -1223,18 +1224,27 @@
         titleEl.textContent = parts.length ? parts[parts.length - 1] : vaultName;
 
         fvaEl.style.display = 'flex';
-        fvaEl.innerHTML = `
+        const vaultPath = state.librarySource.vaultPath || '';
+        fvaEl.innerHTML = (vaultPath ? `
+      <span class="vault-path-chip" title="${escapeAttr(vaultPath)}">
+        <span class="material-symbols-outlined" style="font-size:14px;">folder_open</span>
+        <span class="vault-path-chip-text">${escapeHtml(vaultPath)}</span>
+      </span>` : '') + `
       <button class="btn btn-ghost" id="vaultRescanBtn">
         <span class="material-symbols-outlined">sync</span> Rescan
       </button>
       <button class="btn btn-ghost" id="vaultNewFolderBtn">
         <span class="material-symbols-outlined">create_new_folder</span> New folder
+      </button>
+      <button class="btn btn-ghost" id="vaultNewTemplateBtn" title="Write a blank [[Title]]/[[Prompt]]/etc. file here to fill in by hand">
+        <span class="material-symbols-outlined">note_add</span> New template
       </button>` + (parts.length ? `
       <button class="btn btn-ghost btn-danger" id="vaultDeleteFolderBtn">
         <span class="material-symbols-outlined">delete</span> Delete this folder
       </button>` : '');
         $('#vaultRescanBtn')?.addEventListener('click', () => rescanCurrentVault(false));
         $('#vaultNewFolderBtn')?.addEventListener('click', createVaultFolderPrompt);
+        $('#vaultNewTemplateBtn')?.addEventListener('click', createVaultTemplateFile);
         $('#vaultDeleteFolderBtn')?.addEventListener('click', deleteCurrentVaultFolder);
     }
 
@@ -1250,6 +1260,19 @@
             await loadVaultBrowseData();
         } catch (err) {
             toast(err && err.message ? err.message : 'Could not create folder', 'error');
+        }
+    }
+
+    async function createVaultTemplateFile() {
+        try {
+            const result = await api(`/vaults/${state.librarySource.vaultId}/template`, {
+                method: 'POST',
+                body: { path: state.vaultBrowsePath || '' },
+            });
+            toast(`Created ${result.filename} -- open it in any text editor and fill it in`, 'success');
+            await loadVaultBrowseData();
+        } catch (err) {
+            toast(err && err.message ? err.message : 'Could not create template', 'error');
         }
     }
 
@@ -2787,6 +2810,32 @@
     /* ============================================================================
        PROMPT EDITOR MODAL
        ============================================================================ */
+    // Skeleton body for vault prompt entries -- keeps the layout consistent so future
+    // theme/style fields have a known slot to land in. One click fills #promptContent.
+    const VAULT_PROMPT_TEMPLATE = `ROLE: [[who the AI should act as]]
+
+TASK: [[what it should do]]
+
+CONTEXT: [[background info it needs]]
+
+OUTPUT FORMAT: [[how the result should be structured]]
+
+STYLE/THEME: [[reserved for future use]]`;
+
+    function insertVaultPromptTemplate() {
+        const field = $('#promptContent');
+        if (!field) return;
+        if (field.value.trim() && !confirm('Replace the current content with the template?')) return;
+        field.value = VAULT_PROMPT_TEMPLATE;
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        field.focus();
+    }
+
+    function updateVaultTemplateBtnVisibility(isNewVaultPrompt) {
+        const btn = $('#insertVaultTemplateBtn');
+        if (btn) btn.hidden = !isNewVaultPrompt;
+    }
+
     function openNewPromptModal() {
         _editingVaultPath = null;
         $('#modalTitle').textContent = 'New prompt';
@@ -2835,6 +2884,7 @@
         updateTokenCounter('');
         $('#promptModal').classList.add('active');
         refreshModalCategories(); // sync chips with DB categories
+        updateVaultTemplateBtnVisibility(!!(state.librarySource && state.librarySource.type === 'vault'));
         setTimeout(() => $('#promptTitle').focus(), 50);
     }
     window.PL_openNewPromptModal = openNewPromptModal;
@@ -2858,6 +2908,7 @@
             const p = state.prompts.find(x => x.id === id);
             if (!p) { toast('Could not find that local library prompt', 'error'); return; }
             _editingVaultPath = p.relative_path;
+            updateVaultTemplateBtnVisibility(false);
             $('#modalTitle').textContent = 'Edit local library prompt';
             $('#submitBtnText').textContent = 'Save changes';
             $('#promptId').value = '';
@@ -2879,6 +2930,7 @@
         }
         try {
             const p = await api(`/prompts/${id}`);
+            updateVaultTemplateBtnVisibility(false);
             $('#modalTitle').textContent = 'Edit prompt';
             $('#submitBtnText').textContent = 'Save changes';
             $('#promptId').value = p.id;
@@ -4956,6 +5008,7 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
         $('#promptContent')?.addEventListener('input', updateEditorPreview);
         $('#promptContent')?.addEventListener('input', () => updatePromptScore($('#promptContent')?.value || ''));
         $('#promptContent')?.addEventListener('input', () => updateTokenCounter($('#promptContent')?.value || ''));
+        $('#insertVaultTemplateBtn')?.addEventListener('click', insertVaultPromptTemplate);
 
         $$('.editor-tab').forEach(t => {
             t.addEventListener('click', () => {

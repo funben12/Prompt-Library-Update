@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" media="print" onload="this.media='all'">
 
-<link rel="stylesheet" href="/static/app.css?v=068b9d6b">
+<link rel="stylesheet" href="/static/app.css?v=f3f83fd6">
 </head>
 <body>
 
@@ -1105,7 +1105,12 @@
 
         <!-- Prompt block: system + conversation tabs -->
         <div class="form-group" style="margin-bottom: var(--sp-4);">
-          <label class="form-label">Prompt <span class="req">*</span></label>
+          <div class="prompt-label-row">
+            <label class="form-label">Prompt <span class="req">*</span></label>
+            <button type="button" class="btn btn-ghost btn-sm" id="insertVaultTemplateBtn" hidden>
+              <span class="material-symbols-outlined" style="font-size:14px;">description</span> Use template
+            </button>
+          </div>
           <div class="prompt-block">
             <!-- Sub-tabs: System Prompt / Conversation -->
             <div class="prompt-block-tabs" id="promptBlockTabs">
@@ -3716,7 +3721,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=b94c45d4"></script>
+<script defer src="/static/app.js?v=253ad2ac"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

@@ -4,12 +4,21 @@ and walk a vault folder to list every prompt file in it.
 No PyYAML dependency. Front matter here is a known, narrow subset (flat
 key: value pairs, one level of flow-style [a, b, c] lists, no nesting), so
 a small hand-rolled parser avoids adding a dependency for it.
+
+A second, simpler format is also accepted for files written by hand outside
+the app: plain [[Title]] / [[Description]] / [[Prompt]] / [[Categories]] /
+[[Tags]] section markers, each on their own line, with everything up to the
+next marker (or end of file) as that section's content. No YAML, no ':'
+punctuation to get wrong -- see the "New template" button, which writes a
+blank one of these to fill in.
 """
 
 import os
 import re
 
 FRONT_MATTER_RE = re.compile(r'^---\s*\n(.*?\n)---\s*\n?(.*)$', re.DOTALL)
+SIMPLE_TAG_RE = re.compile(r'^[ \t]*\[\[[ \t]*(Title|Description|Prompt|Categories|Tags)[ \t]*\]\][ \t]*$',
+                            re.IGNORECASE | re.MULTILINE)
 
 
 class FrontMatterError(ValueError):
@@ -44,6 +53,54 @@ def parse_front_matter(text):
     return metadata, body.strip('\n')
 
 
+def parse_simple_tags(text):
+    """Parse the hand-written [[Title]]/[[Description]]/[[Prompt]]/
+    [[Categories]]/[[Tags]] format into the same (metadata, body) shape
+    parse_front_matter returns. Categories/Tags are comma-separated on one
+    or more lines. Raises FrontMatterError if no recognised marker is found
+    at all, or [[Prompt]] is missing (there's nothing to use as the body)."""
+    matches = list(SIMPLE_TAG_RE.finditer(text))
+    if not matches:
+        raise FrontMatterError("No [[Title]]/[[Prompt]]/etc. section markers found")
+    sections = {}
+    for i, m in enumerate(matches):
+        key = m.group(1).lower()
+        start = m.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        sections[key] = text[start:end].strip()
+    if 'prompt' not in sections:
+        raise FrontMatterError("Missing [[Prompt]] section")
+    categories = [c.strip() for c in sections.get('categories', '').replace('\n', ',').split(',') if c.strip()]
+    tags = [t.strip() for t in sections.get('tags', '').replace('\n', ',').split(',') if t.strip()]
+    metadata = {
+        'title': sections.get('title', ''),
+        'description': sections.get('description', ''),
+        'category': categories[0] if categories else '',
+        'tags': tags,
+    }
+    return metadata, sections['prompt']
+
+
+def _simple_tag_template():
+    """The blank template written by the "New template" action -- filled in
+    by hand in any text editor, then picked up on the next rescan."""
+    return """[[Title]]
+Untitled Prompt
+
+[[Description]]
+Describe what this prompt does and when to use it.
+
+[[Prompt]]
+Write your prompt here. Use {{variable_name}} for fill-in variables.
+
+[[Categories]]
+General
+
+[[Tags]]
+example
+"""
+
+
 def scan_vault(vault_path):
     """Walk vault_path for .md files (skipping dot-folders like
     .promptvault), parse each one, return a list of dicts:
@@ -61,7 +118,10 @@ def scan_vault(vault_path):
             try:
                 with open(full_path, 'r', encoding='utf-8') as f:
                     text = f.read()
-                metadata, body = parse_front_matter(text)
+                try:
+                    metadata, body = parse_front_matter(text)
+                except FrontMatterError:
+                    metadata, body = parse_simple_tags(text)
                 results.append({
                     'relative_path': rel_path,
                     'metadata': metadata,

@@ -849,8 +849,16 @@ def get_vault_index_conn(vault_path):
         last_updated    TEXT,
         body            TEXT,
         parse_error     TEXT,
-        scanned_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        scanned_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        description     TEXT
     )''')
+    try:
+        # Cache is disposable and pre-dates the description column on any
+        # vault connected before this field existed -- add it in place
+        # rather than forcing a full rebuild.
+        conn.execute('ALTER TABLE prompts ADD COLUMN description TEXT')
+    except sqlite3.OperationalError:
+        pass  # already has it
     conn.commit()
     return conn
 
@@ -875,8 +883,8 @@ def rescan_vault_index(vault_path):
         conn.execute('''INSERT INTO prompts
             (relative_path, title, category, subcategory, tags, difficulty,
              target_audience, inputs, expected_output, related_prompts,
-             version, last_updated, body, parse_error, scanned_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+             version, last_updated, body, parse_error, scanned_at, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
             ON CONFLICT(relative_path) DO UPDATE SET
                 title=excluded.title, category=excluded.category,
                 subcategory=excluded.subcategory, tags=excluded.tags,
@@ -885,14 +893,15 @@ def rescan_vault_index(vault_path):
                 inputs=excluded.inputs, expected_output=excluded.expected_output,
                 related_prompts=excluded.related_prompts, version=excluded.version,
                 last_updated=excluded.last_updated, body=excluded.body,
-                parse_error=excluded.parse_error, scanned_at=excluded.scanned_at''',
+                parse_error=excluded.parse_error, scanned_at=excluded.scanned_at,
+                description=excluded.description''',
             (r['relative_path'], m.get('title'), m.get('category'),
              m.get('subcategory'),
              json.dumps(m.get('tags', []) if isinstance(m.get('tags'), list) else []),
              m.get('difficulty'), m.get('target_audience'), m.get('inputs'),
              m.get('expected_output'),
              json.dumps(m.get('related_prompts', []) if isinstance(m.get('related_prompts'), list) else []),
-             m.get('version'), m.get('last_updated'), r['body'], r['error']))
+             m.get('version'), m.get('last_updated'), r['body'], r['error'], m.get('description')))
     conn.commit()
     conn.close()
     return len(results)
@@ -1118,7 +1127,7 @@ def get_vault_prompts(vault_id):
         # anything else looks up by.
         d['id'] = d['rowid']
         d['content'] = d.get('body') or ''
-        d['description'] = ''
+        d['description'] = d.get('description') or ''
         d['categories'] = [d['category']] if d.get('category') else []
         d['folder_id'] = None
         d['is_favorite'] = 0
@@ -1232,6 +1241,44 @@ def create_vault_prompt(vault_id):
     })
     with open(full_path, 'w', encoding='utf-8') as f:
         f.write(markdown)
+
+    rescan_vault_index(vault['path'])
+    conn = get_db()
+    conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    rel_path = os.path.relpath(full_path, vault['path']).replace(os.sep, '/')
+    return jsonify({'success': True, 'relative_path': rel_path, 'filename': filename})
+
+
+@app.route('/api/vaults/<int:vault_id>/template', methods=['POST'])
+def create_vault_template(vault_id):
+    """Writes a blank [[Title]]/[[Description]]/[[Prompt]]/[[Categories]]/
+    [[Tags]] file into the current folder, for anyone who'd rather write a
+    prompt by hand in a text editor than through the app's modal -- no YAML,
+    just plain section markers. Picked up like any other file on the next
+    rescan."""
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Local library not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
+    data = request.json or {}
+    folder_rel = (data.get('path') or '').strip()
+    folder_full = _resolve_vault_subpath(vault['path'], folder_rel)
+    if folder_full is None or not os.path.isdir(folder_full):
+        return jsonify({'error': 'Folder not found'}), 400
+
+    filename = 'Template-v1.md'
+    full_path = os.path.join(folder_full, filename)
+    counter = 2
+    while os.path.exists(full_path):
+        filename = f'Template-v{counter}.md'
+        full_path = os.path.join(folder_full, filename)
+        counter += 1
+
+    with open(full_path, 'w', encoding='utf-8') as f:
+        f.write(vault_scanner._simple_tag_template())
 
     rescan_vault_index(vault['path'])
     conn = get_db()
