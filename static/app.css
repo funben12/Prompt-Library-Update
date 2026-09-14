@@ -645,6 +645,26 @@
     min-height: 14px;
   }
   #breadcrumb .bc-sep { font-size: 12px; color: var(--ink-4); }
+  #breadcrumb .bc-link { cursor: pointer; }
+  #breadcrumb .bc-link:hover { color: var(--accent); text-decoration: underline; }
+
+  .vault-folder-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-4);
+  }
+  .vault-folder-tile {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: var(--sp-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-2);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: var(--fs-sm);
+  }
+  .vault-folder-tile:hover { background: var(--surface-3); border-color: var(--accent); }
 
   .header-actions {
     display: flex; align-items: center; gap: var(--sp-2);

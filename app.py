@@ -11,6 +11,7 @@ import zipfile
 import sys
 import os
 import threading
+import shutil
 import vault_scanner
 
 def _hash_key(k):
@@ -859,6 +860,11 @@ def rescan_vault_index(vault_path):
     drop rows for files no longer on disk. Returns count of files indexed
     (including unparseable ones, which are kept with parse_error set)."""
     results = vault_scanner.scan_vault(vault_path)
+    # vault_scanner returns OS-native relative paths (backslashes on Windows) --
+    # normalise to forward slashes so folder-path comparisons (browsing,
+    # create/delete folder) are consistent regardless of platform.
+    for r in results:
+        r['relative_path'] = r['relative_path'].replace(os.sep, '/')
     conn = get_vault_index_conn(vault_path)
     on_disk = {r['relative_path'] for r in results}
     existing = {row['relative_path'] for row in conn.execute('SELECT relative_path FROM prompts')}
@@ -897,6 +903,18 @@ def _get_vault_or_404(vault_id):
     row = conn.execute('SELECT * FROM vaults WHERE id = ?', (vault_id,)).fetchone()
     conn.close()
     return dict(row) if row else None
+
+
+def _resolve_vault_subpath(vault_path, rel_path):
+    """Resolve a user-supplied relative path under vault_path, guarding
+    against path traversal (e.g. '../../whatever'). Returns the absolute
+    path, or None if it would escape the vault folder."""
+    rel_path = (rel_path or '').strip().strip('/\\')
+    full = os.path.normpath(os.path.join(vault_path, rel_path))
+    vault_abs = os.path.normpath(vault_path)
+    if full != vault_abs and not full.startswith(vault_abs + os.sep):
+        return None
+    return full
 
 
 @app.route('/api/vaults', methods=['GET'])
@@ -984,6 +1002,88 @@ def rescan_vault(vault_id):
     return jsonify({'success': True, 'count': count})
 
 
+@app.route('/api/vaults/<int:vault_id>/folders', methods=['GET'])
+def get_vault_folders(vault_id):
+    """Immediate subdirectories at a given relative path -- a real directory
+    listing, not derived from the index, so empty folders show too."""
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Vault not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+    rel_path = request.args.get('path', '')
+    full = _resolve_vault_subpath(vault['path'], rel_path)
+    if full is None or not os.path.isdir(full):
+        return jsonify({'error': 'Folder not found'}), 404
+    rel_path = rel_path.strip('/\\')
+    subfolders = []
+    for entry in sorted(os.listdir(full), key=str.lower):
+        if entry.startswith('.'):
+            continue
+        entry_full = os.path.join(full, entry)
+        if os.path.isdir(entry_full):
+            subfolders.append({
+                'name': entry,
+                'path': (rel_path + '/' + entry) if rel_path else entry,
+            })
+    return jsonify(subfolders)
+
+
+@app.route('/api/vaults/<int:vault_id>/folders', methods=['POST'])
+def create_vault_folder(vault_id):
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Vault not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+    data = request.json or {}
+    parent = (data.get('path') or '').strip()
+    name = _sanitize_folder_name((data.get('name') or '').strip())
+    rel = f"{parent}/{name}" if parent else name
+    full = _resolve_vault_subpath(vault['path'], rel)
+    if full is None:
+        return jsonify({'error': 'Invalid folder path'}), 400
+    if os.path.exists(full):
+        return jsonify({'error': f'"{name}" already exists there'}), 400
+    try:
+        os.makedirs(full)
+    except OSError as e:
+        return jsonify({'error': f'Could not create folder: {e}'}), 400
+    return jsonify({'success': True, 'path': rel.replace(os.sep, '/')})
+
+
+@app.route('/api/vaults/<int:vault_id>/folders', methods=['DELETE'])
+def delete_vault_folder(vault_id):
+    """Deletes a real folder on disk inside the vault. Destructive --
+    resolved path is checked to stay inside the vault folder before
+    shutil.rmtree ever runs, and the vault root itself can't be targeted."""
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Vault not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+    data = request.json or {}
+    rel = (data.get('path') or '').strip()
+    if not rel:
+        return jsonify({'error': 'path is required'}), 400
+    full = _resolve_vault_subpath(vault['path'], rel)
+    vault_abs = os.path.normpath(vault['path'])
+    if full is None or full == vault_abs:
+        return jsonify({'error': 'Cannot delete the vault root'}), 400
+    if not os.path.isdir(full):
+        return jsonify({'error': 'Folder not found'}), 404
+    try:
+        shutil.rmtree(full)
+    except OSError as e:
+        return jsonify({'error': f'Could not delete folder: {e}'}), 400
+    rescan_vault_index(vault['path'])
+    conn = get_db()
+    conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
 @app.route('/api/vaults/<int:vault_id>/prompts', methods=['GET'])
 def get_vault_prompts(vault_id):
     vault = _get_vault_or_404(vault_id)
@@ -991,12 +1091,17 @@ def get_vault_prompts(vault_id):
         return jsonify({'error': 'Vault not found'}), 404
     if not os.path.isdir(vault['path']):
         return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+    folder_path = request.args.get('path', '').strip('/\\')
     conn = get_vault_index_conn(vault['path'])
     rows = conn.execute('SELECT rowid, * FROM prompts ORDER BY title').fetchall()
     conn.close()
     out = []
     for r in rows:
         d = dict(r)
+        rel = d['relative_path'] or ''
+        dirname = rel.rsplit('/', 1)[0] if '/' in rel else ''
+        if dirname != folder_path:
+            continue
         d['tags'] = json.loads(d['tags']) if d['tags'] else []
         d['related_prompts'] = json.loads(d['related_prompts']) if d['related_prompts'] else []
         # Normalise onto the same shape /api/prompts returns, so the
@@ -1089,6 +1194,52 @@ def export_to_vault():
     conn.commit()
     conn.close()
     return jsonify({'success': True, 'exported': exported})
+
+
+@app.route('/api/vaults/<int:vault_id>/prompts', methods=['POST'])
+def create_vault_prompt(vault_id):
+    """Write a brand-new prompt as a real .md file into the vault, at the
+    currently-browsed folder, instead of into PromptLibrary.db. Vaults have
+    no DB row for a prompt -- the file itself is the source of truth."""
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Vault not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Vault folder not found: {vault['path']}", 'not_found': True}), 404
+    data = request.json or {}
+    title = (data.get('title') or '').strip()
+    if not title:
+        return jsonify({'error': 'title is required'}), 400
+    folder_rel = (data.get('path') or '').strip()
+    folder_full = _resolve_vault_subpath(vault['path'], folder_rel)
+    if folder_full is None or not os.path.isdir(folder_full):
+        return jsonify({'error': 'Folder not found'}), 400
+
+    stem = _slugify_filename(title)
+    filename = f"NEW-{stem}-v1.md"
+    full_path = os.path.join(folder_full, filename)
+    counter = 2
+    while os.path.exists(full_path):
+        filename = f"NEW-{stem}-v{counter}.md"
+        full_path = os.path.join(folder_full, filename)
+        counter += 1
+
+    markdown = _prompt_to_markdown({
+        'title': title,
+        'categories': data.get('categories', ''),
+        'tags': data.get('tags', ''),
+        'content': data.get('content', ''),
+    })
+    with open(full_path, 'w', encoding='utf-8') as f:
+        f.write(markdown)
+
+    rescan_vault_index(vault['path'])
+    conn = get_db()
+    conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    rel_path = os.path.relpath(full_path, vault['path']).replace(os.sep, '/')
+    return jsonify({'success': True, 'relative_path': rel_path, 'filename': filename})
 
 
 def _cats(data):

@@ -41,6 +41,8 @@
 
     const state = {
         librarySource: { type: 'db' }, // { type: 'db' } | { type: 'vault', vaultId, vaultName }
+        vaultBrowsePath: '', // relative folder path currently browsed inside the active vault
+        vaultFolders: [], // immediate subfolders at vaultBrowsePath, from a real directory listing
         prompts: [],
         folders: [],
         filters: {
@@ -525,7 +527,7 @@
     async function loadPrompts() {
         try {
             state.prompts = (state.librarySource && state.librarySource.type === 'vault')
-                ? await api(`/vaults/${state.librarySource.vaultId}/prompts`)
+                ? await api(`/vaults/${state.librarySource.vaultId}/prompts?path=${encodeURIComponent(state.vaultBrowsePath || '')}`)
                 : await api('/prompts');
             renderPrompts();
             updateCounts();
@@ -739,17 +741,28 @@
         container.classList.add(state.viewMode === 'grid' ? 'grid-view' : 'list-view');
 
         const list = getFilteredPrompts();
+        const isVault = state.librarySource && state.librarySource.type === 'vault';
+        const folderTilesHtml = isVault ? renderVaultFolderTiles() : '';
 
-        if (!list.length) {
-            container.innerHTML = renderEmptyState();
+        if (!list.length && !(isVault && (state.vaultFolders || []).length)) {
+            container.innerHTML = folderTilesHtml + renderEmptyState();
             return;
         }
 
         if (state.groupByFolder && state.view !== 'favorites' && typeof state.view !== 'number') {
-            container.innerHTML = renderGroupedByFolder(list);
+            container.innerHTML = folderTilesHtml + renderGroupedByFolder(list);
         } else {
-            container.innerHTML = list.map(renderPromptCard).join('');
+            container.innerHTML = folderTilesHtml + list.map(renderPromptCard).join('');
         }
+    }
+
+    function renderVaultFolderTiles() {
+        const folders = state.vaultFolders || [];
+        if (!folders.length) return '';
+        return '<div class="vault-folder-tiles">' + folders.map(f =>
+            `<div class="vault-folder-tile" data-vault-folder="${escapeAttr(f.path)}">` +
+            `<span class="material-symbols-outlined">folder</span><span>${escapeHtml(f.name)}</span></div>`
+        ).join('') + '</div>';
     }
 
     function toggleBulkSelect(id) {
@@ -1115,10 +1128,118 @@
     async function switchLibrarySource(source) {
         state.librarySource = source;
         state.view = 'library';
+        state.vaultBrowsePath = '';
         state.detailId = null;
         closeDetailPanel();
         await renderVaultSwitcher();
+        if (source.type === 'vault') {
+            // Rescan-on-open per the vault spec's Sync section.
+            await rescanCurrentVault(true);
+        } else {
+            setView('library');
+        }
+    }
+
+    async function rescanCurrentVault(silent) {
+        if (!(state.librarySource && state.librarySource.type === 'vault')) return;
+        try {
+            const result = await api(`/vaults/${state.librarySource.vaultId}/rescan`, { method: 'POST' });
+            if (!silent) toast(`Rescanned -- ${result.count} file(s) indexed`, 'success');
+        } catch (err) {
+            if (!silent) toast(err && err.message ? err.message : 'Rescan failed', 'error');
+        }
+        await loadVaultBrowseData();
+    }
+
+    async function loadVaultBrowseData() {
+        if (!(state.librarySource && state.librarySource.type === 'vault')) return;
+        try {
+            state.vaultFolders = await api(`/vaults/${state.librarySource.vaultId}/folders?path=${encodeURIComponent(state.vaultBrowsePath || '')}`);
+        } catch {
+            state.vaultFolders = [];
+        }
+        renderVaultBrowseUI();
         await loadPrompts();
+    }
+
+    async function navigateVaultFolder(path) {
+        state.vaultBrowsePath = path || '';
+        state.detailId = null;
+        closeDetailPanel();
+        await loadVaultBrowseData();
+    }
+
+    function renderVaultBrowseUI() {
+        if (!(state.librarySource && state.librarySource.type === 'vault')) return;
+        const bcEl = $('#breadcrumb');
+        const fvaEl = $('#folderViewActions');
+        const titleEl = $('#viewTitle');
+        if (!bcEl || !fvaEl || !titleEl) return;
+
+        const vaultName = state.librarySource.vaultName || 'Vault';
+        const parts = (state.vaultBrowsePath || '').split('/').filter(Boolean);
+
+        let html = `<span class="bc-link" data-vault-crumb="">${escapeHtml(vaultName)}</span>`;
+        let acc = '';
+        parts.forEach(part => {
+            acc = acc ? `${acc}/${part}` : part;
+            html += `<span class="bc-sep material-symbols-outlined">chevron_right</span>` +
+                `<span class="bc-link" data-vault-crumb="${escapeAttr(acc)}">${escapeHtml(part)}</span>`;
+        });
+        bcEl.innerHTML = html;
+        bcEl.querySelectorAll('[data-vault-crumb]').forEach(el => {
+            el.addEventListener('click', () => navigateVaultFolder(el.dataset.vaultCrumb));
+        });
+        titleEl.textContent = parts.length ? parts[parts.length - 1] : vaultName;
+
+        fvaEl.style.display = 'flex';
+        fvaEl.innerHTML = `
+      <button class="btn btn-ghost" id="vaultRescanBtn">
+        <span class="material-symbols-outlined">sync</span> Rescan
+      </button>
+      <button class="btn btn-ghost" id="vaultNewFolderBtn">
+        <span class="material-symbols-outlined">create_new_folder</span> New folder
+      </button>` + (parts.length ? `
+      <button class="btn btn-ghost btn-danger" id="vaultDeleteFolderBtn">
+        <span class="material-symbols-outlined">delete</span> Delete this folder
+      </button>` : '');
+        $('#vaultRescanBtn')?.addEventListener('click', () => rescanCurrentVault(false));
+        $('#vaultNewFolderBtn')?.addEventListener('click', createVaultFolderPrompt);
+        $('#vaultDeleteFolderBtn')?.addEventListener('click', deleteCurrentVaultFolder);
+    }
+
+    async function createVaultFolderPrompt() {
+        const name = prompt('New folder name:');
+        if (!name || !name.trim()) return;
+        try {
+            await api(`/vaults/${state.librarySource.vaultId}/folders`, {
+                method: 'POST',
+                body: { path: state.vaultBrowsePath || '', name: name.trim() },
+            });
+            toast('Folder created', 'success');
+            await loadVaultBrowseData();
+        } catch (err) {
+            toast(err && err.message ? err.message : 'Could not create folder', 'error');
+        }
+    }
+
+    async function deleteCurrentVaultFolder() {
+        const path = state.vaultBrowsePath;
+        if (!path) return;
+        const name = path.split('/').pop();
+        if (!confirm(`Delete folder "${name}" and everything inside it? This deletes the files on disk and cannot be undone.`)) return;
+        const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+        try {
+            await api(`/vaults/${state.librarySource.vaultId}/folders`, {
+                method: 'DELETE',
+                body: { path },
+            });
+            toast('Folder deleted', 'success');
+            state.vaultBrowsePath = parent;
+            await loadVaultBrowseData();
+        } catch (err) {
+            toast(err && err.message ? err.message : 'Could not delete folder', 'error');
+        }
     }
 
     async function pickFolderNative() {
@@ -2782,6 +2903,33 @@
     async function handlePromptSubmit(e) {
         e.preventDefault();
         const id = $('#promptId').value;
+
+        if (!id && state.librarySource && state.librarySource.type === 'vault') {
+            const vaultData = {
+                title: (() => { const t = $('#promptTitle').value.trim(); return isTitleCase(t) ? t : toTitleCase(t); })(),
+                content: $('#promptContent').value.trim(),
+                categories: getChipCategories().join(','),
+                tags: getTagInputValues('tagsTagInput').join(','),
+                path: state.vaultBrowsePath || '',
+            };
+            if (!vaultData.title || !vaultData.content) {
+                toast('Title and content are required', 'warning');
+                return;
+            }
+            try {
+                await api(`/vaults/${state.librarySource.vaultId}/prompts`, {
+                    method: 'POST',
+                    body: vaultData,
+                });
+                closePromptModal();
+                await loadVaultBrowseData();
+                toast('Prompt created in vault', 'success');
+            } catch (err) {
+                toast(err && err.message ? err.message : 'Could not save prompt', 'error');
+            }
+            return;
+        }
+
         // Free tier prompt limit
         if (!id && !state.isPremium && state.prompts.length >= FREE_LIMITS.prompts) {
             toast(`Free plan limit: ${FREE_LIMITS.prompts} prompts. Upgrade to Pro for unlimited.`, 'warning');
@@ -4702,6 +4850,15 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
         $('#surpriseMeBtn')?.addEventListener('click', handleSurpriseMe);
         $('#addVaultBtn')?.addEventListener('click', addVaultFromPrompt);
         renderVaultSwitcher();
+        $('#promptsContainer')?.addEventListener('click', (e) => {
+            const tile = e.target.closest('[data-vault-folder]');
+            if (tile) navigateVaultFolder(tile.dataset.vaultFolder);
+        });
+        window.addEventListener('focus', () => {
+            if (state.librarySource && state.librarySource.type === 'vault') {
+                rescanCurrentVault(true);
+            }
+        });
         $('#newFolderBtn')?.addEventListener('click', (e) => {
             e.stopPropagation();
             openNewFolderModal();
