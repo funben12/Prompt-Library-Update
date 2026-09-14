@@ -548,6 +548,8 @@
   }
   .filter-list-item:hover { background: var(--surface-3); }
   .filter-list-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .filter-list-item .folder-mini-btn { margin-left: auto; opacity: 0; flex-shrink: 0; }
+  .filter-list-item:hover .folder-mini-btn { opacity: 1; }
   .filter-list-item .filter-count {
     margin-left: auto;
     font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums;

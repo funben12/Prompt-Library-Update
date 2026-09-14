@@ -1110,7 +1110,9 @@
             const active = current.type === 'vault' && current.vaultId === v.id;
             rows.push(
                 `<div class="filter-list-item${active ? ' active' : ''}" data-source-vault="${v.id}" data-vault-name="${escapeAttr(v.name)}">` +
-                `<span class="material-symbols-outlined">folder_special</span><span>${escapeHtml(v.name)}</span></div>`
+                `<span class="material-symbols-outlined">folder_special</span><span>${escapeHtml(v.name)}</span>` +
+                `<button class="folder-mini-btn danger" data-remove-vault="${v.id}" data-remove-vault-name="${escapeAttr(v.name)}" title="Remove vault (keeps the files on disk)">` +
+                `<span class="material-symbols-outlined">close</span></button></div>`
             );
         });
         list.innerHTML = rows.join('');
@@ -1124,6 +1126,27 @@
                 vaultName: el.dataset.vaultName,
             }));
         });
+        list.querySelectorAll('[data-remove-vault]').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeVaultFromSwitcher(parseInt(el.dataset.removeVault, 10), el.dataset.removeVaultName);
+            });
+        });
+    }
+
+    async function removeVaultFromSwitcher(vaultId, vaultName) {
+        if (!confirm(`Remove "${vaultName}" from the sidebar? This only forgets the connection -- the folder and its files stay on disk untouched.`)) return;
+        try {
+            await api(`/vaults/${vaultId}`, { method: 'DELETE' });
+            if (state.librarySource && state.librarySource.type === 'vault' && state.librarySource.vaultId === vaultId) {
+                await switchLibrarySource({ type: 'db' });
+            } else {
+                await renderVaultSwitcher();
+            }
+            toast('Vault removed from sidebar', 'success');
+        } catch (err) {
+            toast(err && err.message ? err.message : 'Could not remove vault', 'error');
+        }
     }
 
     async function switchLibrarySource(source) {
