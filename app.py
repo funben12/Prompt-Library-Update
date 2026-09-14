@@ -907,15 +907,41 @@ def get_vaults():
     return jsonify([dict(r) for r in rows])
 
 
+_INVALID_FOLDER_CHARS = re.compile(r'[<>:"/\\|?*]')
+
+
+def _sanitize_folder_name(name):
+    cleaned = _INVALID_FOLDER_CHARS.sub('-', name).strip().rstrip('. ')
+    return cleaned or 'Vault'
+
+
 @app.route('/api/vaults', methods=['POST'])
 def create_vault():
     data = request.json
     name = (data.get('name') or '').strip()
-    path = (data.get('path') or '').strip()
-    if not name or not path:
-        return jsonify({'error': 'name and path are required'}), 400
-    if not os.path.isdir(path):
-        return jsonify({'error': f'Folder not found: {path}'}), 400
+    create_new = bool(data.get('create_new'))
+    if not name:
+        return jsonify({'error': 'name is required'}), 400
+    if create_new:
+        parent_path = (data.get('parent_path') or '').strip()
+        if not parent_path:
+            return jsonify({'error': 'parent_path is required'}), 400
+        if not os.path.isdir(parent_path):
+            return jsonify({'error': f'Folder not found: {parent_path}'}), 400
+        folder_name = _sanitize_folder_name(name)
+        path = os.path.join(parent_path, folder_name)
+        if os.path.exists(path):
+            return jsonify({'error': f'"{folder_name}" already exists there'}), 400
+        try:
+            os.makedirs(path)
+        except OSError as e:
+            return jsonify({'error': f'Could not create folder: {e}'}), 400
+    else:
+        path = (data.get('path') or '').strip()
+        if not path:
+            return jsonify({'error': 'path is required'}), 400
+        if not os.path.isdir(path):
+            return jsonify({'error': f'Folder not found: {path}'}), 400
     conn = get_db()
     try:
         cur = conn.execute('INSERT INTO vaults (name, path) VALUES (?, ?)', (name, path))

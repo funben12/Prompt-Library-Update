@@ -53,6 +53,18 @@ def _init_logging(primary_dir):
 
 _log_path = _init_logging(_log_dir)
 
+
+class Api:
+    """Bridge exposed to the frontend as window.pywebview.api.* -- native OS
+    dialogs the browser sandbox can't open on its own."""
+
+    def pick_folder(self):
+        result = webview.windows[0].create_file_dialog(webview.FOLDER_DIALOG)
+        if result:
+            return result[0]
+        return None
+
+
 HOST = '127.0.0.1'
 PORT = 5000
 
@@ -153,6 +165,7 @@ if __name__ == '__main__':
         resizable=True,
         maximized=True,
         min_size=(900, 600),
+        js_api=Api(),
     )
     webview.start() # enables the devtools console with error logging
 

@@ -1121,8 +1121,49 @@
         await loadPrompts();
     }
 
+    async function pickFolderNative() {
+        // Returns a path string, null (user cancelled), or undefined (no native
+        // dialog available -- e.g. running in a plain browser tab during dev).
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.pick_folder) {
+            try {
+                return await window.pywebview.api.pick_folder();
+            } catch {
+                return null;
+            }
+        }
+        return undefined;
+    }
+
     async function addVaultFromPrompt() {
-        const path = prompt('Vault folder path (must already exist):');
+        const createNew = confirm(
+            'Create a brand new vault folder?\n\nOK = create a new folder\nCancel = connect an existing folder'
+        );
+
+        if (createNew) {
+            const name = prompt('Name this vault:');
+            if (!name || !name.trim()) return;
+            let parent = await pickFolderNative();
+            if (parent === undefined) {
+                parent = prompt('Where should this vault live? (parent folder path)');
+            }
+            if (!parent || !parent.trim()) return;
+            try {
+                await api('/vaults', {
+                    method: 'POST',
+                    body: { name: name.trim(), parent_path: parent.trim(), create_new: true },
+                });
+                await renderVaultSwitcher();
+                toast('Vault created', 'success');
+            } catch (err) {
+                toast(err && err.message ? err.message : 'Could not create that vault', 'error');
+            }
+            return;
+        }
+
+        let path = await pickFolderNative();
+        if (path === undefined) {
+            path = prompt('Vault folder path (must already exist):');
+        }
         if (!path || !path.trim()) return;
         const defaultName = path.trim().split(/[\\/]/).filter(Boolean).pop() || 'Vault';
         const name = prompt('Name this vault:', defaultName);
@@ -1132,7 +1173,7 @@
             await renderVaultSwitcher();
             toast('Vault connected', 'success');
         } catch (err) {
-            toast('Could not connect that folder as a vault', 'error');
+            toast(err && err.message ? err.message : 'Could not connect that folder as a vault', 'error');
         }
     }
 
