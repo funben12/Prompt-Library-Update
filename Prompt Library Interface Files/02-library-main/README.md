@@ -8,8 +8,8 @@ the live app still runs from `static/index.html`, `static/app.css`, `static/app.
 | File | What it is |
 |---|---|
 | `markup.html` | The exact HTML block for this view, dedented. Root element: `#main` |
-| `styles.css` | CSS rules from `static/app.css` whose selectors target this view's ids / view-specific classes (105 rules) |
-| `script.js` | Top-level functions from `static/app.js` that reference this view's ids or carry its name prefix (26 functions) |
+| `styles.css` | CSS rules from `static/app.css` whose selectors target this view's ids / view-specific classes (108 rules) |
+| `script.js` | Top-level functions from `static/app.js` that reference this view's ids or carry its name prefix (27 functions) |
 | `preview.html` | Standalone page that loads `_shared` + the three files above, for isolated visual work |
 
 ## Source locations
@@ -26,8 +26,9 @@ the live app still runs from `static/index.html`, `static/app.css`, `static/app.
 - `clearFilterPill()`
 - `refreshActivePill()`
 - `renderPrompts()`
-- `renderBulkToolbar()`
-- `renderPromptCard()`
+- `renderFolders()`
+- `switchLibrarySource()`
+- `renderVaultBrowseUI()`
 - `openDetail()`
 - `renderDetailPanel()`
 - `_updateVarLivePreview()`

@@ -2,10 +2,11 @@
 
 /* =============================================================
    WORKSPACE SUITE — Quick Fill, Auditor, Diff Lens, Cost Lens,
-   Library Pulse, Prompt X-Ray, Prompt Splicer (2026-07)
+   Library Organizer, Prompt X-Ray, Prompt Splicer (2026-07)
    ============================================================= */
 #fillWorkspace, #auditWorkspace, #diffWorkspace, #costWorkspace,
-#pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace {
+#pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace,
+#taxonomyWorkspace, #versionWorkspace {
   display: none;
   position: fixed;
   inset: 0;
@@ -16,7 +17,8 @@
 
 #fillWorkspace.open, #auditWorkspace.open, #diffWorkspace.open, #costWorkspace.open,
 #pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open,
-#batchWorkspace.open, #boardWorkspace.open { display: flex; }
+#batchWorkspace.open, #boardWorkspace.open, #taxonomyWorkspace.open,
+#versionWorkspace.open { display: flex; }
 
 /* ── Diff Lens ── */
 .dif-body { display: flex; flex-direction: column; flex: 1; overflow-y: auto; padding: var(--sp-4) var(--sp-5); gap: var(--sp-3); }

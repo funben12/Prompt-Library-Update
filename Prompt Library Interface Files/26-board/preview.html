@@ -48,6 +48,21 @@
         <div class="board-pins-body" id="boardPinsBody"></div>
       </div>
     </div>
+    <div class="board-pin-lightbox" id="boardPinLightbox" hidden>
+      <div class="board-pin-lightbox-backdrop" id="boardPinLightboxBackdrop"></div>
+      <div class="board-pin-lightbox-card" role="dialog" aria-modal="true" aria-label="Pinned prompt preview">
+        <div class="board-pin-lightbox-head">
+          <h3 id="boardLightboxTitle"></h3>
+          <button class="icon-btn" id="boardLightboxCloseBtn" aria-label="Close preview"><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <p class="board-pin-lightbox-desc" id="boardLightboxDesc"></p>
+        <pre class="board-pin-lightbox-content" id="boardLightboxContent"></pre>
+        <div class="board-pin-lightbox-actions">
+          <button class="btn btn-accent" id="boardLightboxCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy</button>
+          <button class="btn btn-ghost" id="boardLightboxOpenBtn">Open full editor</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 

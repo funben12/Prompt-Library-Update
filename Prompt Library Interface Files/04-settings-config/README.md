@@ -20,7 +20,7 @@ the live app still runs from `static/index.html`, `static/app.css`, `static/app.
 
 ## Functions in `script.js`
 
-- `initConfigPanel()`
+- `loadConfigSettings()`
 
 ## Editing workflow
 

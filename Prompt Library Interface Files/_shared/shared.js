@@ -406,75 +406,167 @@
             if (el) el.textContent = val;
         };
 
-    function bulkSelectAll() {
-        getFilteredPrompts().forEach(p => _bulkSelection.add(p.id));
+    function toggleBulkSelect(id) {
+        if (_bulkSelection.has(id)) _bulkSelection.delete(id);
+        else _bulkSelection.add(id);
+        renderBulkToolbar();
+    }
+
+    
+
+    function bulkDeselectAll() {
+        _bulkSelection.clear();
         renderPrompts();
         renderBulkToolbar();
     }
 
     
 
-    async function bulkMove(folderId) {
-        if (!_bulkSelection.size) return;
+    async function bulkAddTag(tag) {
+        if (!tag || !_bulkSelection.size) return;
         try {
             const result = await api('/prompts/bulk', {
                 method: 'PATCH',
-                body: { ids: Array.from(_bulkSelection), action: 'move_folder', folder_id: folderId }
+                body: { ids: Array.from(_bulkSelection), action: 'add_tag', tag }
             });
-            if (result.failed > 0) toast(result.success + ' moved, ' + result.failed + ' failed', 'warning');
-            else toast(result.success + ' prompt' + (result.success !== 1 ? 's' : '') + ' moved', 'success');
+            if (result.failed > 0) toast(result.success + ' tagged, ' + result.failed + ' failed', 'warning');
+            else toast(result.success + ' prompt' + (result.success !== 1 ? 's' : '') + ' tagged', 'success');
             bulkDeselectAll();
             await loadPrompts();
+            await loadFilterOptions();
         } catch {
-            toast('Bulk move failed', 'error');
+            toast('Bulk tag failed', 'error');
         }
     }
 
     
 
-    function renderEmptyState() {
-        const isSearching = !!state.search.trim();
-        if (isSearching) {
-            return `
-      <div class="empty">
-        <div class="empty-eyebrow">No matches</div>
-        <h2>Nothing found for &ldquo;<em>${escapeHtml(state.search)}</em>&rdquo;</h2>
-        <p>Try a different word, or clear the search to see your full library.</p>
-      </div>`;
+    async function bulkDelete() {
+        if (!_bulkSelection.size) return;
+        const count = _bulkSelection.size;
+        if (!confirm('Delete ' + count + ' prompt' + (count !== 1 ? 's' : '') + '? This cannot be undone.')) return;
+        try {
+            const result = await api('/prompts/bulk', {
+                method: 'DELETE',
+                body: { ids: Array.from(_bulkSelection) }
+            });
+            if (result.failed > 0) toast(result.success + ' deleted, ' + result.failed + ' failed', 'warning');
+            else toast(result.success + ' prompt' + (result.success !== 1 ? 's' : '') + ' deleted', 'success');
+            bulkDeselectAll();
+            await loadPrompts();
+            await loadFilterOptions();
+        } catch {
+            toast('Bulk delete failed', 'error');
         }
-        if (state.view === 'favorites') {
-            return `
-      <div class="empty">
-        <div class="empty-eyebrow">Favourites</div>
-        <h2>You haven&rsquo;t starred anything <em>yet</em></h2>
-        <p>Click the star icon on any prompt to keep your most-used ones close to hand.</p>
-      </div>`;
+    }
+
+    
+
+    function renderGroupedByFolder(prompts) {
+        const groups = new Map();
+        for (const p of prompts) {
+            const key = p.folder_id || 0;
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(p);
         }
-        return `
-    <div class="empty">
-      <div class="empty-shell">
-        <div>
-          <div class="empty-eyebrow">Library</div>
-          <h2>A clean page, ready for your first <em>prompt</em>.</h2>
-          <p>Save the prompts you actually use - the ones you keep rewriting in chat boxes - and they&rsquo;ll be one click away forever.</p>
-          <div class="empty-actions">
-            <button class="btn btn-accent" onclick="window.PL_openNewPromptModal()">
-              <span class="material-symbols-outlined">add</span>
-              Write your first prompt
-            </button>
-            <button class="btn" onclick="window.PL_loadStarters()">
-              <span class="material-symbols-outlined">auto_awesome</span>
-              Load starter set
-            </button>
-          </div>
-        </div>
-        <div class="empty-proof">
-          <div class="empty-proof-item"><span class="material-symbols-outlined">edit_note</span><span>Draft, refine, and keep the prompts that become part of your working practice.</span></div>
-          <div class="empty-proof-item"><span class="material-symbols-outlined">data_object</span><span>Use variables such as <code>[[client]]</code> so each prompt is ready to fill and copy.</span></div>
-          <div class="empty-proof-item"><span class="material-symbols-outlined">archive</span><span>Organise by folder, tag, colour, rating, and usage without leaving your local machine.</span></div>
-        </div>
+        const sortedKeys = Array.from(groups.keys()).sort((a, b) => {
+            if (a === 0) return -1;
+            if (b === 0) return 1;
+            const fa = state.folders.find(f => f.id === a)?.name || '';
+            const fb = state.folders.find(f => f.id === b)?.name || '';
+            return fa.localeCompare(fb);
+        });
+
+        return sortedKeys.map(key => {
+            const folder = state.folders.find(f => f.id === key);
+            const name = folder ? folder.name : 'Unfiled';
+            const items = groups.get(key);
+            return `
+      <div class="folder-group-header">
+        <h3>${escapeHtml(name)}</h3>
+        <span class="count">${items.length}</span>
       </div>
-    </div>`;
+      ${items.map(renderPromptCard).join('')}`;
+        }).join('');
+    }
+
+    
+
+    async function loadVaultBrowseData() {
+        if (!(state.librarySource && state.librarySource.type === 'vault')) return;
+        try {
+            state.vaultFolders = await api(`/vaults/${state.librarySource.vaultId}/folders?path=${encodeURIComponent(state.vaultBrowsePath || '')}`);
+        } catch {
+            state.vaultFolders = [];
+        }
+        renderVaultBrowseUI();
+        await loadPrompts();
+    }
+
+    
+
+    async function deleteCurrentVaultFolder() {
+        const path = state.vaultBrowsePath;
+        if (!path) return;
+        const name = path.split('/').pop();
+        if (!confirm(`Delete folder "${name}" and everything inside it? This deletes the files on disk and cannot be undone.`)) return;
+        const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+        try {
+            await api(`/vaults/${state.librarySource.vaultId}/folders`, {
+                method: 'DELETE',
+                body: { path },
+            });
+            toast('Folder deleted', 'success');
+            state.vaultBrowsePath = parent;
+            await loadVaultBrowseData();
+        } catch (err) {
+            toast(err && err.message ? err.message : 'Could not delete folder', 'error');
+        }
+    }
+
+    
+
+    async function addVaultFromPrompt() {
+        const createNew = confirm(
+            'Create a brand new local library folder?\n\nOK = create a new folder\nCancel = connect an existing folder'
+        );
+
+        if (createNew) {
+            const name = prompt('Name this local library:');
+            if (!name || !name.trim()) return;
+            let parent = await pickFolderNative();
+            if (parent === undefined) {
+                parent = prompt('Where should this local library live? (parent folder path)');
+            }
+            if (!parent || !parent.trim()) return;
+            try {
+                await api('/vaults', {
+                    method: 'POST',
+                    body: { name: name.trim(), parent_path: parent.trim(), create_new: true },
+                });
+                await renderVaultSwitcher();
+                toast('Local library created', 'success');
+            } catch (err) {
+                toast(err && err.message ? err.message : 'Could not create that local library', 'error');
+            }
+            return;
+        }
+
+        let path = await pickFolderNative();
+        if (path === undefined) {
+            path = prompt('Local library folder path (must already exist):');
+        }
+        if (!path || !path.trim()) return;
+        const defaultName = path.trim().split(/[\\/]/).filter(Boolean).pop() || 'Local Library';
+        const name = prompt('Name this local library:', defaultName);
+        if (!name || !name.trim()) return;
+        try {
+            await api('/vaults', { method: 'POST', body: { name: name.trim(), path: path.trim() } });
+            await renderVaultSwitcher();
+            toast('Local library connected', 'success');
+        } catch (err) {
+            toast(err && err.message ? err.message : 'Could not connect that folder as a local library', 'error');
+        }
     }
 
     
@@ -522,6 +614,8 @@
 
     
 
+
+    /* ---- Variable type interaction helpers (Tags / Toggle Group / Star Rating / Checklist / Range) ---- */
     window._PL_addTagKey = function(evt, input) {
         if (evt.key !== 'Enter') return;
         evt.preventDefault();
@@ -559,10 +653,16 @@
 
     window._PL_selectToggle = function(btn) {
         const group = btn.closest('.var-toggle-group');
-        group.querySelectorAll('.var-toggle-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
         const hidden = group.querySelector('.var-toggle-hidden');
-        hidden.value = btn.dataset.value;
+        if (group.dataset.multi === '1') {
+            btn.classList.toggle('active');
+            const active = Array.from(group.querySelectorAll('.var-toggle-btn.active')).map(b => b.dataset.value);
+            hidden.value = active.join(', ');
+        } else {
+            group.querySelectorAll('.var-toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            hidden.value = btn.dataset.value;
+        }
         hidden.dispatchEvent(new Event('input', {
             bubbles: true
         }));
@@ -583,6 +683,68 @@
         hidden.dispatchEvent(new Event('input', {
             bubbles: true
         }));
+    };
+
+    window._PL_selectIcon = function(el) {
+        const wrap = el.closest('.var-icon-picker');
+        wrap.querySelectorAll('.var-icon-choice').forEach(i => i.classList.remove('active'));
+        el.classList.add('active');
+        const hidden = wrap.querySelector('.var-icon-hidden');
+        hidden.value = el.dataset.value;
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    window._PL_selectEmoji = function(el) {
+        const wrap = el.closest('.var-emoji-picker');
+        wrap.querySelectorAll('.var-emoji-choice').forEach(i => i.classList.remove('active'));
+        el.classList.add('active');
+        const hidden = wrap.querySelector('.var-emoji-hidden');
+        hidden.value = el.dataset.value;
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    window._PL_selectMatrixCell = function(el) {
+        const wrap = el.closest('.var-matrix');
+        const row = el.closest('.var-matrix-row');
+        const rowKey = row.dataset.row;
+        const col = parseInt(el.dataset.col, 10);
+        row.querySelectorAll('.var-matrix-cell').forEach(c => c.classList.remove('active'));
+        el.classList.add('active');
+        const hidden = wrap.querySelector('.var-matrix-hidden');
+        let val = {};
+        try { val = hidden.value ? JSON.parse(hidden.value) : {}; } catch (e) { val = {}; }
+        val[rowKey] = col;
+        hidden.value = JSON.stringify(val);
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    window._PL_rankDragStart = function(evt) {
+        _rankDragEl = evt.target.closest('.var-ranked-item');
+        evt.dataTransfer.effectAllowed = 'move';
+    };
+
+    window._PL_rankDragOver = function(evt) {
+        evt.preventDefault();
+    };
+
+    window._PL_rankDrop = function(evt) {
+        evt.preventDefault();
+        const target = evt.target.closest('.var-ranked-item');
+        if (!target || !_rankDragEl || target === _rankDragEl) return;
+        const list = target.closest('.var-ranked-list');
+        if (_rankDragEl.closest('.var-ranked-list') !== list) return;
+        const items = Array.from(list.querySelectorAll('.var-ranked-item'));
+        const dragIdx = items.indexOf(_rankDragEl);
+        const dropIdx = items.indexOf(target);
+        if (dragIdx < dropIdx) target.after(_rankDragEl);
+        else target.before(_rankDragEl);
+        list.querySelectorAll('.var-ranked-item').forEach((el, i) => {
+            el.querySelector('.var-ranked-num').textContent = i + 1;
+        });
+        const hidden = list.querySelector('.var-ranked-hidden');
+        hidden.value = Array.from(list.querySelectorAll('.var-ranked-item')).map(el => el.dataset.value).join(', ');
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+        _rankDragEl = null;
     };
 
     function switchDetailTab(name) {
@@ -677,6 +839,10 @@
     
 
     async function toggleFav(id) {
+        if (state.librarySource && state.librarySource.type === 'vault') {
+            toast('Favouriting local library prompts is not available yet', 'info');
+            return;
+        }
         try {
             await api(`/prompts/${id}/favorite`, {
                 method: 'POST'
@@ -725,7 +891,19 @@
 
     
 
+    function insertVaultPromptTemplate() {
+        const field = $('#promptContent');
+        if (!field) return;
+        if (field.value.trim() && !confirm('Replace the current content with the template?')) return;
+        field.value = VAULT_PROMPT_TEMPLATE;
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        field.focus();
+    }
+
+    
+
     function openNewPromptModal() {
+        _editingVaultPath = null;
         $('#modalTitle').textContent = 'New prompt';
         $('#submitBtnText').textContent = 'Create prompt';
         $('#promptId').value = '';
@@ -772,6 +950,7 @@
         updateTokenCounter('');
         $('#promptModal').classList.add('active');
         refreshModalCategories(); // sync chips with DB categories
+        updateVaultTemplateBtnVisibility(!!(state.librarySource && state.librarySource.type === 'vault'));
         setTimeout(() => $('#promptTitle').focus(), 50);
     }
     
@@ -782,9 +961,130 @@
     }
     
 
+    async function editPrompt(id) {
+        if (state.librarySource && state.librarySource.type === 'vault') {
+            const p = state.prompts.find(x => x.id === id);
+            if (!p) { toast('Could not find that local library prompt', 'error'); return; }
+            _editingVaultPath = p.relative_path;
+            updateVaultTemplateBtnVisibility(false);
+            $('#modalTitle').textContent = 'Edit local library prompt';
+            $('#submitBtnText').textContent = 'Save changes';
+            $('#promptId').value = '';
+            $('#promptTitle').value = p.title || '';
+            $('#promptDesc').value = '';
+            $('#promptContent').value = p.content || '';
+            resetCategoryChips();
+            setChipCategories(p.categories || []);
+            resetTagInput('tagsTagInput');
+            setTagInputValues('tagsTagInput', p.tags || []);
+            updateEditorPreview();
+            updateTokenCounter(p.content || '');
+            renderVarMetaList({});
+            switchEditorTab('variables');
+            switchPromptBlockTab('system');
+            $('#promptModal').classList.add('active');
+            setTimeout(() => $('#promptTitle').focus(), 50);
+            return;
+        }
+        try {
+            const p = await api(`/prompts/${id}`);
+            updateVaultTemplateBtnVisibility(false);
+            $('#modalTitle').textContent = 'Edit prompt';
+            $('#submitBtnText').textContent = 'Save changes';
+            $('#promptId').value = p.id;
+            $('#promptTitle').value = p.title || '';
+            $('#promptDesc').value = p.description || '';
+            $('#promptContent').value = p.content || '';
+            setChipCategories(p.categories || []);
+            setTagInputValues('tagsTagInput', p.tags || []);
+            $('#promptColour').value = p.colour_label || '';
+            $('#promptRating').value = String(p.rating || 0);
+            $('#promptNotes').value = p.notes || '';
+            $('#promptChainIds').value = JSON.stringify(p.chain_ids || []);
+            $('#promptChatTurns').value = JSON.stringify(p.chat_turns || []);
+
+            // Colour swatches
+            $$('.swatch').forEach(s => s.classList.toggle('active', s.dataset.colour === (p.colour_label || '')));
+
+            // Folder dropdown
+            updateFolderDropdown();
+            $('#promptFolder').value = p.folder_id || '';
+
+            // Role dropdown
+            await updateRoleDropdown(p.role_id || null);
+            $('#promptRoleId').value = p.role_id || '';
+
+            // Stars
+            renderStars($('#editorStars'), p.rating || 0, (val) => {
+                $('#promptRating').value = val;
+            });
+
+            // Live preview + var list
+            updateEditorPreview();
+            updateTokenCounter(p.content || '');
+            renderVarMetaList(p.variable_meta || {});
+
+            // Chain
+            renderChainEditor(p.chain_ids || []);
+            updateChainSelect(p.id);
+
+            // Chat turns — switch to conversation pane if turns exist
+            renderChatTurns(p.chat_turns || []);
+            if ((p.chat_turns || []).length > 0) {
+                switchPromptBlockTab('conversation');
+            } else {
+                switchPromptBlockTab('system');
+            }
+
+            switchEditorTab('variables');
+            $('#promptModal').classList.add('active');
+        } catch (err) {
+            toast('Could not load prompt for editing', 'error');
+        }
+    }
+    
+
     async function handlePromptSubmit(e) {
         e.preventDefault();
         const id = $('#promptId').value;
+
+        if (!id && state.librarySource && state.librarySource.type === 'vault') {
+            const vaultData = {
+                title: (() => { const t = $('#promptTitle').value.trim(); return isTitleCase(t) ? t : toTitleCase(t); })(),
+                content: $('#promptContent').value.trim(),
+                categories: getChipCategories().join(','),
+                tags: getTagInputValues('tagsTagInput').join(','),
+            };
+            if (!vaultData.title || !vaultData.content) {
+                toast('Title and content are required', 'warning');
+                return;
+            }
+            const vaultId = state.librarySource.vaultId;
+            const editingPath = _editingVaultPath;
+            try {
+                if (editingPath) {
+                    await api(`/vaults/${vaultId}/prompts/${encodeVaultPath(editingPath)}`, {
+                        method: 'PUT',
+                        body: vaultData,
+                    });
+                    _editingVaultPath = null;
+                    toast('Prompt updated', 'success');
+                } else {
+                    vaultData.path = state.vaultBrowsePath || '';
+                    await api(`/vaults/${vaultId}/prompts`, {
+                        method: 'POST',
+                        body: vaultData,
+                    });
+                    toast('Prompt created in local library', 'success');
+                }
+                closePromptModal();
+                await loadVaultBrowseData();
+            } catch (err) {
+                toast(err && err.message ? err.message : 'Could not save prompt', 'error');
+            }
+            return;
+        }
+
         // Free tier prompt limit
         if (!id && !state.isPremium && state.prompts.length >= FREE_LIMITS.prompts) {
             toast(`Free plan limit: ${FREE_LIMITS.prompts} prompts. Upgrade to Pro for unlimited.`, 'warning');
@@ -866,9 +1166,9 @@
             list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
             return;
         }
-        const OPTIONS_TYPES = ['dropdown', 'checkbox', 'togglegroup'];
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'checkbox', 'togglegroup', 'rankedlist', 'matrix'];
         const meta = existing || collectVarMeta();
-        list.innerHTML = vars.map(v => {
+        list.innerHTML = vars.map((v, index) => {
             const m = meta[v] || {};
             const type = m.type || 'text';
             const def = m.default || '';
@@ -877,9 +1177,17 @@
             const opts = (m.options || []).join(', ');
             const needsOptions = OPTIONS_TYPES.includes(type);
             return `
-      <div class="var-meta-row" data-var="${escapeAttr(v)}">
-        <div class="var-meta-head">
+      <details class="var-meta-row" data-var="${escapeAttr(v)}" ${index === 0 ? 'open' : ''}>
+        <summary class="var-meta-summary">
+          <span class="material-symbols-outlined var-meta-chevron">expand_more</span>
           <span class="var-meta-name">${escapeHtml(v)}</span>
+          <span class="var-meta-type-pill">${escapeHtml(type)}</span>
+          ${def ? `<span class="var-meta-default">${escapeHtml(def)}</span>` : ''}
+          <span class="var-meta-visible-state">${visible ? 'Shown' : 'Hidden'}</span>
+        </summary>
+        <div class="var-meta-body">
+        <div class="var-meta-head">
+          <span class="var-meta-subtitle">Variable settings</span>
           <label class="visibility-toggle">
             <input type="checkbox" data-field="visible" ${visible ? 'checked' : ''} />
             <span class="material-symbols-outlined" style="font-size: 14px;">visibility</span>
@@ -891,7 +1199,6 @@
             <optgroup label="Text">
             <option value="text"      ${type === 'text'      ? 'selected' : ''}>Text</option>
             <option value="paragraph" ${type === 'paragraph' ? 'selected' : ''}>Paragraph</option>
-            <option value="markdown"  ${type === 'markdown'  ? 'selected' : ''}>Markdown</option>
             <option value="code"      ${type === 'code'      ? 'selected' : ''}>Code</option>
             <option value="password"  ${type === 'password'  ? 'selected' : ''}>Password</option>
             </optgroup>
@@ -903,23 +1210,36 @@
             <optgroup label="Input">
             <option value="number"     ${type === 'number'     ? 'selected' : ''}>Number</option>
             <option value="date"       ${type === 'date'       ? 'selected' : ''}>Date</option>
+            <option value="datetime"   ${type === 'datetime'   ? 'selected' : ''}>Date & Time</option>
+            <option value="month"      ${type === 'month'      ? 'selected' : ''}>Month</option>
+            <option value="week"       ${type === 'week'       ? 'selected' : ''}>Week</option>
             <option value="time"       ${type === 'time'       ? 'selected' : ''}>Time</option>
             <option value="color"      ${type === 'color'      ? 'selected' : ''}>Color</option>
             <option value="currency"   ${type === 'currency'   ? 'selected' : ''}>Currency</option>
-            <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
-            <option value="filepath"   ${type === 'filepath'   ? 'selected' : ''}>File Path</option>
-            <option value="imageurl"   ${type === 'imageurl'   ? 'selected' : ''}>Image URL</option>
+            <option value="duration"   ${type === 'duration'   ? 'selected' : ''}>Duration</option>
+            <option value="timezone"   ${type === 'timezone'   ? 'selected' : ''}>Timezone</option>
+            <option value="language"   ${type === 'language'   ? 'selected' : ''}>Language</option>
+            <option value="json"       ${type === 'json'       ? 'selected' : ''}>JSON</option>
             </optgroup>
             <optgroup label="Choice">
             <option value="dropdown"    ${type === 'dropdown'    ? 'selected' : ''}>Dropdown</option>
+            <option value="multiselect" ${type === 'multiselect' ? 'selected' : ''}>Multi-select</option>
+            <option value="radio"       ${type === 'radio'       ? 'selected' : ''}>Radio Buttons</option>
+            <option value="choicechips" ${type === 'choicechips' ? 'selected' : ''}>Choice Chips</option>
+            <option value="boolean"     ${type === 'boolean'     ? 'selected' : ''}>Yes / No Toggle</option>
             <option value="checkbox"    ${type === 'checkbox'    ? 'selected' : ''}>Checkbox List</option>
             <option value="tags"        ${type === 'tags'        ? 'selected' : ''}>Tags</option>
             <option value="togglegroup" ${type === 'togglegroup' ? 'selected' : ''}>Toggle Group</option>
             <option value="range"       ${type === 'range'       ? 'selected' : ''}>Range</option>
             </optgroup>
             <optgroup label="Advanced">
-            <option value="slider"    ${type === 'slider'    ? 'selected' : ''}>Slider</option>
-            <option value="rating"    ${type === 'rating'    ? 'selected' : ''}>Star Rating</option>
+            <option value="slider"      ${type === 'slider'      ? 'selected' : ''}>Slider</option>
+            <option value="rating"      ${type === 'rating'      ? 'selected' : ''}>Star Rating</option>
+            <option value="rangeslider" ${type === 'rangeslider' ? 'selected' : ''}>Range Slider (min-max)</option>
+            <option value="rankedlist"  ${type === 'rankedlist'  ? 'selected' : ''}>Ranked List</option>
+            <option value="iconpicker"  ${type === 'iconpicker'  ? 'selected' : ''}>Icon Picker</option>
+            <option value="matrix"      ${type === 'matrix'      ? 'selected' : ''}>Matrix / Likert Grid</option>
+            <option value="emojipicker" ${type === 'emojipicker' ? 'selected' : ''}>Emoji Picker</option>
             </optgroup>
           </select>
           <input type="text" data-field="default" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
@@ -932,11 +1252,18 @@
             <option value="tall"   ${size === 'tall'   ? 'selected' : ''}>Tall (10 rows)</option>
           </select>
         </div>
+        <div class="togglegroup-multi" style="display: ${type === 'togglegroup' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);cursor:pointer;">
+            <input type="checkbox" data-field="multi" ${m.multi ? 'checked' : ''} />
+            Allow multiple selections
+          </label>
+        </div>
         <div class="dropdown-options" style="display: ${needsOptions ? 'block' : 'none'};">
           <textarea data-field="options" placeholder="Comma-separated options" rows="2"
                     style="width: 100%; padding: 6px 10px; font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; color: var(--ink); margin-top: 4px;">${escapeHtml(opts)}</textarea>
         </div>
-      </div>`;
+        </div>
+      </details>`;
         }).join('');
     }
     
@@ -952,6 +1279,7 @@
             const options = optsEl?.value ?
                 optsEl.value.split(',').map(o => o.trim()).filter(Boolean) : [];
             const sizeEl = row.querySelector('[data-field="size"]');
+            const multiEl = row.querySelector('[data-field="multi"]');
             const entry = {
                 type,
                 default: def,
@@ -959,6 +1287,7 @@
                 options
             };
             if (type === 'paragraph' && sizeEl) entry.size = sizeEl.value;
+            if (type === 'togglegroup' && multiEl) entry.multi = multiEl.checked;
             meta[v] = entry;
         });
         return meta;
@@ -1042,7 +1371,52 @@
         $('#importForm').reset();
         _importFmt = 'json';
         _switchImportFmt('json');
+        const fsel = $('#importFolder');
+        if (fsel) {
+            fsel.innerHTML = '<option value="">No folder</option>' +
+                state.folders.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+        }
+        _smartPasteCandidates = [];
+        const results = $('#smartPasteResults');
+        if (results) results.innerHTML = '';
         $('#importModal').classList.add('active');
+    }
+
+    
+
+    window.PL_analyzeSmartPaste = async function() {
+        const raw = $('#importSmartContent').value.trim();
+        const results = $('#smartPasteResults');
+        if (!raw) {
+            toast('Paste some text first', 'warning');
+            return;
+        }
+        try {
+            const res = await api('/import/parse-raw', { method: 'POST', body: { text: raw } });
+            const candidates = res.candidates || [];
+            if (!candidates.length) {
+                results.innerHTML = '<p class="smart-paste-empty">No prompts detected. Check your paste.</p>';
+                return;
+            }
+            results.innerHTML = `<p class="smart-paste-count">${candidates.length} prompt${candidates.length !== 1 ? 's' : ''} found</p>` +
+                candidates.map(c => `
+        <div class="smart-paste-item" data-content="${escapeAttr(c.content)}">
+          <label class="smart-paste-item-head">
+            <input type="checkbox" class="smart-paste-include" checked />
+            <input type="text" class="smart-paste-title" value="${escapeAttr(c.title)}" />
+          </label>
+          <details class="smart-paste-excerpt">
+            <summary>Preview</summary>
+            <pre>${escapeHtml(c.content.slice(0, 400))}${c.content.length > 400 ? '…' : ''}</pre>
+          </details>
+        </div>`).join('');
+        } catch (err) {
+            toast('Could not analyze paste', 'error');
+        }
+    };
+
+    function closeImportModal() {
+        $('#importModal').classList.remove('active');
     }
 
     
@@ -1063,6 +1437,15 @@
         }
     };
 
+    window.PL_copyMarkdownTemplateShort = async function() {
+        try {
+            await navigator.clipboard.writeText(_MARKDOWN_TEMPLATE_SHORT_TEXT);
+            toast('Short template copied — paste into your AI’s custom instructions', 'success');
+        } catch {
+            toast('Copy failed', 'error');
+        }
+    };
+
     function _switchImportFmt(fmt) {
         _importFmt = fmt;
         $$('.import-fmt-tab').forEach(t => t.classList.toggle('active', t.dataset.fmt === fmt));
@@ -1070,7 +1453,8 @@
             json: '#importPanelJson',
             markdown: '#importPanelMarkdown',
             file: '#importPanelFile',
-            template: '#importPanelTemplate'
+            template: '#importPanelTemplate',
+            smart: '#importPanelSmart'
         };
         Object.entries(panels).forEach(([f, sel]) => {
             const el = $(sel);
@@ -1084,32 +1468,41 @@
 
     function parseMarkdownImport(md) {
         const prompts = [];
-        // Split on horizontal rules that separate prompts
-        const blocks = md.split(/\n---+\n/);
+        // Normalise blank-line-padded separators, then split on --- or === rules
+        const normalised = md.replace(/\n{2,}([-=]{3,})\n{2,}/g, '\n$1\n');
+        const blocks = normalised.split(/\n[-=]{3,}\n/);
         for (const block of blocks) {
             const lines = block.split('\n');
             let title = '',
                 description = '',
                 content = '',
                 categories = '',
-                tags = '';
+                tags = '',
+                firstNonEmpty = '';
             let inCode = false;
             const contentLines = [];
 
             for (const line of lines) {
+                const trimmed = line.trim();
+                if (!firstNonEmpty && trimmed && !inCode && !/^\*/.test(trimmed) && !/^```/.test(trimmed)) {
+                    firstNonEmpty = trimmed;
+                }
                 if (/^#{1,2}\s+/.test(line) && !inCode) {
                     title = line.replace(/^#{1,2}\s+/, '').trim();
-                } else if (/^\*[^*].*[^*]\*$/.test(line.trim()) && !inCode && !title === false) {
-                    description = line.trim().replace(/^\*|\*$/g, '').trim();
-                } else if (/^\*\*Categories:\*\*/.test(line) && !inCode) {
-                    categories = line.replace(/^\*\*Categories:\*\*/, '').trim();
-                } else if (/^\*\*Tags:\*\*/.test(line) && !inCode) {
-                    tags = line.replace(/^\*\*Tags:\*\*/, '').trim();
-                } else if (line.trim() === '```') {
+                } else if (/^\*[^*].*[^*]\*$/.test(trimmed) && !inCode) {
+                    description = trimmed.replace(/^\*|\*$/g, '').trim();
+                } else if (/^\*\*Categories\*\*:|^\*\*Categories:\*\*/i.test(trimmed) && !inCode) {
+                    categories = trimmed.replace(/^\*\*Categories\*\*:|^\*\*Categories:\*\*/i, '').trim();
+                } else if (/^\*\*Tags\*\*:|^\*\*Tags:\*\*/i.test(trimmed) && !inCode) {
+                    tags = trimmed.replace(/^\*\*Tags\*\*:|^\*\*Tags:\*\*/i, '').trim();
+                } else if (trimmed === '```') {
                     inCode = !inCode;
                 } else if (inCode) {
                     contentLines.push(line);
                 }
+            }
+            if (!title && firstNonEmpty) {
+                title = firstNonEmpty;
             }
             content = contentLines.join('\n').trim();
             if (title && content) {
@@ -1140,7 +1533,7 @@
                     toast('Invalid JSON — paste an array of prompt objects', 'warning');
                     return;
                 }
-                await _doImport(prompts);
+                await _doImport(_applyBatchFolder(prompts));
 
             } else if (_importFmt === 'markdown') {
                 const raw = $('#importMdContent').value.trim();
@@ -1149,7 +1542,7 @@
                     return;
                 }
                 const prompts = parseMarkdownImport(raw);
-                await _doImport(prompts);
+                await _doImport(_applyBatchFolder(prompts));
 
             } else if (_importFmt === 'file') {
                 const fileInput = $('#importFileInput');
@@ -1172,7 +1565,19 @@
                     // Markdown file
                     prompts = parseMarkdownImport(text);
                 }
-                await _doImport(prompts);
+                await _doImport(_applyBatchFolder(prompts));
+
+            } else if (_importFmt === 'smart') {
+                const rows = $$('#smartPasteResults .smart-paste-item').filter(row => row.querySelector('.smart-paste-include').checked);
+                if (!rows.length) {
+                    toast('No prompts selected to import', 'warning');
+                    return;
+                }
+                const prompts = rows.map(row => ({
+                    title: row.querySelector('.smart-paste-title').value.trim(),
+                    content: row.dataset.content
+                }));
+                await _doImport(_applyBatchFolder(prompts));
             }
         } catch (err) {
             console.error('import error:', err);
@@ -1352,7 +1757,7 @@
 
     
 
-    // Validate a key against the backend and persist it. Returns true on success.
+    // does NOT persist to DB. Call _saveLicenceKeyToDb() separately to persist.
     // Shared by the premium modal and the Settings licence panel.
     async function _validateAndStoreKey(key) {
         const result = await api('/licence/validate', {
@@ -1364,13 +1769,39 @@
         if (!result || !result.valid) return false;
         state.isPremium = true;
         state.licenceKey = key;
+        state.licenceSavedToDb = false;
+        applyPremiumState();
+        return true;
+    }
+
+    
+
+    // TODO before ship: decide whether activation should auto-save again, or
+    // keep this manual save-to-DB step. Tracked in project memory.
+    async function _saveLicenceKeyToDb() {
+        if (!state.licenceKey) return false;
         await api('/settings/licence', {
             method: 'POST',
             body: {
-                key
+                key: state.licenceKey
             }
         });
-        applyPremiumState();
+        state.licenceSavedToDb = true;
+        return true;
+    }
+
+    
+
+    // rest of this session (state.isPremium untouched) -- only DB persistence
+    // is undone, so it won't survive the next restart unless re-saved.
+    async function _unsaveLicenceKeyFromDb() {
+        await api('/settings/licence', {
+            method: 'POST',
+            body: {
+                key: ''
+            }
+        });
+        state.licenceSavedToDb = false;
         return true;
     }
 
@@ -1389,6 +1820,7 @@
                 if (result.valid) {
                     state.isPremium = true;
                     state.licenceKey = settings.licence;
+                    state.licenceSavedToDb = true;
                 }
             }
         } catch (err) {
@@ -1557,11 +1989,13 @@
             ['Prompt Auditor', 'fact_check', 'openAuditWorkspace', 'audit rubric score check'],
             ['Diff Lens', 'compare', 'openDiffWorkspace', 'diff compare two prompts'],
             ['Cost Lens', 'calculate', 'openCostWorkspace', 'tokens cost estimate price'],
-            ['Library Pulse', 'monitor_heart', 'openPulseWorkspace', 'health scan library quality'],
+            ['Library Organizer', 'monitor_heart', 'openPulseWorkspace', 'health scan library quality organize duplicates stale cleanup'],
             ['Prompt X-Ray', 'visibility', 'openXrayWorkspace', 'deconstruct analyse parts anatomy'],
             ['Prompt Splicer', 'call_merge', 'openSpliceWorkspace', 'merge combine two prompts'],
             ['Agents', 'smart_toy', 'openRolesWorkspace', 'agents roles personas ai'],
             ['Playground', 'science', 'openPlaygroundWorkspace', 'playground sessions test freeform'],
+            ['Taxonomy Studio', 'sell', 'openTaxonomyWorkspace', 'taxonomy domain use case organise tag'],
+            ['Version Timeline', 'history', 'openVersionWorkspace', 'version history restore baseline diff'],
         ];
         return table.map(([label, icon, fn, keywords]) => ({
             kind: 'workspace',
@@ -1990,6 +2424,48 @@
             toast('Could not update favourite', 'error');
         }
     };
+
+
+    /* ── Config Panel (API key storage) ─────────────────────────────────────── */
+    function _addProviderTab(slug, label) {
+        const existing = $(`.config-provider-tab[data-provider="${slug}"]`);
+        if (existing) return existing;
+        const tabsContainer = $('#configProviderTabs');
+        if (!tabsContainer) return null;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'config-provider-tab';
+        btn.dataset.provider = slug;
+        btn.textContent = label;
+        tabsContainer.appendChild(btn);
+        return btn;
+    }
+
+    
+
+        // Provider tab switching (delegated so dynamically-added tabs work too)
+        const tabsContainer = $('#configProviderTabs');
+        function _selectProviderTab(tab) {
+            $$('.config-provider-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            const provider = tab.dataset.provider;
+            const saved = localStorage.getItem(`pl_api_key_${provider}`) || '';
+            const input = $('#configApiKeyInput');
+            if (input) input.value = saved;
+            const needsEndpoint = !['openai','anthropic','gemini','openrouter','mistral','groq','deepseek','xai','cohere','perplexity'].includes(provider);
+            const modelRow = $('#configModelRow');
+            const modelInput = $('#configModelInput');
+            modelRow && (modelRow.style.display = (provider === 'openrouter' || needsEndpoint) ? '' : 'none');
+            if (modelInput) {
+                if (provider === 'openrouter') modelInput.value = localStorage.getItem('pl_openrouter_model') || '';
+                else if (needsEndpoint) modelInput.value = localStorage.getItem(`pl_model_${provider}`) || '';
+            }
+            const baseUrlRow = $('#configBaseUrlRow');
+            const baseUrlInput = $('#configBaseUrlInput');
+            baseUrlRow && (baseUrlRow.style.display = needsEndpoint ? '' : 'none');
+            if (baseUrlInput && needsEndpoint) baseUrlInput.value = localStorage.getItem(`pl_base_url_${provider}`) || '';
+        }
+        
 
     // Pull a JSON object out of an AI reply. Tolerates code fences, preamble
     // text, smart quotes and trailing commas. Throws with a usable reason.
@@ -2968,35 +3444,6 @@
 
     
 
-
-    // Repaint the Settings > Licence Key panel from state. Safe to call any time.
-    function refreshLicencePanel() {
-        const box = $('#licenceStatus');
-        const text = $('#licenceStatusText');
-        const btn = $('#licenceActivateBtn');
-        const input = $('#settingsLicenceKeyInput');
-        if (!box || !text || !btn || !input) return;
-
-        if (state.isPremium) {
-            box.style.borderLeftColor = 'var(--success)';
-            text.textContent = 'Licensed \u2014 Pro features unlocked';
-            text.style.color = 'var(--success)';
-            input.value = _maskLicenceKey(state.licenceKey);
-            input.disabled = true;
-            btn.disabled = true;
-            btn.innerHTML = '<span class="material-symbols-outlined">check</span> Activated';
-        } else {
-            box.style.borderLeftColor = 'var(--ink-3)';
-            text.textContent = 'Not licensed \u2014 enter your key to unlock Pro features';
-            text.style.color = 'var(--ink-3)';
-            input.disabled = false;
-            btn.disabled = false;
-            btn.innerHTML = '<span class="material-symbols-outlined">vpn_key</span> Activate Licence';
-        }
-    }
-
-    
-
         const run = async () => {
             if (btn.disabled) return;
             const key = input.value.trim();
@@ -3074,6 +3521,278 @@
             return [i + 1, ...vals, r.status, r.output].map(cell).join(',');
         });
         return [head, ...body].join('\n');
+    }
+
+    
+
+    async function _taxLoadTree() {
+        const list = $('#taxTreeList');
+        if (list) list.innerHTML = '<p class="hint">Loading…</p>';
+        try {
+            _taxState.domains = await api('/taxonomy');
+            _taxRenderTree();
+        } catch {
+            if (list) list.innerHTML = '<p class="hint">Couldn\'t load taxonomy — <a href="#" id="taxRetryLink">retry</a></p>';
+            $('#taxRetryLink')?.addEventListener('click', (e) => { e.preventDefault(); _taxLoadTree(); });
+        }
+    }
+
+    
+
+    async function _taxSelectNode(type, id) {
+        _taxState.selectedType = type;
+        _taxState.selectedId = id;
+        _taxState.tagPickerOpen = false;
+        _taxRenderTree();
+        await _taxRenderDetail();
+    }
+
+    
+
+    function _taxRenderTagPicker() {
+        const picker = $('#taxTagPicker');
+        if (!picker) return;
+        picker.innerHTML = `
+      <input type="text" class="forge-input" id="taxTagPickerSearch" placeholder="Search prompts…" value="${escapeAttr(_taxState.tagPickerQuery)}" />
+      <div class="tax-tag-picker-list" id="taxTagPickerList"></div>
+      <button class="btn btn-accent" id="taxTagPickerApply">Tag selected</button>`;
+        _taxRenderTagPickerList();
+        $('#taxTagPickerSearch')?.addEventListener('input', (e) => {
+            _taxState.tagPickerQuery = e.target.value;
+            _taxRenderTagPickerList();
+        });
+        $('#taxTagPickerApply')?.addEventListener('click', async () => {
+            const ids = _taxState.tagPickerSelection.slice();
+            if (!ids.length) { toast('Pick at least one prompt', 'warning'); return; }
+            try {
+                await api('/taxonomy/bulk-tag', { method: 'POST', body: { prompt_ids: ids, use_case_id: _taxState.selectedId, action: 'add' } });
+                toast(ids.length + ' prompt' + (ids.length !== 1 ? 's' : '') + ' tagged', 'success');
+                _taxState.tagPickerOpen = false;
+                _taxState.tagPickerSelection = [];
+                await _taxRenderDetail();
+            } catch {
+                toast('Could not tag prompts', 'error');
+            }
+        });
+    }
+
+    
+
+    async function _taxAddDomain() {
+        const name = prompt('Domain name:');
+        if (!name || !name.trim()) return;
+        try {
+            await api('/taxonomy/domains', { method: 'POST', body: { name: name.trim() } });
+            await _taxLoadTree();
+            toast('Domain added', 'success');
+        } catch {
+            toast('Could not add domain', 'error');
+        }
+    }
+
+    
+
+    async function _taxDeleteDomain(id) {
+        const d = _taxState.domains.find(x => x.id === id);
+        if (!confirm(`Delete domain "${d ? d.name : ''}" and all its use-cases? This can't be undone.`)) return;
+        try {
+            await api(`/taxonomy/domains/${id}`, { method: 'DELETE' });
+            if (_taxState.selectedType === 'domain' && _taxState.selectedId === id) {
+                _taxState.selectedType = null; _taxState.selectedId = null;
+            }
+            await _taxLoadTree();
+            await _taxRenderDetail();
+            toast('Domain deleted', 'success');
+        } catch {
+            toast('Could not delete domain', 'error');
+        }
+    }
+
+    
+
+    async function _taxRenameUseCase(id) {
+        let current = '';
+        for (const d of _taxState.domains) {
+            const u = d.use_cases.find(x => x.id === id);
+            if (u) { current = u.name; break; }
+        }
+        const name = prompt('Rename use-case:', current);
+        if (!name || !name.trim()) return;
+        try {
+            await api(`/taxonomy/use-cases/${id}`, { method: 'PUT', body: { name: name.trim() } });
+            await _taxLoadTree();
+        } catch {
+            toast('Could not rename use-case', 'error');
+        }
+    }
+
+    
+
+    async function _taxAutoTagScan() {
+        const modal = $('#taxAutoTagModal');
+        const hint = $('#taxAutoTagHint');
+        const list = $('#taxAutoTagList');
+        const applyBtn = $('#taxAutoTagApplyBtn');
+        if (!modal) return;
+        modal.classList.add('active');
+        if (applyBtn) applyBtn.disabled = true;
+        if (hint) hint.textContent = 'Scanning untagged prompts\u2026';
+        if (list) list.innerHTML = '';
+
+        const useCases = [];
+        _taxState.domains.forEach(d => d.use_cases.forEach(u => useCases.push({ id: u.id, name: u.name, domainName: d.name })));
+        if (!useCases.length) {
+            if (hint) hint.textContent = 'Add a domain and use-case first.';
+            return;
+        }
+
+        const taggedIds = new Set();
+        const corpora = [];
+        for (const uc of useCases) {
+            let taggedPrompts = [];
+            try {
+                taggedPrompts = await api(`/taxonomy/use-cases/${uc.id}/prompts`);
+            } catch { /* score this use-case on its name alone */ }
+            taggedPrompts.forEach(tp => taggedIds.add(tp.id));
+            const text = uc.name + ' ' + taggedPrompts.map(tp => (tp.title || '') + ' ' + (tp.content || '')).join(' ');
+            corpora.push({ uc, set: _pulseTokenSet(text) });
+        }
+
+        const candidates = [];
+        state.prompts.forEach(p => {
+            if (taggedIds.has(p.id)) return;
+            const pSet = _pulseTokenSet((p.title || '') + ' ' + (p.content || ''));
+            let best = null, bestScore = 0;
+            corpora.forEach(({ uc, set }) => {
+                const score = _pulseJaccard(pSet, set);
+                if (score > bestScore) { bestScore = score; best = uc; }
+            });
+            if (best && bestScore >= 0.12) candidates.push({ prompt: p, uc: best, score: bestScore });
+        });
+
+        if (!candidates.length) {
+            if (hint) hint.textContent = 'No confident matches found for untagged prompts.';
+            return;
+        }
+        candidates.sort((a, b) => b.score - a.score);
+        if (hint) hint.textContent = candidates.length + ' suggestion' + (candidates.length !== 1 ? 's' : '') + ' \u2014 review and apply.';
+        if (list) {
+            list.innerHTML = candidates.map(cnd => `
+          <label class="tax-autotag-row">
+            <input type="checkbox" checked data-pid="${cnd.prompt.id}" data-uc="${cnd.uc.id}" />
+            <span class="tax-autotag-title">${escapeHtml(cnd.prompt.title || 'Untitled')}</span>
+            <span class="material-symbols-outlined tax-autotag-arrow">arrow_forward</span>
+            <span class="tax-autotag-target">${escapeHtml(cnd.uc.domainName)} / ${escapeHtml(cnd.uc.name)}</span>
+            <span class="tax-autotag-score">${cnd.score >= 0.3 ? 'High' : 'Medium'}</span>
+          </label>`).join('');
+        }
+        if (applyBtn) applyBtn.disabled = false;
+    }
+
+    
+
+    window.openTaxonomyWorkspace = function() {
+        if (!state.isPremium) {
+            showPremiumModal();
+            return;
+        }
+        const ws = $('#taxonomyWorkspace');
+        if (!ws) return;
+        ws.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'taxonomy'));
+        _taxState.selectedType = null;
+        _taxState.selectedId = null;
+        _taxLoadTree();
+        _taxRenderDetail();
+    };
+
+    function closeTaxonomyWorkspace() {
+        $('#taxonomyWorkspace')?.classList.remove('open');
+        document.body.style.overflow = '';
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    
+
+    async function _verLoad(promptId) {
+        _verState.promptId = promptId;
+        _verState.selected = [];
+        $('#verPickerPanel').hidden = true;
+        $('#verTimelinePanel').hidden = false;
+        const list = $('#verTimelineList');
+        if (list) list.innerHTML = '<p class="hint">Loading…</p>';
+        try {
+            _verState.versions = await api(`/prompts/${promptId}/versions`);
+            _verRenderTimeline();
+            _verRenderDiff();
+        } catch {
+            if (list) list.innerHTML = '<p class="hint">Couldn\'t load version history — <a href="#" id="verRetryLink">retry</a></p>';
+            $('#verRetryLink')?.addEventListener('click', (e) => { e.preventDefault(); _verLoad(promptId); });
+        }
+    }
+
+    
+
+    function _verRenderDiff() {
+        const panel = $('#verDiffPanel');
+        if (!panel) return;
+        if (_verState.selected.length !== 2) {
+            panel.innerHTML = '<span class="hint">Select two versions to compare.</span>';
+            return;
+        }
+        const [idA, idB] = _verState.selected;
+        const a = _verState.versions.find(v => v.id === idA);
+        const b = _verState.versions.find(v => v.id === idB);
+        if (!a || !b) return;
+        const ops = _diffTokens(a.content || '', b.content || '');
+        if (!ops) {
+            panel.innerHTML = '<span class="hint">Texts too large for word-level diff.</span>';
+            return;
+        }
+        let html = '';
+        ops.forEach(o => {
+            const esc = escapeHtml(o.text);
+            if (o.op === 'eq') html += esc;
+            else if (o.op === 'del') html += '<del class="dif-del">' + esc + '</del>';
+            else html += '<ins class="dif-ins">' + esc + '</ins>';
+        });
+        panel.innerHTML = `<div class="ver-diff-header">${escapeHtml(a.version_label || relativeTime(a.saved_at))} → ${escapeHtml(b.version_label || relativeTime(b.saved_at))}</div><div class="ver-diff-text">${html}</div>`;
+    }
+
+    
+
+    async function _verSaveLabel(vid, label) {
+        try {
+            await api(`/prompts/${_verState.promptId}/versions/${vid}`, { method: 'PUT', body: { version_label: label } });
+            const v = _verState.versions.find(x => x.id === vid);
+            if (v) v.version_label = label;
+            toast('Label saved', 'success');
+        } catch {
+            toast('Could not save label', 'error');
+        }
+    }
+
+    
+
+    async function _verRestore(vid) {
+        const v = _verState.versions.find(x => x.id === vid);
+        if (!confirm(`Restore "${v ? (v.version_label || relativeTime(v.saved_at)) : 'this version'}"? The current content will be saved as a new version first.`)) return;
+        try {
+            await api(`/prompts/${_verState.promptId}/versions/${vid}/restore`, { method: 'POST' });
+            toast('Version restored', 'success');
+            await _verLoad(_verState.promptId);
+        } catch {
+            toast('Could not restore version', 'error');
+        }
+    }
+
+    
+
+    function closeVersionWorkspace() {
+        $('#versionWorkspace')?.classList.remove('open');
+        document.body.style.overflow = '';
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
 
     
@@ -3176,7 +3895,7 @@
                     'Authorization': 'Bearer ' + apiKey
                 },
                 body: JSON.stringify({
-                    model: 'gpt-4o-mini',
+                    model: 'gpt-5.4-mini',
                     messages: [{
                         role: 'system',
                         content: systemPrompt
@@ -3215,7 +3934,7 @@
             return (data.content?.[0]?.text || '').trim();
 
         } else if (provider === 'gemini') {
-            const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey, {
+            const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -3236,7 +3955,7 @@
             return (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
 
         } else if (provider === 'openrouter') {
-            const model = localStorage.getItem('pl_openrouter_model') || 'openai/gpt-4o-mini';
+            const model = localStorage.getItem('pl_openrouter_model') || 'openai/gpt-5.4-mini';
             const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
                 headers: {
@@ -3258,8 +3977,86 @@
             const data = await res.json();
             if (data.error) throw new Error(data.error.message);
             return (data.choices?.[0]?.message?.content || '').trim();
+
+        } else if (provider === 'cohere') {
+            const res = await fetch('https://api.cohere.com/v2/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + apiKey
+                },
+                body: JSON.stringify({
+                    model: 'command-a-03-2025',
+                    messages: [{
+                        role: 'system',
+                        content: systemPrompt
+                    }, {
+                        role: 'user',
+                        content: userMsg
+                    }],
+                    max_tokens: maxTokens
+                }),
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+            const parts = data.message?.content || [];
+            return parts.map(p => p.text || '').join('').trim();
+
+        } else if (AI_OPENAI_COMPAT[provider]) {
+            const cfg = AI_OPENAI_COMPAT[provider];
+            const res = await fetch(cfg.url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + apiKey
+                },
+                body: JSON.stringify({
+                    model: cfg.model,
+                    messages: [{
+                        role: 'system',
+                        content: systemPrompt
+                    }, {
+                        role: 'user',
+                        content: userMsg
+                    }],
+                    max_tokens: maxTokens
+                }),
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+            return (data.choices?.[0]?.message?.content || '').trim();
+
+        } else {
+            // Azure OpenAI or a custom-added provider — both need a stored
+            // endpoint URL since there's no single well-known base URL.
+            const baseUrl = localStorage.getItem('pl_base_url_' + provider) || '';
+            if (!baseUrl) throw new Error(`No endpoint URL set for "${provider}" — add one in Settings`);
+            const isAzure = provider === 'azure_openai';
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (isAzure) headers['api-key'] = apiKey;
+            else headers['Authorization'] = 'Bearer ' + apiKey;
+            const model = localStorage.getItem('pl_model_' + provider) || '';
+            const res = await fetch(baseUrl, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    ...(model ? { model } : {}),
+                    messages: [{
+                        role: 'system',
+                        content: systemPrompt
+                    }, {
+                        role: 'user',
+                        content: userMsg
+                    }],
+                    max_tokens: maxTokens
+                }),
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+            return (data.choices?.[0]?.message?.content || '').trim();
         }
-        throw new Error('Unknown provider: ' + provider);
     }
 
     

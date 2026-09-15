@@ -36,6 +36,20 @@
 
   <div id="sidebarScroll">
 
+    <div class="nav-section" id="vaultSwitcherSection">
+      <div class="nav-section-label" data-toggle="vaultswitcher" aria-expanded="true">
+        <span>Library source</span>
+        <span style="display:inline-flex; align-items:center; gap:4px;">
+          <button class="nav-icon-btn" id="addVaultBtn" title="Add local library" aria-label="Add local library">
+            <span class="material-symbols-outlined">add</span>
+          </button>
+        </span>
+      </div>
+      <div class="nav-section-content" id="vaultswitcher-content">
+        <div id="vaultSwitcherList" class="filter-list"></div>
+      </div>
+    </div>
+
     <div class="nav-section">
       <div class="nav-section-label" data-toggle="folders" aria-expanded="false">
         <span>Folders <span class="nav-section-count" id="foldersSectionCount"></span></span>
@@ -80,6 +94,31 @@
       </div>
     </div>
 
+  </div>
+
+  <div class="sidebar-licence-widget" id="licenceStatus">
+    <div class="sidebar-licence-header" id="licenceWidgetHeader" aria-expanded="true">
+      <span id="licenceStatusText">Not licensed — enter your key to unlock Pro features</span>
+      <button type="button" class="nav-icon-btn" id="licenceWidgetToggle" aria-label="Collapse licence panel">
+        <span class="material-symbols-outlined chev">expand_more</span>
+      </button>
+    </div>
+    <div class="sidebar-licence-body" id="licenceWidgetBody">
+      <input type="text" id="settingsLicenceKeyInput" class="form-input" placeholder="Licence key (PROMPTLIB-PRO-XXXX-XXXX-XXXX)" autocomplete="off" />
+      <button type="button" class="btn btn-accent" id="licenceActivateBtn">
+        <span class="material-symbols-outlined">vpn_key</span> Activate Licence
+      </button>
+      <button type="button" class="btn btn-accent" id="licenceSaveDbBtn" hidden>
+        <span class="material-symbols-outlined">save</span> Save Licence Key to DB
+      </button>
+      <button type="button" class="btn btn-ghost" id="licenceUnsaveDbBtn" hidden>
+        <span class="material-symbols-outlined">remove_circle</span> Un-save Key From DB
+      </button>
+      <div id="licenceActivateStatus"></div>
+      <p class="sidebar-licence-buy">
+        Don't have a key? <a href="https://payhip.com/b/WKSLO" target="_blank">Buy Prompt Library Pro</a>
+      </p>
+    </div>
   </div>
 
   <div class="sidebar-footer">

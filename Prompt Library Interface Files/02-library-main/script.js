@@ -140,110 +140,141 @@
         container.classList.add(state.viewMode === 'grid' ? 'grid-view' : 'list-view');
 
         const list = getFilteredPrompts();
+        const isVault = state.librarySource && state.librarySource.type === 'vault';
+        const folderTilesHtml = isVault ? renderVaultFolderTiles() : '';
 
-        if (!list.length) {
-            container.innerHTML = renderEmptyState();
+        if (!list.length && !(isVault && (state.vaultFolders || []).length)) {
+            container.innerHTML = folderTilesHtml + renderEmptyState();
             return;
         }
 
         if (state.groupByFolder && state.view !== 'favorites' && typeof state.view !== 'number') {
-            container.innerHTML = renderGroupedByFolder(list);
+            container.innerHTML = folderTilesHtml + renderGroupedByFolder(list);
         } else {
-            container.innerHTML = list.map(renderPromptCard).join('');
+            container.innerHTML = folderTilesHtml + list.map(renderPromptCard).join('');
         }
     }
 
     
 
-    function renderBulkToolbar() {
-        const bar = $('#bulkToolbar');
-        if (!bar) return;
-        const count = _bulkSelection.size;
-        bar.hidden = count === 0;
-        const countEl = $('#bulkCount');
-        if (countEl) countEl.textContent = count + ' selected';
-
-        const tagSel = $('#bulkTagSelect');
-        if (tagSel) {
-            const existing = (state.filters.tags || []).map(t =>
-                '<option value="' + escapeAttr(t.value) + '">' + escapeHtml(t.value) + '</option>').join('');
-            tagSel.innerHTML = '<option value="">Add tag…</option>' + existing +
-                '<option value="__new__">+ New tag…</option>';
+    function renderFolders() {
+        const list = $('#foldersList');
+        if (!list) return;
+        const folderCountEl = $('#foldersSectionCount');
+        if (folderCountEl) folderCountEl.textContent = state.folders.length || '';
+        if (!state.folders.length) {
+            list.innerHTML = '<p class="filter-list-empty">No folders yet</p>';
+            return;
         }
-        const folderSel = $('#bulkFolderSelect');
-        if (folderSel) {
-            const options = state.folders.map(f =>
-                '<option value="' + f.id + '">' + escapeHtml(f.name) + '</option>').join('');
-            folderSel.innerHTML = '<option value="">Move to folder…</option>' + options +
-                '<option value="__none__">No folder</option>';
-        }
-    }
-
-    
-
-    function renderPromptCard(p) {
-        const allCats = p.categories || [];
-        const allTags = p.tags || [];
-        const cats = allCats.slice(0, 2);
-        const tags = allTags.slice(0, 2);
-        const moreMeta = (allCats.length - cats.length) + (allTags.length - tags.length);
-        const desc = (p.description || (p.content || '').slice(0, 120) + ((p.content || '').length > 120 ? '...' : '')) || '';
-        const folder = state.folders.find(f => f.id === p.folder_id);
-        const colour = p.colour_label ? `c-${p.colour_label}` : '';
-        const isFav = !!p.is_favorite;
-        const rating = p.rating || 0;
-        const varCount = (p.variables || detectVariables(p.content)).length;
-        const updated = relativeTime(p.updated_at || p.created_at);
-        const active = p.id === state.detailId ? 'active' : '';
-
-        const tagPills = [
-            ...cats.map(c => `<span class="card-tag cat">${escapeHtml(c)}</span>`),
-            ...tags.map(t => `<span class="card-tag">#${escapeHtml(t)}</span>`),
-            moreMeta > 0 ? `<span class="card-tag more">+${moreMeta}</span>` : '',
-        ].join('');
-
-        // Join with separators so an absent trailing item cannot orphan a dot.
-        const metaBits = [];
-        if (varCount > 0) metaBits.push(`<span class="card-meta-item"><span class="material-symbols-outlined">token</span>${varCount} variable${varCount !== 1 ? 's' : ''}</span>`);
-        if (folder) metaBits.push(`<span class="card-meta-item">${escapeHtml(folder.name)}</span>`);
-        if (updated) metaBits.push(`<span class="card-meta-item">${escapeHtml(updated)}</span>`);
-        const metaRow = metaBits.join('<span class="card-meta-sep">&middot;</span>');
-
-        return `
-    <article class="prompt-card ${active}" onclick="window.PL_openDetail(${p.id})" data-id="${p.id}">
-      <div class="card-rule ${colour}"></div>
-      <div class="card-body">
-        <div class="card-title-row">
-          <input type="checkbox" class="card-select" onclick="event.stopPropagation()" onchange="window.PL_toggleBulkSelect(${p.id})" ${_bulkSelection.has(p.id) ? 'checked' : ''} aria-label="Select ${escapeAttr(p.title)}" />
-          <h3 class="card-title">${escapeHtml(p.title)}</h3>
-          ${isFav ? '<span class="card-fav material-symbols-outlined">star</span>' : ''}
-          ${rating > 0 ? `<span class="card-rating">${'\u2605'.repeat(rating)}${'\u2606'.repeat(5 - rating)}</span>` : ''}
+        list.innerHTML = [...state.folders].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(f => {
+            const count = state.prompts.filter(p => p.folder_id === f.id).length;
+            const safeName = JSON.stringify(f.name).replace(/'/g, '&#39;');
+            return `
+      <div class="folder-item" data-folder-id="${f.id}" onclick="window.PL_setView(${f.id})">
+        <span class="material-symbols-outlined">folder</span>
+        <span class="folder-name">${escapeHtml(f.name)}</span>
+        <span class="folder-count">${count}</span>
+        <div class="folder-actions">
+          <button class="folder-mini-btn" onclick="event.stopPropagation(); window.PL_renameFolder(${f.id}, ${safeName})" title="Rename">
+            <span class="material-symbols-outlined">edit</span>
+          </button>
+          <button class="folder-mini-btn danger" onclick="event.stopPropagation(); window.PL_deleteFolder(${f.id})" title="Delete">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
         </div>
-        ${desc ? `<p class="card-desc">${escapeHtml(desc)}</p>` : ''}
-        <div class="card-meta">${metaRow}</div>
-        ${tagPills ? `<div class="card-tags" style="margin-top: 4px;">${tagPills}</div>` : ''}
-      </div>
-      <div class="card-actions" onclick="event.stopPropagation()">
-        <button class="icon-btn ${isFav ? 'fav-on' : ''}" onclick="window.PL_toggleFav(${p.id})" title="${isFav ? 'Remove from favourites' : 'Add to favourites'}">
-          <span class="material-symbols-outlined">star</span>
-        </button>
-        <button class="icon-btn" onclick="window.PL_useFromCard(${p.id})" title="Copy to clipboard">
-          <span class="material-symbols-outlined">content_copy</span>
-        </button>
-        <button class="icon-btn" onclick="window.PL_editPrompt(${p.id})" title="Edit">
-          <span class="material-symbols-outlined">edit</span>
-        </button>
-        <button class="icon-btn danger" onclick="window.PL_deletePrompt(${p.id})" title="Delete">
-          <span class="material-symbols-outlined">delete</span>
-        </button>
-      </div>
-    </article>`;
+      </div>`;
+        }).join('');
+    }
+
+    
+
+    async function switchLibrarySource(source) {
+        state.librarySource = source;
+        state.view = 'library';
+        state.vaultBrowsePath = '';
+        state.vaultFolders = [];
+        state.detailId = null;
+        closeDetailPanel();
+        await renderVaultSwitcher();
+        if (source.type === 'vault') {
+            // Rescan-on-open per the vault spec's Sync section.
+            await rescanCurrentVault(true);
+        } else {
+            const bcEl = $('#breadcrumb');
+            const fvaEl = $('#folderViewActions');
+            if (bcEl) bcEl.innerHTML = '';
+            if (fvaEl) fvaEl.style.display = 'none';
+            await loadPrompts();
+            setView('library');
+        }
+    }
+
+    
+
+    function renderVaultBrowseUI() {
+        if (!(state.librarySource && state.librarySource.type === 'vault')) return;
+        const bcEl = $('#breadcrumb');
+        const fvaEl = $('#folderViewActions');
+        const titleEl = $('#viewTitle');
+        if (!bcEl || !fvaEl || !titleEl) return;
+
+        const vaultName = state.librarySource.vaultName || 'Vault';
+        const parts = (state.vaultBrowsePath || '').split('/').filter(Boolean);
+
+        let html = `<span class="bc-link" data-vault-crumb="">${escapeHtml(vaultName)}</span>`;
+        let acc = '';
+        parts.forEach(part => {
+            acc = acc ? `${acc}/${part}` : part;
+            html += `<span class="bc-sep material-symbols-outlined">chevron_right</span>` +
+                `<span class="bc-link" data-vault-crumb="${escapeAttr(acc)}">${escapeHtml(part)}</span>`;
+        });
+        bcEl.innerHTML = html;
+        bcEl.querySelectorAll('[data-vault-crumb]').forEach(el => {
+            el.addEventListener('click', () => navigateVaultFolder(el.dataset.vaultCrumb));
+        });
+        titleEl.textContent = parts.length ? parts[parts.length - 1] : vaultName;
+
+        fvaEl.style.display = 'flex';
+        const vaultPath = state.librarySource.vaultPath || '';
+        fvaEl.innerHTML = (vaultPath ? `
+      <span class="vault-path-chip" title="${escapeAttr(vaultPath)}">
+        <span class="material-symbols-outlined" style="font-size:14px;">folder_open</span>
+        <span class="vault-path-chip-text">${escapeHtml(vaultPath)}</span>
+      </span>` : '') + `
+      <button class="btn btn-ghost" id="vaultRescanBtn">
+        <span class="material-symbols-outlined">sync</span> Rescan
+      </button>
+      <button class="btn btn-ghost" id="vaultNewFolderBtn">
+        <span class="material-symbols-outlined">create_new_folder</span> New folder
+      </button>` + (parts.length ? `
+      <button class="btn btn-ghost btn-danger" id="vaultDeleteFolderBtn">
+        <span class="material-symbols-outlined">delete</span> Delete this folder
+      </button>` : '');
+        $('#vaultRescanBtn')?.addEventListener('click', () => rescanCurrentVault(false));
+        $('#vaultNewFolderBtn')?.addEventListener('click', createVaultFolderPrompt);
+        $('#vaultDeleteFolderBtn')?.addEventListener('click', deleteCurrentVaultFolder);
     }
 
     
 
     async function openDetail(id) {
         try {
+            // Vault prompts aren't DB rows -- /api/prompts/:id would either
+            // 404 or, worse, return an unrelated My Library prompt whose id
+            // happens to match. Render straight from the already-loaded
+            // (and already-normalised, see get_vault_prompts) vault prompt.
+            if (state.librarySource && state.librarySource.type === 'vault') {
+                const p = state.prompts.find(x => x.id === id);
+                if (!p) { toast('Could not load prompt', 'error'); return; }
+                state.detailId = id;
+                renderDetailPanel(p);
+                $('#detailPanel').classList.add('open');
+                $('#detailPanel').setAttribute('aria-hidden', 'false');
+                $$('.prompt-card').forEach(el => {
+                    el.classList.toggle('active', Number(el.dataset.id) === id);
+                });
+                return;
+            }
             const p = await api(`/prompts/${id}`);
             state.detailId = id;
             renderDetailPanel(p);
@@ -352,7 +383,7 @@
         const map = {};
         fields.forEach(inp => {
             const v = inp.dataset.var;
-            const val = inp.type === 'checkbox' ? (inp.checked ? 'Yes' : 'No') : inp.value.trim();
+            const val = _readVarControlValue(inp);
             map[v] = val;
             const card = inp.closest('.var-field');
             if (card) card.classList.toggle('is-filled', val.length > 0);
@@ -499,7 +530,9 @@
 
     async function useFromCard(id) {
         try {
-            const p = await api(`/prompts/${id}`);
+            const isVault = state.librarySource && state.librarySource.type === 'vault';
+            const p = isVault ? state.prompts.find(x => x.id === id) : await api(`/prompts/${id}`);
+            if (!p) { toast('Could not load prompt', 'error'); return; }
             const vars = detectVariables(p.content);
             const meta = p.variable_meta || {};
             const visible = vars.filter(v => (meta[v] || {}).visible !== false);
@@ -603,7 +636,7 @@
             '#chainWorkspace', '#metaWorkspace', '#contextBankWorkspace', '#componentsWorkspace',
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
-            '#batchWorkspace', '#boardWorkspace',
+            '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -755,6 +788,17 @@
 
         $('#newPromptBtn')?.addEventListener('click', openNewPromptModal);
         $('#surpriseMeBtn')?.addEventListener('click', handleSurpriseMe);
+        $('#addVaultBtn')?.addEventListener('click', addVaultFromPrompt);
+        renderVaultSwitcher();
+        $('#promptsContainer')?.addEventListener('click', (e) => {
+            const tile = e.target.closest('[data-vault-folder]');
+            if (tile) navigateVaultFolder(tile.dataset.vaultFolder);
+        });
+        window.addEventListener('focus', () => {
+            if (state.librarySource && state.librarySource.type === 'vault') {
+                rescanCurrentVault(true);
+            }
+        });
         $('#newFolderBtn')?.addEventListener('click', (e) => {
             e.stopPropagation();
             openNewFolderModal();
@@ -775,6 +819,7 @@
         $('#promptContent')?.addEventListener('input', updateEditorPreview);
         $('#promptContent')?.addEventListener('input', () => updatePromptScore($('#promptContent')?.value || ''));
         $('#promptContent')?.addEventListener('input', () => updateTokenCounter($('#promptContent')?.value || ''));
+        $('#insertVaultTemplateBtn')?.addEventListener('click', insertVaultPromptTemplate);
 
         $$('.editor-tab').forEach(t => {
             t.addEventListener('click', () => {
