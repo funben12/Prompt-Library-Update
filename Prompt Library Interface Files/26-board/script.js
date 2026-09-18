@@ -59,15 +59,23 @@
             '<div class="board-pin-card" data-board-pin-id="' + p.id + '">' +
                 '<span class="board-pin-title">' + escapeHtml(p.title || 'Untitled') + '</span>' +
                 '<span class="board-pin-desc">' + escapeHtml((p.description || '').slice(0, 90)) + '</span>' +
+                '<span class="board-pin-body">' + escapeHtml((p.content || '').slice(0, 220)) + '</span>' +
+                '<button class="board-pin-copy material-symbols-outlined" data-board-copy="' + p.id + '" title="Copy prompt" aria-label="Copy prompt">content_copy</button>' +
                 '<button class="board-pin-remove material-symbols-outlined" data-board-unpin="' + p.id + '" title="Remove from board" aria-label="Remove from board">close</button>' +
             '</div>'
         ).join('');
         body.querySelectorAll('[data-board-pin-id]').forEach(card => {
             card.addEventListener('click', (e) => {
-                if (e.target.closest('[data-board-unpin]')) return;
+                if (e.target.closest('[data-board-unpin]') || e.target.closest('[data-board-copy]')) return;
                 const id = Number(card.dataset.boardPinId);
-                closeBoardWorkspace();
-                setTimeout(() => openDetail(id), 150);
+                const pin = _boardState.pins.find(p => p.id === id);
+                if (pin) _boardOpenLightbox(pin);
+            });
+        });
+        body.querySelectorAll('[data-board-copy]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window.PL_useFromCard(Number(btn.dataset.boardCopy));
             });
         });
         body.querySelectorAll('[data-board-unpin]').forEach(btn => {
@@ -84,6 +92,12 @@
                 }
             });
         });
+    }
+
+    
+
+    function _boardCloseLightbox() {
+        $('#boardPinLightbox').hidden = true;
     }
 
     

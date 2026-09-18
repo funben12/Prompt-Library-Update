@@ -2,10 +2,11 @@
 
 /* =============================================================
    WORKSPACE SUITE — Quick Fill, Auditor, Diff Lens, Cost Lens,
-   Library Pulse, Prompt X-Ray, Prompt Splicer (2026-07)
+   Library Organizer, Prompt X-Ray, Prompt Splicer (2026-07)
    ============================================================= */
 #fillWorkspace, #auditWorkspace, #diffWorkspace, #costWorkspace,
-#pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace {
+#pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace,
+#taxonomyWorkspace, #versionWorkspace {
   display: none;
   position: fixed;
   inset: 0;
@@ -16,7 +17,8 @@
 
 #fillWorkspace.open, #auditWorkspace.open, #diffWorkspace.open, #costWorkspace.open,
 #pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open,
-#batchWorkspace.open, #boardWorkspace.open { display: flex; }
+#batchWorkspace.open, #boardWorkspace.open, #taxonomyWorkspace.open,
+#versionWorkspace.open { display: flex; }
 
 /* -- Batch Runner -- */
 .br-body { display: grid; grid-template-columns: minmax(340px, 40%) 1fr; flex: 1; overflow: hidden; }
@@ -111,6 +113,41 @@
 @media (max-width: 900px) {
 .br-body { grid-template-columns: 1fr; }
 .br-left { border-right: none; border-bottom: 1px solid var(--line); }
+}
+
+.br-example-btn { align-self: flex-start; margin-top: var(--sp-2); }
+
+.br-tutorial {
+  position: absolute;
+  top: 64px;
+  left: 24px;
+  width: 340px;
+  z-index: 9001;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--accent);
+  border-radius: 16px;
+  padding: 18px 20px 16px;
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--line-strong);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.br-tutorial[hidden] { display: none; }
+
+.br-tutorial-title { display: flex; align-items: center; gap: var(--sp-2); font-size: 15px; font-weight: 700; color: var(--ink); }
+
+.br-tutorial-title .material-symbols-outlined { color: var(--accent); font-size: 20px; }
+
+.br-tutorial-desc { font-size: 13px; color: var(--ink-2); line-height: 1.55; margin: 0; }
+
+.br-tutorial-desc code { background: var(--surface-3); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+
+.br-tutorial-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+
+@media (max-width: 900px) {
+.br-tutorial { left: 12px; right: 12px; width: auto; }
 }
 
 .qf-count-chip {

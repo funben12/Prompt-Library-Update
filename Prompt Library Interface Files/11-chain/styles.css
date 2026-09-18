@@ -4,6 +4,7 @@
 .nav-section-content.collapsed { display: none; }
 .nav-section-content.collapsed ~ .chev,
   .nav-section-label[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+.sidebar-licence-body.collapsed { display: none; margin-top: 0; }
 }
 
 /* =============================================================

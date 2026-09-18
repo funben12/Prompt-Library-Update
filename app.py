@@ -11,6 +11,8 @@ import zipfile
 import sys
 import os
 import threading
+import shutil
+import vault_scanner
 
 def _hash_key(k):
     return hashlib.sha256(k.strip().upper().encode()).hexdigest()
@@ -288,6 +290,14 @@ def init_db():
         use_count    INTEGER DEFAULT 0,
         is_favorite  INTEGER DEFAULT 0,
         FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS vaults (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT NOT NULL,
+        path       TEXT NOT NULL UNIQUE,
+        last_scan  TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
     # Indexes for the prompts table — list view sorts by updated_at and filters
@@ -762,7 +772,9 @@ def check_licence():
 def get_settings():
     """Return persisted settings, including the saved licence key."""
     licence = get_setting('licence')
-    return jsonify({'licence': licence} if licence else {})
+    out = {'licence': licence} if licence else {}
+    out['tour_done'] = bool(get_setting('tour_done'))
+    return jsonify(out)
 
 @app.route('/api/settings/licence', methods=['POST'])
 def set_licence_setting():
@@ -773,6 +785,17 @@ def set_licence_setting():
         set_setting('licence', key)
     else:
         delete_setting('licence')
+    return jsonify({'ok': True})
+
+@app.route('/api/settings/tour', methods=['POST'])
+def set_tour_setting():
+    """Persist whether the onboarding tour has been seen. DB-backed because
+    WebView localStorage can reset between launches (see ai-keys sync note)."""
+    data = request.json or {}
+    if data.get('done'):
+        set_setting('tour_done', '1')
+    else:
+        delete_setting('tour_done')
     return jsonify({'ok': True})
 
 
@@ -807,6 +830,558 @@ def delete_folder(fid):
     conn = get_db()
     conn.execute('UPDATE prompts SET folder_id=NULL WHERE folder_id=?', (fid,))
     conn.execute('DELETE FROM folders WHERE id=?', (fid,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+# ---------------------------------------------------------------------------
+# Vaults -- Obsidian-style file-backed prompt folders, alongside PromptLibrary.db
+# See docs/superpowers/specs/2026-09-14-vault-system-design.md
+# ---------------------------------------------------------------------------
+
+def get_vault_index_conn(vault_path):
+    """Open (creating if needed) the .promptvault/index.db cache for a vault folder."""
+    index_dir = os.path.join(vault_path, '.promptvault')
+    os.makedirs(index_dir, exist_ok=True)
+    index_db_path = os.path.join(index_dir, 'index.db')
+    conn = sqlite3.connect(index_db_path)
+    conn.row_factory = sqlite3.Row
+    conn.execute('''CREATE TABLE IF NOT EXISTS prompts (
+        relative_path   TEXT PRIMARY KEY,
+        title           TEXT,
+        category        TEXT,
+        subcategory     TEXT,
+        tags            TEXT,
+        difficulty      TEXT,
+        target_audience TEXT,
+        inputs          TEXT,
+        expected_output TEXT,
+        related_prompts TEXT,
+        version         TEXT,
+        last_updated    TEXT,
+        body            TEXT,
+        parse_error     TEXT,
+        scanned_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        description     TEXT
+    )''')
+    try:
+        # Cache is disposable and pre-dates the description column on any
+        # vault connected before this field existed -- add it in place
+        # rather than forcing a full rebuild.
+        conn.execute('ALTER TABLE prompts ADD COLUMN description TEXT')
+    except sqlite3.OperationalError:
+        pass  # already has it
+    conn.commit()
+    return conn
+
+
+def rescan_vault_index(vault_path):
+    """Walk vault_path, upsert every .md file into .promptvault/index.db,
+    drop rows for files no longer on disk. Returns count of files indexed
+    (including unparseable ones, which are kept with parse_error set)."""
+    results = vault_scanner.scan_vault(vault_path)
+    # vault_scanner returns OS-native relative paths (backslashes on Windows) --
+    # normalise to forward slashes so folder-path comparisons (browsing,
+    # create/delete folder) are consistent regardless of platform.
+    for r in results:
+        r['relative_path'] = r['relative_path'].replace(os.sep, '/')
+    conn = get_vault_index_conn(vault_path)
+    on_disk = {r['relative_path'] for r in results}
+    existing = {row['relative_path'] for row in conn.execute('SELECT relative_path FROM prompts')}
+    for stale in existing - on_disk:
+        conn.execute('DELETE FROM prompts WHERE relative_path = ?', (stale,))
+    for r in results:
+        m = r['metadata']
+        conn.execute('''INSERT INTO prompts
+            (relative_path, title, category, subcategory, tags, difficulty,
+             target_audience, inputs, expected_output, related_prompts,
+             version, last_updated, body, parse_error, scanned_at, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+            ON CONFLICT(relative_path) DO UPDATE SET
+                title=excluded.title, category=excluded.category,
+                subcategory=excluded.subcategory, tags=excluded.tags,
+                difficulty=excluded.difficulty,
+                target_audience=excluded.target_audience,
+                inputs=excluded.inputs, expected_output=excluded.expected_output,
+                related_prompts=excluded.related_prompts, version=excluded.version,
+                last_updated=excluded.last_updated, body=excluded.body,
+                parse_error=excluded.parse_error, scanned_at=excluded.scanned_at,
+                description=excluded.description''',
+            (r['relative_path'], m.get('title'), m.get('category'),
+             m.get('subcategory'),
+             json.dumps(m.get('tags', []) if isinstance(m.get('tags'), list) else []),
+             m.get('difficulty'), m.get('target_audience'), m.get('inputs'),
+             m.get('expected_output'),
+             json.dumps(m.get('related_prompts', []) if isinstance(m.get('related_prompts'), list) else []),
+             m.get('version'), m.get('last_updated'), r['body'], r['error'], m.get('description')))
+    conn.commit()
+    conn.close()
+    return len(results)
+
+
+def _get_vault_or_404(vault_id):
+    conn = get_db()
+    row = conn.execute('SELECT * FROM vaults WHERE id = ?', (vault_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def _resolve_vault_subpath(vault_path, rel_path):
+    """Resolve a user-supplied relative path under vault_path, guarding
+    against path traversal (e.g. '../../whatever'). Returns the absolute
+    path, or None if it would escape the vault folder."""
+    rel_path = (rel_path or '').strip().strip('/\\')
+    full = os.path.normpath(os.path.join(vault_path, rel_path))
+    vault_abs = os.path.normpath(vault_path)
+    if full != vault_abs and not full.startswith(vault_abs + os.sep):
+        return None
+    return full
+
+
+@app.route('/api/vaults', methods=['GET'])
+def get_vaults():
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM vaults ORDER BY name').fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+_INVALID_FOLDER_CHARS = re.compile(r'[<>:"/\\|?*]')
+
+
+def _sanitize_folder_name(name):
+    cleaned = _INVALID_FOLDER_CHARS.sub('-', name).strip().rstrip('. ')
+    return cleaned or 'Vault'
+
+
+@app.route('/api/vaults', methods=['POST'])
+def create_vault():
+    data = request.json
+    name = (data.get('name') or '').strip()
+    create_new = bool(data.get('create_new'))
+    if not name:
+        return jsonify({'error': 'name is required'}), 400
+    if create_new:
+        parent_path = (data.get('parent_path') or '').strip()
+        if not parent_path:
+            return jsonify({'error': 'parent_path is required'}), 400
+        if not os.path.isdir(parent_path):
+            return jsonify({'error': f'Folder not found: {parent_path}'}), 400
+        folder_name = _sanitize_folder_name(name)
+        path = os.path.join(parent_path, folder_name)
+        if os.path.exists(path):
+            return jsonify({'error': f'"{folder_name}" already exists there'}), 400
+        try:
+            os.makedirs(path)
+        except OSError as e:
+            return jsonify({'error': f'Could not create folder: {e}'}), 400
+    else:
+        path = (data.get('path') or '').strip()
+        if not path:
+            return jsonify({'error': 'path is required'}), 400
+        if not os.path.isdir(path):
+            return jsonify({'error': f'Folder not found: {path}'}), 400
+    conn = get_db()
+    try:
+        cur = conn.execute('INSERT INTO vaults (name, path) VALUES (?, ?)', (name, path))
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'error': 'That folder is already a connected local library'}), 400
+    vault_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    rescan_vault_index(path)
+    conn = get_db()
+    conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'id': vault_id, 'name': name, 'path': path})
+
+
+@app.route('/api/vaults/<int:vault_id>', methods=['DELETE'])
+def delete_vault(vault_id):
+    # Forgets the vault connection only -- never touches the folder on disk.
+    conn = get_db()
+    conn.execute('DELETE FROM vaults WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/vaults/<int:vault_id>/rescan', methods=['POST'])
+def rescan_vault(vault_id):
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Local library not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
+    count = rescan_vault_index(vault['path'])
+    conn = get_db()
+    conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'count': count})
+
+
+@app.route('/api/vaults/<int:vault_id>/folders', methods=['GET'])
+def get_vault_folders(vault_id):
+    """Immediate subdirectories at a given relative path -- a real directory
+    listing, not derived from the index, so empty folders show too."""
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Local library not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
+    rel_path = request.args.get('path', '')
+    full = _resolve_vault_subpath(vault['path'], rel_path)
+    if full is None or not os.path.isdir(full):
+        return jsonify({'error': 'Folder not found'}), 404
+    rel_path = rel_path.strip('/\\')
+    subfolders = []
+    for entry in sorted(os.listdir(full), key=str.lower):
+        if entry.startswith('.'):
+            continue
+        entry_full = os.path.join(full, entry)
+        if os.path.isdir(entry_full):
+            subfolders.append({
+                'name': entry,
+                'path': (rel_path + '/' + entry) if rel_path else entry,
+            })
+    return jsonify(subfolders)
+
+
+@app.route('/api/vaults/<int:vault_id>/folders', methods=['POST'])
+def create_vault_folder(vault_id):
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Local library not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
+    data = request.json or {}
+    parent = (data.get('path') or '').strip()
+    name = _sanitize_folder_name((data.get('name') or '').strip())
+    rel = f"{parent}/{name}" if parent else name
+    full = _resolve_vault_subpath(vault['path'], rel)
+    if full is None:
+        return jsonify({'error': 'Invalid folder path'}), 400
+    if os.path.exists(full):
+        return jsonify({'error': f'"{name}" already exists there'}), 400
+    try:
+        os.makedirs(full)
+    except OSError as e:
+        return jsonify({'error': f'Could not create folder: {e}'}), 400
+    return jsonify({'success': True, 'path': rel.replace(os.sep, '/')})
+
+
+@app.route('/api/vaults/<int:vault_id>/folders', methods=['DELETE'])
+def delete_vault_folder(vault_id):
+    """Deletes a real folder on disk inside the vault. Destructive --
+    resolved path is checked to stay inside the vault folder before
+    shutil.rmtree ever runs, and the vault root itself can't be targeted."""
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Local library not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
+    data = request.json or {}
+    rel = (data.get('path') or '').strip()
+    if not rel:
+        return jsonify({'error': 'path is required'}), 400
+    full = _resolve_vault_subpath(vault['path'], rel)
+    vault_abs = os.path.normpath(vault['path'])
+    if full is None or full == vault_abs:
+        return jsonify({'error': 'Cannot delete the local library root'}), 400
+    if not os.path.isdir(full):
+        return jsonify({'error': 'Folder not found'}), 404
+    try:
+        shutil.rmtree(full)
+    except OSError as e:
+        return jsonify({'error': f'Could not delete folder: {e}'}), 400
+    rescan_vault_index(vault['path'])
+    conn = get_db()
+    conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/vaults/<int:vault_id>/prompts', methods=['GET'])
+def get_vault_prompts(vault_id):
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Local library not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
+    folder_path = request.args.get('path', '').strip('/\\')
+    conn = get_vault_index_conn(vault['path'])
+    rows = conn.execute('SELECT rowid, * FROM prompts ORDER BY title').fetchall()
+    conn.close()
+    out = []
+    for r in rows:
+        d = dict(r)
+        rel = d['relative_path'] or ''
+        dirname = rel.rsplit('/', 1)[0] if '/' in rel else ''
+        if dirname != folder_path:
+            continue
+        d['tags'] = json.loads(d['tags']) if d['tags'] else []
+        d['related_prompts'] = json.loads(d['related_prompts']) if d['related_prompts'] else []
+        # Normalise onto the same shape /api/prompts returns, so the
+        # existing renderPromptCard() / getFilteredPrompts() work unchanged
+        # for vault-sourced prompts. `id` must be a real int, not the
+        # relative_path string -- renderPromptCard() embeds it unquoted
+        # into onclick="...(${p.id})", so a string with dots/dashes in it
+        # (any real filename) would produce invalid JS. SQLite's implicit
+        # rowid is stable across UPDATEs (our upsert never deletes+reinserts
+        # an unchanged row), so it works here even though `relative_path`
+        # is the real primary key. Vault prompts have no DB-only actions
+        # (favourite, rating, edit, delete) wired up in v1, so this id only
+        # needs to be a safe, stable-enough number to embed, not a key
+        # anything else looks up by.
+        d['id'] = d['rowid']
+        d['content'] = d.get('body') or ''
+        d['description'] = d.get('description') or ''
+        d['categories'] = [d['category']] if d.get('category') else []
+        d['folder_id'] = None
+        d['is_favorite'] = 0
+        d['rating'] = 0
+        d['colour_label'] = ''
+        d['use_count'] = 0
+        d['updated_at'] = d.get('scanned_at')
+        d['created_at'] = d.get('scanned_at')
+        out.append(d)
+    return jsonify(out)
+
+
+def _slugify_filename(title):
+    """Turn a prompt title into a safe filename stem: 'My Prompt!' -> 'My-Prompt'."""
+    stem = re.sub(r'[^\w\s-]', '', title or '').strip()
+    stem = re.sub(r'\s+', '-', stem)
+    return stem or 'Untitled'
+
+
+def _prompt_to_markdown(prompt_row):
+    """Serialise a PromptLibrary.db prompt row (dict) into vault front
+    matter + body, matching the existing export convention. categories/tags
+    are stored comma-joined (see _list_for_db), not JSON -- reuse
+    _normalise_list rather than json.loads."""
+    categories = _normalise_list(prompt_row.get('categories') or prompt_row.get('category') or '')
+    tags = _normalise_list(prompt_row.get('tags') or '')
+    lines = [
+        '---',
+        f"title: {prompt_row['title']}",
+        f"category: {categories[0] if categories else ''}",
+        f"tags: [{', '.join(tags)}]",
+        "version: 1",
+        f"last_updated: {datetime.now().strftime('%Y-%m-%d')}",
+        '---',
+        '',
+        prompt_row.get('content') or '',
+    ]
+    return '\n'.join(lines)
+
+
+@app.route('/api/library/export-to-vault', methods=['POST'])
+def export_to_vault():
+    data = request.json
+    prompt_ids = data.get('prompt_ids') or []
+    vault_id = data.get('vault_id')
+    remove_originals = bool(data.get('remove_originals'))
+    if not prompt_ids or not vault_id:
+        return jsonify({'error': 'prompt_ids and vault_id are required'}), 400
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Local library not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
+
+    conn = get_db()
+    placeholders = ','.join('?' for _ in prompt_ids)
+    rows = conn.execute(f'SELECT * FROM prompts WHERE id IN ({placeholders})', prompt_ids).fetchall()
+    exported = []
+    for row in rows:
+        prompt = dict(row)
+        filename = f"EXP-{_slugify_filename(prompt['title'])}-v1.md"
+        full_path = os.path.join(vault['path'], filename)
+        with open(full_path, 'w', encoding='utf-8') as f:
+            f.write(_prompt_to_markdown(prompt))
+        exported.append(filename)
+        if remove_originals:
+            conn.execute('DELETE FROM prompts WHERE id = ?', (prompt['id'],))
+    conn.commit()
+    conn.close()
+    rescan_vault_index(vault['path'])
+    conn = get_db()
+    conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'exported': exported})
+
+
+@app.route('/api/vaults/<int:vault_id>/prompts', methods=['POST'])
+def create_vault_prompt(vault_id):
+    """Write a brand-new prompt as a real .md file into the vault, at the
+    currently-browsed folder, instead of into PromptLibrary.db. Vaults have
+    no DB row for a prompt -- the file itself is the source of truth."""
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Local library not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
+    data = request.json or {}
+    title = (data.get('title') or '').strip()
+    if not title:
+        return jsonify({'error': 'title is required'}), 400
+    folder_rel = (data.get('path') or '').strip()
+    folder_full = _resolve_vault_subpath(vault['path'], folder_rel)
+    if folder_full is None or not os.path.isdir(folder_full):
+        return jsonify({'error': 'Folder not found'}), 400
+
+    stem = _slugify_filename(title)
+    filename = f"NEW-{stem}-v1.md"
+    full_path = os.path.join(folder_full, filename)
+    counter = 2
+    while os.path.exists(full_path):
+        filename = f"NEW-{stem}-v{counter}.md"
+        full_path = os.path.join(folder_full, filename)
+        counter += 1
+
+    markdown = _prompt_to_markdown({
+        'title': title,
+        'categories': data.get('categories', ''),
+        'tags': data.get('tags', ''),
+        'content': data.get('content', ''),
+    })
+    with open(full_path, 'w', encoding='utf-8') as f:
+        f.write(markdown)
+
+    rescan_vault_index(vault['path'])
+    conn = get_db()
+    conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    rel_path = os.path.relpath(full_path, vault['path']).replace(os.sep, '/')
+    return jsonify({'success': True, 'relative_path': rel_path, 'filename': filename})
+
+
+@app.route('/api/vaults/<int:vault_id>/template', methods=['POST'])
+def create_vault_template(vault_id):
+    """Writes a blank [[Title]]/[[Description]]/[[Prompt]]/[[Categories]]/
+    [[Tags]] file into the current folder, for anyone who'd rather write a
+    prompt by hand in a text editor than through the app's modal -- no YAML,
+    just plain section markers. Picked up like any other file on the next
+    rescan."""
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Local library not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
+    data = request.json or {}
+    folder_rel = (data.get('path') or '').strip()
+    folder_full = _resolve_vault_subpath(vault['path'], folder_rel)
+    if folder_full is None or not os.path.isdir(folder_full):
+        return jsonify({'error': 'Folder not found'}), 400
+
+    filename = 'Template-v1.md'
+    full_path = os.path.join(folder_full, filename)
+    counter = 2
+    while os.path.exists(full_path):
+        filename = f'Template-v{counter}.md'
+        full_path = os.path.join(folder_full, filename)
+        counter += 1
+
+    with open(full_path, 'w', encoding='utf-8') as f:
+        f.write(vault_scanner._simple_tag_template())
+
+    rescan_vault_index(vault['path'])
+    conn = get_db()
+    conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    rel_path = os.path.relpath(full_path, vault['path']).replace(os.sep, '/')
+    return jsonify({'success': True, 'relative_path': rel_path, 'filename': filename})
+
+
+def _retitle_vault_filename(old_filename, new_title):
+    """New filename for a retitled vault prompt: slug of the new title,
+    keeping the old file's -vN version suffix (defaulting to v1) so a
+    rename in the app doesn't churn the version number."""
+    stem = _slugify_filename(new_title)
+    m = re.search(r'-v(\d+)\.md$', old_filename, re.IGNORECASE)
+    version = m.group(1) if m else '1'
+    return f"{stem}-v{version}.md"
+
+
+@app.route('/api/vaults/<int:vault_id>/prompts/<path:relative_path>', methods=['PUT'])
+def update_vault_prompt(vault_id, relative_path):
+    """Rewrite a vault prompt's file in place. Obsidian-style: the title is
+    the filename, so retitling renames the file on disk (version suffix and
+    folder are kept)."""
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Local library not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
+    full_path = _resolve_vault_subpath(vault['path'], relative_path)
+    if full_path is None or not os.path.isfile(full_path):
+        return jsonify({'error': 'Prompt file not found'}), 404
+    data = request.json or {}
+    title = (data.get('title') or '').strip()
+    if not title:
+        return jsonify({'error': 'title is required'}), 400
+
+    markdown = _prompt_to_markdown({
+        'title': title,
+        'categories': data.get('categories', ''),
+        'tags': data.get('tags', ''),
+        'content': data.get('content', ''),
+    })
+
+    dirpath = os.path.dirname(full_path)
+    old_filename = os.path.basename(full_path)
+    new_filename = _retitle_vault_filename(old_filename, title)
+    new_full_path = os.path.join(dirpath, new_filename)
+    if new_filename != old_filename:
+        counter = 2
+        stem = new_filename[:-len('.md')]
+        while os.path.exists(new_full_path) and os.path.normcase(new_full_path) != os.path.normcase(full_path):
+            new_full_path = os.path.join(dirpath, f"{stem}-{counter}.md")
+            counter += 1
+
+    with open(full_path, 'w', encoding='utf-8') as f:
+        f.write(markdown)
+    if os.path.normcase(new_full_path) != os.path.normcase(full_path):
+        os.replace(full_path, new_full_path)
+        full_path = new_full_path
+
+    rescan_vault_index(vault['path'])
+    conn = get_db()
+    conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
+    conn.commit()
+    conn.close()
+    rel_path = os.path.relpath(full_path, vault['path']).replace(os.sep, '/')
+    return jsonify({'success': True, 'relative_path': rel_path})
+
+
+@app.route('/api/vaults/<int:vault_id>/prompts/<path:relative_path>', methods=['DELETE'])
+def delete_vault_prompt(vault_id, relative_path):
+    """Deletes the prompt's .md file on disk -- vaults have no DB row, the
+    file itself is the source of truth, so this is the only way to remove one."""
+    vault = _get_vault_or_404(vault_id)
+    if not vault:
+        return jsonify({'error': 'Local library not found'}), 404
+    if not os.path.isdir(vault['path']):
+        return jsonify({'error': f"Local library folder not found: {vault['path']}", 'not_found': True}), 404
+    full_path = _resolve_vault_subpath(vault['path'], relative_path)
+    if full_path is None or not os.path.isfile(full_path):
+        return jsonify({'error': 'Prompt file not found'}), 404
+    try:
+        os.remove(full_path)
+    except OSError as e:
+        return jsonify({'error': f'Could not delete file: {e}'}), 400
+    rescan_vault_index(vault['path'])
+    conn = get_db()
+    conn.execute('UPDATE vaults SET last_scan = CURRENT_TIMESTAMP WHERE id = ?', (vault_id,))
     conn.commit()
     conn.close()
     return jsonify({'success': True})
@@ -2303,7 +2878,7 @@ def save_ai_key():
     data = _json_body()
     provider = data.get('provider') or ''
     key = (data.get('key') or '').strip()
-    if provider not in ('openai', 'anthropic', 'gemini', 'openrouter'):
+    if not re.match(r'^[a-z0-9_]{1,40}$', provider):
         return jsonify({'error': 'unknown provider'}), 400
     try:
         with get_db() as con:
@@ -2312,6 +2887,68 @@ def save_ai_key():
                             ('ai_apikey_' + provider, key))
             else:
                 con.execute("DELETE FROM settings WHERE key = ?", ('ai_apikey_' + provider,))
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/ai-baseurls', methods=['GET'])
+def get_ai_baseurls():
+    """Return stored custom base URLs, keyed by provider slug."""
+    try:
+        with get_db() as con:
+            rows = con.execute(
+                "SELECT key, value FROM settings WHERE key LIKE 'ai_baseurl_%'"
+            ).fetchall()
+        return jsonify({r['key'][len('ai_baseurl_'):]: r['value'] for r in rows})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/ai-baseurls', methods=['POST'])
+def save_ai_baseurl():
+    """Store or clear one provider's custom base URL in the DB file."""
+    data = _json_body()
+    provider = data.get('provider') or ''
+    url = (data.get('url') or '').strip()
+    if not re.match(r'^[a-z0-9_]{1,40}$', provider):
+        return jsonify({'error': 'unknown provider'}), 400
+    try:
+        with get_db() as con:
+            if url:
+                con.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                            ('ai_baseurl_' + provider, url))
+            else:
+                con.execute("DELETE FROM settings WHERE key = ?", ('ai_baseurl_' + provider,))
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/ai-providers', methods=['GET'])
+def get_ai_providers():
+    """Return custom provider tabs the user has added (slug + label)."""
+    try:
+        with get_db() as con:
+            rows = con.execute(
+                "SELECT key, value FROM settings WHERE key LIKE 'ai_customprovider_%'"
+            ).fetchall()
+        return jsonify([
+            {'slug': r['key'][len('ai_customprovider_'):], 'label': r['value']}
+            for r in rows
+        ])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/ai-providers', methods=['POST'])
+def save_ai_provider():
+    """Add a custom provider tab (slug + display label) to the DB file."""
+    data = _json_body()
+    slug = data.get('slug') or ''
+    label = (data.get('label') or '').strip()
+    if not re.match(r'^[a-z0-9_]{1,40}$', slug) or not label:
+        return jsonify({'error': 'invalid provider'}), 400
+    try:
+        with get_db() as con:
+            con.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                        ('ai_customprovider_' + slug, label))
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500

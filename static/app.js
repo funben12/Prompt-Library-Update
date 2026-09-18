@@ -40,6 +40,9 @@
     };
 
     const state = {
+        librarySource: { type: 'db' }, // { type: 'db' } | { type: 'vault', vaultId, vaultName }
+        vaultBrowsePath: '', // relative folder path currently browsed inside the active vault
+        vaultFolders: [], // immediate subfolders at vaultBrowsePath, from a real directory listing
         prompts: [],
         folders: [],
         filters: {
@@ -61,6 +64,7 @@
 
     // Bulk-select: prompt IDs currently checked in the Library view.
     let _bulkSelection = new Set();
+    let _editingVaultPath = null; // relative_path of the vault prompt being edited, or null when creating
 
     /* ============================================================================
        DOM HELPERS
@@ -523,7 +527,9 @@
 
     async function loadPrompts() {
         try {
-            state.prompts = await api('/prompts');
+            state.prompts = (state.librarySource && state.librarySource.type === 'vault')
+                ? await api(`/vaults/${state.librarySource.vaultId}/prompts?path=${encodeURIComponent(state.vaultBrowsePath || '')}`)
+                : await api('/prompts');
             renderPrompts();
             updateCounts();
             updateChainSelect(null);
@@ -736,17 +742,28 @@
         container.classList.add(state.viewMode === 'grid' ? 'grid-view' : 'list-view');
 
         const list = getFilteredPrompts();
+        const isVault = state.librarySource && state.librarySource.type === 'vault';
+        const folderTilesHtml = isVault ? renderVaultFolderTiles() : '';
 
-        if (!list.length) {
-            container.innerHTML = renderEmptyState();
+        if (!list.length && !(isVault && (state.vaultFolders || []).length)) {
+            container.innerHTML = folderTilesHtml + renderEmptyState();
             return;
         }
 
         if (state.groupByFolder && state.view !== 'favorites' && typeof state.view !== 'number') {
-            container.innerHTML = renderGroupedByFolder(list);
+            container.innerHTML = folderTilesHtml + renderGroupedByFolder(list);
         } else {
-            container.innerHTML = list.map(renderPromptCard).join('');
+            container.innerHTML = folderTilesHtml + list.map(renderPromptCard).join('');
         }
+    }
+
+    function renderVaultFolderTiles() {
+        const folders = state.vaultFolders || [];
+        if (!folders.length) return '';
+        return '<div class="vault-folder-tiles">' + folders.map(f =>
+            `<div class="vault-folder-tile" data-vault-folder="${escapeAttr(f.path)}">` +
+            `<span class="material-symbols-outlined">folder</span><span>${escapeHtml(f.name)}</span></div>`
+        ).join('') + '</div>';
     }
 
     function toggleBulkSelect(id) {
@@ -1073,6 +1090,268 @@
     }
 
     /* ============================================================================
+       VAULTS -- Obsidian-style file-backed prompt folders, alongside My Library
+       ============================================================================ */
+    async function renderVaultSwitcher() {
+        const list = $('#vaultSwitcherList');
+        if (!list) return;
+        let vaults = [];
+        try {
+            vaults = await api('/vaults');
+        } catch {
+            vaults = [];
+        }
+        const current = state.librarySource || { type: 'db' };
+        const rows = [
+            `<div class="filter-list-item${current.type === 'db' ? ' active' : ''}" data-source-db="1">` +
+            `<span class="material-symbols-outlined">menu_book</span><span>My Library</span></div>`,
+        ];
+        vaults.forEach(v => {
+            const active = current.type === 'vault' && current.vaultId === v.id;
+            rows.push(
+                `<div class="filter-list-item${active ? ' active' : ''}" data-source-vault="${v.id}" data-vault-name="${escapeAttr(v.name)}" data-vault-path="${escapeAttr(v.path)}" title="${escapeAttr(v.path)}">` +
+                `<span class="material-symbols-outlined">folder_special</span><span>${escapeHtml(v.name)}</span>` +
+                `<button class="folder-mini-btn danger" data-remove-vault="${v.id}" data-remove-vault-name="${escapeAttr(v.name)}" title="Remove local library (keeps the files on disk)">` +
+                `<span class="material-symbols-outlined">close</span></button></div>`
+            );
+        });
+        list.innerHTML = rows.join('');
+        list.querySelectorAll('[data-source-db]').forEach(el => {
+            el.addEventListener('click', () => switchLibrarySource({ type: 'db' }));
+        });
+        list.querySelectorAll('[data-source-vault]').forEach(el => {
+            el.addEventListener('click', () => switchLibrarySource({
+                type: 'vault',
+                vaultId: parseInt(el.dataset.sourceVault, 10),
+                vaultName: el.dataset.vaultName,
+                vaultPath: el.dataset.vaultPath,
+            }));
+        });
+        list.querySelectorAll('[data-remove-vault]').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeVaultFromSwitcher(parseInt(el.dataset.removeVault, 10), el.dataset.removeVaultName);
+            });
+        });
+    }
+
+    async function removeVaultFromSwitcher(vaultId, vaultName) {
+        if (!confirm(`Remove "${vaultName}" from the sidebar? This only forgets the connection -- the folder and its files stay on disk untouched.`)) return;
+        try {
+            await api(`/vaults/${vaultId}`, { method: 'DELETE' });
+            if (state.librarySource && state.librarySource.type === 'vault' && state.librarySource.vaultId === vaultId) {
+                await switchLibrarySource({ type: 'db' });
+            } else {
+                await renderVaultSwitcher();
+            }
+            toast('Local library removed from sidebar', 'success');
+        } catch (err) {
+            toast(err && err.message ? err.message : 'Could not remove local library', 'error');
+        }
+    }
+
+    async function switchLibrarySource(source) {
+        state.librarySource = source;
+        state.view = 'library';
+        state.vaultBrowsePath = '';
+        state.vaultFolders = [];
+        state.detailId = null;
+        closeDetailPanel();
+        await renderVaultSwitcher();
+        if (source.type === 'vault') {
+            // Rescan-on-open per the vault spec's Sync section.
+            await rescanCurrentVault(true);
+        } else {
+            const bcEl = $('#breadcrumb');
+            const fvaEl = $('#folderViewActions');
+            if (bcEl) bcEl.innerHTML = '';
+            if (fvaEl) fvaEl.style.display = 'none';
+            await loadPrompts();
+            setView('library');
+        }
+    }
+
+    async function rescanCurrentVault(silent) {
+        if (!(state.librarySource && state.librarySource.type === 'vault')) return;
+        try {
+            const result = await api(`/vaults/${state.librarySource.vaultId}/rescan`, { method: 'POST' });
+            if (!silent) toast(`Rescanned -- ${result.count} file(s) indexed`, 'success');
+        } catch (err) {
+            if (!silent) toast(err && err.message ? err.message : 'Rescan failed', 'error');
+        }
+        await loadVaultBrowseData();
+    }
+
+    async function loadVaultBrowseData() {
+        if (!(state.librarySource && state.librarySource.type === 'vault')) return;
+        try {
+            state.vaultFolders = await api(`/vaults/${state.librarySource.vaultId}/folders?path=${encodeURIComponent(state.vaultBrowsePath || '')}`);
+        } catch {
+            state.vaultFolders = [];
+        }
+        renderVaultBrowseUI();
+        await loadPrompts();
+    }
+
+    async function navigateVaultFolder(path) {
+        state.vaultBrowsePath = path || '';
+        state.detailId = null;
+        closeDetailPanel();
+        await loadVaultBrowseData();
+    }
+
+    function renderVaultBrowseUI() {
+        if (!(state.librarySource && state.librarySource.type === 'vault')) return;
+        const bcEl = $('#breadcrumb');
+        const fvaEl = $('#folderViewActions');
+        const titleEl = $('#viewTitle');
+        if (!bcEl || !fvaEl || !titleEl) return;
+
+        const vaultName = state.librarySource.vaultName || 'Vault';
+        const parts = (state.vaultBrowsePath || '').split('/').filter(Boolean);
+
+        let html = `<span class="bc-link" data-vault-crumb="">${escapeHtml(vaultName)}</span>`;
+        let acc = '';
+        parts.forEach(part => {
+            acc = acc ? `${acc}/${part}` : part;
+            html += `<span class="bc-sep material-symbols-outlined">chevron_right</span>` +
+                `<span class="bc-link" data-vault-crumb="${escapeAttr(acc)}">${escapeHtml(part)}</span>`;
+        });
+        bcEl.innerHTML = html;
+        bcEl.querySelectorAll('[data-vault-crumb]').forEach(el => {
+            el.addEventListener('click', () => navigateVaultFolder(el.dataset.vaultCrumb));
+        });
+        titleEl.textContent = parts.length ? parts[parts.length - 1] : vaultName;
+
+        fvaEl.style.display = 'flex';
+        const vaultPath = state.librarySource.vaultPath || '';
+        fvaEl.innerHTML = (vaultPath ? `
+      <span class="vault-path-chip" title="${escapeAttr(vaultPath)}">
+        <span class="material-symbols-outlined" style="font-size:14px;">folder_open</span>
+        <span class="vault-path-chip-text">${escapeHtml(vaultPath)}</span>
+      </span>` : '') + `
+      <button class="btn btn-ghost" id="vaultRescanBtn">
+        <span class="material-symbols-outlined">sync</span> Rescan
+      </button>
+      <button class="btn btn-ghost" id="vaultNewFolderBtn">
+        <span class="material-symbols-outlined">create_new_folder</span> New folder
+      </button>
+      <button class="btn btn-ghost" id="vaultNewTemplateBtn" title="Write a blank [[Title]]/[[Prompt]]/etc. file here to fill in by hand">
+        <span class="material-symbols-outlined">note_add</span> New template
+      </button>` + (parts.length ? `
+      <button class="btn btn-ghost btn-danger" id="vaultDeleteFolderBtn">
+        <span class="material-symbols-outlined">delete</span> Delete this folder
+      </button>` : '');
+        $('#vaultRescanBtn')?.addEventListener('click', () => rescanCurrentVault(false));
+        $('#vaultNewFolderBtn')?.addEventListener('click', createVaultFolderPrompt);
+        $('#vaultNewTemplateBtn')?.addEventListener('click', createVaultTemplateFile);
+        $('#vaultDeleteFolderBtn')?.addEventListener('click', deleteCurrentVaultFolder);
+    }
+
+    async function createVaultFolderPrompt() {
+        const name = prompt('New folder name:');
+        if (!name || !name.trim()) return;
+        try {
+            await api(`/vaults/${state.librarySource.vaultId}/folders`, {
+                method: 'POST',
+                body: { path: state.vaultBrowsePath || '', name: name.trim() },
+            });
+            toast('Folder created', 'success');
+            await loadVaultBrowseData();
+        } catch (err) {
+            toast(err && err.message ? err.message : 'Could not create folder', 'error');
+        }
+    }
+
+    async function createVaultTemplateFile() {
+        try {
+            const result = await api(`/vaults/${state.librarySource.vaultId}/template`, {
+                method: 'POST',
+                body: { path: state.vaultBrowsePath || '' },
+            });
+            toast(`Created ${result.filename} -- open it in any text editor and fill it in`, 'success');
+            await loadVaultBrowseData();
+        } catch (err) {
+            toast(err && err.message ? err.message : 'Could not create template', 'error');
+        }
+    }
+
+    async function deleteCurrentVaultFolder() {
+        const path = state.vaultBrowsePath;
+        if (!path) return;
+        const name = path.split('/').pop();
+        if (!confirm(`Delete folder "${name}" and everything inside it? This deletes the files on disk and cannot be undone.`)) return;
+        const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+        try {
+            await api(`/vaults/${state.librarySource.vaultId}/folders`, {
+                method: 'DELETE',
+                body: { path },
+            });
+            toast('Folder deleted', 'success');
+            state.vaultBrowsePath = parent;
+            await loadVaultBrowseData();
+        } catch (err) {
+            toast(err && err.message ? err.message : 'Could not delete folder', 'error');
+        }
+    }
+
+    async function pickFolderNative() {
+        // Returns a path string, null (user cancelled), or undefined (no native
+        // dialog available -- e.g. running in a plain browser tab during dev).
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.pick_folder) {
+            try {
+                return await window.pywebview.api.pick_folder();
+            } catch {
+                return null;
+            }
+        }
+        return undefined;
+    }
+
+    async function addVaultFromPrompt() {
+        const createNew = confirm(
+            'Create a brand new local library folder?\n\nOK = create a new folder\nCancel = connect an existing folder'
+        );
+
+        if (createNew) {
+            const name = prompt('Name this local library:');
+            if (!name || !name.trim()) return;
+            let parent = await pickFolderNative();
+            if (parent === undefined) {
+                parent = prompt('Where should this local library live? (parent folder path)');
+            }
+            if (!parent || !parent.trim()) return;
+            try {
+                await api('/vaults', {
+                    method: 'POST',
+                    body: { name: name.trim(), parent_path: parent.trim(), create_new: true },
+                });
+                await renderVaultSwitcher();
+                toast('Local library created', 'success');
+            } catch (err) {
+                toast(err && err.message ? err.message : 'Could not create that local library', 'error');
+            }
+            return;
+        }
+
+        let path = await pickFolderNative();
+        if (path === undefined) {
+            path = prompt('Local library folder path (must already exist):');
+        }
+        if (!path || !path.trim()) return;
+        const defaultName = path.trim().split(/[\\/]/).filter(Boolean).pop() || 'Local Library';
+        const name = prompt('Name this local library:', defaultName);
+        if (!name || !name.trim()) return;
+        try {
+            await api('/vaults', { method: 'POST', body: { name: name.trim(), path: path.trim() } });
+            await renderVaultSwitcher();
+            toast('Local library connected', 'success');
+        } catch (err) {
+            toast(err && err.message ? err.message : 'Could not connect that folder as a local library', 'error');
+        }
+    }
+
+    /* ============================================================================
        TAG MANAGER -- rename, merge or delete tags across the whole library
        ============================================================================ */
     function renderTagManager() {
@@ -1192,6 +1471,22 @@
        ============================================================================ */
     async function openDetail(id) {
         try {
+            // Vault prompts aren't DB rows -- /api/prompts/:id would either
+            // 404 or, worse, return an unrelated My Library prompt whose id
+            // happens to match. Render straight from the already-loaded
+            // (and already-normalised, see get_vault_prompts) vault prompt.
+            if (state.librarySource && state.librarySource.type === 'vault') {
+                const p = state.prompts.find(x => x.id === id);
+                if (!p) { toast('Could not load prompt', 'error'); return; }
+                state.detailId = id;
+                renderDetailPanel(p);
+                $('#detailPanel').classList.add('open');
+                $('#detailPanel').setAttribute('aria-hidden', 'false');
+                $$('.prompt-card').forEach(el => {
+                    el.classList.toggle('active', Number(el.dataset.id) === id);
+                });
+                return;
+            }
             const p = await api(`/prompts/${id}`);
             state.detailId = id;
             renderDetailPanel(p);
@@ -2312,6 +2607,10 @@
        PROMPT ACTIONS (favourite, delete, use, copy, duplicate)
        ============================================================================ */
     async function toggleFav(id) {
+        if (state.librarySource && state.librarySource.type === 'vault') {
+            toast('Favouriting local library prompts is not available yet', 'info');
+            return;
+        }
         try {
             await api(`/prompts/${id}/favorite`, {
                 method: 'POST'
@@ -2330,6 +2629,22 @@
     }
 
     async function deletePromptById(id) {
+        if (state.librarySource && state.librarySource.type === 'vault') {
+            const p = state.prompts.find(x => x.id === id);
+            if (!p) { toast('Could not find that local library prompt', 'error'); return; }
+            if (!confirm('Delete this file from the local library? This removes it from disk and cannot be undone.')) return;
+            try {
+                await api(`/vaults/${state.librarySource.vaultId}/prompts/${encodeVaultPath(p.relative_path)}`, {
+                    method: 'DELETE',
+                });
+                if (state.detailId === id) closeDetailPanel();
+                await loadVaultBrowseData();
+                toast('Prompt file deleted', 'info');
+            } catch (err) {
+                toast(err && err.message ? err.message : 'Could not delete prompt file', 'error');
+            }
+            return;
+        }
         if (!confirm('Delete this prompt? This cannot be undone.')) return;
         try {
             await api(`/prompts/${id}`, {
@@ -2350,7 +2665,9 @@
 
     async function useFromCard(id) {
         try {
-            const p = await api(`/prompts/${id}`);
+            const isVault = state.librarySource && state.librarySource.type === 'vault';
+            const p = isVault ? state.prompts.find(x => x.id === id) : await api(`/prompts/${id}`);
+            if (!p) { toast('Could not load prompt', 'error'); return; }
             const vars = detectVariables(p.content);
             const meta = p.variable_meta || {};
             const visible = vars.filter(v => (meta[v] || {}).visible !== false);
@@ -2493,7 +2810,34 @@
     /* ============================================================================
        PROMPT EDITOR MODAL
        ============================================================================ */
+    // Skeleton body for vault prompt entries -- keeps the layout consistent so future
+    // theme/style fields have a known slot to land in. One click fills #promptContent.
+    const VAULT_PROMPT_TEMPLATE = `ROLE: [[who the AI should act as]]
+
+TASK: [[what it should do]]
+
+CONTEXT: [[background info it needs]]
+
+OUTPUT FORMAT: [[how the result should be structured]]
+
+STYLE/THEME: [[reserved for future use]]`;
+
+    function insertVaultPromptTemplate() {
+        const field = $('#promptContent');
+        if (!field) return;
+        if (field.value.trim() && !confirm('Replace the current content with the template?')) return;
+        field.value = VAULT_PROMPT_TEMPLATE;
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        field.focus();
+    }
+
+    function updateVaultTemplateBtnVisibility(isNewVaultPrompt) {
+        const btn = $('#insertVaultTemplateBtn');
+        if (btn) btn.hidden = !isNewVaultPrompt;
+    }
+
     function openNewPromptModal() {
+        _editingVaultPath = null;
         $('#modalTitle').textContent = 'New prompt';
         $('#submitBtnText').textContent = 'Create prompt';
         $('#promptId').value = '';
@@ -2540,6 +2884,7 @@
         updateTokenCounter('');
         $('#promptModal').classList.add('active');
         refreshModalCategories(); // sync chips with DB categories
+        updateVaultTemplateBtnVisibility(!!(state.librarySource && state.librarySource.type === 'vault'));
         setTimeout(() => $('#promptTitle').focus(), 50);
     }
     window.PL_openNewPromptModal = openNewPromptModal;
@@ -2554,9 +2899,38 @@
         $('#promptModal').classList.remove('active');
     }
 
+    function encodeVaultPath(relativePath) {
+        return relativePath.split('/').map(encodeURIComponent).join('/');
+    }
+
     async function editPrompt(id) {
+        if (state.librarySource && state.librarySource.type === 'vault') {
+            const p = state.prompts.find(x => x.id === id);
+            if (!p) { toast('Could not find that local library prompt', 'error'); return; }
+            _editingVaultPath = p.relative_path;
+            updateVaultTemplateBtnVisibility(false);
+            $('#modalTitle').textContent = 'Edit local library prompt';
+            $('#submitBtnText').textContent = 'Save changes';
+            $('#promptId').value = '';
+            $('#promptTitle').value = p.title || '';
+            $('#promptDesc').value = '';
+            $('#promptContent').value = p.content || '';
+            resetCategoryChips();
+            setChipCategories(p.categories || []);
+            resetTagInput('tagsTagInput');
+            setTagInputValues('tagsTagInput', p.tags || []);
+            updateEditorPreview();
+            updateTokenCounter(p.content || '');
+            renderVarMetaList({});
+            switchEditorTab('variables');
+            switchPromptBlockTab('system');
+            $('#promptModal').classList.add('active');
+            setTimeout(() => $('#promptTitle').focus(), 50);
+            return;
+        }
         try {
             const p = await api(`/prompts/${id}`);
+            updateVaultTemplateBtnVisibility(false);
             $('#modalTitle').textContent = 'Edit prompt';
             $('#submitBtnText').textContent = 'Save changes';
             $('#promptId').value = p.id;
@@ -2647,6 +3021,44 @@
     async function handlePromptSubmit(e) {
         e.preventDefault();
         const id = $('#promptId').value;
+
+        if (!id && state.librarySource && state.librarySource.type === 'vault') {
+            const vaultData = {
+                title: (() => { const t = $('#promptTitle').value.trim(); return isTitleCase(t) ? t : toTitleCase(t); })(),
+                content: $('#promptContent').value.trim(),
+                categories: getChipCategories().join(','),
+                tags: getTagInputValues('tagsTagInput').join(','),
+            };
+            if (!vaultData.title || !vaultData.content) {
+                toast('Title and content are required', 'warning');
+                return;
+            }
+            const vaultId = state.librarySource.vaultId;
+            const editingPath = _editingVaultPath;
+            try {
+                if (editingPath) {
+                    await api(`/vaults/${vaultId}/prompts/${encodeVaultPath(editingPath)}`, {
+                        method: 'PUT',
+                        body: vaultData,
+                    });
+                    _editingVaultPath = null;
+                    toast('Prompt updated', 'success');
+                } else {
+                    vaultData.path = state.vaultBrowsePath || '';
+                    await api(`/vaults/${vaultId}/prompts`, {
+                        method: 'POST',
+                        body: vaultData,
+                    });
+                    toast('Prompt created in local library', 'success');
+                }
+                closePromptModal();
+                await loadVaultBrowseData();
+            } catch (err) {
+                toast(err && err.message ? err.message : 'Could not save prompt', 'error');
+            }
+            return;
+        }
+
         // Free tier prompt limit
         if (!id && !state.isPremium && state.prompts.length >= FREE_LIMITS.prompts) {
             toast(`Free plan limit: ${FREE_LIMITS.prompts} prompts. Upgrade to Pro for unlimited.`, 'warning');
@@ -3502,9 +3914,48 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
         return prompts;
     }
 
+    async function _doImportToVault(prompts) {
+        const vaultId = state.librarySource.vaultId;
+        const folderPath = state.vaultBrowsePath || '';
+        let imported = 0;
+        let failed = 0;
+        for (const p of prompts) {
+            if (!p || !p.title) {
+                failed++;
+                continue;
+            }
+            try {
+                await api(`/vaults/${vaultId}/prompts`, {
+                    method: 'POST',
+                    body: {
+                        title: p.title,
+                        content: p.content || '',
+                        categories: Array.isArray(p.categories) ? p.categories.join(', ') : (p.categories || ''),
+                        tags: Array.isArray(p.tags) ? p.tags.join(', ') : (p.tags || ''),
+                        path: folderPath
+                    }
+                });
+                imported++;
+            } catch {
+                failed++;
+            }
+        }
+        closeImportModal();
+        await loadPrompts();
+        if (failed) {
+            toast(`Imported ${imported} prompt${imported !== 1 ? 's' : ''}, ${failed} failed`, imported ? 'warning' : 'error');
+        } else {
+            toast(`Imported ${imported} prompt${imported !== 1 ? 's' : ''}`, 'success');
+        }
+    }
+
     async function _doImport(prompts) {
         if (!Array.isArray(prompts) || !prompts.length) {
             toast('No valid prompts found to import', 'warning');
+            return;
+        }
+        if (state.librarySource && state.librarySource.type === 'vault') {
+            await _doImportToVault(prompts);
             return;
         }
         const result = await api('/import', {
@@ -3592,9 +4043,43 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
         $('#exportModal').classList.remove('active');
     }
 
+    // Vault sources have no DB-backed export routes — build export content
+    // client-side from the already-loaded vault prompts instead.
+    function _vaultExportRows() {
+        return (state.prompts || []).map(p => ({
+            title: p.title || '',
+            description: p.description || '',
+            content: p.content || '',
+            categories: p.categories || [],
+            tags: p.tags || [],
+        }));
+    }
+
+    function _vaultExportMarkdown() {
+        const lines = ['# Prompt Library Export\n', `*Exported: ${new Date().toLocaleString()}*\n\n---\n`];
+        _vaultExportRows().forEach(p => {
+            lines.push(`## ${p.title}\n`);
+            if (p.description) lines.push(`*${p.description}*\n`);
+            if (p.categories.length) lines.push(`**Categories:** ${p.categories.join(', ')}\n`);
+            if (p.tags.length) lines.push(`**Tags:** ${p.tags.join(', ')}\n`);
+            lines.push(`\n\`\`\`\n${p.content}\n\`\`\`\n\n---\n`);
+        });
+        return lines.join('\n');
+    }
+
+    function _vaultExportCsv() {
+        const esc = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+        const lines = [['title', 'description', 'content', 'categories', 'tags'].join(',')];
+        _vaultExportRows().forEach(p => {
+            lines.push([p.title, p.description, p.content, p.categories.join(';'), p.tags.join(';')].map(esc).join(','));
+        });
+        return lines.join('\n');
+    }
+
     async function exportJson() {
         try {
-            const data = await api('/export');
+            const isVault = state.librarySource && state.librarySource.type === 'vault';
+            const data = isVault ? _vaultExportRows() : await api('/export');
             const filename = `prompts-${new Date().toISOString().slice(0, 10)}.json`;
             const content = JSON.stringify(data, null, 2);
             const res = await fetch('/api/save-file', {
@@ -3626,23 +4111,31 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
             showPremiumModal();
             return;
         }
+        const isVault = state.librarySource && state.librarySource.type === 'vault';
+        if (isVault && ext === 'zip') {
+            toast('Bulk ZIP export is for My Library only — switch sources to use it', 'warning');
+            return;
+        }
         try {
-            const res = await fetch(API_BASE + path);
-            if (!res.ok) throw new Error();
             const filename = `prompts-${new Date().toISOString().slice(0, 10)}.${ext}`;
-
             let content;
-            if (mime === 'application/zip') {
-                // Encode binary as base64 for JSON transport
-                const buf = await res.arrayBuffer();
-                const bytes = new Uint8Array(buf);
-                let bin = '';
-                bytes.forEach(b => {
-                    bin += String.fromCharCode(b);
-                });
-                content = btoa(bin);
+            if (isVault) {
+                content = ext === 'csv' ? _vaultExportCsv() : _vaultExportMarkdown();
             } else {
-                content = await res.text();
+                const res = await fetch(API_BASE + path);
+                if (!res.ok) throw new Error();
+                if (mime === 'application/zip') {
+                    // Encode binary as base64 for JSON transport
+                    const buf = await res.arrayBuffer();
+                    const bytes = new Uint8Array(buf);
+                    let bin = '';
+                    bytes.forEach(b => {
+                        bin += String.fromCharCode(b);
+                    });
+                    content = btoa(bin);
+                } else {
+                    content = await res.text();
+                }
             }
 
             const saveRes = await fetch('/api/save-file', {
@@ -3852,6 +4345,20 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
             }
         });
         state.licenceSavedToDb = true;
+        return true;
+    }
+
+    // Remove the persisted key from prompts.db. Pro stays unlocked for the
+    // rest of this session (state.isPremium untouched) -- only DB persistence
+    // is undone, so it won't survive the next restart unless re-saved.
+    async function _unsaveLicenceKeyFromDb() {
+        await api('/settings/licence', {
+            method: 'POST',
+            body: {
+                key: ''
+            }
+        });
+        state.licenceSavedToDb = false;
         return true;
     }
 
@@ -4374,7 +4881,7 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
     function _escapeToLibrary() {
         // Close any open workspaces
         ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace', '#playgroundWorkspace',
-            '#chainWorkspace', '#metaWorkspace', '#contextBankWorkspace', '#componentsWorkspace',
+            '#chainWorkspace', '#metaWorkspace', '#metaPromptingWorkspace', '#contextBankWorkspace', '#componentsWorkspace',
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace',
@@ -4551,6 +5058,17 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
 
         $('#newPromptBtn')?.addEventListener('click', openNewPromptModal);
         $('#surpriseMeBtn')?.addEventListener('click', handleSurpriseMe);
+        $('#addVaultBtn')?.addEventListener('click', addVaultFromPrompt);
+        renderVaultSwitcher();
+        $('#promptsContainer')?.addEventListener('click', (e) => {
+            const tile = e.target.closest('[data-vault-folder]');
+            if (tile) navigateVaultFolder(tile.dataset.vaultFolder);
+        });
+        window.addEventListener('focus', () => {
+            if (state.librarySource && state.librarySource.type === 'vault') {
+                rescanCurrentVault(true);
+            }
+        });
         $('#newFolderBtn')?.addEventListener('click', (e) => {
             e.stopPropagation();
             openNewFolderModal();
@@ -4571,6 +5089,7 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
         $('#promptContent')?.addEventListener('input', updateEditorPreview);
         $('#promptContent')?.addEventListener('input', () => updatePromptScore($('#promptContent')?.value || ''));
         $('#promptContent')?.addEventListener('input', () => updateTokenCounter($('#promptContent')?.value || ''));
+        $('#insertVaultTemplateBtn')?.addEventListener('click', insertVaultPromptTemplate);
 
         $$('.editor-tab').forEach(t => {
             t.addEventListener('click', () => {
@@ -4806,7 +5325,21 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
         $('#addUserMsgBtn')?.addEventListener('click', () => addChatTurnWithRole('user'));
         $('#addAssistantMsgBtn')?.addEventListener('click', () => addChatTurnWithRole('assistant'));
 
-        $('#licenceBtn')?.addEventListener('click', showPremiumModal);
+        $('#licenceBtn')?.addEventListener('click', () => {
+            // Already licensed: open the real licence widget (key/status/unsave),
+            // not the "buy/enter a key" upsell modal — that's confusing for a
+            // user who's already Pro.
+            if (state.isPremium) {
+                const widgetBody = $('#licenceWidgetBody');
+                const widgetHeader = $('#licenceWidgetHeader');
+                if (widgetBody && widgetBody.classList.contains('collapsed')) {
+                    widgetHeader?.click();
+                }
+                $('#licenceStatus')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            showPremiumModal();
+        });
         $('#closePremiumModal')?.addEventListener('click', closePremiumModal);
         $('#premiumModal')?.addEventListener('click', (e) => {
             if (e.target === e.currentTarget) closePremiumModal();
@@ -13935,6 +14468,7 @@ Must avoid: [Anything sensitive or previously declined]`
         const btn = $('#licenceActivateBtn');
         const input = $('#settingsLicenceKeyInput');
         const saveBtn = $('#licenceSaveDbBtn');
+        const unsaveBtn = $('#licenceUnsaveDbBtn');
         if (!box || !text || !btn || !input) return;
 
         if (state.isPremium && state.licenceSavedToDb) {
@@ -13947,6 +14481,7 @@ Must avoid: [Anything sensitive or previously declined]`
             btn.hidden = false;
             btn.innerHTML = '<span class="material-symbols-outlined">check</span> Activated';
             if (saveBtn) saveBtn.hidden = true;
+            if (unsaveBtn) unsaveBtn.hidden = false;
         } else if (state.isPremium && !state.licenceSavedToDb) {
             box.style.borderLeftColor = 'var(--success)';
             text.textContent = 'Pro unlocked for this session \u2014 not saved to DB yet';
@@ -13955,6 +14490,7 @@ Must avoid: [Anything sensitive or previously declined]`
             input.disabled = true;
             btn.hidden = true;
             if (saveBtn) saveBtn.hidden = false;
+            if (unsaveBtn) unsaveBtn.hidden = true;
         } else {
             box.style.borderLeftColor = 'var(--ink-3)';
             text.textContent = 'Not licensed \u2014 enter your key to unlock Pro features';
@@ -13964,6 +14500,7 @@ Must avoid: [Anything sensitive or previously declined]`
             btn.hidden = false;
             btn.innerHTML = '<span class="material-symbols-outlined">vpn_key</span> Activate Licence';
             if (saveBtn) saveBtn.hidden = true;
+            if (unsaveBtn) unsaveBtn.hidden = true;
         }
     }
 
@@ -14028,6 +14565,59 @@ Must avoid: [Anything sensitive or previously declined]`
                     status.style.color = 'var(--danger)';
                     saveBtn.disabled = false;
                 }
+            });
+        }
+
+        const unsaveBtn = $('#licenceUnsaveDbBtn');
+        if (unsaveBtn) {
+            unsaveBtn.addEventListener('click', async () => {
+                // Removing the persisted key is a one-way trip until the key is
+                // re-entered and saved again -- require the user to type REMOVE
+                // rather than acting on a single click.
+                const typed = prompt('This removes your licence key from the database. It stays unlocked for this session but won\'t persist after restart.\n\nType REMOVE to confirm:');
+                if (typed !== 'REMOVE') return;
+                unsaveBtn.disabled = true;
+                status.textContent = 'Removing\u2026';
+                status.style.color = 'var(--ink-3)';
+                try {
+                    await _unsaveLicenceKeyFromDb();
+                    status.textContent = 'Removed \u2014 no longer saved to DB';
+                    status.style.color = 'var(--ink-3)';
+                    toast('Licence key removed from DB', 'success');
+                    refreshLicencePanel();
+                } catch (e) {
+                    status.textContent = 'Could not remove licence key';
+                    status.style.color = 'var(--danger)';
+                } finally {
+                    unsaveBtn.disabled = false;
+                }
+            });
+        }
+
+        const widgetHeader = $('#licenceWidgetHeader');
+        const widgetToggle = $('#licenceWidgetToggle');
+        const widgetBody = $('#licenceWidgetBody');
+        if (widgetHeader && widgetBody) {
+            const applyCollapsed = (collapsed) => {
+                widgetBody.classList.toggle('collapsed', collapsed);
+                widgetHeader.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                if (widgetToggle) {
+                    const chev = widgetToggle.querySelector('.chev');
+                    if (chev) chev.style.transform = collapsed ? 'rotate(-90deg)' : '';
+                }
+            };
+            let collapsed = false;
+            try {
+                collapsed = localStorage.getItem('pl_licenceWidgetCollapsed') === '1';
+            } catch (e) {}
+            applyCollapsed(collapsed);
+            widgetHeader.addEventListener('click', (e) => {
+                if (e.target.closest('#settingsLicenceKeyInput')) return;
+                collapsed = !widgetBody.classList.contains('collapsed');
+                applyCollapsed(collapsed);
+                try {
+                    localStorage.setItem('pl_licenceWidgetCollapsed', collapsed ? '1' : '0');
+                } catch (e) {}
             });
         }
 
@@ -15493,6 +16083,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initLabWorkspace(); // prompt lab workspace
         initChainWorkspace(); // prompt chain workspace
         initMetaWorkspace(); // metaprompting workspace
+        initMetaPromptingWorkspace(); // meta prompting workspace (prompt-that-writes-prompts)
         initContextBankWorkspace(); // context bank workspace + wiring
         initOptimizerWorkspace(); // prompt optimizer workspace
         initGenWorkspace(); // prompt generator workspace
@@ -21945,7 +22536,8 @@ Must avoid: [Anything sensitive or previously declined]`
             prompt: '',
             output: '',
             label: 'Step ' + (_chainSteps.length + 1),
-            _expanded: true
+            _expanded: true,
+            _status: 'idle'
         });
         _renderChainSteps();
     }
@@ -21998,6 +22590,12 @@ Must avoid: [Anything sensitive or previously declined]`
                 '<p class="chain-step-hint" style="font-size:var(--fs-sm);color:var(--ink-3);margin-bottom:var(--sp-2);">' + inputHint + '</p>' +
                 '<textarea class="forge-input" rows="5" data-prompt="' + i + '" placeholder="Write a prompt or load one above. Use {{input}} to pipe from the previous step." style="font-family:var(--ff-mono);font-size:12px;">' + escapeHtml(step.prompt || '') + '</textarea>' +
                 '<div class="chain-word-count" data-count="' + i + '">' + wordCount + '</div>' +
+                '<div class="chain-step-output" data-output-wrap="' + i + '"' + (step._status === 'idle' || !step._status ? ' hidden' : '') + '>' +
+                '<div class="chain-step-output-label"><span class="material-symbols-outlined">' +
+                (step._status === 'running' ? 'progress_activity' : step._status === 'error' ? 'error' : 'check_circle') +
+                '</span>' + (step._status === 'running' ? 'Running...' : step._status === 'error' ? 'Failed' : 'Output') + '</div>' +
+                '<div class="chain-step-output-text">' + escapeHtml(step.output || '') + '</div>' +
+                '</div>' +
                 '</div>';
 
             list.appendChild(div);
@@ -22127,6 +22725,83 @@ Must avoid: [Anything sensitive or previously declined]`
         toast('Chain complete', 'success');
     }
 
+    // Actually executes the chain step by step through the AI, piping each
+    // step's real output into the next step's {{input}} — unlike Assemble,
+    // which only concatenates the step text into one paste-elsewhere block.
+    let _chainRunning = false;
+
+    function _chainUpdateStepUI(i) {
+        const step = _chainSteps[i];
+        if (!step) return;
+        const card = $('.chain-step[data-idx="' + i + '"]');
+        if (!card) return;
+        const wrap = card.querySelector('[data-output-wrap="' + i + '"]');
+        if (!wrap) return;
+        wrap.hidden = !step._status || step._status === 'idle';
+        const label = wrap.querySelector('.chain-step-output-label');
+        const text = wrap.querySelector('.chain-step-output-text');
+        if (label) {
+            const icon = step._status === 'running' ? 'progress_activity' : step._status === 'error' ? 'error' : 'check_circle';
+            const msg = step._status === 'running' ? 'Running...' : step._status === 'error' ? 'Failed' : 'Output';
+            label.innerHTML = '<span class="material-symbols-outlined">' + icon + '</span>' + msg;
+            label.classList.toggle('running', step._status === 'running');
+            label.classList.toggle('error', step._status === 'error');
+        }
+        if (text) text.textContent = step.output || '';
+    }
+
+    async function runChain() {
+        if (_chainRunning) return;
+        if (!_chainSteps.length || !_chainSteps[0].prompt.trim()) {
+            toast('Add at least one step first', 'warning');
+            return;
+        }
+        _chainRunning = true;
+        const runBtn = $('#chainRunBtn');
+        if (runBtn) {
+            runBtn.disabled = true;
+            runBtn.innerHTML = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite">progress_activity</span> Running...';
+        }
+
+        let pipedInput = ($('#chainSeedInput')?.value || '').trim();
+        const sys = 'You are executing one step in a multi-step prompt chain. Follow the instructions in the user message exactly and return ONLY the direct result of this step — no preamble, no meta-commentary, no "here is the output" framing. Your response becomes the literal input to the next step.';
+
+        for (let i = 0; i < _chainSteps.length; i++) {
+            const step = _chainSteps[i];
+            step._status = 'running';
+            _chainUpdateStepUI(i);
+            const filledPrompt = (step.prompt || '').replace(/\{\{input\}\}/gi, pipedInput);
+            try {
+                const result = await callAI(sys, filledPrompt, 1500);
+                step.output = result.trim();
+                step._status = 'done';
+                pipedInput = step.output;
+            } catch (err) {
+                step.output = 'Error: ' + err.message;
+                step._status = 'error';
+                _chainUpdateStepUI(i);
+                toast('Chain stopped at step ' + (i + 1) + ': ' + err.message, 'error');
+                _chainRunning = false;
+                if (runBtn) {
+                    runBtn.disabled = false;
+                    runBtn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span> Run Chain';
+                }
+                return;
+            }
+            _chainUpdateStepUI(i);
+        }
+
+        _chainRunning = false;
+        if (runBtn) {
+            runBtn.disabled = false;
+            runBtn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span> Run Chain';
+        }
+        const preview = $('#chainPreviewText');
+        if (preview) preview.value = pipedInput;
+        $('#chainPreviewPanel')?.classList.remove('collapsed');
+        toast('Chain complete', 'success');
+    }
+
     function assembleChain() {
         if (!_chainSteps.length || !_chainSteps[0].prompt.trim()) {
             toast('Add at least one step first', 'warning');
@@ -22216,6 +22891,7 @@ Must avoid: [Anything sensitive or previously declined]`
             }
         });
         $('#chainAssembleBtn')?.addEventListener('click', assembleChain);
+        $('#chainRunBtn')?.addEventListener('click', runChain);
         $('#chainPreviewCloseBtn')?.addEventListener('click', () => {
             $('#chainPreviewPanel')?.classList.add('collapsed');
         });
@@ -22273,10 +22949,63 @@ Must avoid: [Anything sensitive or previously declined]`
        METAPROMPTING WORKSPACE
        ============================================================================ */
 
+    let _metaRounds = [];
+
+    function _renderMetaRounds() {
+        const wrap = $('#metaRounds');
+        if (!wrap) return;
+        if (!_metaRounds.length) {
+            wrap.hidden = true;
+            wrap.innerHTML = '';
+            return;
+        }
+        wrap.hidden = false;
+        wrap.innerHTML = '<div class="meta-rounds-label">' +
+            '<span class="material-symbols-outlined">history</span> Refinement rounds</div>' +
+            '<div class="meta-rounds-row">' +
+            _metaRounds.map((r, i) => {
+                const active = i === _metaRounds.length - 1 ? ' active' : '';
+                return '<button type="button" class="meta-round-chip' + active + '" data-meta-round="' + i + '">Round ' + (i + 1) + '</button>';
+            }).join('') +
+            '</div>';
+        wrap.querySelectorAll('[data-meta-round]').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const idx = Number(chip.dataset.metaRound);
+                const round = _metaRounds[idx];
+                if (!round) return;
+                wrap.querySelectorAll('.meta-round-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                _showMetaResult(round.text, round.assessment);
+            });
+        });
+    }
+
+    function _showMetaResult(text, assessment) {
+        const outEl = $('#metaOutputBody');
+        const emptyEl = $('#metaOutputEmpty');
+        const actionsEl = $('#metaOutputActions');
+        const scoreEl = $('#metaScoreBlock');
+        const assessEl = $('#metaAssessment');
+        if (outEl) {
+            outEl.textContent = text;
+            outEl.style.display = '';
+        }
+        if (emptyEl) emptyEl.style.display = 'none';
+        if (actionsEl) actionsEl.hidden = false;
+        if (assessment && assessEl) {
+            assessEl.textContent = assessment;
+            if (scoreEl) scoreEl.hidden = false;
+        } else if (scoreEl) {
+            scoreEl.hidden = true;
+        }
+    }
+
     window.openMetaWorkspace = function() {
         $('#metaWorkspace')?.classList.add('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'meta'));
+        _metaRounds = [];
+        _renderMetaRounds();
         setTimeout(() => $('#metaRoughPrompt')?.focus(), 80);
     };
 
@@ -22310,11 +23039,16 @@ Must avoid: [Anything sensitive or previously declined]`
             '\n\nTECHNIQUE: ' + techniques[technique];
 
         const outEl = $('#metaOutputBody');
+        const emptyEl = $('#metaOutputEmpty');
         const actionsEl = $('#metaOutputActions');
         const scoreEl = $('#metaScoreBlock');
         const assessEl = $('#metaAssessment');
 
-        if (outEl) outEl.textContent = '⏳ Improving your prompt...';
+        if (emptyEl) emptyEl.style.display = 'none';
+        if (outEl) {
+            outEl.textContent = '⏳ Improving your prompt...';
+            outEl.style.display = '';
+        }
         if (actionsEl) actionsEl.hidden = true;
         if (scoreEl) scoreEl.hidden = true;
 
@@ -22324,13 +23058,10 @@ Must avoid: [Anything sensitive or previously declined]`
             const improved = assessMatch ? response.slice(0, response.lastIndexOf('\nASSESSMENT:')).trim() : response;
             const assessment = assessMatch ? assessMatch[1].trim() : '';
 
-            if (outEl) outEl.textContent = improved;
-            if (actionsEl) actionsEl.hidden = false;
-            if (assessment && assessEl) {
-                assessEl.textContent = assessment;
-                if (scoreEl) scoreEl.hidden = false;
-            }
-            toast('Prompt improved', 'success');
+            _metaRounds.push({ text: improved, assessment, technique });
+            _renderMetaRounds();
+            _showMetaResult(improved, assessment);
+            toast('Prompt improved — round ' + _metaRounds.length, 'success');
         } catch (err) {
             if (outEl) outEl.innerHTML = '<span class="hint">Error: ' + escapeHtml(err.message) + '</span>';
             toast('Improvement failed: ' + err.message, 'error');
@@ -22432,6 +23163,135 @@ Must avoid: [Anything sensitive or previously declined]`
         }
     }
 
+    /* ============================================================================
+       META PROMPTING WORKSPACE
+       Distinct from Refiner (improves ONE existing prompt) and Prompt Generator
+       (writes ONE prompt for ONE task): this builds a reusable META-PROMPT — a
+       prompt whose job is to generate other prompts on demand, with [[variable]]
+       placeholders for whatever changes each time it's used.
+       ============================================================================ */
+
+    window.openMetaPromptingWorkspace = function() {
+        if (!state.isPremium) {
+            showPremiumModal();
+            return;
+        }
+        $('#metaPromptingWorkspace')?.classList.add('open');
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'metaprompting'));
+        setTimeout(() => $('#mpDomainInput')?.focus(), 80);
+    };
+
+    function closeMetaPromptingWorkspace() {
+        $('#metaPromptingWorkspace')?.classList.remove('open');
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    async function runMetaPromptGeneration() {
+        const domain = $('#mpDomainInput')?.value?.trim();
+        const variables = $('#mpVariablesInput')?.value?.trim();
+        const structure = $('#mpStructureSelect')?.value || 'structured';
+        if (!domain) {
+            toast('Describe what kind of prompts this should generate', 'warning');
+            return;
+        }
+
+        const structures = {
+            structured: 'Every generated prompt must use a structured format with clearly labelled sections (Role, Context, Task, Output Format, Constraints).',
+            concise: 'Every generated prompt should be short and direct — no more than a few sentences, no section headers.',
+            chain_of_thought: 'Every generated prompt must instruct step-by-step reasoning before the final answer.',
+            persona: 'Every generated prompt must open by establishing a specific, vivid persona for the AI to embody.',
+        };
+
+        const sys = 'You are an expert at meta-prompting — writing prompts whose job is to generate OTHER high-quality prompts, not to answer a task directly. ' +
+            'Write ONE reusable meta-prompt template. It must use [[double bracket]] placeholders for every variable input the end user will supply each time they use it. ' +
+            'It must explicitly instruct the AI to output a complete, ready-to-use prompt as its response — nothing else. ' +
+            'Return ONLY the meta-prompt text itself — no preamble, no explanation, no markdown fencing around the whole thing.';
+        const usr = 'DOMAIN — the kind of prompts this should generate:\n' + domain +
+            (variables ? '\n\nVARIABLES the end user will supply each time (turn each into a [[placeholder]]):\n' + variables : '\n\nInfer sensible [[placeholders]] for whatever will change between uses.') +
+            '\n\nSTRUCTURE REQUIREMENT: ' + structures[structure];
+
+        const outEl = $('#mpOutputBody');
+        const emptyEl = $('#mpOutputEmpty');
+        const actionsEl = $('#mpOutputActions');
+
+        if (emptyEl) emptyEl.style.display = 'none';
+        if (outEl) {
+            outEl.textContent = '⏳ Building your meta-prompt...';
+            outEl.style.display = '';
+        }
+        if (actionsEl) actionsEl.hidden = true;
+
+        try {
+            const response = await callAI(sys, usr, 1200);
+            if (outEl) outEl.textContent = response.trim();
+            if (actionsEl) actionsEl.hidden = false;
+            toast('Meta-prompt generated', 'success');
+        } catch (err) {
+            if (outEl) outEl.innerHTML = '<span class="hint">Error: ' + escapeHtml(err.message) + '</span>';
+            toast('Generation failed: ' + err.message, 'error');
+        }
+    }
+
+    function initMetaPromptingWorkspace() {
+        const ws = $('#metaPromptingWorkspace');
+        if (!ws) return;
+
+        $('#mpGenerateBtn')?.addEventListener('click', async () => {
+            const btn = $('#mpGenerateBtn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite">progress_activity</span> Building...';
+            }
+            try {
+                await runMetaPromptGeneration();
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span class="material-symbols-outlined">hub</span> Build Meta-Prompt';
+                }
+            }
+        });
+        $('#mpCopyBtn')?.addEventListener('click', async () => {
+            const text = $('#mpOutputBody')?.textContent?.trim();
+            if (!text) return;
+            const ok = await copyToClipboard(text);
+            if (ok) toast('Meta-prompt copied', 'success');
+        });
+        $('#mpSaveBtn')?.addEventListener('click', async () => {
+            const text = $('#mpOutputBody')?.textContent?.trim();
+            if (!text || text.includes('⏳') || text.includes('Fill in')) {
+                toast('Build a meta-prompt first', 'warning');
+                return;
+            }
+            const domain = $('#mpDomainInput')?.value?.trim() || '';
+            const title = (domain.split(' ').slice(0, 6).join(' ') || 'Meta-prompt') + ' (meta-prompt)';
+            try {
+                const result = await api('/prompts', {
+                    method: 'POST',
+                    body: {
+                        title,
+                        content: text,
+                        description: 'Generates prompts for: ' + domain,
+                        categories: 'Metaprompting',
+                        tags: 'meta-prompt,generator'
+                    }
+                });
+                await loadPrompts();
+                await loadFilterOptions();
+                toast('Saved: ' + title, 'success');
+                closeMetaPromptingWorkspace();
+                if (result?.id) setTimeout(() => openDetail(result.id), 200);
+            } catch {
+                toast('Could not save', 'error');
+            }
+        });
+        $('#closeMetaPromptingBtn')?.addEventListener('click', closeMetaPromptingWorkspace);
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeMetaPromptingWorkspace();
+        });
+    }
 
     /* ============================================================================
        AUTO-TAGGING
@@ -23104,6 +23964,13 @@ Must avoid: [Anything sensitive or previously declined]`
 
     window.PL_skipOnboarding = function() {
         localStorage.setItem(TOUR_KEY, '1');
+        // Also persist to the DB file — WebView localStorage can reset between
+        // launches (same reason API keys moved to the DB, see initConfigPanel).
+        fetch('/api/settings/tour', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ done: true })
+        }).catch(() => {});
         _closeTourWorkspaces();
         _closeTourDetail();
         const overlay = _el('onboardingOverlay');
@@ -23125,12 +23992,22 @@ Must avoid: [Anything sensitive or previously declined]`
     });
 
     window.initOnboarding = function() {
-        // Auto-launch on first run only
-        if (!localStorage.getItem(TOUR_KEY)) {
+        // Auto-launch on first run only. localStorage can reset between
+        // WebView launches, so also check the DB-backed flag before deciding.
+        if (localStorage.getItem(TOUR_KEY)) return;
+        fetch('/api/settings').then(r => r.json()).then(s => {
+            if (s && s.tour_done) {
+                localStorage.setItem(TOUR_KEY, '1');
+                return;
+            }
             setTimeout(function() {
                 window.PL_startOnboarding && window.PL_startOnboarding();
             }, 800);
-        }
+        }).catch(() => {
+            setTimeout(function() {
+                window.PL_startOnboarding && window.PL_startOnboarding();
+            }, 800);
+        });
     };
 
 })();
@@ -23313,354 +24190,5 @@ Must avoid: [Anything sensitive or previously declined]`
             }
         });
     };
-
-})();
-
-
-/* ============================================================================
-   TUTORIAL TOUR — Beginner guide, Components-focused
-   ============================================================================ */
-
-(function initTutorial() {
-
-    var STEPS = [
-        // 0 — Welcome (centred, no target)
-        {
-            target: null,
-            icon: 'waving_hand',
-            title: 'Welcome to Prompt Library',
-            html: '<p>This quick tour shows you how to build powerful AI prompts — in about 2 minutes.</p>' +
-                '<div class="tour-prompt-flow">' +
-                '<div class="tour-block-chip role"><span class="material-symbols-outlined">person</span>Role</div>' +
-                '<span class="tour-flow-plus material-symbols-outlined">add</span>' +
-                '<div class="tour-block-chip task"><span class="material-symbols-outlined">task_alt</span>Task</div>' +
-                '<span class="tour-flow-plus material-symbols-outlined">add</span>' +
-                '<div class="tour-block-chip format"><span class="material-symbols-outlined">format_align_left</span>Format</div>' +
-                '<span class="tour-flow-arrow material-symbols-outlined">arrow_forward</span>' +
-                '<div class="tour-result-chip"><span class="material-symbols-outlined">description</span>Your Prompt</div>' +
-                '</div>' +
-                '<div class="tour-tip"><span class="material-symbols-outlined">info</span>You can re-open this tour at any time from the <strong>How to use</strong> button in the sidebar.</div>',
-            position: 'center'
-        },
-        // 1 — The Library
-        {
-            target: '#promptsContainer',
-            icon: 'library_books',
-            title: 'Your Prompt Library',
-            html: '<p>Every prompt you create lives here. Click any prompt to view it, copy the text, or edit it.</p>' +
-                '<p>Use the sidebar to filter by folder, tags, or categories. The search bar finds prompts instantly.</p>' +
-                '<div class="tour-tip"><span class="material-symbols-outlined">info</span>Start with the <strong>Starter Prompts</strong> already in your library to see what a finished prompt looks like.</div>',
-            position: 'right'
-        },
-        // 2 — Components nav button
-        {
-            target: '.nav-item[data-view="components"]',
-            icon: 'extension',
-            title: 'The Component Builder',
-            html: '<p>This is the main event. The <strong>Component Builder</strong> lets you assemble prompts from reusable building blocks — like LEGO bricks for AI.</p>' +
-                '<p>Instead of writing prompts from scratch, you pick pre-written blocks and combine them. Faster, more consistent, and easier to improve over time.</p>',
-            position: 'right',
-            onNext: function() {
-                // Navigate to components workspace before advancing
-                setView('components');
-            }
-        },
-        // 3 — Category dropdown
-        {
-            target: '#pcwBrowseBtn',
-            icon: 'storefront',
-            title: 'Browse the Component Library',
-            html: '<p>Click <strong>Browse</strong> to open the component library — 24 departments of building blocks, organised by what they do:</p>' +
-                '<ul>' +
-                '<li><strong>Core</strong> — Role, Task, Context, Goal</li>' +
-                '<li><strong>Output</strong> — Format, Length, JSON, Step-by-step</li>' +
-                '<li><strong>Reasoning</strong> — Chain of Thought, First Principles</li>' +
-                '<li><strong>Guardrails</strong> — Scope lock, Anti-hallucination</li>' +
-                '<li><strong>…and 11 more categories</strong></li>' +
-                '</ul>',
-            position: 'right'
-        },
-        // 4 — Palette / block list
-        {
-            target: '#pcwQuickstarts',
-            icon: 'widgets',
-            title: 'Pick Blocks Like Shopping',
-            html: '<p>Inside the library, click a department, then a block to preview it. Like it? <strong>Add to kit</strong>, keep browsing, then place your whole kit on the canvas at once. Or start fast with a quick-start recipe below.</p>' +
-                '<p>Try this order for a solid first prompt:</p>' +
-                '<div class="tour-prompt-flow" style="margin-top:0">' +
-                '<div class="tour-block-chip role"><span class="material-symbols-outlined">person</span>1. Role</div>' +
-                '<span class="tour-flow-plus material-symbols-outlined">add</span>' +
-                '<div class="tour-block-chip task"><span class="material-symbols-outlined">task_alt</span>2. Task</div>' +
-                '<span class="tour-flow-plus material-symbols-outlined">add</span>' +
-                '<div class="tour-block-chip format"><span class="material-symbols-outlined">format_align_left</span>3. Format</div>' +
-                '</div>' +
-                '<div class="tour-tip"><span class="material-symbols-outlined">info</span>The search box inside the library hunts across all 589 blocks and 70 frameworks at once.</div>',
-            position: 'right'
-        },
-        // 5 — Canvas
-        {
-            target: '#pcwDropZone',
-            icon: 'space_dashboard',
-            title: 'Your Prompt Canvas',
-            html: '<p>When you click a block, it lands here on the canvas. Your blocks stack up <strong>top to bottom</strong> — and that order matters, because the AI reads your prompt in sequence.</p>' +
-                '<p><strong>Drag any block</strong> up or down to reorder it. <strong>Click the ✕</strong> to remove a block you don\'t need.</p>' +
-                '<div class="tour-tip"><span class="material-symbols-outlined">info</span>A good rule: put Role and Context at the top, then Task in the middle, then Output Format at the bottom.</div>',
-            position: 'left'
-        },
-        // 6 — Preview button
-        {
-            target: '#pcwPreviewBtn',
-            icon: 'visibility',
-            title: 'Preview Your Assembled Prompt',
-            html: '<p>Once you\'ve added a few blocks, click <strong>Preview</strong> to see them merged into a single piece of text.</p>' +
-                '<p>This is exactly what gets sent to the AI — you\'ll see how your blocks flow together and spot anything that needs adjusting before you save.</p>',
-            position: 'top'
-        },
-        // 7 — Title + save
-        {
-            target: '#pcwTitleInput',
-            icon: 'save',
-            title: 'Name It and Save It',
-            html: '<p>Type a clear, descriptive name for your prompt here — something that tells you exactly what it does when you see it in your library.</p>' +
-                '<p>Then click <strong>Save to Library</strong>. Your prompt is saved instantly and appears in the library, ready to copy and use in any AI tool.</p>' +
-                '<div class="tour-tip"><span class="material-symbols-outlined">info</span>Good names are specific: <em>"Blog intro — SaaS product"</em> is better than <em>"Blog post"</em>.</div>',
-            position: 'top'
-        },
-        // 8 — Done
-        {
-            target: null,
-            icon: 'rocket_launch',
-            title: "You're ready to build",
-            html: '<p>That\'s everything you need to know. Here\'s a quick cheat sheet:</p>' +
-                '<div class="tour-quick-tips">' +
-                '<div class="tour-quick-tip"><span class="material-symbols-outlined">filter_list</span><span>Use the <strong>Category dropdown</strong> to find the right type of block fast</span></div>' +
-                '<div class="tour-quick-tip"><span class="material-symbols-outlined">unfold_more</span><span><strong>Expand/Collapse All</strong> to scan the full block library at once</span></div>' +
-                '<div class="tour-quick-tip"><span class="material-symbols-outlined">drag_indicator</span><span><strong>Drag blocks</strong> to reorder them — sequence matters</span></div>' +
-                '<div class="tour-quick-tip"><span class="material-symbols-outlined">visibility</span><span><strong>Preview</strong> before saving to check how your prompt reads</span></div>' +
-                '<div class="tour-quick-tip"><span class="material-symbols-outlined">help_outline</span><span>Reopen this tour from <strong>How to use</strong> in the sidebar</span></div>' +
-                '</div>',
-            position: 'center',
-            isLast: true
-        }
-    ];
-
-    var _step = 0;
-    var _running = false;
-    var _raf = null;
-
-    function _el(id) {
-        return document.getElementById(id);
-    }
-
-    function _getRect(selector) {
-        if (!selector) return null;
-        var el = document.querySelector(selector);
-        if (!el) return null;
-        var r = el.getBoundingClientRect();
-        return (r.width === 0 && r.height === 0) ? null : r;
-    }
-
-    function _positionHighlight(rect) {
-        var h = _el('tutorialHighlight');
-        if (!h) return;
-        if (!rect) {
-            h.classList.remove('active');
-            h.style.width = '0';
-            h.style.height = '0';
-            h.style.top = '-9999px';
-            h.style.left = '-9999px';
-            return;
-        }
-        var pad = 6;
-        h.style.top = (rect.top - pad) + 'px';
-        h.style.left = (rect.left - pad) + 'px';
-        h.style.width = (rect.width + pad * 2) + 'px';
-        h.style.height = (rect.height + pad * 2) + 'px';
-        h.classList.add('active');
-    }
-
-    function _positionCard(rect, position) {
-        var card = _el('tutorialCard');
-        var arrow = _el('tourArrow');
-        if (!card) return;
-        var vw = window.innerWidth;
-        var vh = window.innerHeight;
-        var cw = 340;
-        var GAP = 18;
-
-        // Reset arrow
-        if (arrow) {
-            arrow.style.display = 'none';
-            arrow.className = 'tour-arrow';
-        }
-
-        if (!rect || position === 'center') {
-            // Centred
-            card.style.top = ((vh - card.offsetHeight) / 2) + 'px';
-            card.style.left = ((vw - cw) / 2) + 'px';
-            return;
-        }
-
-        var ch = card.offsetHeight || 300;
-        var top, left;
-
-        if (position === 'right') {
-            left = Math.min(rect.right + GAP, vw - cw - 8);
-            top = Math.max(8, Math.min(rect.top + (rect.height / 2) - (ch / 2), vh - ch - 8));
-            if (arrow) {
-                arrow.style.display = 'block';
-                arrow.style.top = (Math.min(rect.top + rect.height / 2, top + ch - 20) - top) + 'px';
-                arrow.classList.add('left');
-            }
-        } else if (position === 'left') {
-            left = Math.max(8, rect.left - cw - GAP);
-            top = Math.max(8, Math.min(rect.top + (rect.height / 2) - (ch / 2), vh - ch - 8));
-            if (arrow) {
-                arrow.style.display = 'block';
-                arrow.style.top = (Math.min(rect.top + rect.height / 2, top + ch - 20) - top) + 'px';
-                arrow.classList.add('right');
-            }
-        } else if (position === 'top') {
-            top = Math.max(8, rect.top - ch - GAP);
-            left = Math.max(8, Math.min(rect.left + (rect.width / 2) - (cw / 2), vw - cw - 8));
-            if (arrow) {
-                arrow.style.display = 'block';
-                arrow.style.left = (rect.left + rect.width / 2 - left - 6) + 'px';
-                arrow.classList.add('bottom');
-            }
-        } else { // bottom
-            top = Math.min(rect.bottom + GAP, vh - ch - 8);
-            left = Math.max(8, Math.min(rect.left + (rect.width / 2) - (cw / 2), vw - cw - 8));
-            if (arrow) {
-                arrow.style.display = 'block';
-                arrow.style.left = (rect.left + rect.width / 2 - left - 6) + 'px';
-                arrow.classList.add('top');
-            }
-        }
-
-        card.style.top = Math.max(8, top) + 'px';
-        card.style.left = Math.max(8, left) + 'px';
-    }
-
-    function _renderProgress() {
-        var el = _el('tourProgress');
-        if (!el) return;
-        var dots = STEPS.map(function(_, i) {
-            var cls = i < _step ? 'tour-dot done' : i === _step ? 'tour-dot active' : 'tour-dot';
-            return '<div class="' + cls + '"></div>';
-        }).join('');
-        el.innerHTML = dots;
-    }
-
-    function _renderStep(n) {
-        var step = STEPS[n];
-        if (!step) return;
-
-        var iconEl = _el('tourIcon');
-        var titleEl = _el('tourTitle');
-        var bodyEl = _el('tourBody');
-        var skipBtn = _el('tourSkipBtn');
-        var backBtn = _el('tourBackBtn');
-        var nextBtn = _el('tourNextBtn');
-
-        if (iconEl) iconEl.innerHTML = '<span class="material-symbols-outlined">' + step.icon + '</span>';
-        if (titleEl) titleEl.textContent = step.title;
-        if (bodyEl) bodyEl.innerHTML = step.html;
-        if (skipBtn) skipBtn.style.display = step.isLast ? 'none' : '';
-        if (backBtn) backBtn.style.display = n === 0 ? 'none' : '';
-        if (nextBtn) nextBtn.innerHTML = step.isLast ?
-            '<span class="material-symbols-outlined">check</span> Done' :
-            'Next <span class="material-symbols-outlined">arrow_forward</span>';
-
-        _renderProgress();
-
-        var rect = _getRect(step.target);
-        _positionHighlight(rect);
-
-        // Wait a tick for card height to settle, then position
-        requestAnimationFrame(function() {
-            _positionCard(rect, step.position);
-        });
-    }
-
-    function _show() {
-        var overlay = _el('tutorialOverlay');
-        var card = _el('tutorialCard');
-        if (overlay) overlay.classList.add('active');
-        if (card) card.classList.add('active');
-        document.body.style.overflow = 'hidden';
-        _running = true;
-    }
-
-    function _hide() {
-        var overlay = _el('tutorialOverlay');
-        var card = _el('tutorialCard');
-        var highlight = _el('tutorialHighlight');
-        if (overlay) overlay.classList.remove('active');
-        if (card) card.classList.remove('active');
-        if (highlight) highlight.classList.remove('active');
-        document.body.style.overflow = '';
-        _running = false;
-    }
-
-    window.PL_startTutorial = function() {
-        _step = 0;
-        _show();
-        // Small delay so DOM is fully painted before positioning
-        setTimeout(function() {
-            _renderStep(0);
-        }, 80);
-    };
-
-    window.PL_endTutorial = function() {
-        _hide();
-        localStorage.setItem('pl_tutorial_seen', '1');
-    };
-
-    window.PL_tutorialNext = function() {
-        var step = STEPS[_step];
-        if (step && step.isLast) {
-            window.PL_endTutorial();
-            return;
-        }
-        if (step && step.onNext) step.onNext();
-        _step = Math.min(_step + 1, STEPS.length - 1);
-        // Small delay if we just navigated to a new workspace
-        setTimeout(function() {
-            _renderStep(_step);
-        }, 120);
-    };
-
-    window.PL_tutorialBack = function() {
-        if (_step === 0) return;
-        _step--;
-        setTimeout(function() {
-            _renderStep(_step);
-        }, 60);
-    };
-
-    // Close on overlay click (allows continuing without completing)
-    document.addEventListener('click', function(e) {
-        if (_running && e.target && e.target.id === 'tutorialOverlay') {
-            window.PL_endTutorial();
-        }
-    });
-
-    // Re-position on resize
-    window.addEventListener('resize', function() {
-        if (!_running) return;
-        var step = STEPS[_step];
-        if (!step) return;
-        var rect = _getRect(step.target);
-        _positionHighlight(rect);
-        requestAnimationFrame(function() {
-            _positionCard(rect, step.position);
-        });
-    });
-
-    // Auto-launch disabled: the new onboarding tour (initOnboarding) handles first-run.
-    // PL_startTutorial remains available for the sidebar "Components tour" button.
-
-
 
 })();

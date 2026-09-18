@@ -1,0 +1,185 @@
+- generic [ref=f19e2]:
+  - complementary [ref=f19e3]:
+    - generic [ref=f19e4]:
+      - generic [ref=f19e5]: P
+      - generic [ref=f19e6]: Prompt Library
+    - navigation [ref=f19e7]:
+      - button "menu_book Library 0" [ref=f19e8] [cursor=pointer]:
+        - generic [ref=f19e9]: menu_book
+        - generic [ref=f19e10]: Library
+        - generic [ref=f19e11]: "0"
+      - button "star Favourites 0" [ref=f19e12] [cursor=pointer]:
+        - generic [ref=f19e13]: star
+        - generic [ref=f19e14]: Favourites
+        - generic [ref=f19e15]: "0"
+      - button "monitoring Analytics lock" [ref=f19e16] [cursor=pointer]:
+        - generic [ref=f19e17]: monitoring
+        - generic [ref=f19e18]: Analytics
+        - generic [ref=f19e19]: lock
+      - button "grid_view Workspaces" [ref=f19e20] [cursor=pointer]:
+        - generic [ref=f19e21]: grid_view
+        - generic [ref=f19e22]: Workspaces
+      - button "dashboard_customize Prompt Board lock" [ref=f19e23] [cursor=pointer]:
+        - generic [ref=f19e24]: dashboard_customize
+        - generic [ref=f19e25]: Prompt Board
+        - generic [ref=f19e26]: lock
+    - generic [ref=f19e27]:
+      - generic [ref=f19e28]:
+        - generic [ref=f19e29] [cursor=pointer]:
+          - generic [ref=f19e30]: Library source
+          - button "Add local library" [ref=f19e32]:
+            - generic [ref=f19e33]: add
+        - generic [ref=f19e35]:
+          - generic [ref=f19e36] [cursor=pointer]:
+            - generic [ref=f19e37]: menu_book
+            - generic [ref=f19e38]: My Library
+          - generic "C:\\Users\\Eugene Phillips\\Documents\\PromptLibrary\\Local Library" [ref=f19e39] [cursor=pointer]:
+            - generic [ref=f19e40]: folder_special
+            - generic [ref=f19e41]: Local Library
+            - button "close" [ref=f19e42]
+      - generic [ref=f19e45] [cursor=pointer]:
+        - generic [ref=f19e46]: Folders 34
+        - generic [ref=f19e47]:
+          - button "New folder" [ref=f19e48]:
+            - generic [ref=f19e49]: add
+          - generic [ref=f19e50]: expand_more
+      - generic [ref=f19e52] [cursor=pointer]:
+        - generic [ref=f19e53]: Categories 86
+        - generic [ref=f19e54]: expand_more
+      - generic [ref=f19e56] [cursor=pointer]:
+        - generic [ref=f19e57]: Tags 203
+        - generic [ref=f19e58]:
+          - button "Manage tags" [ref=f19e59]:
+            - generic [ref=f19e60]: tune
+          - generic [ref=f19e61]: expand_more
+    - generic [ref=f19e63] [cursor=pointer]:
+      - generic [ref=f19e64]: Not licensed — enter your key to unlock Pro features
+      - button "Collapse licence panel" [ref=f19e65]:
+        - generic [ref=f19e66]: expand_more
+    - generic [ref=f19e67]:
+      - generic [ref=f19e68]:
+        - button "upload Import" [ref=f19e69] [cursor=pointer]:
+          - generic [ref=f19e70]: upload
+          - generic [ref=f19e71]: Import
+        - button "download Export" [ref=f19e72] [cursor=pointer]:
+          - generic [ref=f19e73]: download
+          - generic [ref=f19e74]: Export
+      - button "dark_mode Dark mode" [ref=f19e75] [cursor=pointer]:
+        - generic [ref=f19e76]: dark_mode
+        - generic [ref=f19e77]: Dark mode
+      - button "workspace_premium Unlock Pro" [ref=f19e78] [cursor=pointer]:
+        - generic [ref=f19e79]: workspace_premium
+        - generic [ref=f19e80]: Unlock Pro
+      - button "Open API settings" [ref=f19e81] [cursor=pointer]:
+        - generic [ref=f19e82]: settings
+        - generic [ref=f19e83]: API settings
+      - button "Replay app tour" [ref=f19e84] [cursor=pointer]:
+        - generic [ref=f19e85]: auto_awesome
+        - generic [ref=f19e86]: App tour
+  - main [ref=f19e87]:
+    - generic [ref=f19e88]:
+      - generic [ref=f19e89]:
+        - button "Toggle sidebar" [ref=f19e90] [cursor=pointer]:
+          - generic [ref=f19e91]: menu_open
+        - generic [ref=f19e92]:
+          - heading "Library" [level=1] [ref=f19e93]
+          - paragraph [ref=f19e94]:
+            - generic [ref=f19e95]: 0 prompts
+        - generic [ref=f19e96]:
+          - generic [ref=f19e97]: search
+          - searchbox "Search prompts, descriptions, tags..." [ref=f19e98]
+          - generic [ref=f19e99]: /
+        - generic [ref=f19e100]:
+          - button "Open command palette" [ref=f19e101] [cursor=pointer]:
+            - generic [ref=f19e102]: bolt
+          - button "add New prompt" [ref=f19e103] [cursor=pointer]:
+            - generic [ref=f19e104]: add
+            - generic [ref=f19e105]: New prompt
+      - generic [ref=f19e106]:
+        - checkbox "Select all visible prompts" [ref=f19e107] [cursor=pointer]
+        - button "filter_list Filters 0" [ref=f19e109] [cursor=pointer]:
+          - generic [ref=f19e110]: filter_list
+          - text: Filters
+          - generic [ref=f19e111]: "0"
+        - combobox "Sort prompts" [ref=f19e112] [cursor=pointer]:
+          - option "Recently updated" [selected]
+          - option "Newest first"
+          - option "Oldest first"
+          - option "Title A-Z"
+          - option "Title Z-A"
+          - option "Most used"
+          - option "Least used"
+          - option "Top rated"
+          - option "Favourites first"
+          - option "By colour label"
+          - option "Manual order"
+        - button "close" [ref=f19e113] [cursor=pointer]
+        - generic [ref=f19e115]:
+          - generic [ref=f19e116]:
+            - button "List view" [ref=f19e117] [cursor=pointer]:
+              - generic [ref=f19e118]: view_agenda
+            - button "Grid view" [ref=f19e119] [cursor=pointer]:
+              - generic [ref=f19e120]: grid_view
+          - button "Group by folder" [ref=f19e121] [cursor=pointer]:
+            - generic [ref=f19e122]: folder_special
+          - button "Surprise me" [ref=f19e123] [cursor=pointer]:
+            - generic [ref=f19e124]: shuffle
+    - complementary [aria-hidden] [ref=f19e130]:
+      - generic [ref=f19e131]:
+        - generic [ref=f19e132]:
+          - button [ref=f19e133] [cursor=pointer]:
+            - generic [ref=f19e134]: favorite
+          - button [ref=f19e135] [cursor=pointer]:
+            - generic [ref=f19e136]: content_copy
+          - button [ref=f19e137] [cursor=pointer]:
+            - generic [ref=f19e138]: edit
+          - button [ref=f19e139] [cursor=pointer]:
+            - generic [ref=f19e140]: delete
+        - button [ref=f19e141] [cursor=pointer]:
+          - generic [ref=f19e142]: close
+      - navigation [ref=f19e143]:
+        - button [ref=f19e144] [cursor=pointer]: Prompt
+        - button [ref=f19e145] [cursor=pointer]:
+          - text: Notes & rating
+          - generic [ref=f19e146]: lock
+        - button [ref=f19e147] [cursor=pointer]:
+          - text: Chain
+          - generic [ref=f19e148]: lock
+        - button [ref=f19e149] [cursor=pointer]:
+          - text: History
+          - generic [ref=f19e150]: lock
+      - generic [ref=f19e152]:
+        - generic [ref=f19e153]:
+          - text: Prompt
+          - generic [ref=f19e154]:
+            - generic [ref=f19e155]: token
+            - generic [ref=f19e156]: 0 variables
+        - generic [ref=f19e158]:
+          - generic [ref=f19e159]:
+            - generic [ref=f19e160]: calendar_month
+            - generic [ref=f19e161]:
+              - generic [ref=f19e162]: Created
+              - generic [ref=f19e163]: "-"
+          - generic [ref=f19e164]:
+            - generic [ref=f19e165]: bolt
+            - generic [ref=f19e166]:
+              - generic [ref=f19e167]: Total uses
+              - generic [ref=f19e168]: "0"
+          - generic [ref=f19e169]:
+            - generic [ref=f19e170]: folder
+            - generic [ref=f19e171]:
+              - generic [ref=f19e172]: Folder
+              - generic [ref=f19e173]: "-"
+          - generic [ref=f19e174]:
+            - generic [ref=f19e175]: schedule
+            - generic [ref=f19e176]:
+              - generic [ref=f19e177]: Last used
+              - generic [ref=f19e178]: Never
+      - generic [ref=f19e179]:
+        - button [ref=f19e180] [cursor=pointer]:
+          - generic [ref=f19e181]: ios_share
+        - button [ref=f19e182] [cursor=pointer]:
+          - generic [ref=f19e183]: description
+        - button [ref=f19e184] [cursor=pointer]:
+          - generic [ref=f19e185]: content_copy
+          - text: Copy to clipboard

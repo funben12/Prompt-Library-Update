@@ -69,6 +69,51 @@
 
     
 
+    async function renderVaultSwitcher() {
+        const list = $('#vaultSwitcherList');
+        if (!list) return;
+        let vaults = [];
+        try {
+            vaults = await api('/vaults');
+        } catch {
+            vaults = [];
+        }
+        const current = state.librarySource || { type: 'db' };
+        const rows = [
+            `<div class="filter-list-item${current.type === 'db' ? ' active' : ''}" data-source-db="1">` +
+            `<span class="material-symbols-outlined">menu_book</span><span>My Library</span></div>`,
+        ];
+        vaults.forEach(v => {
+            const active = current.type === 'vault' && current.vaultId === v.id;
+            rows.push(
+                `<div class="filter-list-item${active ? ' active' : ''}" data-source-vault="${v.id}" data-vault-name="${escapeAttr(v.name)}" data-vault-path="${escapeAttr(v.path)}" title="${escapeAttr(v.path)}">` +
+                `<span class="material-symbols-outlined">folder_special</span><span>${escapeHtml(v.name)}</span>` +
+                `<button class="folder-mini-btn danger" data-remove-vault="${v.id}" data-remove-vault-name="${escapeAttr(v.name)}" title="Remove local library (keeps the files on disk)">` +
+                `<span class="material-symbols-outlined">close</span></button></div>`
+            );
+        });
+        list.innerHTML = rows.join('');
+        list.querySelectorAll('[data-source-db]').forEach(el => {
+            el.addEventListener('click', () => switchLibrarySource({ type: 'db' }));
+        });
+        list.querySelectorAll('[data-source-vault]').forEach(el => {
+            el.addEventListener('click', () => switchLibrarySource({
+                type: 'vault',
+                vaultId: parseInt(el.dataset.sourceVault, 10),
+                vaultName: el.dataset.vaultName,
+                vaultPath: el.dataset.vaultPath,
+            }));
+        });
+        list.querySelectorAll('[data-remove-vault]').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeVaultFromSwitcher(parseInt(el.dataset.removeVault, 10), el.dataset.removeVaultName);
+            });
+        });
+    }
+
+    
+
     function initTagManager() {
         const openBtn = $('#tagManagerBtn');
         const modal = $('#tagManagerModal');
@@ -176,6 +221,52 @@
         const label = $('#themeLabel');
         if (icon) icon.textContent = theme === 'dark' ? 'light_mode' : 'dark_mode';
         if (label) label.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
+    }
+
+    
+
+
+    // Repaint the Settings > Licence Key panel from state. Safe to call any time.
+    function refreshLicencePanel() {
+        const box = $('#licenceStatus');
+        const text = $('#licenceStatusText');
+        const btn = $('#licenceActivateBtn');
+        const input = $('#settingsLicenceKeyInput');
+        const saveBtn = $('#licenceSaveDbBtn');
+        const unsaveBtn = $('#licenceUnsaveDbBtn');
+        if (!box || !text || !btn || !input) return;
+
+        if (state.isPremium && state.licenceSavedToDb) {
+            box.style.borderLeftColor = 'var(--success)';
+            text.textContent = 'Licensed \u2014 Pro features unlocked';
+            text.style.color = 'var(--success)';
+            input.value = _maskLicenceKey(state.licenceKey);
+            input.disabled = true;
+            btn.disabled = true;
+            btn.hidden = false;
+            btn.innerHTML = '<span class="material-symbols-outlined">check</span> Activated';
+            if (saveBtn) saveBtn.hidden = true;
+            if (unsaveBtn) unsaveBtn.hidden = false;
+        } else if (state.isPremium && !state.licenceSavedToDb) {
+            box.style.borderLeftColor = 'var(--success)';
+            text.textContent = 'Pro unlocked for this session \u2014 not saved to DB yet';
+            text.style.color = 'var(--success)';
+            input.value = _maskLicenceKey(state.licenceKey);
+            input.disabled = true;
+            btn.hidden = true;
+            if (saveBtn) saveBtn.hidden = false;
+            if (unsaveBtn) unsaveBtn.hidden = true;
+        } else {
+            box.style.borderLeftColor = 'var(--ink-3)';
+            text.textContent = 'Not licensed \u2014 enter your key to unlock Pro features';
+            text.style.color = 'var(--ink-3)';
+            input.disabled = false;
+            btn.disabled = false;
+            btn.hidden = false;
+            btn.innerHTML = '<span class="material-symbols-outlined">vpn_key</span> Activate Licence';
+            if (saveBtn) saveBtn.hidden = true;
+            if (unsaveBtn) unsaveBtn.hidden = true;
+        }
     }
 
     

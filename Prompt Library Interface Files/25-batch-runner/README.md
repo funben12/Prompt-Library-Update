@@ -8,8 +8,8 @@ the live app still runs from `static/index.html`, `static/app.css`, `static/app.
 | File | What it is |
 |---|---|
 | `markup.html` | The exact HTML block for this view, dedented. Root element: `#batchWorkspace` |
-| `styles.css` | CSS rules from `static/app.css` whose selectors target this view's ids / view-specific classes (26 rules) |
-| `script.js` | Top-level functions from `static/app.js` that reference this view's ids or carry its name prefix (5 functions) |
+| `styles.css` | CSS rules from `static/app.css` whose selectors target this view's ids / view-specific classes (35 rules) |
+| `script.js` | Top-level functions from `static/app.js` that reference this view's ids or carry its name prefix (7 functions) |
 | `preview.html` | Standalone page that loads `_shared` + the three files above, for isolated visual work |
 
 ## Source locations
@@ -23,6 +23,8 @@ the live app still runs from `static/index.html`, `static/app.css`, `static/app.
 - `_brSyncSource()`
 - `_brRenderResults()`
 - `_brRestore()`
+- `_brShowTutorial()`
+- `PL_brSaveRow()`
 - `openBatchWorkspace()`
 - `closeBatchWorkspace()`
 
