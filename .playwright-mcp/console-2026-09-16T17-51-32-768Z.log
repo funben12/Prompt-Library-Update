@@ -1,0 +1,13 @@
+[     775ms] [LOG] ✓ Components data loaded: {blocks: 345, categories: 24, frameworks: 52} @ http://localhost:5055/static/components-data.js:465
+[     830ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5055/:0
+[  241272ms] [ERROR] Access to fetch at 'https://api.openai.com/v1/chat/completions' from origin 'http://localhost:5055' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://localhost:5055/:0
+[  241276ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://api.openai.com/v1/chat/completions:0
+[  241278ms] [ERROR] AI build: TypeError: Failed to fetch
+    at callAI (http://localhost:5055/static/app.js?v=aab4d7eb:16379:31)
+    at HTMLButtonElement._aiAsk (http://localhost:5055/static/app.js?v=aab4d7eb:11434:33)
+    at eval (eval at <anonymous> (eval at evaluate (:311:30)), <anonymous>:1:152)
+    at eval (eval at evaluate (:311:30), <anonymous>:4:50)
+    at UtilityScript.evaluate (<anonymous>:313:16)
+    at UtilityScript.<anonymous> (<anonymous>:1:44) @ http://localhost:5055/static/app.js?v=aab4d7eb:11456
+[  393435ms] [LOG] ✓ Components data loaded: {blocks: 345, categories: 24, frameworks: 52} @ http://localhost:5055/static/components-data.js:465
+[  393494ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5055/:0

@@ -1,0 +1,2 @@
+[    1299ms] [LOG] ✓ Components data loaded: {blocks: 345, categories: 24, frameworks: 52} @ http://localhost:5055/static/components-data.js:465
+[    1396ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5055/:0

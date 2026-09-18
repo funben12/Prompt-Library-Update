@@ -2,6 +2,10 @@
 
 Prompt Library Pro — local-first Windows desktop app for storing, organising, and running AI prompts. No cloud, no accounts, no internet required.
 
+**Context (2026-09-16):** the app may be shown to, or invested in by, an outside party. Until told
+otherwise, treat any visual/UX work here with an investor-demo bar, not a normal internal-tool
+polish pass — clean typography and spacing, real hierarchy, no "default AI slop" card grids.
+
 ---
 
 ## Stack
@@ -9,6 +13,14 @@ Prompt Library Pro — local-first Windows desktop app for storing, organising, 
 - Python 3.9+, Flask 3.0.0, flask-cors 4.0.0, PyWebView 5.3.2, waitress 3.0.0
 - SQLite (`PromptLibrary.db`), PyInstaller (`PromptLibrary.spec`), Inno Setup (`PromptLibrary.iss`)
 - Frontend: vanilla JS (single `static/app.js`, ~18k lines, IIFE), Tailwind via CDN, no build step
+
+---
+
+## Browser verification
+
+Whenever checking the running app in a browser (visual review, clicking through a flow, reading
+console/network state), use the Playwright MCP tools. Do not use any other browser tool for this
+project.
 
 ---
 

@@ -772,7 +772,9 @@ def check_licence():
 def get_settings():
     """Return persisted settings, including the saved licence key."""
     licence = get_setting('licence')
-    return jsonify({'licence': licence} if licence else {})
+    out = {'licence': licence} if licence else {}
+    out['tour_done'] = bool(get_setting('tour_done'))
+    return jsonify(out)
 
 @app.route('/api/settings/licence', methods=['POST'])
 def set_licence_setting():
@@ -783,6 +785,17 @@ def set_licence_setting():
         set_setting('licence', key)
     else:
         delete_setting('licence')
+    return jsonify({'ok': True})
+
+@app.route('/api/settings/tour', methods=['POST'])
+def set_tour_setting():
+    """Persist whether the onboarding tour has been seen. DB-backed because
+    WebView localStorage can reset between launches (see ai-keys sync note)."""
+    data = request.json or {}
+    if data.get('done'):
+        set_setting('tour_done', '1')
+    else:
+        delete_setting('tour_done')
     return jsonify({'ok': True})
 
 
@@ -2865,7 +2878,7 @@ def save_ai_key():
     data = _json_body()
     provider = data.get('provider') or ''
     key = (data.get('key') or '').strip()
-    if provider not in ('openai', 'anthropic', 'gemini', 'openrouter'):
+    if not re.match(r'^[a-z0-9_]{1,40}$', provider):
         return jsonify({'error': 'unknown provider'}), 400
     try:
         with get_db() as con:
@@ -2874,6 +2887,68 @@ def save_ai_key():
                             ('ai_apikey_' + provider, key))
             else:
                 con.execute("DELETE FROM settings WHERE key = ?", ('ai_apikey_' + provider,))
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/ai-baseurls', methods=['GET'])
+def get_ai_baseurls():
+    """Return stored custom base URLs, keyed by provider slug."""
+    try:
+        with get_db() as con:
+            rows = con.execute(
+                "SELECT key, value FROM settings WHERE key LIKE 'ai_baseurl_%'"
+            ).fetchall()
+        return jsonify({r['key'][len('ai_baseurl_'):]: r['value'] for r in rows})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/ai-baseurls', methods=['POST'])
+def save_ai_baseurl():
+    """Store or clear one provider's custom base URL in the DB file."""
+    data = _json_body()
+    provider = data.get('provider') or ''
+    url = (data.get('url') or '').strip()
+    if not re.match(r'^[a-z0-9_]{1,40}$', provider):
+        return jsonify({'error': 'unknown provider'}), 400
+    try:
+        with get_db() as con:
+            if url:
+                con.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                            ('ai_baseurl_' + provider, url))
+            else:
+                con.execute("DELETE FROM settings WHERE key = ?", ('ai_baseurl_' + provider,))
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/ai-providers', methods=['GET'])
+def get_ai_providers():
+    """Return custom provider tabs the user has added (slug + label)."""
+    try:
+        with get_db() as con:
+            rows = con.execute(
+                "SELECT key, value FROM settings WHERE key LIKE 'ai_customprovider_%'"
+            ).fetchall()
+        return jsonify([
+            {'slug': r['key'][len('ai_customprovider_'):], 'label': r['value']}
+            for r in rows
+        ])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/ai-providers', methods=['POST'])
+def save_ai_provider():
+    """Add a custom provider tab (slug + display label) to the DB file."""
+    data = _json_body()
+    slug = data.get('slug') or ''
+    label = (data.get('label') or '').strip()
+    if not re.match(r'^[a-z0-9_]{1,40}$', slug) or not label:
+        return jsonify({'error': 'invalid provider'}), 400
+    try:
+        with get_db() as con:
+            con.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                        ('ai_customprovider_' + slug, label))
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
