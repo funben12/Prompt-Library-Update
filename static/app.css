@@ -1051,6 +1051,10 @@
     flex-shrink: 0;
     overflow-x: auto;
     scrollbar-width: none;
+    /* Fades the trailing edge so a scrollable tab row reads as "more here",
+       not as clipped text, when the detail panel is at its narrowest. */
+    mask-image: linear-gradient(to right, black calc(100% - 22px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 22px), transparent 100%);
   }
   .detail-tabs::-webkit-scrollbar { display: none; }
   .detail-tab {
@@ -1066,6 +1070,13 @@
   .detail-tab:hover { color: var(--ink); }
   .detail-tab.active { color: var(--ink); border-color: var(--accent); font-weight: 600; }
   .detail-tab .lock { font-size: 12px; opacity: 0.6; margin-left: 4px; vertical-align: -2px; }
+
+  /* At --detail-w's floor (narrow/min-size window), four tabs plus lock
+     icons don't fit; tighten so more of the row is readable before scroll. */
+  @media (max-width: 900px) {
+    .detail-tab { padding: 12px 10px; font-size: 12.5px; }
+    .detail-tab .lock { margin-left: 2px; }
+  }
 
   #detailBody {
     flex: 1;
