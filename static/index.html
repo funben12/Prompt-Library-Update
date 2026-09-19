@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" media="print" onload="this.media='all'">
 
-<link rel="stylesheet" href="/static/app.css?v=296242f5">
+<link rel="stylesheet" href="/static/app.css?v=a8d4fc07">
 </head>
 <body>
 
@@ -1526,22 +1526,6 @@
     </div>
   </div>
 </div>
-<div class="modal-overlay" id="orgSuggestModal" role="dialog" aria-modal="true" aria-labelledby="orgSuggestTitle">
-  <div class="modal-box-sm">
-    <div class="modal-header">
-      <h3 id="orgSuggestTitle">Suggestions</h3>
-      <button class="icon-btn" id="closeOrgSuggestBtn" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
-    </div>
-    <div class="modal-body">
-      <p class="hint" id="orgSuggestHint">Scanning…</p>
-      <div class="tax-autotag-list" id="orgSuggestList"></div>
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="btn btn-ghost" id="orgSuggestCancelBtn">Cancel</button>
-      <button type="button" class="btn btn-primary" id="orgSuggestApplyBtn" disabled>Apply</button>
-    </div>
-  </div>
-</div>
 <div class="modal-overlay" id="folderModal" role="dialog" aria-modal="true">
   <div class="modal-box-sm">
     <div class="modal-header">
@@ -2786,18 +2770,32 @@
       <span class="material-symbols-outlined ws-header-icon">monitor_heart</span>
       <div>
         <h2 class="ws-title">Library Organizer</h2>
-        <p class="ws-subtitle">Health scan of your whole library, with actions to fix what it finds.</p>
+        <p class="ws-subtitle">Sort your library, one prompt at a time.</p>
       </div>
     </div>
     <div class="ws-header-actions">
-      <div class="pulse-score">Health <span id="pulseScoreNum">–</span></div>
       <button class="btn btn-ghost" id="pulseRescanBtn"><span class="material-symbols-outlined">refresh</span> Rescan</button>
       <button class="icon-btn" id="closePulseBtn" aria-label="Close Library Organizer"><span class="material-symbols-outlined">close</span></button>
     </div>
   </div>
   <div class="ws-body pulse-wrap">
-    <div class="pulse-meta" id="pulseMeta"></div>
-    <div class="pulse-body" id="pulseBody"></div>
+    <div class="pulse-stats" id="pulseStats">
+      <div class="pulse-score-ring">
+        <svg viewBox="0 0 64 64" class="pulse-ring-svg" aria-hidden="true">
+          <circle class="pulse-ring-track" cx="32" cy="32" r="27"></circle>
+          <circle class="pulse-ring-fill" id="pulseRingFill" cx="32" cy="32" r="27"></circle>
+        </svg>
+        <span class="pulse-score-num" id="pulseScoreNum">–</span>
+      </div>
+      <div class="pulse-stats-text">
+        <div class="pulse-stats-row" id="pulseMeta">Scanning…</div>
+        <div class="pulse-stats-row pulse-stats-resolved"><span class="material-symbols-outlined">check_circle</span><span id="pulseResolvedCount">0 resolved this session</span></div>
+      </div>
+    </div>
+    <div class="pulse-board" id="pulseBoard">
+      <div class="pulse-rail" id="pulseRail"></div>
+      <div class="pulse-stack" id="pulseStack"></div>
+    </div>
   </div>
 </div>
 
@@ -3768,7 +3766,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=d6cd1397"></script>
+<script defer src="/static/app.js?v=c0623238"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>
