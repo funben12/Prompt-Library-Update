@@ -14119,6 +14119,12 @@ Must avoid: [Anything sensitive or previously declined]`
         pins: []
     };
 
+    const _boardCoverPalette = ['#0047ff', '#141414', '#4a4a4a', '#0038cc'];
+
+    function _boardHashColor(id) {
+        return _boardCoverPalette[Math.abs(Number(id) || 0) % _boardCoverPalette.length];
+    }
+
     async function _boardLoadList(keepSelection) {
         const listEl = $('#boardList');
         if (listEl) listEl.innerHTML = '<div class="hint" style="padding:var(--sp-4);">\u23f3 Loading boards\u2026</div>';
@@ -14148,6 +14154,7 @@ Must avoid: [Anything sensitive or previously declined]`
         }
         listEl.innerHTML = _boardState.boards.map(b =>
             '<div class="board-row' + (b.id === _boardState.activeId ? ' active' : '') + '" data-board-id="' + b.id + '">' +
+                '<span class="board-row-cover" style="background:' + _boardHashColor(b.id) + '"><span class="material-symbols-outlined">dashboard_customize</span></span>' +
                 '<span class="board-row-name">' + escapeHtml(b.name) + '</span>' +
                 '<span class="board-row-count">' + b.pin_count + '</span>' +
                 '<button class="board-row-del material-symbols-outlined" data-board-del="' + b.id + '" title="Delete board" aria-label="Delete board">delete</button>' +
@@ -14217,15 +14224,25 @@ Must avoid: [Anything sensitive or previously declined]`
             body.innerHTML = '<div class="board-pins-empty hint">No prompts pinned yet. Pick one above and add it.</div>';
             return;
         }
-        body.innerHTML = _boardState.pins.map(p =>
-            '<div class="board-pin-card" data-board-pin-id="' + p.id + '">' +
-                '<span class="board-pin-title">' + escapeHtml(p.title || 'Untitled') + '</span>' +
-                '<span class="board-pin-desc">' + escapeHtml((p.description || '').slice(0, 90)) + '</span>' +
-                '<span class="board-pin-body">' + escapeHtml((p.content || '').slice(0, 220)) + '</span>' +
-                '<button class="board-pin-copy material-symbols-outlined" data-board-copy="' + p.id + '" title="Copy prompt" aria-label="Copy prompt">content_copy</button>' +
+        body.innerHTML = _boardState.pins.map(p => {
+            const contentLen = (p.content || '').length;
+            const mediaHeight = 64 + (Math.abs(p.id) * 37 + contentLen) % 96;
+            return '<div class="board-pin-card" data-board-pin-id="' + p.id + '">' +
+                '<div class="board-pin-media" style="height:' + mediaHeight + 'px;background:' + _boardHashColor(p.id) + '">' +
+                    '<span class="material-symbols-outlined">bolt</span>' +
+                    '<span class="board-pin-media-tag">Prompt</span>' +
+                    '<button class="board-pin-save-pill" data-board-copy="' + p.id + '" title="Save / copy prompt">' +
+                        '<span class="material-symbols-outlined" style="font-size:14px;">content_copy</span> Save' +
+                    '</button>' +
+                '</div>' +
+                '<div class="board-pin-body-wrap">' +
+                    '<span class="board-pin-title">' + escapeHtml(p.title || 'Untitled') + '</span>' +
+                    '<span class="board-pin-desc">' + escapeHtml((p.description || '').slice(0, 90)) + '</span>' +
+                    '<span class="board-pin-body">' + escapeHtml((p.content || '').slice(0, 220)) + '</span>' +
+                '</div>' +
                 '<button class="board-pin-remove material-symbols-outlined" data-board-unpin="' + p.id + '" title="Remove from board" aria-label="Remove from board">close</button>' +
-            '</div>'
-        ).join('');
+            '</div>';
+        }).join('');
         body.querySelectorAll('[data-board-pin-id]').forEach(card => {
             card.addEventListener('click', (e) => {
                 if (e.target.closest('[data-board-unpin]') || e.target.closest('[data-board-copy]')) return;
@@ -14305,6 +14322,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 board.description = description;
             }
             _boardRenderList();
+            toast('Board saved', 'success');
         } catch {
             toast('Could not save board', 'error');
         }
@@ -14343,6 +14361,8 @@ Must avoid: [Anything sensitive or previously declined]`
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'board'));
         _boardLoadList(true);
         _wsFillPromptPicker('#boardPinPicker');
+        const floatSaveBtn = $('#boardFloatingSaveBtn');
+        if (floatSaveBtn) floatSaveBtn.onclick = _boardSaveMeta;
     };
 
     function closeBoardWorkspace() {
