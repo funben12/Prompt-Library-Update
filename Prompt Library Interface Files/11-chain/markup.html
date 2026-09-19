@@ -11,6 +11,7 @@
       <button class="btn btn-ghost" id="chainAddStepBtn"><span class="material-symbols-outlined">add</span> Add Step</button>
       <button class="btn btn-ghost" id="chainClearBtn"><span class="material-symbols-outlined">restart_alt</span> Clear</button>
       <button class="btn btn-ghost" id="chainAssembleBtn"><span class="material-symbols-outlined">read_more</span> Assemble</button>
+      <button class="btn btn-accent" id="chainRunBtn"><span class="material-symbols-outlined">play_arrow</span> Run Chain</button>
       <button class="btn btn-accent" id="chainSaveBtn"><span class="material-symbols-outlined">save</span> Save Chain</button>
       <button class="icon-btn" id="closeChainBtn" aria-label="Close Chain"><span class="material-symbols-outlined">close</span></button>
     </div>
@@ -19,18 +20,15 @@
     <!-- Step 0: Seed input -->
     <div class="chain-seed" id="chainSeedWrap">
       <div class="chain-seed-label">
-        <span class="material-symbols-outlined">input</span>
-        Initial Input
-        <span class="forge-hint" style="font-weight:400;color:var(--ink-3);">Passed into Step 1 as <code>{{input}}</code></span>
+        Initial input
+        <span class="forge-hint">Piped into Step 1 as <code>{{input}}</code></span>
       </div>
-      <textarea id="chainSeedInput" class="forge-input" rows="3" placeholder="Paste the raw material — a document, a brief, a question — that starts the chain..."></textarea>
+      <textarea id="chainSeedInput" class="forge-input" rows="3" placeholder="Paste the raw material, a document, a brief, a question, that starts the chain..."></textarea>
     </div>
     <!-- Steps rendered by JS -->
     <div class="chain-steps-wrap">
       <div id="chainStepsList" class="chain-steps-list"></div>
-      <button class="chain-add-inline" id="chainAddInlineBtn" type="button">
-        <span class="material-symbols-outlined">add_circle</span> Add Step
-      </button>
+      <button class="chain-add-inline" id="chainAddInlineBtn" type="button">Add step</button>
     </div>
     <!-- Assembly preview panel (slides up from bottom) -->
     <div class="chain-preview-panel collapsed" id="chainPreviewPanel">

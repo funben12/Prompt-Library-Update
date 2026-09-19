@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" media="print" onload="this.media='all'">
 
-<link rel="stylesheet" href="/static/app.css?v=3312dd70">
+<link rel="stylesheet" href="/static/app.css?v=aea19ea7">
 </head>
 <body>
 
@@ -2158,18 +2158,15 @@
     <!-- Step 0: Seed input -->
     <div class="chain-seed" id="chainSeedWrap">
       <div class="chain-seed-label">
-        <span class="material-symbols-outlined">input</span>
-        Initial Input
-        <span class="forge-hint" style="font-weight:400;color:var(--ink-3);">Passed into Step 1 as <code>{{input}}</code></span>
+        Initial input
+        <span class="forge-hint">Piped into Step 1 as <code>{{input}}</code></span>
       </div>
-      <textarea id="chainSeedInput" class="forge-input" rows="3" placeholder="Paste the raw material — a document, a brief, a question — that starts the chain..."></textarea>
+      <textarea id="chainSeedInput" class="forge-input" rows="3" placeholder="Paste the raw material, a document, a brief, a question, that starts the chain..."></textarea>
     </div>
     <!-- Steps rendered by JS -->
     <div class="chain-steps-wrap">
       <div id="chainStepsList" class="chain-steps-list"></div>
-      <button class="chain-add-inline" id="chainAddInlineBtn" type="button">
-        <span class="material-symbols-outlined">add_circle</span> Add Step
-      </button>
+      <button class="chain-add-inline" id="chainAddInlineBtn" type="button">Add step</button>
     </div>
     <!-- Assembly preview panel (slides up from bottom) -->
     <div class="chain-preview-panel collapsed" id="chainPreviewPanel">
@@ -3775,7 +3772,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=55bc7681"></script>
+<script defer src="/static/app.js?v=ef73ecfe"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

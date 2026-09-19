@@ -22645,12 +22645,11 @@ Must avoid: [Anything sensitive or previously declined]`
                 const conn = document.createElement('div');
                 conn.className = 'chain-connector';
                 conn.setAttribute('aria-hidden', 'true');
-                conn.innerHTML = '<span class="material-symbols-outlined">arrow_downward</span><span>Output &rarr; Input</span>';
                 list.appendChild(conn);
             }
 
             const div = document.createElement('div');
-            div.className = 'chain-step' + (step._expanded !== false ? ' expanded' : '');
+            div.className = 'chainw-step' + (step._expanded !== false ? ' expanded' : '');
             div.dataset.idx = i;
 
             const inputHint = i === 0 ?
@@ -22666,17 +22665,17 @@ Must avoid: [Anything sensitive or previously declined]`
             const isExpanded = step._expanded !== false;
 
             div.innerHTML =
-                '<div class="chain-step-header" role="button" tabindex="0" aria-expanded="' + isExpanded + '" aria-label="Step ' + (i + 1) + ': ' + escapeHtml(step.label) + '">' +
-                '<div class="chain-step-num" aria-label="Step ' + (i + 1) + '">' + (i + 1) + '</div>' +
+                '<div class="chainw-step-header" role="button" tabindex="0" aria-expanded="' + isExpanded + '" aria-label="Step ' + (i + 1) + ': ' + escapeHtml(step.label) + '">' +
+                '<div class="chainw-step-num" aria-label="Step ' + (i + 1) + '">' + (i + 1) + '</div>' +
                 '<input type="text" class="chain-step-label-input" value="' + escapeHtml(step.label) + '" placeholder="Step name..." aria-label="Step ' + (i + 1) + ' name" />' +
                 '<button class="icon-btn" title="Remove step" aria-label="Remove step ' + (i + 1) + '" data-remove="' + i + '"><span class="material-symbols-outlined">close</span></button>' +
                 '</div>' +
-                '<div class="chain-step-body">' +
-                '<div class="chain-step-from-library" style="margin-bottom:var(--sp-2);">' +
-                '<select class="form-input chain-step-picker" data-picker="' + i + '" style="font-size:var(--fs-sm);">' + libOptions + '</select>' +
+                '<div class="chainw-step-body">' +
+                '<p class="chain-step-hint">' + inputHint + '</p>' +
+                '<div class="chain-step-from-library">' +
+                '<select class="chain-step-picker" data-picker="' + i + '">' + libOptions + '</select>' +
                 '</div>' +
-                '<p class="chain-step-hint" style="font-size:var(--fs-sm);color:var(--ink-3);margin-bottom:var(--sp-2);">' + inputHint + '</p>' +
-                '<textarea class="forge-input" rows="5" data-prompt="' + i + '" placeholder="Write a prompt or load one above. Use {{input}} to pipe from the previous step." style="font-family:var(--ff-mono);font-size:12px;">' + escapeHtml(step.prompt || '') + '</textarea>' +
+                '<textarea class="forge-input" rows="5" data-prompt="' + i + '" placeholder="Write a prompt or load one above. Use {{input}} to pipe from the previous step.">' + escapeHtml(step.prompt || '') + '</textarea>' +
                 '<div class="chain-word-count" data-count="' + i + '">' + wordCount + '</div>' +
                 '<div class="chain-step-output" data-output-wrap="' + i + '"' + (step._status === 'idle' || !step._status ? ' hidden' : '') + '>' +
                 '<div class="chain-step-output-label"><span class="material-symbols-outlined">' +
@@ -22690,9 +22689,9 @@ Must avoid: [Anything sensitive or previously declined]`
         });
 
         // Wire: header click → toggle expand
-        list.querySelectorAll('.chain-step-header').forEach(header => {
+        list.querySelectorAll('.chainw-step-header').forEach(header => {
             const toggle = () => {
-                const card = header.closest('.chain-step');
+                const card = header.closest('.chainw-step');
                 const expanded = card.classList.toggle('expanded');
                 header.setAttribute('aria-expanded', expanded);
                 const idx = parseInt(card.dataset.idx, 10);
@@ -22747,7 +22746,7 @@ Must avoid: [Anything sensitive or previously declined]`
                     if (countEl) countEl.textContent = _chainWordCount(ta.value);
                     if (_chainSteps[idx].label === 'Step ' + (idx + 1)) {
                         _chainSteps[idx].label = p.title || _chainSteps[idx].label;
-                        const labelInput = list.querySelector('.chain-step[data-idx="' + idx + '"] .chain-step-label-input');
+                        const labelInput = list.querySelector('.chainw-step[data-idx="' + idx + '"] .chain-step-label-input');
                         if (labelInput) labelInput.value = _chainSteps[idx].label;
                     }
                 }
@@ -22760,7 +22759,7 @@ Must avoid: [Anything sensitive or previously declined]`
         list.querySelectorAll('.chain-step-label-input').forEach(inp => {
             inp.addEventListener('input', e => {
                 e.stopPropagation();
-                const idx = parseInt(inp.closest('.chain-step').dataset.idx, 10);
+                const idx = parseInt(inp.closest('.chainw-step').dataset.idx, 10);
                 if (!isNaN(idx) && _chainSteps[idx]) _chainSteps[idx].label = inp.value;
             });
             inp.addEventListener('click', e => e.stopPropagation());
@@ -22821,7 +22820,7 @@ Must avoid: [Anything sensitive or previously declined]`
     function _chainUpdateStepUI(i) {
         const step = _chainSteps[i];
         if (!step) return;
-        const card = $('.chain-step[data-idx="' + i + '"]');
+        const card = $('.chainw-step[data-idx="' + i + '"]');
         if (!card) return;
         const wrap = card.querySelector('[data-output-wrap="' + i + '"]');
         if (!wrap) return;
