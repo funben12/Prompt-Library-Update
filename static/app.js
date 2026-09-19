@@ -13453,33 +13453,74 @@ Must avoid: [Anything sensitive or previously declined]`
         return inter / (sa.size + sb.size - inter);
     }
 
+    const PULSE_FILTERS = [
+        { key: 'all', label: 'All issues', icon: 'auto_awesome' },
+        { key: 'untagged', label: 'Untagged', icon: 'label_important' },
+        { key: 'uncategorised', label: 'No category', icon: 'category' },
+        { key: 'undescribed', label: 'No description', icon: 'description' },
+        { key: 'thin', label: 'Thin content', icon: 'compress' },
+        { key: 'stale', label: 'Stale (90+ days)', icon: 'history' },
+        { key: 'duplicates', label: 'Duplicates', icon: 'content_copy' },
+    ];
+    const PULSE_BADGE_LABEL = { untagged: 'No tags', uncategorised: 'No category', undescribed: 'No description', thin: 'Thin content', stale: 'Stale 90+ days' };
+
+    let _pulseData = null;
+    let _pulseFilter = 'all';
+    let _pulseIndex = 0;
+    let _pulseResolved = 0;
+
+    function _pulseScoreFor(list, issues, dupCount) {
+        const total = list.length || 1;
+        const pct = arr => arr.length / total;
+        return Math.max(0, Math.round(100 -
+            pct(issues.untagged) * 25 -
+            pct(issues.undescribed) * 20 -
+            pct(issues.uncategorised) * 15 -
+            pct(issues.thin) * 15 -
+            Math.min(25, dupCount * 3)));
+    }
+
+    function _pulseLiveIssues() {
+        const list = _pulseData.list;
+        const metaEmpty = v => Array.isArray(v) ? !v.length : !String(v || '').trim();
+        const cutoff = Date.now() - 90 * 24 * 3600 * 1000;
+        const idSet = new Set(list.map(p => p.id));
+        return {
+            untagged: list.filter(p => metaEmpty(p.tags)),
+            uncategorised: list.filter(p => metaEmpty(p.categories)),
+            undescribed: list.filter(p => metaEmpty(p.description)),
+            thin: list.filter(p => (p.content || '').trim().length < 40),
+            stale: list.filter(p => {
+                const d = Date.parse(p.updated_at || p.created_at || '');
+                return !isNaN(d) && d < cutoff;
+            }),
+            duplicates: _pulseData.dupPairs.filter(([a, b]) => idSet.has(a.id) && idSet.has(b.id)),
+        };
+    }
+
+    function _pulseAllQueue(issues) {
+        const seen = new Map();
+        ['untagged', 'uncategorised', 'undescribed', 'thin', 'stale'].forEach(key => {
+            issues[key].forEach(p => {
+                if (!seen.has(p.id)) seen.set(p.id, { p, keys: [] });
+                seen.get(p.id).keys.push(key);
+            });
+        });
+        return Array.from(seen.values()).sort((a, b) => b.keys.length - a.keys.length);
+    }
+
     async function _pulseScan() {
         const scanBtn = $('#pulseRescanBtn');
         if (scanBtn) scanBtn.disabled = true;
-        const body = $('#pulseBody');
-        if (body) body.innerHTML = '<div class="hint" style="padding:var(--sp-4);">⏳ Scanning library…</div>';
+        const stack = $('#pulseStack');
+        if (stack) stack.innerHTML = '<div class="pulse-clear"><span class="material-symbols-outlined">hourglass_top</span><div class="pulse-card-title">Scanning…</div></div>';
+        const meta = $('#pulseMeta');
+        if (meta) meta.textContent = 'Scanning…';
         try {
             const data = await api('/prompts');
             const list = Array.isArray(data) ? data : (data.prompts || []);
-            const metaEmpty = v => Array.isArray(v) ? !v.length : !String(v || '').trim();
-            const issues = {
-                untagged: list.filter(p => metaEmpty(p.tags)),
-                uncategorised: list.filter(p => metaEmpty(p.categories)),
-                undescribed: list.filter(p => metaEmpty(p.description)),
-                thin: list.filter(p => (p.content || '').trim().length < 40),
-            };
-            // Stale — updated/created more than 90 days ago, when a date field exists.
-            const cutoff = Date.now() - 90 * 24 * 3600 * 1000;
-            issues.stale = list.filter(p => {
-                const d = Date.parse(p.updated_at || p.created_at || '');
-                return !isNaN(d) && d < cutoff;
-            });
-            // Near-duplicate pairs — Jaccard over title + content prefix, capped scan.
+            const capped = list.slice(0, 500).map(p => ({ p, set: _pulseTokenSet((p.title || '') + ' ' + (p.content || '')) }));
             const dupPairs = [];
-            const capped = list.slice(0, 500).map(p => ({
-                p,
-                set: _pulseTokenSet((p.title || '') + ' ' + (p.content || ''))
-            }));
             for (let i = 0; i < capped.length && dupPairs.length < 30; i++) {
                 for (let j = i + 1; j < capped.length; j++) {
                     if (_pulseJaccard(capped[i].set, capped[j].set) >= 0.75) {
@@ -13488,218 +13529,252 @@ Must avoid: [Anything sensitive or previously declined]`
                     }
                 }
             }
-            const total = list.length || 1;
-            const pct = arr => arr.length / total;
-            const score = Math.max(0, Math.round(100 -
-                pct(issues.untagged) * 25 -
-                pct(issues.undescribed) * 20 -
-                pct(issues.uncategorised) * 15 -
-                pct(issues.thin) * 15 -
-                Math.min(25, dupPairs.length * 3)));
-
-            const scoreEl = $('#pulseScoreNum');
-            if (scoreEl) scoreEl.textContent = score;
-            const meta = $('#pulseMeta');
-            if (meta) meta.textContent = list.length + ' prompts scanned' + (list.length > 500 ? ' (duplicate check capped at 500)' : '');
-
-            const rowFor = p => '<div class="pulse-row" data-pulse-id="' + escapeAttr(p.id) + '">' +
-                '<span class="pulse-row-title">' + escapeHtml(p.title || 'Untitled') + '</span>' +
-                '<span class="material-symbols-outlined">chevron_right</span></div>';
-
-            const staleRowFor = p => '<div class="pulse-row pulse-row-checkable">' +
-                '<label class="pulse-row-check"><input type="checkbox" data-pulse-stale-id="' + escapeAttr(p.id) + '" /></label>' +
-                '<span class="pulse-row-title" data-pulse-id="' + escapeAttr(p.id) + '">' + escapeHtml(p.title || 'Untitled') + '</span>' +
-                '</div>';
-
-            const section = (label, icon, arr, hintText, actionKey) => {
-                const items = arr.slice(0, 15);
-                const suggestBtn = actionKey && arr.length ?
-                    '<button class="btn btn-ghost btn-xs" data-pulse-suggest="' + actionKey + '">Suggest</button>' : '';
-                return '<div class="pulse-card">' +
-                    '<div class="pulse-card-head"><span class="material-symbols-outlined">' + icon + '</span>' +
-                    '<span>' + label + '</span><span class="pulse-count' + (arr.length ? '' : ' ok') + '">' + arr.length + '</span>' + suggestBtn + '</div>' +
-                    (arr.length ?
-                        items.map(rowFor).join('') + (arr.length > 15 ? '<div class="hint" style="padding:6px 12px;">+' + (arr.length - 15) + ' more…</div>' : '') :
-                        '<div class="pulse-clean">' + hintText + '</div>') +
-                    '</div>';
-            };
-
-            const staleArr = issues.stale;
-            const staleItems = staleArr.slice(0, 15);
-            const staleBulkBar = staleArr.length ?
-                '<div class="pulse-bulk-bar">' +
-                '<button class="btn btn-ghost btn-xs" id="pulseStaleReviewBtn">Mark reviewed</button>' +
-                '<button class="btn btn-danger btn-xs" id="pulseStaleDeleteBtn">Delete selected</button>' +
-                '</div>' : '';
-            const staleCard = '<div class="pulse-card">' +
-                '<div class="pulse-card-head"><span class="material-symbols-outlined">history</span>' +
-                '<span>Stale (90+ days)</span><span class="pulse-count' + (staleArr.length ? '' : ' ok') + '">' + staleArr.length + '</span></div>' +
-                (staleArr.length ?
-                    staleItems.map(staleRowFor).join('') +
-                    (staleArr.length > 15 ? '<div class="hint" style="padding:6px 12px;">+' + (staleArr.length - 15) + ' more…</div>' : '') +
-                    staleBulkBar :
-                    '<div class="pulse-clean">Library is fresh. ✓</div>') +
-                '</div>';
-
-            const dupSide = (keep, other) => '<div class="pulse-dup-side">' + rowFor(keep) +
-                '<button class="btn btn-ghost btn-xs pulse-dup-keepbtn" data-dup-keep-id="' + escapeAttr(keep.id) + '" data-dup-delete-id="' + escapeAttr(other.id) + '">Keep, delete other</button></div>';
-
-            if (body) {
-                body.innerHTML =
-                    section('Untagged', 'label_important', issues.untagged, 'Every prompt is tagged. ✓', 'tags') +
-                    section('No category', 'category', issues.uncategorised, 'Every prompt has a category. ✓', 'categories') +
-                    section('No description', 'description', issues.undescribed, 'All prompts described. ✓') +
-                    section('Thin content', 'compress', issues.thin, 'No under-developed prompts. ✓') +
-                    staleCard +
-                    '<div class="pulse-card"><div class="pulse-card-head"><span class="material-symbols-outlined">content_copy</span>' +
-                    '<span>Possible duplicates</span><span class="pulse-count' + (dupPairs.length ? '' : ' ok') + '">' + dupPairs.length + '</span></div>' +
-                    (dupPairs.length ?
-                        dupPairs.map(([a, b]) =>
-                            '<div class="pulse-dup-pair">' + dupSide(a, b) + '<span class="pulse-dup-tie">≈</span>' + dupSide(b, a) + '</div>').join('') :
-                        '<div class="pulse-clean">No near-duplicates found. ✓</div>') +
-                    '</div>';
-
-                body.querySelectorAll('[data-pulse-id]').forEach(row => {
-                    row.addEventListener('click', () => {
-                        const id = parseInt(row.dataset.pulseId, 10);
-                        closePulseWorkspace();
-                        setTimeout(() => openDetail(id), 150);
-                    });
-                });
-                body.querySelectorAll('.pulse-row-check input').forEach(cb => {
-                    cb.addEventListener('click', e => e.stopPropagation());
-                });
-                body.querySelectorAll('[data-pulse-suggest]').forEach(btn => {
-                    btn.addEventListener('click', () => _pulseSuggest(btn.dataset.pulseSuggest));
-                });
-                body.querySelectorAll('[data-dup-keep-id]').forEach(btn => {
-                    btn.addEventListener('click', () => _pulseDeleteDuplicate(parseInt(btn.dataset.dupDeleteId, 10)));
-                });
-                $('#pulseStaleReviewBtn')?.addEventListener('click', () => _pulseStaleBulk('review'));
-                $('#pulseStaleDeleteBtn')?.addEventListener('click', () => _pulseStaleBulk('delete'));
-            }
+            _pulseData = { list, dupPairs, cappedNote: list.length > 500 };
+            _pulseResolved = 0;
+            _pulseFilter = 'all';
+            _pulseIndex = 0;
+            _pulseAfterMutate();
         } catch (e) {
-            if (body) body.innerHTML = '<div class="hint" style="padding:var(--sp-4);">Scan failed: ' + escapeHtml(e.message) + '</div>';
+            if (stack) stack.innerHTML = '<div class="pulse-clear"><span class="material-symbols-outlined" style="color:var(--danger)">error</span><div class="pulse-card-title">Scan failed</div><p class="hint">' + escapeHtml(e.message) + '</p></div>';
         } finally {
             if (scanBtn) scanBtn.disabled = false;
         }
     }
 
-    async function _pulseDeleteDuplicate(deleteId) {
-        if (!confirm("Delete the other prompt in this pair? This can't be undone.")) return;
+    function _pulseRenderStats() {
+        if (!_pulseData) return;
+        const issues = _pulseLiveIssues();
+        const score = _pulseScoreFor(_pulseData.list, issues, issues.duplicates.length);
+        const scoreEl = $('#pulseScoreNum');
+        if (scoreEl) scoreEl.textContent = score;
+        const ring = $('#pulseRingFill');
+        if (ring) {
+            const c = 169.6;
+            ring.style.strokeDashoffset = String(c - (c * score / 100));
+            ring.style.stroke = score >= 80 ? '#16a34a' : (score >= 50 ? 'var(--accent)' : '#d97706');
+        }
+        const meta = $('#pulseMeta');
+        if (meta) meta.textContent = _pulseData.list.length + ' prompts scanned' + (_pulseData.cappedNote ? ' (duplicate check capped at 500)' : '');
+        const resolvedEl = $('#pulseResolvedCount');
+        if (resolvedEl) resolvedEl.textContent = _pulseResolved + ' resolved this session';
+    }
+
+    function _pulseRenderRail() {
+        const rail = $('#pulseRail');
+        if (!rail || !_pulseData) return;
+        const issues = _pulseLiveIssues();
+        rail.innerHTML = PULSE_FILTERS.map(f => {
+            const count = f.key === 'all' ? _pulseAllQueue(issues).length : issues[f.key].length;
+            return '<button type="button" class="pulse-chip' + (f.key === _pulseFilter ? ' active' : '') + '" data-pulse-filter="' + f.key + '">' +
+                '<span class="material-symbols-outlined">' + f.icon + '</span>' +
+                '<span>' + f.label + '</span>' +
+                '<span class="pulse-chip-count' + (count ? '' : ' ok') + '">' + count + '</span></button>';
+        }).join('');
+        rail.querySelectorAll('[data-pulse-filter]').forEach(btn => {
+            btn.addEventListener('click', () => _pulseSetFilter(btn.dataset.pulseFilter));
+        });
+    }
+
+    function _pulseSetFilter(key) {
+        _pulseFilter = key;
+        _pulseIndex = 0;
+        _pulseRenderRail();
+        _pulseRenderStack();
+    }
+
+    function _pulseSkip() {
+        _pulseIndex++;
+        _pulseRenderStack();
+    }
+
+    function _pulseAfterMutate() {
+        _pulseRenderStats();
+        _pulseRenderRail();
+        _pulseRenderStack();
+    }
+
+    function _pulseOpenHandlers(root) {
+        root.querySelectorAll('[data-pulse-open]').forEach(el => {
+            el.addEventListener('click', () => {
+                const id = parseInt(el.dataset.pulseOpen, 10);
+                closePulseWorkspace();
+                setTimeout(() => openDetail(id), 150);
+            });
+        });
+    }
+
+    function _pulseRenderStack() {
+        const stack = $('#pulseStack');
+        if (!stack || !_pulseData) return;
+        const issues = _pulseLiveIssues();
+
+        if (_pulseFilter === 'duplicates') {
+            _pulseRenderDupStack(stack, issues.duplicates);
+            return;
+        }
+
+        const queue = _pulseFilter === 'all' ? _pulseAllQueue(issues) : issues[_pulseFilter].map(p => ({ p, keys: [_pulseFilter] }));
+        if (_pulseIndex >= queue.length) _pulseIndex = Math.max(0, queue.length - 1);
+
+        if (!queue.length) {
+            stack.innerHTML = '<div class="pulse-clear"><span class="material-symbols-outlined">task_alt</span>' +
+                '<div class="pulse-card-title">All clear here</div><p class="hint">Nothing left to sort in this pile.</p></div>';
+            return;
+        }
+
+        const entry = queue[_pulseIndex];
+        const p = entry.p;
+        const keys = entry.keys;
+        const badges = keys.map(k => '<span class="pulse-badge' + (k === 'stale' ? ' pulse-badge-stale' : '') + '">' + PULSE_BADGE_LABEL[k] + '</span>').join('');
+
+        let fixHtml = '';
+        if (keys.includes('untagged')) {
+            fixHtml += '<div class="pulse-fix"><div class="pulse-fix-label">Add a tag</div><div class="pulse-fix-row"><input type="text" placeholder="e.g. marketing" data-pulse-tag-input /><button type="button" class="btn btn-primary btn-xs" data-pulse-add-tag>Add</button></div></div>';
+        }
+        if (keys.includes('uncategorised')) {
+            fixHtml += '<div class="pulse-fix"><div class="pulse-fix-label">Add a category</div><div class="pulse-fix-row"><input type="text" placeholder="e.g. Marketing" data-pulse-cat-input /><button type="button" class="btn btn-primary btn-xs" data-pulse-add-cat>Add</button></div></div>';
+        }
+        if (keys.includes('undescribed')) {
+            fixHtml += '<div class="pulse-fix"><div class="pulse-fix-label">Write a description</div><div class="pulse-fix-row"><textarea placeholder="One line about what this prompt does…" data-pulse-desc-input></textarea></div><div class="pulse-fix-row"><button type="button" class="btn btn-primary btn-xs" data-pulse-save-desc>Save</button></div></div>';
+        }
+
+        const actions = ['<button type="button" class="btn btn-ghost" data-pulse-open="' + p.id + '"><span class="material-symbols-outlined">open_in_new</span> Open</button>'];
+        if (keys.includes('stale')) {
+            actions.push('<button type="button" class="btn btn-ghost" data-pulse-mark-reviewed><span class="material-symbols-outlined">check</span> Mark reviewed</button>');
+        }
+        actions.push('<button type="button" class="btn btn-danger" data-pulse-delete><span class="material-symbols-outlined">delete</span> Delete</button>');
+        actions.push('<button type="button" class="btn btn-ghost" data-pulse-skip>Skip <span class="material-symbols-outlined">arrow_forward</span></button>');
+
+        stack.innerHTML =
+            '<div class="pulse-stack-progress"><div class="pulse-stack-progress-fill" style="width:' + Math.round((_pulseIndex / queue.length) * 100) + '%"></div></div>' +
+            '<div class="pulse-card-active">' +
+            '<div class="pulse-card-eyebrow">' + (_pulseIndex + 1) + ' of ' + queue.length + '</div>' +
+            '<div class="pulse-card-title" data-pulse-open="' + p.id + '">' + escapeHtml(p.title || 'Untitled') + '</div>' +
+            '<div class="pulse-card-preview">' + escapeHtml((p.content || '').slice(0, 220)) + '</div>' +
+            '<div class="pulse-badges">' + badges + '</div>' +
+            fixHtml +
+            '<div class="pulse-actions">' + actions.join('') + '</div>' +
+            '</div>';
+
+        _pulseOpenHandlers(stack);
+        stack.querySelector('[data-pulse-add-tag]')?.addEventListener('click', () => _pulseQuickAdd(p, 'tags'));
+        stack.querySelector('[data-pulse-tag-input]')?.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); _pulseQuickAdd(p, 'tags'); }
+        });
+        stack.querySelector('[data-pulse-add-cat]')?.addEventListener('click', () => _pulseQuickAdd(p, 'categories'));
+        stack.querySelector('[data-pulse-cat-input]')?.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); _pulseQuickAdd(p, 'categories'); }
+        });
+        stack.querySelector('[data-pulse-save-desc]')?.addEventListener('click', () => _pulseSaveDescription(p));
+        stack.querySelector('[data-pulse-mark-reviewed]')?.addEventListener('click', () => _pulseMarkReviewed(p));
+        stack.querySelector('[data-pulse-delete]')?.addEventListener('click', () => _pulseDeletePrompt(p));
+        stack.querySelector('[data-pulse-skip]')?.addEventListener('click', () => _pulseSkip());
+    }
+
+    function _pulseRenderDupStack(stack, dupPairs) {
+        if (_pulseIndex >= dupPairs.length) _pulseIndex = Math.max(0, dupPairs.length - 1);
+        if (!dupPairs.length) {
+            stack.innerHTML = '<div class="pulse-clear"><span class="material-symbols-outlined">task_alt</span>' +
+                '<div class="pulse-card-title">No near-duplicates found</div><p class="hint">Your library is clean here.</p></div>';
+            return;
+        }
+        const [a, b] = dupPairs[_pulseIndex];
+        const col = (keep, other) => '<div class="pulse-dup-col">' +
+            '<div class="pulse-dup-col-title" data-pulse-open="' + keep.id + '">' + escapeHtml(keep.title || 'Untitled') + '</div>' +
+            '<div class="pulse-dup-col-preview">' + escapeHtml((keep.content || '').slice(0, 160)) + '</div>' +
+            '<button type="button" class="btn btn-ghost btn-xs" data-pulse-keep-drop="' + escapeAttr(other.id) + '">Keep this, delete other</button></div>';
+        stack.innerHTML =
+            '<div class="pulse-stack-progress"><div class="pulse-stack-progress-fill" style="width:' + Math.round((_pulseIndex / dupPairs.length) * 100) + '%"></div></div>' +
+            '<div class="pulse-card-active">' +
+            '<div class="pulse-card-eyebrow">' + (_pulseIndex + 1) + ' of ' + dupPairs.length + ' possible duplicate' + (dupPairs.length !== 1 ? 's' : '') + '</div>' +
+            '<div class="pulse-dup-compare">' + col(a, b) + '<div class="pulse-dup-vs">≈</div>' + col(b, a) + '</div>' +
+            '<div class="pulse-actions"><button type="button" class="btn btn-ghost" data-pulse-skip>Not a duplicate, skip <span class="material-symbols-outlined">arrow_forward</span></button></div>' +
+            '</div>';
+        _pulseOpenHandlers(stack);
+        stack.querySelectorAll('[data-pulse-keep-drop]').forEach(btn => {
+            btn.addEventListener('click', () => _pulseDropDuplicate(parseInt(btn.dataset.pulseKeepDrop, 10)));
+        });
+        stack.querySelector('[data-pulse-skip]')?.addEventListener('click', () => _pulseSkip());
+    }
+
+    async function _pulseQuickAdd(p, field) {
+        const stack = $('#pulseStack');
+        const input = stack?.querySelector(field === 'tags' ? '[data-pulse-tag-input]' : '[data-pulse-cat-input]');
+        const value = (input?.value || '').trim();
+        if (!value) {
+            toast('Type something first', 'warning');
+            return;
+        }
+        const next = Array.isArray(p[field]) ? p[field].slice() : [];
+        value.split(',').map(v => v.trim()).filter(Boolean).forEach(v => {
+            if (!next.includes(v)) next.push(v);
+        });
         try {
-            await api(`/prompts/${deleteId}`, { method: 'DELETE' });
-            toast('Duplicate removed', 'success');
-            await _pulseScan();
+            await api(`/prompts/${p.id}`, { method: 'PUT', body: { ...p, [field]: next } });
+            p[field] = next;
+            _pulseResolved++;
+            toast('Saved', 'success');
+            _pulseAfterMutate();
+        } catch {
+            toast('Could not save', 'error');
+        }
+    }
+
+    async function _pulseSaveDescription(p) {
+        const stack = $('#pulseStack');
+        const input = stack?.querySelector('[data-pulse-desc-input]');
+        const value = (input?.value || '').trim();
+        if (!value) {
+            toast('Type a description first', 'warning');
+            return;
+        }
+        try {
+            await api(`/prompts/${p.id}`, { method: 'PUT', body: { ...p, description: value } });
+            p.description = value;
+            _pulseResolved++;
+            toast('Saved', 'success');
+            _pulseAfterMutate();
+        } catch {
+            toast('Could not save', 'error');
+        }
+    }
+
+    async function _pulseMarkReviewed(p) {
+        try {
+            await api(`/prompts/${p.id}`, { method: 'PUT', body: p });
+            p.updated_at = new Date().toISOString();
+            _pulseResolved++;
+            toast('Marked reviewed', 'success');
+            _pulseAfterMutate();
+        } catch {
+            toast('Could not update', 'error');
+        }
+    }
+
+    async function _pulseDeletePrompt(p) {
+        if (!confirm('Delete "' + (p.title || 'Untitled') + '"? This can\'t be undone.')) return;
+        try {
+            await api(`/prompts/${p.id}`, { method: 'DELETE' });
+            _pulseData.list = _pulseData.list.filter(x => x.id !== p.id);
+            _pulseResolved++;
+            toast('Deleted', 'success');
+            _pulseAfterMutate();
         } catch {
             toast('Could not delete prompt', 'error');
         }
     }
 
-    async function _pulseStaleBulk(action) {
-        const ids = $$('#pulseBody [data-pulse-stale-id]:checked').map(cb => parseInt(cb.dataset.pulseStaleId, 10));
-        if (!ids.length) {
-            toast('Check at least one prompt first', 'warning');
-            return;
+    async function _pulseDropDuplicate(deleteId) {
+        if (!confirm("Delete the other prompt in this pair? This can't be undone.")) return;
+        try {
+            await api(`/prompts/${deleteId}`, { method: 'DELETE' });
+            _pulseData.list = _pulseData.list.filter(x => x.id !== deleteId);
+            _pulseResolved++;
+            toast('Duplicate removed', 'success');
+            _pulseAfterMutate();
+        } catch {
+            toast('Could not delete prompt', 'error');
         }
-        if (action === 'delete' && !confirm('Delete ' + ids.length + ' prompt' + (ids.length !== 1 ? 's' : '') + "? This can't be undone.")) return;
-        let ok = 0, failed = 0;
-        for (const id of ids) {
-            try {
-                if (action === 'delete') {
-                    await api(`/prompts/${id}`, { method: 'DELETE' });
-                } else {
-                    const p = state.prompts.find(x => x.id === id) || await api(`/prompts/${id}`);
-                    await api(`/prompts/${id}`, { method: 'PUT', body: p });
-                }
-                ok++;
-            } catch {
-                failed++;
-            }
-        }
-        toast(ok + (action === 'delete' ? ' deleted' : ' marked reviewed') + (failed ? ', ' + failed + ' failed' : ''), failed ? 'warning' : 'success');
-        await _pulseScan();
-    }
-
-    async function _pulseSuggest(field) {
-        const modal = $('#orgSuggestModal');
-        const hint = $('#orgSuggestHint');
-        const list = $('#orgSuggestList');
-        const applyBtn = $('#orgSuggestApplyBtn');
-        const titleEl = $('#orgSuggestTitle');
-        if (!modal) return;
-        modal.dataset.field = field;
-        if (titleEl) titleEl.textContent = field === 'tags' ? 'Suggested tags' : 'Suggested categories';
-        modal.classList.add('active');
-        if (applyBtn) applyBtn.disabled = true;
-        if (hint) hint.textContent = 'Scanning…';
-        if (list) list.innerHTML = '';
-
-        const isEmpty = p => !Array.isArray(p[field]) || !p[field].length;
-        const missing = state.prompts.filter(isEmpty);
-        const donors = state.prompts.filter(p => !isEmpty(p));
-        if (!missing.length || !donors.length) {
-            if (hint) hint.textContent = 'Nothing to suggest.';
-            return;
-        }
-        const donorSets = donors.map(p => ({ p, set: _pulseTokenSet((p.title || '') + ' ' + (p.content || '')) }));
-        const candidates = [];
-        missing.forEach(p => {
-            const pSet = _pulseTokenSet((p.title || '') + ' ' + (p.content || ''));
-            let best = null, bestScore = 0;
-            donorSets.forEach(({ p: dp, set }) => {
-                const score = _pulseJaccard(pSet, set);
-                if (score > bestScore) { bestScore = score; best = dp; }
-            });
-            const value = best ? best[field][0] : '';
-            if (best && bestScore >= 0.12 && value) candidates.push({ prompt: p, value, score: bestScore });
-        });
-
-        if (!candidates.length) {
-            if (hint) hint.textContent = 'No confident matches found.';
-            return;
-        }
-        candidates.sort((a, b) => b.score - a.score);
-        if (hint) hint.textContent = candidates.length + ' suggestion' + (candidates.length !== 1 ? 's' : '') + ' — review and apply.';
-        if (list) {
-            list.innerHTML = candidates.map(cnd => `
-          <label class="tax-autotag-row">
-            <input type="checkbox" checked data-pid="${cnd.prompt.id}" data-value="${escapeAttr(cnd.value)}" />
-            <span class="tax-autotag-title">${escapeHtml(cnd.prompt.title || 'Untitled')}</span>
-            <span class="material-symbols-outlined tax-autotag-arrow">arrow_forward</span>
-            <span class="tax-autotag-target">${escapeHtml(cnd.value)}</span>
-            <span class="tax-autotag-score">${cnd.score >= 0.3 ? 'High' : 'Medium'}</span>
-          </label>`).join('');
-        }
-        if (applyBtn) applyBtn.disabled = false;
-    }
-
-    async function _pulseApplySuggestions() {
-        const modal = $('#orgSuggestModal');
-        const field = modal?.dataset.field;
-        const checked = $$('#orgSuggestList input[type="checkbox"]:checked');
-        if (!field || !checked.length) {
-            toast('Nothing selected', 'warning');
-            return;
-        }
-        let ok = 0, failed = 0;
-        for (const cb of checked) {
-            const pid = parseInt(cb.dataset.pid, 10);
-            const value = cb.dataset.value;
-            const p = state.prompts.find(x => x.id === pid);
-            if (!p) { failed++; continue; }
-            const nextValues = Array.isArray(p[field]) ? p[field].slice() : [];
-            if (!nextValues.includes(value)) nextValues.push(value);
-            try {
-                await api(`/prompts/${pid}`, { method: 'PUT', body: { ...p, [field]: nextValues } });
-                ok++;
-            } catch {
-                failed++;
-            }
-        }
-        modal?.classList.remove('active');
-        toast(ok + ' applied' + (failed ? ', ' + failed + ' failed' : ''), failed ? 'warning' : 'success');
-        await _pulseScan();
     }
 
     window.openPulseWorkspace = function() {
@@ -13729,15 +13804,8 @@ Must avoid: [Anything sensitive or previously declined]`
         ws.addEventListener('keydown', e => {
             if (e.key === 'Escape') closePulseWorkspace();
         });
-        const orgSuggestModal = $('#orgSuggestModal');
-        const closeOrgSuggestModal = () => orgSuggestModal?.classList.remove('active');
-        $('#closeOrgSuggestBtn')?.addEventListener('click', closeOrgSuggestModal);
-        $('#orgSuggestCancelBtn')?.addEventListener('click', closeOrgSuggestModal);
-        orgSuggestModal?.addEventListener('click', e => {
-            if (e.target === orgSuggestModal) closeOrgSuggestModal();
-        });
-        $('#orgSuggestApplyBtn')?.addEventListener('click', _pulseApplySuggestions);
     }
+
 
     /* ============================================================================
        PROMPT X-RAY WORKSPACE
