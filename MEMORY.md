@@ -12,6 +12,7 @@
 | :--- | :--- | :--- |
 | Chain Prompting reverted to detail panel tab | Standalone workspace was broken and over-engineered. Chain tab in right detail panel + Chain tab in prompt editor is simpler and fully functional. | 2026-05-17 |
 | Standalone chain workspace removed | `#chainWorkspace` section, `chains` workspace switcher nav button, and all standalone chain JS functions deleted. Chain data still persists via `chain_ids` column in SQLite. | 2026-05-17 |
+| **Correction (2026-09-19):** the row above is stale. `#chainWorkspace` exists live in `static/index.html` today (confirmed running, screenshotted, and redesigned this session — see History). It coexists with the separate detail-panel "Chain" tab described in Architecture below. Exact date/reason it was reinstated after 2026-05-17 is unknown; flagging rather than guessing. | Discovered while redesigning the workspace; line 167 of this file already said the nav for it was `✅ Live`, contradicting this row. | 2026-09-19 |
 | Live variable preview added to detail panel | When filling variables in the detail panel, a live preview box shows the substituted prompt text in real time as the user types. | 2026-05-17 |
 | Roles workspace kept as standalone | Roles workspace remains as a full-screen workspace switcher (sidebar nav button → takes over main area). | 2026-05-17 |
 | Inno Setup for installer | Distribution pipeline: build.bat → build_installer.bat → single .exe via Inno Setup. ~50MB installer with Start Menu/Desktop shortcuts, Add/Remove Programs registration, optional DB cleanup on uninstall. | Prior |
@@ -36,7 +37,7 @@
 - **V1:** Monolith. app.js ~88KB, index.html ~76KB. Unmaintainable.
 - **V2:** Rebuilt from scratch. Modular architecture, size limits, phased approval gates, MD5 cache-busting.
 - **Meta Prompting:** Removed. Do not rebuild or reference.
-- **Chain Prompting:** Was briefly a standalone workspace — reverted 2026-05-17. Now lives in detail panel tab.
+- **Chain Prompting:** Was briefly a standalone workspace — reverted 2026-05-17. Now lives in detail panel tab. **Correction (2026-09-19):** the standalone `#chainWorkspace` is back and live (see Key Decisions correction above) — redesigned this session from a dashed-box/accordion-card layout to a "signal rail" (hairline spine, `IN`/`01`/`02` mono tags). It now coexists with the detail-panel Chain tab as two separate features.
 - **Scorecard workspace:** Removed 2026-06-02. Do not rebuild or reference.
 - **Collection Builder workspace:** Removed 2026-06-02. Do not rebuild or reference.
 
@@ -134,6 +135,18 @@ The whole working tree had the Windows **ReadOnly** attribute set — 1,910 file
 and would have blocked every edit. Also found: repo files dragged into a `New Folder/`,
 an Explorer `desktop.ini`, and stale `app.js.tmp` / `index.html.tmp`. Cleared and cleaned.
 Detect with: `Get-ChildItem -Force -File -Recurse | Where-Object { $_.Attributes -match 'ReadOnly' }`.
+
+## Current State (2026-09-19)
+
+- **Prompt Chain workspace redesign.** `#chainWorkspace` (the standalone step builder, see
+  History correction above) redesigned from a dashed-box seed + circular-badge accordion
+  cards to a "signal rail": one hairline spine runs through the seed and every step
+  (`IN`, `01`, `02`... in mono type), no cards, shadows, or gradients. All functions/ids
+  kept unchanged, only markup and CSS changed. Step markup classes renamed
+  `chain-step`/`chain-step-num`/`chain-step-body` → `chainw-step`/`chainw-step-num`/
+  `chainw-step-body` to fix a collision with an unrelated chain-search picker (see Gotchas
+  in `CLAUDE.md`). Verified live via headless-browser screenshots in light and dark mode.
+- **PR:** funben12/Prompt-Library-Update#8 (draft, being watched by this session).
 
 ## Feature Inventory — Free vs Pro
 
