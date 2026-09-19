@@ -16642,1197 +16642,1197 @@ Must avoid: [Anything sensitive or previously declined]`
 
     /* Framework definitions ---------------------------------------------------- */
     const FORGE_FRAMEWORKS = {
-        custom: {
-            label: 'Custom',
-            fields: [{
-                    id: 'forgeRole',
-                    label: 'Role / Persona',
-                    icon: 'person',
-                    hint: 'Who is the AI acting as?',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. You are an expert prompt engineer with 10 years of experience...'
-                },
-                {
-                    id: 'forgeContext',
-                    label: 'Context',
-                    icon: 'info',
-                    hint: 'Background the AI needs to know',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. The user is a non-technical founder preparing a pitch deck...'
-                },
-                {
-                    id: 'forgeTask',
-                    label: 'Task',
-                    icon: 'task_alt',
-                    hint: 'The core instruction',
-                    rows: 4,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Write a concise executive summary of the following content...'
-                },
-                {
-                    id: 'forgeFormat',
-                    label: 'Output Format',
-                    icon: 'format_list_bulleted',
-                    hint: 'How should the response be structured?',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. Respond in bullet points. Maximum 200 words. No preamble.'
-                },
-                {
-                    id: 'forgeConstraints',
-                    label: 'Constraints',
-                    icon: 'block',
-                    hint: 'What to avoid or limit',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. Do not mention competitors. Avoid technical jargon. UK English only.'
-                },
-                {
-                    id: 'forgeExamples',
-                    label: 'Examples',
-                    icon: 'lightbulb',
-                    hint: 'Optional few-shot examples',
-                    rows: 3,
-                    weight: 1,
-                    placeholder: 'e.g. Input: ... → Output: ...'
-                }
-            ]
-        },
-        rtf: {
-            label: 'RTF',
-            fields: [{
-                    id: 'forgeRtfRole',
-                    label: 'Role',
-                    icon: 'person',
-                    hint: 'Who is the AI?',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. You are an expert copywriter specialising in SaaS landing pages...'
-                },
-                {
-                    id: 'forgeRtfTask',
-                    label: 'Task',
-                    icon: 'task_alt',
-                    hint: 'The core instruction',
-                    rows: 5,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Write a 150-word hero section for a project management tool aimed at remote teams...'
-                },
-                {
-                    id: 'forgeRtfFormat',
-                    label: 'Format',
-                    icon: 'format_list_bulleted',
-                    hint: 'How the response should be structured',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Return a headline (max 8 words), a subheadline (max 20 words), and 3 bullet points...'
-                }
-            ]
-        },
-        costar: {
-            label: 'CO-STAR',
-            fields: [{
-                    id: 'forgeCoContext',
-                    label: 'Context',
-                    icon: 'info',
-                    hint: 'Background & situation',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. I am a product manager at a B2B SaaS startup...'
-                },
-                {
-                    id: 'forgeCoObjective',
-                    label: 'Objective',
-                    icon: 'ads_click',
-                    hint: 'What you want the AI to do',
-                    rows: 3,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Write a compelling one-page product brief for our new feature...'
-                },
-                {
-                    id: 'forgeCoStyle',
-                    label: 'Style',
-                    icon: 'brush',
-                    hint: 'Writing or communication style',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. Write in the style of a senior McKinsey consultant...'
-                },
-                {
-                    id: 'forgeCoAudience',
-                    label: 'Audience',
-                    icon: 'groups',
-                    hint: 'Who will read or use the output',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. Non-technical C-suite executives who need a quick decision...'
-                },
-                {
-                    id: 'forgeCoResponse',
-                    label: 'Response Format',
-                    icon: 'format_list_bulleted',
-                    hint: 'Structure and format of the answer',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. Use headers, bullet points. Max 500 words. No jargon.'
-                }
-            ]
-        },
-        risen: {
-            label: 'RISEN',
-            fields: [{
-                    id: 'forgeRiRole',
-                    label: 'Role',
-                    icon: 'person',
-                    hint: 'Expert persona for the AI',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. You are a world-class UX researcher...'
-                },
-                {
-                    id: 'forgeRiInstructions',
-                    label: 'Instructions',
-                    icon: 'list',
-                    hint: 'The core task or directive',
-                    rows: 4,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Conduct a competitive analysis of these 5 products...'
-                },
-                {
-                    id: 'forgeRiSteps',
-                    label: 'Steps',
-                    icon: 'format_list_numbered',
-                    hint: 'Step-by-step breakdown',
-                    rows: 3,
-                    weight: 1,
-                    placeholder: 'e.g. 1. Identify key features. 2. Compare pricing. 3. Summarise findings...'
-                },
-                {
-                    id: 'forgeRiEndGoal',
-                    label: 'End Goal',
-                    icon: 'flag',
-                    hint: 'The desired outcome',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. The output should help the team decide which product to build next...'
-                },
-                {
-                    id: 'forgeRiNarrowing',
-                    label: 'Narrowing',
-                    icon: 'filter_alt',
-                    hint: 'Constraints and scope limits',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. Focus only on B2B tools. Exclude anything with no free tier...'
-                }
-            ]
-        },
-        star: {
-            label: 'STAR',
-            fields: [{
-                    id: 'forgeStarSituation',
-                    label: 'Situation',
-                    icon: 'landscape',
-                    hint: 'The background or current state',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. A startup with 50 employees is preparing to expand into a new market...'
-                },
-                {
-                    id: 'forgeStarTask',
-                    label: 'Task',
-                    icon: 'task_alt',
-                    hint: 'What needs to be done',
-                    rows: 3,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Write a market entry strategy for Southeast Asia...'
-                },
-                {
-                    id: 'forgeStarAction',
-                    label: 'Action',
-                    icon: 'bolt',
-                    hint: 'The specific approach or steps',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Research competitors, identify gaps, propose a phased launch plan...'
-                },
-                {
-                    id: 'forgeStarResult',
-                    label: 'Result',
-                    icon: 'flag',
-                    hint: 'The desired outcome',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. A 1-page strategy document the CEO can present to investors...'
-                }
-            ]
-        },
-        ape: {
-            label: 'APE',
-            fields: [{
-                    id: 'forgeApeAction',
-                    label: 'Action',
-                    icon: 'play_arrow',
-                    hint: 'What you want the AI to do',
-                    rows: 4,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Write a LinkedIn post about the launch of our new product...'
-                },
-                {
-                    id: 'forgeApePurpose',
-                    label: 'Purpose',
-                    icon: 'info',
-                    hint: 'Why you are doing this',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. To generate excitement and drive sign-ups from our target audience...'
-                },
-                {
-                    id: 'forgeApeExpectation',
-                    label: 'Expectation',
-                    icon: 'format_list_bulleted',
-                    hint: 'What the ideal output looks like',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. 150-word post, 2-3 emojis, ends with a CTA and a relevant hashtag...'
-                }
-            ]
-        },
-        care: {
-            label: 'CARE',
-            fields: [{
-                    id: 'forgeCareContext',
-                    label: 'Context',
-                    icon: 'info',
-                    hint: 'The situation or background',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. I am training a junior team member on how to write effective meeting notes...'
-                },
-                {
-                    id: 'forgeCareAction',
-                    label: 'Action',
-                    icon: 'task_alt',
-                    hint: 'What to do',
-                    rows: 4,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Write a step-by-step guide on capturing and structuring meeting notes...'
-                },
-                {
-                    id: 'forgeCareResult',
-                    label: 'Result',
-                    icon: 'flag',
-                    hint: 'The desired outcome',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. A practical guide they can follow immediately without supervision...'
-                },
-                {
-                    id: 'forgeCareExample',
-                    label: 'Example',
-                    icon: 'lightbulb',
-                    hint: 'A concrete example to guide the output',
-                    rows: 3,
-                    weight: 1,
-                    placeholder: 'e.g. For a sprint planning meeting: Date, Attendees, Decisions, Action items...'
-                }
-            ]
-        },
-        craft: {
-            label: 'CRAFT',
-            fields: [{
-                    id: 'forgeCraftContext',
-                    label: 'Context',
-                    icon: 'info',
-                    hint: 'The situation, background, or relevant constraints',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. I am preparing a product launch announcement for a B2B SaaS platform...'
-                },
-                {
-                    id: 'forgeCraftRole',
-                    label: 'Role',
-                    icon: 'person',
-                    hint: 'Who the AI should be — expertise or perspective',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. You are a senior copywriter who specialises in B2B product messaging...'
-                },
-                {
-                    id: 'forgeCraftAction',
-                    label: 'Action',
-                    icon: 'task_alt',
-                    hint: 'The specific task — what the AI must do',
-                    rows: 4,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Write a 300-word product announcement email for our new integration feature...'
-                },
-                {
-                    id: 'forgeCraftFormat',
-                    label: 'Format',
-                    icon: 'format_list_bulleted',
-                    hint: 'How the output should be structured — length, layout',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. Subject line, then 3 paragraphs, then a CTA. Max 300 words.'
-                },
-                {
-                    id: 'forgeCraftTone',
-                    label: 'Tone',
-                    icon: 'mood',
-                    hint: 'The voice — formal/casual, direct/empathetic',
-                    rows: 1,
-                    weight: 1,
-                    placeholder: 'e.g. Professional but approachable — confident without being salesy.'
-                }
-            ]
-        },
-        rodes: {
-            label: 'RODES',
-            fields: [{
-                    id: 'forgeRodesRole',
-                    label: 'Role',
-                    icon: 'person',
-                    hint: 'Who the AI should be',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. You are a seasoned product manager at a fast-growing startup...'
-                },
-                {
-                    id: 'forgeRodesObjective',
-                    label: 'Objective',
-                    icon: 'ads_click',
-                    hint: 'What you want to achieve',
-                    rows: 3,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Write a product requirements document for a new reporting feature...'
-                },
-                {
-                    id: 'forgeRodesDetails',
-                    label: 'Details',
-                    icon: 'info',
-                    hint: 'All relevant background and context the AI needs',
-                    rows: 4,
-                    weight: 1.5,
-                    placeholder: 'e.g. The feature allows CSV/PDF export. Must work with the existing data model...'
-                },
-                {
-                    id: 'forgeRodesExample',
-                    label: 'Example',
-                    icon: 'lightbulb',
-                    hint: 'Show what a good response looks like',
-                    rows: 3,
-                    weight: 1,
-                    placeholder: 'e.g. A good PRD: Problem statement → User stories → Acceptance criteria → Out of scope...'
-                },
-                {
-                    id: 'forgeRodesSteps',
-                    label: 'Steps',
-                    icon: 'format_list_numbered',
-                    hint: 'The sequence the AI should follow',
-                    rows: 3,
-                    weight: 1,
-                    placeholder: 'e.g. 1. Write the problem statement. 2. List 5 user stories. 3. Define acceptance criteria.'
-                }
-            ]
-        },
-        trace: {
-            label: 'TRACE',
-            fields: [{
-                    id: 'forgeTraceTask',
-                    label: 'Task',
-                    icon: 'task_alt',
-                    hint: 'Clearly state what must be done',
-                    rows: 3,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Analyse the competitive positioning of our product against the top 3 competitors...'
-                },
-                {
-                    id: 'forgeTraceReasoning',
-                    label: 'Reasoning',
-                    icon: 'psychology',
-                    hint: 'What angles or considerations to think through',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Think step by step — consider pricing, features, target audience, brand positioning...'
-                },
-                {
-                    id: 'forgeTraceAction',
-                    label: 'Action',
-                    icon: 'bolt',
-                    hint: 'The specific action to take based on the reasoning',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. Produce a comparison table and a 200-word strategic summary...'
-                },
-                {
-                    id: 'forgeTraceConstraints',
-                    label: 'Constraints',
-                    icon: 'block',
-                    hint: 'What must not be done, scope limits, format rules',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. Focus only on direct competitors. Do not include pricing speculation.'
-                },
-                {
-                    id: 'forgeTraceEval',
-                    label: 'Evaluation',
-                    icon: 'check_circle',
-                    hint: 'How to tell if the response is good',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. A good response identifies 3+ clear differentiators and gives a recommendation.'
-                }
-            ]
-        },
-        code: {
-            label: 'CODE',
-            fields: [{
-                    id: 'forgeCodeContext',
-                    label: 'Context',
-                    icon: 'info',
-                    hint: 'Background the AI needs — who, what, where, why',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. I am building a customer onboarding email sequence for a project management SaaS...'
-                },
-                {
-                    id: 'forgeCodeObjective',
-                    label: 'Objective',
-                    icon: 'ads_click',
-                    hint: 'The specific goal — what the AI must produce',
-                    rows: 3,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Write a 5-email sequence that guides new users to their first successful project...'
-                },
-                {
-                    id: 'forgeCodeDetails',
-                    label: 'Details',
-                    icon: 'list',
-                    hint: 'All relevant specifics — constraints, requirements, scope',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Emails on days 1, 3, 7, 14, and 30. Each under 200 words. Friendly tone.'
-                },
-                {
-                    id: 'forgeCodeExamples',
-                    label: 'Examples',
-                    icon: 'lightbulb',
-                    hint: '1-3 concrete examples of what good output looks like',
-                    rows: 3,
-                    weight: 1,
-                    placeholder: 'e.g. Day 1: Welcome + getting started link. Day 3: First task nudge...'
-                }
-            ]
-        },
-        grwc: {
-            label: 'GRWC',
-            fields: [{
-                    id: 'forgeGrwcGoal',
-                    label: 'Goal',
-                    icon: 'flag',
-                    hint: 'What you want to achieve — the end result, stated plainly',
-                    rows: 2,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Produce a one-page competitive analysis of our top 3 rivals...'
-                },
-                {
-                    id: 'forgeGrwcFormat',
-                    label: 'Return Format',
-                    icon: 'format_list_bulleted',
-                    hint: 'How the output should be structured — bullet list, table, JSON',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. Comparison table with pros/cons, then a 100-word written summary.'
-                },
-                {
-                    id: 'forgeGrwcWarnings',
-                    label: 'Warnings',
-                    icon: 'block',
-                    hint: 'What must be included, avoided, or hard constraints',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. Do not include pricing speculation. Use only publicly available data.'
-                },
-                {
-                    id: 'forgeGrwcContext',
-                    label: 'Context Dump',
-                    icon: 'info',
-                    hint: 'All relevant background — paste everything, more is better',
-                    rows: 5,
-                    weight: 1.5,
-                    placeholder: 'e.g. We sell B2B HR software. Our main rivals are Workday, BambooHR, and Rippling...'
-                }
-            ]
-        },
-        para: {
-            label: 'PARA',
-            fields: [{
-                    id: 'forgeParaPurpose',
-                    label: 'Purpose',
-                    icon: 'ads_click',
-                    hint: 'Why you are communicating this — the outcome you want',
-                    rows: 2,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. To persuade the leadership team to approve the new budget...'
-                },
-                {
-                    id: 'forgeParaAudience',
-                    label: 'Audience',
-                    icon: 'groups',
-                    hint: 'Who is reading — their role, context, and what they know',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. C-suite executives with no technical background who are sceptical of new spend...'
-                },
-                {
-                    id: 'forgeParaReasoning',
-                    label: 'Reasoning',
-                    icon: 'psychology',
-                    hint: 'The logic, evidence, or argument behind your message',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. ROI data shows 3x return in 12 months. Competitor X already adopted this...'
-                },
-                {
-                    id: 'forgeParaAction',
-                    label: 'Action',
-                    icon: 'task_alt',
-                    hint: 'What you want the reader to do next',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. Approve the Q3 budget line by Friday so procurement can begin...'
-                }
-            ]
-        },
-        scqa: {
-            label: 'SCQA',
-            fields: [{
-                    id: 'forgeScqaSituation',
-                    label: 'Situation',
-                    icon: 'landscape',
-                    hint: 'Current state — facts everyone agrees on',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Our customer churn rate has held steady at 5% for the past two years...'
-                },
-                {
-                    id: 'forgeScqaComplication',
-                    label: 'Complication',
-                    icon: 'warning',
-                    hint: 'What changed or what is now wrong',
-                    rows: 3,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Last quarter churn jumped to 12% following the new pricing change...'
-                },
-                {
-                    id: 'forgeScqaQuestion',
-                    label: 'Question',
-                    icon: 'help',
-                    hint: 'The question the complication raises',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. Why did churn spike and what can we do to reverse it within 90 days?'
-                },
-                {
-                    id: 'forgeScqaAnswer',
-                    label: 'Answer',
-                    icon: 'check_circle',
-                    hint: 'Your recommendation or response to the question',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. The analysis suggests three targeted retention interventions that could reduce churn to 7%...'
-                }
-            ]
-        },
-        roses: {
-            label: 'ROSES',
-            fields: [{
-                    id: 'forgeRosesRole',
-                    label: 'Role',
-                    icon: 'person',
-                    hint: 'The AI persona — role and relevant expertise',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. You are a senior UX researcher with 10 years in enterprise software...'
-                },
-                {
-                    id: 'forgeRosesObj',
-                    label: 'Objective',
-                    icon: 'ads_click',
-                    hint: 'The specific goal or outcome you want to achieve',
-                    rows: 2,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Identify the top 5 friction points in the user onboarding flow...'
-                },
-                {
-                    id: 'forgeRosesScenario',
-                    label: 'Scenario',
-                    icon: 'landscape',
-                    hint: 'The situation, setting, or context',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. We are a B2B SaaS company. Onboarding completion rate dropped from 70% to 45%...'
-                },
-                {
-                    id: 'forgeRosesExpected',
-                    label: 'Expected Solution',
-                    icon: 'check_circle',
-                    hint: 'What a good answer looks like — format, scope, quality bar',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. A prioritised list of pain points with severity ratings and suggested fixes...'
-                },
-                {
-                    id: 'forgeRosesSteps',
-                    label: 'Steps',
-                    icon: 'format_list_numbered',
-                    hint: 'The sequence the AI should follow',
-                    rows: 3,
-                    weight: 1,
-                    placeholder: 'e.g. 1. Review the onboarding flow. 2. Identify drop-off points. 3. Rank by impact.'
-                }
-            ]
-        },
-        aida: {
-            label: 'AIDA',
-            fields: [{
-                    id: 'forgeAidaAttention',
-                    label: 'Attention',
-                    icon: 'notifications_active',
-                    hint: 'Hook — bold statement, question, or pain point',
-                    rows: 2,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Most teams waste 30% of their week on tasks that could be automated...'
-                },
-                {
-                    id: 'forgeAidaInterest',
-                    label: 'Interest',
-                    icon: 'trending_up',
-                    hint: 'Build interest — facts, story, or relevant context',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Our research shows that knowledge workers spend 11 hours per week on repetitive admin...'
-                },
-                {
-                    id: 'forgeAidaDesire',
-                    label: 'Desire',
-                    icon: 'favorite',
-                    hint: 'Create desire — show the benefit or transformation',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. With [Product], teams reclaim those 11 hours and redirect them to high-value work...'
-                },
-                {
-                    id: 'forgeAidaAction',
-                    label: 'Action',
-                    icon: 'task_alt',
-                    hint: 'Clear CTA — one specific next step for the reader',
-                    rows: 1,
-                    weight: 1,
-                    placeholder: 'e.g. Start your free 14-day trial — no credit card required.'
-                }
-            ]
-        },
-        bab: {
-            label: 'BAB',
-            fields: [{
-                    id: 'forgeBabBefore',
-                    label: 'Before',
-                    icon: 'history',
-                    hint: 'Current state or problem — where things stand now',
-                    rows: 3,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Our sales team spends 3 hours per day manually updating the CRM after calls...'
-                },
-                {
-                    id: 'forgeBabAfter',
-                    label: 'After',
-                    icon: 'flag',
-                    hint: 'Desired end state — the ideal outcome',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. CRM updates automatically after every call. Reps spend zero time on data entry...'
-                },
-                {
-                    id: 'forgeBabBridge',
-                    label: 'Bridge',
-                    icon: 'account_tree',
-                    hint: 'How to get from Before to After — the plan',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Integrate our call recording tool with the CRM using the new Zapier connector...'
-                }
-            ]
-        },
-        meta: {
-            label: 'META',
-            fields: [{
-                    id: 'forgeMetaUseCase',
-                    label: 'Use Case',
-                    icon: 'task_alt',
-                    hint: 'Describe the AI task the prompt needs to handle',
-                    rows: 3,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. A prompt that reviews pull request descriptions and flags missing information...'
-                },
-                {
-                    id: 'forgeMetaModel',
-                    label: 'Target Model',
-                    icon: 'smart_toy',
-                    hint: 'Which AI model will use this prompt',
-                    rows: 1,
-                    weight: 1,
-                    placeholder: 'e.g. Claude Sonnet, GPT-4o, Gemini 1.5 Pro...'
-                },
-                {
-                    id: 'forgeMetaAudience',
-                    label: 'Prompt User',
-                    icon: 'person',
-                    hint: 'Who will use this prompt — their skill level and context',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. Junior developers at a startup with no AI experience...'
-                },
-                {
-                    id: 'forgeMetaOutput',
-                    label: 'Output Format',
-                    icon: 'format_list_bulleted',
-                    hint: 'What the generated prompt should produce',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. A structured code review with sections: Issues, Suggestions, Verdict...'
-                }
-            ]
-        },
-        grow: {
-            label: 'GROW',
-            fields: [{
-                    id: 'forgeGrowGoal',
-                    label: 'Goal',
-                    icon: 'flag',
-                    hint: 'What do you want to achieve?',
-                    rows: 2,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Increase team velocity by 20% within the next quarter...'
-                },
-                {
-                    id: 'forgeGrowReality',
-                    label: 'Reality',
-                    icon: 'landscape',
-                    hint: 'What is the current situation? What has been tried?',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Current velocity is 32 points per sprint. We tried daily standups but they run long...'
-                },
-                {
-                    id: 'forgeGrowOptions',
-                    label: 'Options',
-                    icon: 'list',
-                    hint: 'What are the possible approaches?',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Option 1: Reduce meeting load. Option 2: Improve story sizing. Option 3: Pair programming...'
-                },
-                {
-                    id: 'forgeGrowWayFwd',
-                    label: 'Way Forward',
-                    icon: 'arrow_forward',
-                    hint: 'The chosen path and first action',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. Start with meeting audit this week. Cap all standups at 10 minutes.'
-                }
-            ]
-        },
-        bluf: {
-            label: 'BLUF',
-            fields: [{
-                    id: 'forgeBlufBottom',
-                    label: 'Bottom Line',
-                    icon: 'bolt',
-                    hint: 'Conclusion or recommendation — stated first, in one sentence',
-                    rows: 2,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. We should switch to the new vendor — it saves 40% and ships faster.'
-                },
-                {
-                    id: 'forgeBlufSupport',
-                    label: 'Supporting Detail',
-                    icon: 'format_list_bulleted',
-                    hint: 'Reasons and supporting facts that back the bottom line',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. 1. Current vendor has 3-week lead times. 2. New vendor ships in 5 days...'
-                },
-                {
-                    id: 'forgeBlufBg',
-                    label: 'Background',
-                    icon: 'info',
-                    hint: 'Context for readers who need the full picture',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. We have used Vendor A for 3 years. Contract renewal is due in 6 weeks...'
-                },
-                {
-                    id: 'forgeBlufAction',
-                    label: 'Required Action',
-                    icon: 'task_alt',
-                    hint: 'What the reader must do, and by when',
-                    rows: 1,
-                    weight: 1,
-                    placeholder: 'e.g. Approve the vendor switch by EOD Friday so procurement can begin.'
-                }
-            ]
-        },
-        telos: {
-            label: 'TELOS',
-            fields: [{
-                    id: 'forgeTelosTask',
-                    label: 'Task',
-                    icon: 'task_alt',
-                    hint: 'What must be done — stated precisely and completely',
-                    rows: 3,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Evaluate whether our pricing model is competitive for the mid-market segment...'
-                },
-                {
-                    id: 'forgeTelosEvidence',
-                    label: 'Evidence',
-                    icon: 'database',
-                    hint: 'Data, facts, or sources that inform the answer',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Q3 win/loss reports, competitor pricing pages, 12 lost-deal interview transcripts...'
-                },
-                {
-                    id: 'forgeTelosLogic',
-                    label: 'Logic',
-                    icon: 'account_tree',
-                    hint: 'Reasoning that connects evidence to the conclusion',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Compare our ACV against market benchmarks, then weight by segment fit...'
-                },
-                {
-                    id: 'forgeTelosOutput',
-                    label: 'Output',
-                    icon: 'format_list_bulleted',
-                    hint: 'The final answer or deliverable, in the required format',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. A 3-tier pricing recommendation table with rationale for each tier.'
-                },
-                {
-                    id: 'forgeTelosSuccess',
-                    label: 'Success',
-                    icon: 'check_circle',
-                    hint: 'How to verify the output is correct — acceptance criteria',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. A good answer cites at least 3 data points and gives a clear go/no-go recommendation.'
-                }
-            ]
-        },
-        pas: {
-            label: 'PAS',
-            fields: [{
-                    id: 'forgePasProblem',
-                    label: 'Problem',
-                    icon: 'warning',
-                    hint: 'Describe the core problem clearly',
-                    rows: 3,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Most small businesses lose 20% of revenue to invoice payment delays...'
-                },
-                {
-                    id: 'forgePasAgitate',
-                    label: 'Agitate',
-                    icon: 'electric_bolt',
-                    hint: 'Why this problem matters — amplify the pain points',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Late payments mean missed payroll, strained supplier relationships, and stunted growth...'
-                },
-                {
-                    id: 'forgePasSolution',
-                    label: 'Solution',
-                    icon: 'check_circle',
-                    hint: 'How to resolve it — your answer or recommendation',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. [Product] automates payment reminders and offers embedded payment links in every invoice...'
-                }
-            ]
-        },
-        peel: {
-            label: 'PEEL',
-            fields: [{
-                    id: 'forgePeelPoint',
-                    label: 'Point',
-                    icon: 'ads_click',
-                    hint: 'The main argument or claim of this paragraph',
-                    rows: 2,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Remote work increases individual productivity by reducing office interruptions...'
-                },
-                {
-                    id: 'forgePeelEvidence',
-                    label: 'Evidence',
-                    icon: 'database',
-                    hint: 'Specific evidence, data, or example that supports the point',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Stanford study (2015) found remote workers were 13% more productive than office workers...'
-                },
-                {
-                    id: 'forgePeelExplanation',
-                    label: 'Explanation',
-                    icon: 'info',
-                    hint: 'How and why the evidence supports the point',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. This matters because fewer interruptions allow deeper focus on complex tasks...'
-                },
-                {
-                    id: 'forgePeelLink',
-                    label: 'Link',
-                    icon: 'account_tree',
-                    hint: 'Connect back to the thesis or lead into the next paragraph',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. This supports the case that a hybrid policy would boost output without sacrificing culture...'
-                }
-            ]
-        },
-        prep: {
-            label: 'PREP',
-            fields: [{
-                    id: 'forgePrepPoint1',
-                    label: 'Point (opening)',
-                    icon: 'ads_click',
-                    hint: 'State your main point or claim',
-                    rows: 2,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. We should invest in automated testing before adding new features...'
-                },
-                {
-                    id: 'forgePrepReason',
-                    label: 'Reason',
-                    icon: 'psychology',
-                    hint: 'Explain why this point is valid',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Our bug rate has increased 40% since Q2, slowing delivery and damaging trust...'
-                },
-                {
-                    id: 'forgePrepExample',
-                    label: 'Example',
-                    icon: 'lightbulb',
-                    hint: 'Give a concrete example or supporting evidence',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. In Q3, 3 critical bugs reached production that automated tests would have caught...'
-                },
-                {
-                    id: 'forgePrepPoint2',
-                    label: 'Point (closing)',
-                    icon: 'flag',
-                    hint: 'Restate or reinforce the original point',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. Automated testing is the fastest way to restore confidence in our release process.'
-                }
-            ]
-        },
-        tada: {
-            label: 'TADA',
-            fields: [{
-                    id: 'forgeTadaTopic',
-                    label: 'Topic',
-                    icon: 'info',
-                    hint: 'What is this communication about — in one sentence',
-                    rows: 2,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. The outcome of our Q3 product review and what we are shipping next...'
-                },
-                {
-                    id: 'forgeTadaAudience',
-                    label: 'Audience',
-                    icon: 'groups',
-                    hint: 'Who is receiving this — their role and what they already know',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. Engineering leads who know the roadmap but not the business rationale behind changes...'
-                },
-                {
-                    id: 'forgeTadaDesired',
-                    label: 'Desired Outcome',
-                    icon: 'ads_click',
-                    hint: 'What you want the audience to know, feel, or do',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. Understand why Feature X was cut and feel confident about the revised priorities...'
-                },
-                {
-                    id: 'forgeTadaAction',
-                    label: 'Action',
-                    icon: 'task_alt',
-                    hint: 'The single most important action for the audience to take',
-                    rows: 1,
-                    weight: 1,
-                    placeholder: 'e.g. Update your sprint planning to reflect the revised Q4 scope by Monday.'
-                }
-            ]
-        },
-        costarplus: {
-            label: 'CO-STAR+',
-            fields: [{
-                    id: 'forgeCspContext',
-                    label: 'Context',
-                    icon: 'info',
-                    hint: 'Background and situation',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. I am a marketing manager at a fintech startup preparing a product launch...'
-                },
-                {
-                    id: 'forgeCspObjective',
-                    label: 'Objective',
-                    icon: 'ads_click',
-                    hint: 'Goal — what you want to achieve',
-                    rows: 3,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. Write the launch email for our new savings account product...'
-                },
-                {
-                    id: 'forgeCspStyle',
-                    label: 'Style',
-                    icon: 'brush',
-                    hint: 'Writing style — formal, bullets, narrative',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. Conversational, story-driven, first-person plural (we/our).'
-                },
-                {
-                    id: 'forgeCspTone',
-                    label: 'Tone',
-                    icon: 'mood',
-                    hint: 'Emotional register',
-                    rows: 1,
-                    weight: 1,
-                    placeholder: 'e.g. Warm and reassuring — money is stressful, so we want to feel like a trusted friend.'
-                },
-                {
-                    id: 'forgeCspAudience',
-                    label: 'Audience',
-                    icon: 'groups',
-                    hint: 'Who will read this',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. Existing users aged 25-40 who already have a current account with us.'
-                },
-                {
-                    id: 'forgeCspResponse',
-                    label: 'Response',
-                    icon: 'format_list_bulleted',
-                    hint: 'Expected format and length',
-                    rows: 2,
-                    weight: 1.5,
-                    placeholder: 'e.g. Subject line + email body (max 250 words). One CTA at the end.'
-                },
-                {
-                    id: 'forgeCspConstraints',
-                    label: 'Constraints',
-                    icon: 'block',
-                    hint: 'Hard rules — what to avoid or always include',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. Do not mention interest rates. Must include a link to the help centre.'
-                }
-            ]
-        },
-        tot: {
-            label: 'ToT',
-            fields: [{
-                    id: 'forgeTotProblem',
-                    label: 'Problem',
-                    icon: 'help',
-                    hint: 'State the problem or question to explore',
-                    rows: 3,
-                    required: true,
-                    weight: 3,
-                    placeholder: 'e.g. What is the best strategy to reduce customer churn in our first 90-day window?'
-                },
-                {
-                    id: 'forgeTotPathA',
-                    label: 'Path A',
-                    icon: 'fork_right',
-                    hint: 'First approach — method and expected result',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Path A: Proactive check-in calls in week 2 → builds relationship, high cost...'
-                },
-                {
-                    id: 'forgeTotPathB',
-                    label: 'Path B',
-                    icon: 'fork_right',
-                    hint: 'Second approach — method and expected result',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Path B: Automated onboarding email sequence → scalable, lower touch...'
-                },
-                {
-                    id: 'forgeTotPathC',
-                    label: 'Path C',
-                    icon: 'fork_right',
-                    hint: 'Third approach — method and expected result',
-                    rows: 3,
-                    weight: 1.5,
-                    placeholder: 'e.g. Path C: In-app guided tour with contextual help → zero marginal cost, self-serve...'
-                },
-                {
-                    id: 'forgeTotEval',
-                    label: 'Evaluate',
-                    icon: 'balance',
-                    hint: 'Evaluate each path and select the strongest',
-                    rows: 2,
-                    weight: 1,
-                    placeholder: 'e.g. Evaluate each path on: cost, scalability, impact on 90-day retention, feasibility.'
-                }
-            ]
-        },
-        spade: {
-            label: 'SPADE',
-            fields: [{
+    custom: {
+        label: 'Custom',
+        fields: [{
+                id: 'forgeRole',
+                label: 'Role / Persona',
+                icon: 'person',
+                hint: 'Who is the AI acting as?',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. You are an expert prompt engineer with 10 years of experience...'
+            },
+            {
+                id: 'forgeContext',
+                label: 'Context',
+                icon: 'info',
+                hint: 'Background the AI needs to know',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. The user is a non-technical founder preparing a pitch deck...'
+            },
+            {
+                id: 'forgeTask',
+                label: 'Task',
+                icon: 'task_alt',
+                hint: 'The core instruction',
+                rows: 4,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Write a concise executive summary of the following content...'
+            },
+            {
+                id: 'forgeFormat',
+                label: 'Output Format',
+                icon: 'format_list_bulleted',
+                hint: 'How should the response be structured?',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Respond in bullet points. Maximum 200 words. No preamble.'
+            },
+            {
+                id: 'forgeConstraints',
+                label: 'Constraints',
+                icon: 'block',
+                hint: 'What to avoid or limit',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Do not mention competitors. Avoid technical jargon. UK English only.'
+            },
+            {
+                id: 'forgeExamples',
+                label: 'Examples',
+                icon: 'lightbulb',
+                hint: 'Optional few-shot examples',
+                rows: 3,
+                weight: 1,
+                placeholder: 'e.g. Input: ... → Output: ...'
+            }
+        ]
+    },
+    rtf: {
+        label: 'RTF',
+        fields: [{
+                id: 'forgeRtfRole',
+                label: 'Role',
+                icon: 'person',
+                hint: 'Who is the AI?',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. You are an expert copywriter specialising in SaaS landing pages...'
+            },
+            {
+                id: 'forgeRtfTask',
+                label: 'Task',
+                icon: 'task_alt',
+                hint: 'The core instruction',
+                rows: 5,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Write a 150-word hero section for a project management tool aimed at remote teams...'
+            },
+            {
+                id: 'forgeRtfFormat',
+                label: 'Format',
+                icon: 'format_list_bulleted',
+                hint: 'How the response should be structured',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Return a headline (max 8 words), a subheadline (max 20 words), and 3 bullet points...'
+            }
+        ]
+    },
+    costar: {
+        label: 'CO-STAR',
+        fields: [{
+                id: 'forgeCoContext',
+                label: 'Context',
+                icon: 'info',
+                hint: 'Background & situation',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. I am a product manager at a B2B SaaS startup...'
+            },
+            {
+                id: 'forgeCoObjective',
+                label: 'Objective',
+                icon: 'ads_click',
+                hint: 'What you want the AI to do',
+                rows: 3,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Write a compelling one-page product brief for our new feature...'
+            },
+            {
+                id: 'forgeCoStyle',
+                label: 'Style',
+                icon: 'brush',
+                hint: 'Writing or communication style',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Write in the style of a senior McKinsey consultant...'
+            },
+            {
+                id: 'forgeCoAudience',
+                label: 'Audience',
+                icon: 'groups',
+                hint: 'Who will read or use the output',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Non-technical C-suite executives who need a quick decision...'
+            },
+            {
+                id: 'forgeCoResponse',
+                label: 'Response Format',
+                icon: 'format_list_bulleted',
+                hint: 'Structure and format of the answer',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. Use headers, bullet points. Max 500 words. No jargon.'
+            }
+        ]
+    },
+    risen: {
+        label: 'RISEN',
+        fields: [{
+                id: 'forgeRiRole',
+                label: 'Role',
+                icon: 'person',
+                hint: 'Expert persona for the AI',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. You are a world-class UX researcher...'
+            },
+            {
+                id: 'forgeRiInstructions',
+                label: 'Instructions',
+                icon: 'list',
+                hint: 'The core task or directive',
+                rows: 4,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Conduct a competitive analysis of these 5 products...'
+            },
+            {
+                id: 'forgeRiSteps',
+                label: 'Steps',
+                icon: 'format_list_numbered',
+                hint: 'Step-by-step breakdown',
+                rows: 3,
+                weight: 1,
+                placeholder: 'e.g. 1. Identify key features. 2. Compare pricing. 3. Summarise findings...'
+            },
+            {
+                id: 'forgeRiEndGoal',
+                label: 'End Goal',
+                icon: 'flag',
+                hint: 'The desired outcome',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. The output should help the team decide which product to build next...'
+            },
+            {
+                id: 'forgeRiNarrowing',
+                label: 'Narrowing',
+                icon: 'filter_alt',
+                hint: 'Constraints and scope limits',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Focus only on B2B tools. Exclude anything with no free tier...'
+            }
+        ]
+    },
+    star: {
+        label: 'STAR',
+        fields: [{
+                id: 'forgeStarSituation',
+                label: 'Situation',
+                icon: 'landscape',
+                hint: 'The background or current state',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. A startup with 50 employees is preparing to expand into a new market...'
+            },
+            {
+                id: 'forgeStarTask',
+                label: 'Task',
+                icon: 'task_alt',
+                hint: 'What needs to be done',
+                rows: 3,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Write a market entry strategy for Southeast Asia...'
+            },
+            {
+                id: 'forgeStarAction',
+                label: 'Action',
+                icon: 'bolt',
+                hint: 'The specific approach or steps',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Research competitors, identify gaps, propose a phased launch plan...'
+            },
+            {
+                id: 'forgeStarResult',
+                label: 'Result',
+                icon: 'flag',
+                hint: 'The desired outcome',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. A 1-page strategy document the CEO can present to investors...'
+            }
+        ]
+    },
+    ape: {
+        label: 'APE',
+        fields: [{
+                id: 'forgeApeAction',
+                label: 'Action',
+                icon: 'play_arrow',
+                hint: 'What you want the AI to do',
+                rows: 4,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Write a LinkedIn post about the launch of our new product...'
+            },
+            {
+                id: 'forgeApePurpose',
+                label: 'Purpose',
+                icon: 'info',
+                hint: 'Why you are doing this',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. To generate excitement and drive sign-ups from our target audience...'
+            },
+            {
+                id: 'forgeApeExpectation',
+                label: 'Expectation',
+                icon: 'format_list_bulleted',
+                hint: 'What the ideal output looks like',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. 150-word post, 2-3 emojis, ends with a CTA and a relevant hashtag...'
+            }
+        ]
+    },
+    care: {
+        label: 'CARE',
+        fields: [{
+                id: 'forgeCareContext',
+                label: 'Context',
+                icon: 'info',
+                hint: 'The situation or background',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. I am training a junior team member on how to write effective meeting notes...'
+            },
+            {
+                id: 'forgeCareAction',
+                label: 'Action',
+                icon: 'task_alt',
+                hint: 'What to do',
+                rows: 4,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Write a step-by-step guide on capturing and structuring meeting notes...'
+            },
+            {
+                id: 'forgeCareResult',
+                label: 'Result',
+                icon: 'flag',
+                hint: 'The desired outcome',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. A practical guide they can follow immediately without supervision...'
+            },
+            {
+                id: 'forgeCareExample',
+                label: 'Example',
+                icon: 'lightbulb',
+                hint: 'A concrete example to guide the output',
+                rows: 3,
+                weight: 1,
+                placeholder: 'e.g. For a sprint planning meeting: Date, Attendees, Decisions, Action items...'
+            }
+        ]
+    },
+    craft: {
+        label: 'CRAFT',
+        fields: [{
+                id: 'forgeCraftContext',
+                label: 'Context',
+                icon: 'info',
+                hint: 'The situation, background, or relevant constraints',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. I am preparing a product launch announcement for a B2B SaaS platform...'
+            },
+            {
+                id: 'forgeCraftRole',
+                label: 'Role',
+                icon: 'person',
+                hint: 'Who the AI should be — expertise or perspective',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. You are a senior copywriter who specialises in B2B product messaging...'
+            },
+            {
+                id: 'forgeCraftAction',
+                label: 'Action',
+                icon: 'task_alt',
+                hint: 'The specific task — what the AI must do',
+                rows: 4,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Write a 300-word product announcement email for our new integration feature...'
+            },
+            {
+                id: 'forgeCraftFormat',
+                label: 'Format',
+                icon: 'format_list_bulleted',
+                hint: 'How the output should be structured — length, layout',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. Subject line, then 3 paragraphs, then a CTA. Max 300 words.'
+            },
+            {
+                id: 'forgeCraftTone',
+                label: 'Tone',
+                icon: 'mood',
+                hint: 'The voice — formal/casual, direct/empathetic',
+                rows: 1,
+                weight: 1,
+                placeholder: 'e.g. Professional but approachable — confident without being salesy.'
+            }
+        ]
+    },
+    rodes: {
+        label: 'RODES',
+        fields: [{
+                id: 'forgeRodesRole',
+                label: 'Role',
+                icon: 'person',
+                hint: 'Who the AI should be',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. You are a seasoned product manager at a fast-growing startup...'
+            },
+            {
+                id: 'forgeRodesObjective',
+                label: 'Objective',
+                icon: 'ads_click',
+                hint: 'What you want to achieve',
+                rows: 3,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Write a product requirements document for a new reporting feature...'
+            },
+            {
+                id: 'forgeRodesDetails',
+                label: 'Details',
+                icon: 'info',
+                hint: 'All relevant background and context the AI needs',
+                rows: 4,
+                weight: 1.5,
+                placeholder: 'e.g. The feature allows CSV/PDF export. Must work with the existing data model...'
+            },
+            {
+                id: 'forgeRodesExample',
+                label: 'Example',
+                icon: 'lightbulb',
+                hint: 'Show what a good response looks like',
+                rows: 3,
+                weight: 1,
+                placeholder: 'e.g. A good PRD: Problem statement → User stories → Acceptance criteria → Out of scope...'
+            },
+            {
+                id: 'forgeRodesSteps',
+                label: 'Steps',
+                icon: 'format_list_numbered',
+                hint: 'The sequence the AI should follow',
+                rows: 3,
+                weight: 1,
+                placeholder: 'e.g. 1. Write the problem statement. 2. List 5 user stories. 3. Define acceptance criteria.'
+            }
+        ]
+    },
+    trace: {
+        label: 'TRACE',
+        fields: [{
+                id: 'forgeTraceTask',
+                label: 'Task',
+                icon: 'task_alt',
+                hint: 'Clearly state what must be done',
+                rows: 3,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Analyse the competitive positioning of our product against the top 3 competitors...'
+            },
+            {
+                id: 'forgeTraceReasoning',
+                label: 'Reasoning',
+                icon: 'psychology',
+                hint: 'What angles or considerations to think through',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Think step by step — consider pricing, features, target audience, brand positioning...'
+            },
+            {
+                id: 'forgeTraceAction',
+                label: 'Action',
+                icon: 'bolt',
+                hint: 'The specific action to take based on the reasoning',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. Produce a comparison table and a 200-word strategic summary...'
+            },
+            {
+                id: 'forgeTraceConstraints',
+                label: 'Constraints',
+                icon: 'block',
+                hint: 'What must not be done, scope limits, format rules',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Focus only on direct competitors. Do not include pricing speculation.'
+            },
+            {
+                id: 'forgeTraceEval',
+                label: 'Evaluation',
+                icon: 'check_circle',
+                hint: 'How to tell if the response is good',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. A good response identifies 3+ clear differentiators and gives a recommendation.'
+            }
+        ]
+    },
+    code: {
+        label: 'CODE',
+        fields: [{
+                id: 'forgeCodeContext',
+                label: 'Context',
+                icon: 'info',
+                hint: 'Background the AI needs — who, what, where, why',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. I am building a customer onboarding email sequence for a project management SaaS...'
+            },
+            {
+                id: 'forgeCodeObjective',
+                label: 'Objective',
+                icon: 'ads_click',
+                hint: 'The specific goal — what the AI must produce',
+                rows: 3,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Write a 5-email sequence that guides new users to their first successful project...'
+            },
+            {
+                id: 'forgeCodeDetails',
+                label: 'Details',
+                icon: 'list',
+                hint: 'All relevant specifics — constraints, requirements, scope',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Emails on days 1, 3, 7, 14, and 30. Each under 200 words. Friendly tone.'
+            },
+            {
+                id: 'forgeCodeExamples',
+                label: 'Examples',
+                icon: 'lightbulb',
+                hint: '1-3 concrete examples of what good output looks like',
+                rows: 3,
+                weight: 1,
+                placeholder: 'e.g. Day 1: Welcome + getting started link. Day 3: First task nudge...'
+            }
+        ]
+    },
+    grwc: {
+        label: 'GRWC',
+        fields: [{
+                id: 'forgeGrwcGoal',
+                label: 'Goal',
+                icon: 'flag',
+                hint: 'What you want to achieve — the end result, stated plainly',
+                rows: 2,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Produce a one-page competitive analysis of our top 3 rivals...'
+            },
+            {
+                id: 'forgeGrwcFormat',
+                label: 'Return Format',
+                icon: 'format_list_bulleted',
+                hint: 'How the output should be structured — bullet list, table, JSON',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. Comparison table with pros/cons, then a 100-word written summary.'
+            },
+            {
+                id: 'forgeGrwcWarnings',
+                label: 'Warnings',
+                icon: 'block',
+                hint: 'What must be included, avoided, or hard constraints',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Do not include pricing speculation. Use only publicly available data.'
+            },
+            {
+                id: 'forgeGrwcContext',
+                label: 'Context Dump',
+                icon: 'info',
+                hint: 'All relevant background — paste everything, more is better',
+                rows: 5,
+                weight: 1.5,
+                placeholder: 'e.g. We sell B2B HR software. Our main rivals are Workday, BambooHR, and Rippling...'
+            }
+        ]
+    },
+    para: {
+        label: 'PARA',
+        fields: [{
+                id: 'forgeParaPurpose',
+                label: 'Purpose',
+                icon: 'ads_click',
+                hint: 'Why you are communicating this — the outcome you want',
+                rows: 2,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. To persuade the leadership team to approve the new budget...'
+            },
+            {
+                id: 'forgeParaAudience',
+                label: 'Audience',
+                icon: 'groups',
+                hint: 'Who is reading — their role, context, and what they know',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. C-suite executives with no technical background who are sceptical of new spend...'
+            },
+            {
+                id: 'forgeParaReasoning',
+                label: 'Reasoning',
+                icon: 'psychology',
+                hint: 'The logic, evidence, or argument behind your message',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. ROI data shows 3x return in 12 months. Competitor X already adopted this...'
+            },
+            {
+                id: 'forgeParaAction',
+                label: 'Action',
+                icon: 'task_alt',
+                hint: 'What you want the reader to do next',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Approve the Q3 budget line by Friday so procurement can begin...'
+            }
+        ]
+    },
+    scqa: {
+        label: 'SCQA',
+        fields: [{
+                id: 'forgeScqaSituation',
+                label: 'Situation',
+                icon: 'landscape',
+                hint: 'Current state — facts everyone agrees on',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Our customer churn rate has held steady at 5% for the past two years...'
+            },
+            {
+                id: 'forgeScqaComplication',
+                label: 'Complication',
+                icon: 'warning',
+                hint: 'What changed or what is now wrong',
+                rows: 3,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Last quarter churn jumped to 12% following the new pricing change...'
+            },
+            {
+                id: 'forgeScqaQuestion',
+                label: 'Question',
+                icon: 'help',
+                hint: 'The question the complication raises',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Why did churn spike and what can we do to reverse it within 90 days?'
+            },
+            {
+                id: 'forgeScqaAnswer',
+                label: 'Answer',
+                icon: 'check_circle',
+                hint: 'Your recommendation or response to the question',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. The analysis suggests three targeted retention interventions that could reduce churn to 7%...'
+            }
+        ]
+    },
+    roses: {
+        label: 'ROSES',
+        fields: [{
+                id: 'forgeRosesRole',
+                label: 'Role',
+                icon: 'person',
+                hint: 'The AI persona — role and relevant expertise',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. You are a senior UX researcher with 10 years in enterprise software...'
+            },
+            {
+                id: 'forgeRosesObj',
+                label: 'Objective',
+                icon: 'ads_click',
+                hint: 'The specific goal or outcome you want to achieve',
+                rows: 2,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Identify the top 5 friction points in the user onboarding flow...'
+            },
+            {
+                id: 'forgeRosesScenario',
+                label: 'Scenario',
+                icon: 'landscape',
+                hint: 'The situation, setting, or context',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. We are a B2B SaaS company. Onboarding completion rate dropped from 70% to 45%...'
+            },
+            {
+                id: 'forgeRosesExpected',
+                label: 'Expected Solution',
+                icon: 'check_circle',
+                hint: 'What a good answer looks like — format, scope, quality bar',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. A prioritised list of pain points with severity ratings and suggested fixes...'
+            },
+            {
+                id: 'forgeRosesSteps',
+                label: 'Steps',
+                icon: 'format_list_numbered',
+                hint: 'The sequence the AI should follow',
+                rows: 3,
+                weight: 1,
+                placeholder: 'e.g. 1. Review the onboarding flow. 2. Identify drop-off points. 3. Rank by impact.'
+            }
+        ]
+    },
+    aida: {
+        label: 'AIDA',
+        fields: [{
+                id: 'forgeAidaAttention',
+                label: 'Attention',
+                icon: 'notifications_active',
+                hint: 'Hook — bold statement, question, or pain point',
+                rows: 2,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Most teams waste 30% of their week on tasks that could be automated...'
+            },
+            {
+                id: 'forgeAidaInterest',
+                label: 'Interest',
+                icon: 'trending_up',
+                hint: 'Build interest — facts, story, or relevant context',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Our research shows that knowledge workers spend 11 hours per week on repetitive admin...'
+            },
+            {
+                id: 'forgeAidaDesire',
+                label: 'Desire',
+                icon: 'favorite',
+                hint: 'Create desire — show the benefit or transformation',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. With [Product], teams reclaim those 11 hours and redirect them to high-value work...'
+            },
+            {
+                id: 'forgeAidaAction',
+                label: 'Action',
+                icon: 'task_alt',
+                hint: 'Clear CTA — one specific next step for the reader',
+                rows: 1,
+                weight: 1,
+                placeholder: 'e.g. Start your free 14-day trial — no credit card required.'
+            }
+        ]
+    },
+    bab: {
+        label: 'BAB',
+        fields: [{
+                id: 'forgeBabBefore',
+                label: 'Before',
+                icon: 'history',
+                hint: 'Current state or problem — where things stand now',
+                rows: 3,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Our sales team spends 3 hours per day manually updating the CRM after calls...'
+            },
+            {
+                id: 'forgeBabAfter',
+                label: 'After',
+                icon: 'flag',
+                hint: 'Desired end state — the ideal outcome',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. CRM updates automatically after every call. Reps spend zero time on data entry...'
+            },
+            {
+                id: 'forgeBabBridge',
+                label: 'Bridge',
+                icon: 'account_tree',
+                hint: 'How to get from Before to After — the plan',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Integrate our call recording tool with the CRM using the new Zapier connector...'
+            }
+        ]
+    },
+    meta: {
+        label: 'META',
+        fields: [{
+                id: 'forgeMetaUseCase',
+                label: 'Use Case',
+                icon: 'task_alt',
+                hint: 'Describe the AI task the prompt needs to handle',
+                rows: 3,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. A prompt that reviews pull request descriptions and flags missing information...'
+            },
+            {
+                id: 'forgeMetaModel',
+                label: 'Target Model',
+                icon: 'smart_toy',
+                hint: 'Which AI model will use this prompt',
+                rows: 1,
+                weight: 1,
+                placeholder: 'e.g. Claude Sonnet, GPT-4o, Gemini 1.5 Pro...'
+            },
+            {
+                id: 'forgeMetaAudience',
+                label: 'Prompt User',
+                icon: 'person',
+                hint: 'Who will use this prompt — their skill level and context',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Junior developers at a startup with no AI experience...'
+            },
+            {
+                id: 'forgeMetaOutput',
+                label: 'Output Format',
+                icon: 'format_list_bulleted',
+                hint: 'What the generated prompt should produce',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. A structured code review with sections: Issues, Suggestions, Verdict...'
+            }
+        ]
+    },
+    grow: {
+        label: 'GROW',
+        fields: [{
+                id: 'forgeGrowGoal',
+                label: 'Goal',
+                icon: 'flag',
+                hint: 'What do you want to achieve?',
+                rows: 2,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Increase team velocity by 20% within the next quarter...'
+            },
+            {
+                id: 'forgeGrowReality',
+                label: 'Reality',
+                icon: 'landscape',
+                hint: 'What is the current situation? What has been tried?',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Current velocity is 32 points per sprint. We tried daily standups but they run long...'
+            },
+            {
+                id: 'forgeGrowOptions',
+                label: 'Options',
+                icon: 'list',
+                hint: 'What are the possible approaches?',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Option 1: Reduce meeting load. Option 2: Improve story sizing. Option 3: Pair programming...'
+            },
+            {
+                id: 'forgeGrowWayFwd',
+                label: 'Way Forward',
+                icon: 'arrow_forward',
+                hint: 'The chosen path and first action',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Start with meeting audit this week. Cap all standups at 10 minutes.'
+            }
+        ]
+    },
+    bluf: {
+        label: 'BLUF',
+        fields: [{
+                id: 'forgeBlufBottom',
+                label: 'Bottom Line',
+                icon: 'bolt',
+                hint: 'Conclusion or recommendation — stated first, in one sentence',
+                rows: 2,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. We should switch to the new vendor — it saves 40% and ships faster.'
+            },
+            {
+                id: 'forgeBlufSupport',
+                label: 'Supporting Detail',
+                icon: 'format_list_bulleted',
+                hint: 'Reasons and supporting facts that back the bottom line',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. 1. Current vendor has 3-week lead times. 2. New vendor ships in 5 days...'
+            },
+            {
+                id: 'forgeBlufBg',
+                label: 'Background',
+                icon: 'info',
+                hint: 'Context for readers who need the full picture',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. We have used Vendor A for 3 years. Contract renewal is due in 6 weeks...'
+            },
+            {
+                id: 'forgeBlufAction',
+                label: 'Required Action',
+                icon: 'task_alt',
+                hint: 'What the reader must do, and by when',
+                rows: 1,
+                weight: 1,
+                placeholder: 'e.g. Approve the vendor switch by EOD Friday so procurement can begin.'
+            }
+        ]
+    },
+    telos: {
+        label: 'TELOS',
+        fields: [{
+                id: 'forgeTelosTask',
+                label: 'Task',
+                icon: 'task_alt',
+                hint: 'What must be done — stated precisely and completely',
+                rows: 3,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Evaluate whether our pricing model is competitive for the mid-market segment...'
+            },
+            {
+                id: 'forgeTelosEvidence',
+                label: 'Evidence',
+                icon: 'database',
+                hint: 'Data, facts, or sources that inform the answer',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Q3 win/loss reports, competitor pricing pages, 12 lost-deal interview transcripts...'
+            },
+            {
+                id: 'forgeTelosLogic',
+                label: 'Logic',
+                icon: 'account_tree',
+                hint: 'Reasoning that connects evidence to the conclusion',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Compare our ACV against market benchmarks, then weight by segment fit...'
+            },
+            {
+                id: 'forgeTelosOutput',
+                label: 'Output',
+                icon: 'format_list_bulleted',
+                hint: 'The final answer or deliverable, in the required format',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. A 3-tier pricing recommendation table with rationale for each tier.'
+            },
+            {
+                id: 'forgeTelosSuccess',
+                label: 'Success',
+                icon: 'check_circle',
+                hint: 'How to verify the output is correct — acceptance criteria',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. A good answer cites at least 3 data points and gives a clear go/no-go recommendation.'
+            }
+        ]
+    },
+    pas: {
+        label: 'PAS',
+        fields: [{
+                id: 'forgePasProblem',
+                label: 'Problem',
+                icon: 'warning',
+                hint: 'Describe the core problem clearly',
+                rows: 3,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Most small businesses lose 20% of revenue to invoice payment delays...'
+            },
+            {
+                id: 'forgePasAgitate',
+                label: 'Agitate',
+                icon: 'electric_bolt',
+                hint: 'Why this problem matters — amplify the pain points',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Late payments mean missed payroll, strained supplier relationships, and stunted growth...'
+            },
+            {
+                id: 'forgePasSolution',
+                label: 'Solution',
+                icon: 'check_circle',
+                hint: 'How to resolve it — your answer or recommendation',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. [Product] automates payment reminders and offers embedded payment links in every invoice...'
+            }
+        ]
+    },
+    peel: {
+        label: 'PEEL',
+        fields: [{
+                id: 'forgePeelPoint',
+                label: 'Point',
+                icon: 'ads_click',
+                hint: 'The main argument or claim of this paragraph',
+                rows: 2,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Remote work increases individual productivity by reducing office interruptions...'
+            },
+            {
+                id: 'forgePeelEvidence',
+                label: 'Evidence',
+                icon: 'database',
+                hint: 'Specific evidence, data, or example that supports the point',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Stanford study (2015) found remote workers were 13% more productive than office workers...'
+            },
+            {
+                id: 'forgePeelExplanation',
+                label: 'Explanation',
+                icon: 'info',
+                hint: 'How and why the evidence supports the point',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. This matters because fewer interruptions allow deeper focus on complex tasks...'
+            },
+            {
+                id: 'forgePeelLink',
+                label: 'Link',
+                icon: 'account_tree',
+                hint: 'Connect back to the thesis or lead into the next paragraph',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. This supports the case that a hybrid policy would boost output without sacrificing culture...'
+            }
+        ]
+    },
+    prep: {
+        label: 'PREP',
+        fields: [{
+                id: 'forgePrepPoint1',
+                label: 'Point (opening)',
+                icon: 'ads_click',
+                hint: 'State your main point or claim',
+                rows: 2,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. We should invest in automated testing before adding new features...'
+            },
+            {
+                id: 'forgePrepReason',
+                label: 'Reason',
+                icon: 'psychology',
+                hint: 'Explain why this point is valid',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Our bug rate has increased 40% since Q2, slowing delivery and damaging trust...'
+            },
+            {
+                id: 'forgePrepExample',
+                label: 'Example',
+                icon: 'lightbulb',
+                hint: 'Give a concrete example or supporting evidence',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. In Q3, 3 critical bugs reached production that automated tests would have caught...'
+            },
+            {
+                id: 'forgePrepPoint2',
+                label: 'Point (closing)',
+                icon: 'flag',
+                hint: 'Restate or reinforce the original point',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Automated testing is the fastest way to restore confidence in our release process.'
+            }
+        ]
+    },
+    tada: {
+        label: 'TADA',
+        fields: [{
+                id: 'forgeTadaTopic',
+                label: 'Topic',
+                icon: 'info',
+                hint: 'What is this communication about — in one sentence',
+                rows: 2,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. The outcome of our Q3 product review and what we are shipping next...'
+            },
+            {
+                id: 'forgeTadaAudience',
+                label: 'Audience',
+                icon: 'groups',
+                hint: 'Who is receiving this — their role and what they already know',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. Engineering leads who know the roadmap but not the business rationale behind changes...'
+            },
+            {
+                id: 'forgeTadaDesired',
+                label: 'Desired Outcome',
+                icon: 'ads_click',
+                hint: 'What you want the audience to know, feel, or do',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. Understand why Feature X was cut and feel confident about the revised priorities...'
+            },
+            {
+                id: 'forgeTadaAction',
+                label: 'Action',
+                icon: 'task_alt',
+                hint: 'The single most important action for the audience to take',
+                rows: 1,
+                weight: 1,
+                placeholder: 'e.g. Update your sprint planning to reflect the revised Q4 scope by Monday.'
+            }
+        ]
+    },
+    costarplus: {
+        label: 'CO-STAR+',
+        fields: [{
+                id: 'forgeCspContext',
+                label: 'Context',
+                icon: 'info',
+                hint: 'Background and situation',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. I am a marketing manager at a fintech startup preparing a product launch...'
+            },
+            {
+                id: 'forgeCspObjective',
+                label: 'Objective',
+                icon: 'ads_click',
+                hint: 'Goal — what you want to achieve',
+                rows: 3,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Write the launch email for our new savings account product...'
+            },
+            {
+                id: 'forgeCspStyle',
+                label: 'Style',
+                icon: 'brush',
+                hint: 'Writing style — formal, bullets, narrative',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Conversational, story-driven, first-person plural (we/our).'
+            },
+            {
+                id: 'forgeCspTone',
+                label: 'Tone',
+                icon: 'mood',
+                hint: 'Emotional register',
+                rows: 1,
+                weight: 1,
+                placeholder: 'e.g. Warm and reassuring — money is stressful, so we want to feel like a trusted friend.'
+            },
+            {
+                id: 'forgeCspAudience',
+                label: 'Audience',
+                icon: 'groups',
+                hint: 'Who will read this',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Existing users aged 25-40 who already have a current account with us.'
+            },
+            {
+                id: 'forgeCspResponse',
+                label: 'Response',
+                icon: 'format_list_bulleted',
+                hint: 'Expected format and length',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. Subject line + email body (max 250 words). One CTA at the end.'
+            },
+            {
+                id: 'forgeCspConstraints',
+                label: 'Constraints',
+                icon: 'block',
+                hint: 'Hard rules — what to avoid or always include',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Do not mention interest rates. Must include a link to the help centre.'
+            }
+        ]
+    },
+    tot: {
+        label: 'ToT',
+        fields: [{
+                id: 'forgeTotProblem',
+                label: 'Problem',
+                icon: 'help',
+                hint: 'State the problem or question to explore',
+                rows: 3,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. What is the best strategy to reduce customer churn in our first 90-day window?'
+            },
+            {
+                id: 'forgeTotPathA',
+                label: 'Path A',
+                icon: 'fork_right',
+                hint: 'First approach — method and expected result',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Path A: Proactive check-in calls in week 2 → builds relationship, high cost...'
+            },
+            {
+                id: 'forgeTotPathB',
+                label: 'Path B',
+                icon: 'fork_right',
+                hint: 'Second approach — method and expected result',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Path B: Automated onboarding email sequence → scalable, lower touch...'
+            },
+            {
+                id: 'forgeTotPathC',
+                label: 'Path C',
+                icon: 'fork_right',
+                hint: 'Third approach — method and expected result',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Path C: In-app guided tour with contextual help → zero marginal cost, self-serve...'
+            },
+            {
+                id: 'forgeTotEval',
+                label: 'Evaluate',
+                icon: 'balance',
+                hint: 'Evaluate each path and select the strongest',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Evaluate each path on: cost, scalability, impact on 90-day retention, feasibility.'
+            }
+        ]
+    },
+    spade: {
+        label: 'SPADE',
+        fields: [{
                         id: 'forgeSpadeSituation',
                         label: 'Situation',
                         icon: 'info',
@@ -17878,11 +17878,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Describe how this should be executed...'
                     }
-            ]
-        },
-        rule: {
-            label: 'RULE',
-            fields: [{
+        ]
+    },
+    rule: {
+        label: 'RULE',
+        fields: [{
                         id: 'forgeRuleRole',
                         label: 'Role',
                         icon: 'person',
@@ -17919,11 +17919,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Input: ... -> Output: ...'
                     }
-            ]
-        },
-        crystal: {
-            label: 'CRYSTAL',
-            fields: [{
+        ]
+    },
+    crystal: {
+        label: 'CRYSTAL',
+        fields: [{
                         id: 'forgeCrystalContext',
                         label: 'Context',
                         icon: 'info',
@@ -17987,11 +17987,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Keep it under 300 words, markdown format...'
                     }
-            ]
-        },
-        cmo: {
-            label: 'CMO',
-            fields: [{
+        ]
+    },
+    cmo: {
+        label: 'CMO',
+        fields: [{
                         id: 'forgeCmoContext',
                         label: 'Context',
                         icon: 'info',
@@ -18019,11 +18019,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Write a...'
                     }
-            ]
-        },
-        pose: {
-            label: 'POSE',
-            fields: [{
+        ]
+    },
+    pose: {
+        label: 'POSE',
+        fields: [{
                         id: 'forgePoseProblem',
                         label: 'Problem',
                         icon: 'report_problem',
@@ -18060,11 +18060,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Judge success by...'
                     }
-            ]
-        },
-        raci: {
-            label: 'RACI',
-            fields: [{
+        ]
+    },
+    raci: {
+        label: 'RACI',
+        fields: [{
                         id: 'forgeRaciResponsible',
                         label: 'Responsible',
                         icon: 'engineering',
@@ -18101,11 +18101,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Keep informed: ...'
                     }
-            ]
-        },
-        sos: {
-            label: 'SOS',
-            fields: [{
+        ]
+    },
+    sos: {
+        label: 'SOS',
+        fields: [{
                         id: 'forgeSosSituation',
                         label: 'Situation',
                         icon: 'info',
@@ -18133,11 +18133,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. The strategy is to...'
                     }
-            ]
-        },
-        tq: {
-            label: 'TQ',
-            fields: [{
+        ]
+    },
+    tq: {
+        label: 'TQ',
+        fields: [{
                         id: 'forgeTqTask',
                         label: 'Task',
                         icon: 'task_alt',
@@ -18156,11 +18156,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. The question is...'
                     }
-            ]
-        },
-        pqa: {
-            label: 'PQA',
-            fields: [{
+        ]
+    },
+    pqa: {
+        label: 'PQA',
+        fields: [{
                         id: 'forgePqaProblem',
                         label: 'Problem',
                         icon: 'report_problem',
@@ -18188,11 +18188,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Answer with...'
                     }
-            ]
-        },
-        qda: {
-            label: 'QDA',
-            fields: [{
+        ]
+    },
+    qda: {
+        label: 'QDA',
+        fields: [{
                         id: 'forgeQdaQuestion',
                         label: 'Question',
                         icon: 'help',
@@ -18220,11 +18220,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Analyse the key factors at play...'
                     }
-            ]
-        },
-        oas: {
-            label: 'OAS',
-            fields: [{
+        ]
+    },
+    oas: {
+        label: 'OAS',
+        fields: [{
                         id: 'forgeOasObjective',
                         label: 'Objective',
                         icon: 'ads_click',
@@ -18252,11 +18252,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Propose a solution that...'
                     }
-            ]
-        },
-        ira: {
-            label: 'IRA',
-            fields: [{
+        ]
+    },
+    ira: {
+        label: 'IRA',
+        fields: [{
                         id: 'forgeIraIssue',
                         label: 'Issue',
                         icon: 'report_problem',
@@ -18284,11 +18284,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. The next action is...'
                     }
-            ]
-        },
-        pda: {
-            label: 'PDA',
-            fields: [{
+        ]
+    },
+    pda: {
+        label: 'PDA',
+        fields: [{
                         id: 'forgePdaProblem',
                         label: 'Problem',
                         icon: 'report_problem',
@@ -18316,11 +18316,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. The next action is...'
                     }
-            ]
-        },
-        sma: {
-            label: 'SMA',
-            fields: [{
+        ]
+    },
+    sma: {
+        label: 'SMA',
+        fields: [{
                         id: 'forgeSmaSituation',
                         label: 'Situation',
                         icon: 'info',
@@ -18348,11 +18348,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. The next action is...'
                     }
-            ]
-        },
-        tae: {
-            label: 'TAE',
-            fields: [{
+        ]
+    },
+    tae: {
+        label: 'TAE',
+        fields: [{
                         id: 'forgeTaeTask',
                         label: 'Task',
                         icon: 'task_alt',
@@ -18380,11 +18380,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Success looks like...'
                     }
-            ]
-        },
-        dream: {
-            label: 'DREAM',
-            fields: [{
+        ]
+    },
+    dream: {
+        label: 'DREAM',
+        fields: [{
                         id: 'forgeDreamDefine',
                         label: 'Define',
                         icon: 'edit_note',
@@ -18430,11 +18430,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Map the steps from here to...'
                     }
-            ]
-        },
-        smart: {
-            label: 'SMART',
-            fields: [{
+        ]
+    },
+    smart: {
+        label: 'SMART',
+        fields: [{
                         id: 'forgeSmartSpecific',
                         label: 'Specific',
                         icon: 'center_focus_strong',
@@ -18480,11 +18480,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Due by...'
                     }
-            ]
-        },
-        clear: {
-            label: 'CLEAR',
-            fields: [{
+        ]
+    },
+    clear: {
+        label: 'CLEAR',
+        fields: [{
                         id: 'forgeClearCollaborative',
                         label: 'Collaborative',
                         icon: 'groups',
@@ -18530,11 +18530,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. This can be refined by...'
                     }
-            ]
-        },
-        spain: {
-            label: 'SPAIN',
-            fields: [{
+        ]
+    },
+    spain: {
+        label: 'SPAIN',
+        fields: [{
                         id: 'forgeSpainSituation',
                         label: 'Situation',
                         icon: 'info',
@@ -18580,11 +18580,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Next, we should...'
                     }
-            ]
-        },
-        socratic: {
-            label: 'SOCRATIC',
-            fields: [{
+        ]
+    },
+    socratic: {
+        label: 'SOCRATIC',
+        fields: [{
                         id: 'forgeSocraticSummarize',
                         label: 'Summarize',
                         icon: 'summarize',
@@ -18630,11 +18630,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Refine this by...'
                     }
-            ]
-        },
-        dmaic: {
-            label: 'DMAIC',
-            fields: [{
+        ]
+    },
+    dmaic: {
+        label: 'DMAIC',
+        fields: [{
                         id: 'forgeDmaicDefine',
                         label: 'Define',
                         icon: 'edit_note',
@@ -18680,11 +18680,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Keep this on track by...'
                     }
-            ]
-        },
-        dids: {
-            label: 'DIDS',
-            fields: [{
+        ]
+    },
+    dids: {
+        label: 'DIDS',
+        fields: [{
                         id: 'forgeDidsDefine',
                         label: 'Define',
                         icon: 'edit_note',
@@ -18721,11 +18721,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Solve for...'
                     }
-            ]
-        },
-        sipoc: {
-            label: 'SIPOC',
-            fields: [{
+        ]
+    },
+    sipoc: {
+        label: 'SIPOC',
+        fields: [{
                         id: 'forgeSipocSuppliers',
                         label: 'Suppliers',
                         icon: 'local_shipping',
@@ -18771,11 +18771,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. This is for...'
                     }
-            ]
-        },
-        pdsa: {
-            label: 'PDSA',
-            fields: [{
+        ]
+    },
+    pdsa: {
+        label: 'PDSA',
+        fields: [{
                         id: 'forgePdsaPlan',
                         label: 'Plan',
                         icon: 'event_note',
@@ -18812,11 +18812,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Act by...'
                     }
-            ]
-        },
-        odt: {
-            label: 'ODT',
-            fields: [{
+        ]
+    },
+    odt: {
+        label: 'ODT',
+        fields: [{
                         id: 'forgeOdtObjective',
                         label: 'Objective',
                         icon: 'ads_click',
@@ -18844,11 +18844,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Timeline is...'
                     }
-            ]
-        },
-        srta: {
-            label: 'SRTA',
-            fields: [{
+        ]
+    },
+    srta: {
+        label: 'SRTA',
+        fields: [{
                         id: 'forgeSrtaSituation',
                         label: 'Situation',
                         icon: 'info',
@@ -18885,11 +18885,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. The next action is...'
                     }
-            ]
-        },
-        orid: {
-            label: 'ORID',
-            fields: [{
+        ]
+    },
+    orid: {
+        label: 'ORID',
+        fields: [{
                         id: 'forgeOridObjective',
                         label: 'Objective',
                         icon: 'ads_click',
@@ -18926,11 +18926,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Given this, we should...'
                     }
-            ]
-        },
-        pestle: {
-            label: 'PESTLE',
-            fields: [{
+        ]
+    },
+    pestle: {
+        label: 'PESTLE',
+        fields: [{
                         id: 'forgePestlePolitical',
                         label: 'Political',
                         icon: 'account_balance',
@@ -18985,11 +18985,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Environmental factors include...'
                     }
-            ]
-        },
-        swot: {
-            label: 'SWOT',
-            fields: [{
+        ]
+    },
+    swot: {
+        label: 'SWOT',
+        fields: [{
                         id: 'forgeSwotStrengths',
                         label: 'Strengths',
                         icon: 'fitness_center',
@@ -19026,11 +19026,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Threats include...'
                     }
-            ]
-        },
-        soar: {
-            label: 'SOAR',
-            fields: [{
+        ]
+    },
+    soar: {
+        label: 'SOAR',
+        fields: [{
                         id: 'forgeSoarStrengths',
                         label: 'Strengths',
                         icon: 'fitness_center',
@@ -19067,11 +19067,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Results should be...'
                     }
-            ]
-        },
-        moca: {
-            label: 'MOCA',
-            fields: [{
+        ]
+    },
+    moca: {
+        label: 'MOCA',
+        fields: [{
                         id: 'forgeMocaMission',
                         label: 'Mission',
                         icon: 'flag',
@@ -19108,11 +19108,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Assuming that...'
                     }
-            ]
-        },
-        rds: {
-            label: 'RDS',
-            fields: [{
+        ]
+    },
+    rds: {
+        label: 'RDS',
+        fields: [{
                         id: 'forgeRdsRole',
                         label: 'Role',
                         icon: 'person',
@@ -19140,11 +19140,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Must meet the standard of...'
                     }
-            ]
-        },
-        pop: {
-            label: 'POP',
-            fields: [{
+        ]
+    },
+    pop: {
+        label: 'POP',
+        fields: [{
                         id: 'forgePopPoint',
                         label: 'Point',
                         icon: 'push_pin',
@@ -19172,11 +19172,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. The plan is...'
                     }
-            ]
-        },
-        pbd: {
-            label: 'PBD',
-            fields: [{
+        ]
+    },
+    pbd: {
+        label: 'PBD',
+        fields: [{
                         id: 'forgePbdProblem',
                         label: 'Problem',
                         icon: 'report_problem',
@@ -19204,11 +19204,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. State the decision or recommendation...'
                     }
-            ]
-        },
-        sdb: {
-            label: 'SDB',
-            fields: [{
+        ]
+    },
+    sdb: {
+        label: 'SDB',
+        fields: [{
                         id: 'forgeSdbSituation',
                         label: 'Situation',
                         icon: 'info',
@@ -19236,11 +19236,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Background: ...'
                     }
-            ]
-        },
-        ada: {
-            label: 'ADA',
-            fields: [{
+        ]
+    },
+    ada: {
+        label: 'ADA',
+        fields: [{
                         id: 'forgeAdaAction',
                         label: 'Action',
                         icon: 'bolt',
@@ -19268,11 +19268,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Alternatively...'
                     }
-            ]
-        },
-        dive: {
-            label: 'DIVE',
-            fields: [{
+        ]
+    },
+    dive: {
+        label: 'DIVE',
+        fields: [{
                         id: 'forgeDiveDefine',
                         label: 'Define',
                         icon: 'edit_note',
@@ -19309,11 +19309,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Execute by...'
                     }
-            ]
-        },
-        idea: {
-            label: 'IDEA',
-            fields: [{
+        ]
+    },
+    idea: {
+        label: 'IDEA',
+        fields: [{
                         id: 'forgeIdeaIdentify',
                         label: 'Identify',
                         icon: 'search',
@@ -19350,11 +19350,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Assess where things stand...'
                     }
-            ]
-        },
-        spark: {
-            label: 'SPARK',
-            fields: [{
+        ]
+    },
+    spark: {
+        label: 'SPARK',
+        fields: [{
                         id: 'forgeSparkSituation',
                         label: 'Situation',
                         icon: 'info',
@@ -19400,11 +19400,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Draw on knowledge of...'
                     }
-            ]
-        },
-        force: {
-            label: 'FORCE',
-            fields: [{
+        ]
+    },
+    force: {
+        label: 'FORCE',
+        fields: [{
                         id: 'forgeForceFacts',
                         label: 'Facts',
                         icon: 'fact_check',
@@ -19450,11 +19450,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Judge success by...'
                     }
-            ]
-        },
-        gist: {
-            label: 'GIST',
-            fields: [{
+        ]
+    },
+    gist: {
+        label: 'GIST',
+        fields: [{
                         id: 'forgeGistGoal',
                         label: 'Goal',
                         icon: 'flag',
@@ -19491,11 +19491,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Write a...'
                     }
-            ]
-        },
-        focus: {
-            label: 'FOCUS',
-            fields: [{
+        ]
+    },
+    focus: {
+        label: 'FOCUS',
+        fields: [{
                         id: 'forgeFocusFind',
                         label: 'Find',
                         icon: 'search',
@@ -19541,11 +19541,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Select based on...'
                     }
-            ]
-        },
-        fast: {
-            label: 'FAST',
-            fields: [{
+        ]
+    },
+    fast: {
+        label: 'FAST',
+        fields: [{
                         id: 'forgeFastFocus',
                         label: 'Focus',
                         icon: 'center_focus_strong',
@@ -19582,11 +19582,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Test by...'
                     }
-            ]
-        },
-        bold: {
-            label: 'BOLD',
-            fields: [{
+        ]
+    },
+    bold: {
+        label: 'BOLD',
+        fields: [{
                         id: 'forgeBoldBelief',
                         label: 'Belief',
                         icon: 'psychology_alt',
@@ -19623,11 +19623,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Committed to...'
                     }
-            ]
-        },
-        guide: {
-            label: 'GUIDE',
-            fields: [{
+        ]
+    },
+    guide: {
+        label: 'GUIDE',
+        fields: [{
                         id: 'forgeGuideGoal',
                         label: 'Goal',
                         icon: 'flag',
@@ -19673,11 +19673,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Describe how this should be executed...'
                     }
-            ]
-        },
-        quest: {
-            label: 'QUEST',
-            fields: [{
+        ]
+    },
+    quest: {
+        label: 'QUEST',
+        fields: [{
                         id: 'forgeQuestQuestion',
                         label: 'Question',
                         icon: 'help',
@@ -19723,11 +19723,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Test by...'
                     }
-            ]
-        },
-        light: {
-            label: 'LIGHT',
-            fields: [{
+        ]
+    },
+    light: {
+        label: 'LIGHT',
+        fields: [{
                         id: 'forgeLightLearn',
                         label: 'Learn',
                         icon: 'school',
@@ -19773,11 +19773,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Test by...'
                     }
-            ]
-        },
-        bridge: {
-            label: 'BRIDGE',
-            fields: [{
+        ]
+    },
+    bridge: {
+        label: 'BRIDGE',
+        fields: [{
                         id: 'forgeBridgeBefore',
                         label: 'Before',
                         icon: 'history',
@@ -19832,11 +19832,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Execute by...'
                     }
-            ]
-        },
-        pulse: {
-            label: 'PULSE',
-            fields: [{
+        ]
+    },
+    pulse: {
+        label: 'PULSE',
+        fields: [{
                         id: 'forgePulseProblem',
                         label: 'Problem',
                         icon: 'report_problem',
@@ -19882,11 +19882,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Judge success by...'
                     }
-            ]
-        },
-        sprint: {
-            label: 'SPRINT',
-            fields: [{
+        ]
+    },
+    sprint: {
+        label: 'SPRINT',
+        fields: [{
                         id: 'forgeSprintSketch',
                         label: 'Sketch',
                         icon: 'draw',
@@ -19941,11 +19941,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Test by...'
                     }
-            ]
-        },
-        trio: {
-            label: 'TRIO',
-            fields: [{
+        ]
+    },
+    trio: {
+        label: 'TRIO',
+        fields: [{
                         id: 'forgeTrioTask',
                         label: 'Task',
                         icon: 'task_alt',
@@ -19982,11 +19982,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Output should be...'
                     }
-            ]
-        },
-        flux: {
-            label: 'FLUX',
-            fields: [{
+        ]
+    },
+    flux: {
+        label: 'FLUX',
+        fields: [{
                         id: 'forgeFluxFrame',
                         label: 'Frame',
                         icon: 'crop_free',
@@ -20023,11 +20023,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Execute by...'
                     }
-            ]
-        },
-        coda: {
-            label: 'CODA',
-            fields: [{
+        ]
+    },
+    coda: {
+        label: 'CODA',
+        fields: [{
                         id: 'forgeCodaContext',
                         label: 'Context',
                         icon: 'info',
@@ -20064,11 +20064,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. The next action is...'
                     }
-            ]
-        },
-        zen: {
-            label: 'ZEN',
-            fields: [{
+        ]
+    },
+    zen: {
+        label: 'ZEN',
+        fields: [{
                         id: 'forgeZenZeroin',
                         label: 'Zero-in',
                         icon: 'center_focus_strong',
@@ -20096,11 +20096,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Navigate by...'
                     }
-            ]
-        },
-        aura: {
-            label: 'AURA',
-            fields: [{
+        ]
+    },
+    aura: {
+        label: 'AURA',
+        fields: [{
                         id: 'forgeAuraAudience',
                         label: 'Audience',
                         icon: 'groups',
@@ -20137,11 +20137,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. The next action is...'
                     }
-            ]
-        },
-        core: {
-            label: 'CORE',
-            fields: [{
+        ]
+    },
+    core: {
+        label: 'CORE',
+        fields: [{
                         id: 'forgeCoreContext',
                         label: 'Context',
                         icon: 'info',
@@ -20178,11 +20178,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Input: ... -> Output: ...'
                     }
-            ]
-        },
-        beam: {
-            label: 'BEAM',
-            fields: [{
+        ]
+    },
+    beam: {
+        label: 'BEAM',
+        fields: [{
                         id: 'forgeBeamBackground',
                         label: 'Background',
                         icon: 'info',
@@ -20219,11 +20219,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. The move is...'
                     }
-            ]
-        },
-        pane: {
-            label: 'PANE',
-            fields: [{
+        ]
+    },
+    pane: {
+        label: 'PANE',
+        fields: [{
                         id: 'forgePaneProblem',
                         label: 'Problem',
                         icon: 'report_problem',
@@ -20260,11 +20260,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Describe how this should be executed...'
                     }
-            ]
-        },
-        muse: {
-            label: 'MUSE',
-            fields: [{
+        ]
+    },
+    muse: {
+        label: 'MUSE',
+        fields: [{
                         id: 'forgeMuseMission',
                         label: 'Mission',
                         icon: 'flag',
@@ -20301,11 +20301,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Judge success by...'
                     }
-            ]
-        },
-        lens: {
-            label: 'LENS',
-            fields: [{
+        ]
+    },
+    lens: {
+        label: 'LENS',
+        fields: [{
                         id: 'forgeLensLook',
                         label: 'Look',
                         icon: 'visibility',
@@ -20342,11 +20342,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Solve for...'
                     }
-            ]
-        },
-        vibe: {
-            label: 'VIBE',
-            fields: [{
+        ]
+    },
+    vibe: {
+        label: 'VIBE',
+        fields: [{
                         id: 'forgeVibeVision',
                         label: 'Vision',
                         icon: 'visibility',
@@ -20383,11 +20383,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Describe how this should be executed...'
                     }
-            ]
-        },
-        tilt: {
-            label: 'TILT',
-            fields: [{
+        ]
+    },
+    tilt: {
+        label: 'TILT',
+        fields: [{
                         id: 'forgeTiltTask',
                         label: 'Task',
                         icon: 'task_alt',
@@ -20424,11 +20424,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Turnaround: ...'
                     }
-            ]
-        },
-        surge: {
-            label: 'SURGE',
-            fields: [{
+        ]
+    },
+    surge: {
+        label: 'SURGE',
+        fields: [{
                         id: 'forgeSurgeSituation',
                         label: 'Situation',
                         icon: 'info',
@@ -20474,11 +20474,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Describe how this should be executed...'
                     }
-            ]
-        },
-        pivot: {
-            label: 'PIVOT',
-            fields: [{
+        ]
+    },
+    pivot: {
+        label: 'PIVOT',
+        fields: [{
                         id: 'forgePivotProblem',
                         label: 'Problem',
                         icon: 'report_problem',
@@ -20524,11 +20524,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Write a...'
                     }
-            ]
-        },
-        spire: {
-            label: 'SPIRE',
-            fields: [{
+        ]
+    },
+    spire: {
+        label: 'SPIRE',
+        fields: [{
                         id: 'forgeSpireScenario',
                         label: 'Scenario',
                         icon: 'theater_comedy',
@@ -20574,11 +20574,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Describe how this should be executed...'
                     }
-            ]
-        },
-        forgefw: {
-            label: 'FORGE',
-            fields: [{
+        ]
+    },
+    forgefw: {
+        label: 'FORGE',
+        fields: [{
                         id: 'forgeForgeFocus',
                         label: 'Focus',
                         icon: 'center_focus_strong',
@@ -20624,11 +20624,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Judge success by...'
                     }
-            ]
-        },
-        mirage: {
-            label: 'MIRAGE',
-            fields: [{
+        ]
+    },
+    mirage: {
+        label: 'MIRAGE',
+        fields: [{
                         id: 'forgeMirageMission',
                         label: 'Mission',
                         icon: 'flag',
@@ -20683,11 +20683,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Describe how this should be executed...'
                     }
-            ]
-        },
-        beacon: {
-            label: 'BEACON',
-            fields: [{
+        ]
+    },
+    beacon: {
+        label: 'BEACON',
+        fields: [{
                         id: 'forgeBeaconBackground',
                         label: 'Background',
                         icon: 'info',
@@ -20742,11 +20742,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Next, we should...'
                     }
-            ]
-        },
-        compass: {
-            label: 'COMPASS',
-            fields: [{
+        ]
+    },
+    compass: {
+        label: 'COMPASS',
+        fields: [{
                         id: 'forgeCompassContext',
                         label: 'Context',
                         icon: 'info',
@@ -20810,11 +20810,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Set the target as...'
                     }
-            ]
-        },
-        horizon: {
-            label: 'HORIZON',
-            fields: [{
+        ]
+    },
+    horizon: {
+        label: 'HORIZON',
+        fields: [{
                         id: 'forgeHorizonHow',
                         label: 'How',
                         icon: 'help',
@@ -20878,11 +20878,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Navigate by...'
                     }
-            ]
-        },
-        lance: {
-            label: 'LANCE',
-            fields: [{
+        ]
+    },
+    lance: {
+        label: 'LANCE',
+        fields: [{
                         id: 'forgeLanceLook',
                         label: 'Look',
                         icon: 'visibility',
@@ -20928,11 +20928,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Execute by...'
                     }
-            ]
-        },
-        piper: {
-            label: 'PIPER',
-            fields: [{
+        ]
+    },
+    piper: {
+        label: 'PIPER',
+        fields: [{
                         id: 'forgePiperPurpose',
                         label: 'Purpose',
                         icon: 'flag',
@@ -20978,11 +20978,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Review the following...'
                     }
-            ]
-        },
-        stone: {
-            label: 'STONE',
-            fields: [{
+        ]
+    },
+    stone: {
+        label: 'STONE',
+        fields: [{
                         id: 'forgeStoneSituation',
                         label: 'Situation',
                         icon: 'info',
@@ -21028,11 +21028,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Judge success by...'
                     }
-            ]
-        },
-        ember: {
-            label: 'EMBER',
-            fields: [{
+        ]
+    },
+    ember: {
+        label: 'EMBER',
+        fields: [{
                         id: 'forgeEmberExpectation',
                         label: 'Expectation',
                         icon: 'visibility',
@@ -21078,11 +21078,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Result should be...'
                     }
-            ]
-        },
-        torch: {
-            label: 'TORCH',
-            fields: [{
+        ]
+    },
+    torch: {
+        label: 'TORCH',
+        fields: [{
                         id: 'forgeTorchTask',
                         label: 'Task',
                         icon: 'task_alt',
@@ -21128,11 +21128,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. This should happen by...'
                     }
-            ]
-        },
-        stellar: {
-            label: 'STELLAR',
-            fields: [{
+        ]
+    },
+    stellar: {
+        label: 'STELLAR',
+        fields: [{
                         id: 'forgeStellarSituation',
                         label: 'Situation',
                         icon: 'info',
@@ -21196,11 +21196,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Result should be...'
                     }
-            ]
-        },
-        nebula: {
-            label: 'NEBULA',
-            fields: [{
+        ]
+    },
+    nebula: {
+        label: 'NEBULA',
+        fields: [{
                         id: 'forgeNebulaNeed',
                         label: 'Need',
                         icon: 'priority_high',
@@ -21255,11 +21255,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. The next action is...'
                     }
-            ]
-        },
-        eclipse: {
-            label: 'ECLIPSE',
-            fields: [{
+        ]
+    },
+    eclipse: {
+        label: 'ECLIPSE',
+        fields: [{
                         id: 'forgeEclipseEvaluate',
                         label: 'Evaluate',
                         icon: 'balance',
@@ -21323,11 +21323,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Execute by...'
                     }
-            ]
-        },
-        echo: {
-            label: 'ECHO',
-            fields: [{
+        ]
+    },
+    echo: {
+        label: 'ECHO',
+        fields: [{
                         id: 'forgeEchoExpectation',
                         label: 'Expectation',
                         icon: 'visibility',
@@ -21364,11 +21364,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Outcome should be...'
                     }
-            ]
-        },
-        novel: {
-            label: 'NOVEL',
-            fields: [{
+        ]
+    },
+    novel: {
+        label: 'NOVEL',
+        fields: [{
                         id: 'forgeNovelNeed',
                         label: 'Need',
                         icon: 'priority_high',
@@ -21414,11 +21414,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Keep it under 300 words, markdown format...'
                     }
-            ]
-        },
-        aura2: {
-            label: 'AURA',
-            fields: [{
+        ]
+    },
+    aura2: {
+        label: 'AURA',
+        fields: [{
                         id: 'forgeAuraAction',
                         label: 'Action',
                         icon: 'bolt',
@@ -21455,11 +21455,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. What I need back is...'
                     }
-            ]
-        },
-        locus: {
-            label: 'LOCUS',
-            fields: [{
+        ]
+    },
+    locus: {
+        label: 'LOCUS',
+        fields: [{
                         id: 'forgeLocusLogic',
                         label: 'Logic',
                         icon: 'psychology',
@@ -21505,11 +21505,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Propose a solution that...'
                     }
-            ]
-        },
-        mosaic: {
-            label: 'MOSAIC',
-            fields: [{
+        ]
+    },
+    mosaic: {
+        label: 'MOSAIC',
+        fields: [{
                         id: 'forgeMosaicMission',
                         label: 'Mission',
                         icon: 'flag',
@@ -21564,11 +21564,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Do not...'
                     }
-            ]
-        },
-        prism: {
-            label: 'PRISM',
-            fields: [{
+        ]
+    },
+    prism: {
+        label: 'PRISM',
+        fields: [{
                         id: 'forgePrismProblem',
                         label: 'Problem',
                         icon: 'report_problem',
@@ -21614,11 +21614,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. Method: ...'
                     }
-            ]
-        },
-        vertex: {
-            label: 'VERTEX',
-            fields: [{
+        ]
+    },
+    vertex: {
+        label: 'VERTEX',
+        fields: [{
                         id: 'forgeVertexVision',
                         label: 'Vision',
                         icon: 'visibility',
@@ -21673,11 +21673,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. What makes this stand out...'
                     }
-            ]
-        },
-        strata: {
-            label: 'STRATA',
-            fields: [{
+        ]
+    },
+    strata: {
+        label: 'STRATA',
+        fields: [{
                         id: 'forgeStrataSituation',
                         label: 'Situation',
                         icon: 'info',
@@ -21732,11 +21732,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. What I need back is...'
                     }
-            ]
-        },
-        clarity: {
-            label: 'CLARITY',
-            fields: [{
+        ]
+    },
+    clarity: {
+        label: 'CLARITY',
+        fields: [{
                         id: 'forgeClarityContext',
                         label: 'Context',
                         icon: 'info',
@@ -21800,11 +21800,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. You are...'
                     }
-            ]
-        },
-        syntax: {
-            label: 'SYNTAX',
-            fields: [{
+        ]
+    },
+    syntax: {
+        label: 'SYNTAX',
+        fields: [{
                         id: 'forgeSyntaxSituation',
                         label: 'Situation',
                         icon: 'info',
@@ -21859,11 +21859,11 @@ Must avoid: [Anything sensitive or previously declined]`
                         weight: 1,
                         placeholder: 'e.g. What makes this stand out...'
                     }
-            ]
-        },
-        contextsandwich: {
-            label: 'Context Sandwich',
-            fields: [{
+        ]
+    },
+    contextsandwich: {
+        label: 'Context Sandwich',
+        fields: [{
                     id: 'forgeCsWho',
                     label: 'Who You Are',
                     icon: 'person',
@@ -21876,11 +21876,11 @@ Must avoid: [Anything sensitive or previously declined]`
                     id: 'forgeCsContext',
                     label: 'Context & Task',
                     icon: 'task_alt',
-                    hint: 'The specific task plus the supporting corpus \u2014 transcripts, SOPs, playbooks, prior outputs or decisions',
+                    hint: 'The specific task plus the supporting corpus — transcripts, SOPs, playbooks, prior outputs or decisions',
                     rows: 5,
                     required: true,
                     weight: 3,
-                    placeholder: 'e.g. Task: Summarise this week\'s leadership meeting into action items. Corpus: [paste transcript / SOPs / roadmap excerpts]...'
+                    placeholder: "e.g. Task: Summarise this week's leadership meeting into action items. Corpus: [paste transcript / SOPs / roadmap excerpts]..."
                 },
                 {
                     id: 'forgeCsGood',
@@ -21891,10 +21891,9 @@ Must avoid: [Anything sensitive or previously declined]`
                     weight: 1.5,
                     placeholder: 'e.g. Format: bullet list, max 150 words. Tone: matches attached example. Every action item must include an owner and deadline...'
                 }
-            ]
-        }
-
-    };
+        ]
+    }
+};
 
     /* Template presets --------------------------------------------------------- */
     const FORGE_TEMPLATES = [{
