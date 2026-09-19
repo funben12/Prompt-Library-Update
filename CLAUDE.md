@@ -147,6 +147,7 @@ in `_shared/shared.css` -- grep both before concluding something isn't styled.
 - **NUL bytes and truncation have hit this file before.** Before trusting static/index.html or app.js, sanity check: `grep -c "<script" static/index.html` should be 3; `node --check static/app.js` should pass and end in `})();`.
 - **PromptLibrary.db and PromptLibrary.db-journal are live SQLite files in the repo root** -- don't blindly overwrite/delete, the journal implies an interrupted write.
 - **licence_api.py / licence_ui.js are a separate system from the main prompt CRUD** -- don't conflate premium-gating logic with licence validation logic.
+- **`.chain-step` / `.chain-step-num` / `.chain-step-body` are already taken.** An unrelated chain-search picker elsewhere in `app.css` (~line 1479) uses these exact class names with `display: grid; grid-template-columns: 32px 1fr auto`, which silently breaks any other feature that reuses them (missing `display` overrides leak straight through the cascade). The Prompt Chain workspace uses `chainw-step` / `chainw-step-num` / `chainw-step-body` instead -- grep for a class before reusing it, don't assume `chain-` prefixed names are free.
 
 ---
 
