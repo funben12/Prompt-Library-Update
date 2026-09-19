@@ -1,10 +1,10 @@
 <div id="boardWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Board">
-  <div class="ws-header">
+  <div class="ws-header pb-header">
     <div class="ws-header-left">
       <span class="material-symbols-outlined ws-header-icon">dashboard_customize</span>
       <div>
         <h2 class="ws-title">Prompt Board</h2>
-        <p class="ws-subtitle">Pin prompts into curated boards — cross-cutting collections independent of folders and tags.</p>
+        <p class="ws-subtitle">Pin prompts into curated boards &mdash; cross-cutting collections independent of folders and tags.</p>
       </div>
     </div>
     <div class="ws-header-actions">
@@ -13,6 +13,7 @@
   </div>
   <div class="ws-body board-wrap">
     <div class="board-sidebar">
+      <div class="pb-sidebar-label">Boards</div>
       <div class="board-list" id="boardList"></div>
       <div class="board-new-row">
         <input type="text" id="boardNewName" class="forge-input" placeholder="New board name&hellip;" maxlength="80">
@@ -35,6 +36,11 @@
         </div>
         <div class="board-pins-body" id="boardPinsBody"></div>
       </div>
+    </div>
+    <div class="pb-float-toolbar" id="boardFloatToolbar">
+      <button class="pb-float-btn" id="boardFloatingSaveBtn" title="Save board" aria-label="Save board">
+        <span class="material-symbols-outlined">save</span>
+      </button>
     </div>
     <div class="board-pin-lightbox" id="boardPinLightbox" hidden>
       <div class="board-pin-lightbox-backdrop" id="boardPinLightboxBackdrop"></div>
