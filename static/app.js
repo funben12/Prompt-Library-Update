@@ -16641,7 +16641,7 @@ Must avoid: [Anything sensitive or previously declined]`
        ============================================================================ */
 
     /* Framework definitions ---------------------------------------------------- */
-const FORGE_FRAMEWORKS = {
+    const FORGE_FRAMEWORKS = {
     custom: {
         label: 'Custom',
         fields: [{
@@ -21880,7 +21880,7 @@ const FORGE_FRAMEWORKS = {
                     rows: 5,
                     required: true,
                     weight: 3,
-                    placeholder: 'e.g. Task: Summarise this week\'s leadership meeting into action items. Corpus: [paste transcript / SOPs / roadmap excerpts]...'
+                    placeholder: "e.g. Task: Summarise this week's leadership meeting into action items. Corpus: [paste transcript / SOPs / roadmap excerpts]..."
                 },
                 {
                     id: 'forgeCsGood',
