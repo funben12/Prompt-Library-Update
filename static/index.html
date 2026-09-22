@@ -1889,7 +1889,7 @@
   <div class="forge-toolbar">
     <div class="forge-toolbar-section">
       <span class="forge-toolbar-label">Framework</span>
-      <select id="forgeFrameworkSelect" class="form-input forge-framework-select">
+     <select id="forgeFrameworkSelect" class="form-input forge-framework-select">
         <option value="custom">Custom — freestyle fields</option>
         <option value="ada">ADA — Action · Detail · Alternative</option>
         <option value="aida">AIDA — Attention · Interest · Desire · Action</option>
@@ -2006,7 +2006,263 @@
         <option value="vertex">VERTEX — Vision · Expectation · Role · Task · Execution · X-factor</option>
         <option value="vibe">VIBE — Vision · Intent · Behavior · Execution</option>
         <option value="zen">ZEN — Zero-in · Explore · Navigate</option>
-      </select>
+
+        <!-- ==================== ROLE / PERSONA ==================== -->
+        <option value="risenx">RISEN-X — Role · Instructions · Steps · End Goal · Narrowing · eXample</option>
+        <option value="crit">CRIT — Context · Role · Instruction · Task</option>
+        <option value="crispe">CRISPE — Capacity · Role · Insight · Statement · Personality · Experiment</option>
+        <option value="race">RACE — Role · Action · Context · Expectation</option>
+        <option value="race2">RACE+ — Role · Audience · Context · Execution</option>
+        <option value="rpg">RPG — Role · Purpose · Goal</option>
+        <option value="trio2">TRIO+ — Task · Role · Insight · Output</option>
+        <option value="persona">PERSONA — Persona · Environment · Rules · Scope · Objective · Notation · Audience</option>
+        <option value="hat">HAT — Hat · Audience · Task</option>
+        <option value="mask">MASK — Mission · Audience · Skill · Knowledge</option>
+        <option value="roleplay">ROLEPLAY — Role · Objective · Limits · Example · Persona · Language · Audience · Yield</option>
+
+        <!-- ==================== REASONING / THINKING ==================== -->
+        <option value="cot">CoT — Chain of Thought</option>
+        <option value="cot2">CoT-SC — Chain of Thought · Self-Consistency</option>
+        <option value="tot2">ToT+ — Tree of Thought with pruning</option>
+        <option value="got">GoT — Graph of Thought</option>
+        <option value="sot">SoT — Skeleton of Thought</option>
+        <option value="cot-step">STEP-BACK — Step-Back Prompting</option>
+        <option value="react">ReAct — Reason · Act</option>
+        <option value="reflexion">REFLEXION — Reflect · Refine · Retry</option>
+        <option value="selfask">SELF-ASK — Self-Ask · Decompose · Answer</option>
+        <option value="least2most">L2M — Least-to-Most</option>
+        <option value="decompose">DECOMP — Decompose · Solve · Synthesize</option>
+        <option value="critique">CRITIQUE — Draft · Critique · Revise · Finalize</option>
+        <option value="debate">DEBATE — Position · Counter · Rebut · Resolve</option>
+        <option value="redteam">REDTEAM — Attack · Identify · Mitigate · Verify</option>
+        <option value="premortem">PREMORTEM — Imagine failure · Causes · Prevention · Plan</option>
+        <option value="inversion">INVERSION — Invert · Analyze · Reverse · Solve</option>
+        <option value="firstprinc">FIRST-PRINCIPLES — Assumptions · Truths · Rebuild · Validate</option>
+        <option value="scamper">SCAMPER — Substitute · Combine · Adapt · Modify · Put · Eliminate · Reverse</option>
+        <option value="sixhats">SIX-HATS — Facts · Feelings · Caution · Benefits · Creativity · Process</option>
+        <option value="lateral">LATERAL — Shift · Provoke · Connect · Reframe</option>
+        <option value="analogy">ANALOGY — Source · Map · Transfer · Adapt</option>
+        <option value="abstraction">ABSTRACT — Concrete · Pattern · Principle · Reapply</option>
+        <option value="socratic2">SOCRATIC-Q — Clarify · Assume · Evidence · View · Consequence · Question</option>
+
+        <!-- ==================== PROMPT ENGINEERING TECHNIQUES ==================== -->
+        <option value="fewshot">FEW-SHOT — Task · Examples · Format · Query</option>
+        <option value="zeroshot">ZERO-SHOT — Task · Format · Query</option>
+        <option value="oneshot">ONE-SHOT — Task · Example · Query</option>
+        <option value="cotfew">CoT-FEW — Task · Reasoned Examples · Query</option>
+        <option value="apex">APEX — Aim · Prompt · Examples · eXecution</option>
+        <option value="shot">SHOT — Subject · Hints · Output · Test</option>
+        <option value="cast">CAST — Context · Action · Style · Tone</option>
+        <option value="nice">NICE — Need · Instruction · Context · Example</option>
+        <option value="tidy">TIDY — Task · Intent · Detail · Yield</option>
+        <option value="fine">FINE — Focus · Instruction · Nuance · Example</option>
+        <option value="promptchain">CHAIN — Prompt · Hone · Assess · Iterate · Nail</option>
+        <option value="promptpattern">PATTERN — Purpose · Audience · Tone · Role · Example · Narrative</option>
+        <option value="priming">PRIMING — Prime · Instruct · Model · Elicit</option>
+        <option value="constraint">CONSTRAIN — Constraints · Objective · Nuance · Scope · Tone · Rules · Audience · Intent · Notation</option>
+        <option value="negative">NEGATIVE — Avoid · Exclude · Limit · Suppress</option>
+        <option value="format">FORMAT — Framework · Output · Rules · Medium · Audience · Tone</option>
+        <option value="template">TEMPLATE — Task · Example · Method · Placeholder · Language · Audience · Tone · Execution</option>
+        <option value="schema">SCHEMA — Structure · Content · Hints · Example · Model · Accept</option>
+        <option value="guardrail">GUARDRAIL — Goal · Use · Allowed · Restrict · Deliver · Rules · Audience · Intent · Limits</option>
+
+        <!-- ==================== CONTENT / WRITING ==================== -->
+        <option value="aida2">AIDA-S — Attention · Interest · Desire · Action · Satisfaction</option>
+        <option value="papa">PAPA — Problem · Advantage · Proof · Action</option>
+        <option value="fab">FAB — Feature · Advantage · Benefit</option>
+        <option value="fff">FFF — Feel · Felt · Found</option>
+        <option value="4ps">4Ps — Picture · Promise · Prove · Push</option>
+        <option value="apps">APPS — Audience · Purpose · Point · Style</option>
+        <option value="hero">HERO — Hook · Empathy · Resolution · Outcome</option>
+        <option value="story">STORY — Situation · Trigger · Obstacle · Resolution · Yield</option>
+        <option value="arc">ARC — Attention · Resonance · Call</option>
+        <option value="listicle">LISTICLE — Lead · Items · Summary · Takeaway · Link · Example</option>
+        <option value="blog">BLOG — Background · Lead · Outline · Generate</option>
+        <option value="edit">EDIT — Evaluate · Diagnose · Improve · Test</option>
+        <option value="rewrite">REWRITE — Read · Evaluate · Write · Refine · Inspect · Test · End</option>
+        <option value="tone">TONE — Topic · Objective · Nuance · Emotion</option>
+        <option value="voice">VOICE — Vision · Objective · Identity · Cadence · Emotion</option>
+        <option value="style">STYLE — Subject · Tone · Yield · Length · Emphasis</option>
+        <option value="summary">SUMMARY — Scope · Unit · Method · Map · Audience · Relevance · Yield</option>
+        <option value="abstract2">ABSTRACT+ — Aim · Background · Synthesis · Takeaway · Result · Action · Conclusion · Tone</option>
+
+        <!-- ==================== ANALYSIS / STRATEGY ==================== -->
+        <option value="porter">PORTER — Rivalry · New · Substitutes · Suppliers · Buyers</option>
+        <option value="pest">PEST — Political · Economic · Social · Technological</option>
+        <option value="pestel">PESTEL — Political · Economic · Social · Technological · Environmental · Legal</option>
+        <option value="vrio">VRIO — Value · Rarity · Imitability · Organization</option>
+        <option value="mckinsey">7S — Strategy · Structure · Systems · Staff · Skills · Style · Shared</option>
+        <option value="bcg">BCG — Star · Cash · Question · Dog</option>
+        <option value="ansoff">ANSOFF — Market · Product · Diversify</option>
+        <option value="5w2h">5W2H — What · Why · Who · When · Where · How · How-much</option>
+        <option value="rootcause">ROOT-CAUSE — Symptom · Why · Why · Why · Why · Why · Fix</option>
+        <option value="fishbone">FISHBONE — Man · Machine · Method · Material · Measurement · Environment</option>
+        <option value="pareto">PARETO — Identify · Rank · Focus · Verify</option>
+        <option value="rice">RICE — Reach · Impact · Confidence · Effort</option>
+        <option value="moscow">MOSCOW — Must · Should · Could · Won't</option>
+        <option value="kano">KANO — Must · Performance · Attractive · Indifferent · Reverse</option>
+        <option value="swot2">SWOT-TOWS — Strengths · Weaknesses · Opportunities · Threats · Strategies</option>
+        <option value="okr">OKR — Objective · Key Results</option>
+        <option value="kpi">KPI — Key · Performance · Indicator</option>
+        <option value="smart2">SMARTER — Specific · Measurable · Achievable · Relevant · Time-bound · Evaluated · Reviewed</option>
+        <option value="fast2">FAST+ — Frequently · Ambitious · Specific · Transparent</option>
+
+        <!-- ==================== PRODUCT / UX / DESIGN ==================== -->
+        <option value="jobs">JTBD — Job · Context · Outcome · Solution</option>
+        <option value="persona2">PERSONA-UX — Persona · Environment · Rules · Scope · Objective · Notation · Audience</option>
+        <option value="heuristic">HEURISTIC — Visibility · Match · Control · Consistency · Error · Recognition · Flexibility · Aesthetic · Recovery · Help</option>
+        <option value="design">DESIGN — Discover · Empathize · Synthesize · Ideate · Generate · Evaluate · Iterate · Navigate</option>
+        <option value="double">DOUBLE-DIAMOND — Discover · Define · Develop · Deliver</option>
+        <option value="lean">LEAN-UX — Learn · Explain · Analyze · Next</option>
+        <option value="agile">AGILE — Align · Generate · Iterate · Learn · Evolve</option>
+        <option value="scrum">SCRUM — Story · Criteria · Refine · Update · Meet</option>
+        <option value="sprint2">SPRINT-UX — Sketch · Plan · Review · Iterate · Navigate · Test</option>
+        <option value="mvp">MVP — Minimum · Viable · Product</option>
+        <option value="rice2">RICE-UX — Reach · Impact · Confidence · Effort</option>
+        <option value="hook">HOOK — Trigger · Action · Reward · Investment</option>
+        <option value="aarrr">AARRR — Acquisition · Activation · Retention · Revenue · Referral</option>
+        <option value="aarrr2">AARRR+ — Awareness · Acquisition · Activation · Retention · Revenue · Referral</option>
+        <option value="flywheel">FLYWHEEL — Attract · Engage · Delight · Refer</option>
+
+        <!-- ==================== TECHNICAL / SOFTWARE ==================== -->
+        <option value="solid">SOLID — Single · Open · Liskov · Interface · Dependency</option>
+        <option value="dry">DRY — Don't · Repeat · Yourself</option>
+        <option value="kiss">KISS — Keep · It · Simple · Stupid</option>
+        <option value="yagni">YAGNI — You · Aren't · Gonna · Need · It</option>
+        <option value="boy">BOY — Better · Of · Yield</option>
+        <option value="raci2">RACI-D — Responsible · Accountable · Consulted · Informed · Deliverable</option>
+        <option value="daci">DACI — Driver · Approver · Contributor · Informed</option>
+        <option value="star2">STAR-L — Situation · Task · Action · Result · Learning</option>
+        <option value="soara">SOARA — Situation · Objective · Action · Result · Assessment</option>
+        <option value="car">CAR — Challenge · Action · Result</option>
+        <option value="par">PAR — Problem · Action · Result</option>
+        <option value="sar">SAR — Situation · Action · Result</option>
+        <option value="debug">DEBUG — Describe · Examine · Break · Understand · Generate</option>
+        <option value="stack">STACK — Symptom · Trace · Analyze · Correct · Keep</option>
+        <option value="coderev">CODE-REV — Context · Objective · Details · Example</option>
+        <option value="review">REVIEW — Read · Examine · Verify · Identify · Evaluate · Write</option>
+        <option value="doc">DOC — Describe · Outline · Clarify</option>
+        <option value="apidoc">API-DOC — Audience · Purpose · Input · Details · Output · Context</option>
+        <option value="test">TEST — Target · Example · Scenario · Trial</option>
+        <option value="qacheck">QA-CHECK — Question · Answer · Check · Hone · Evaluate · Confirm · Keep</option>
+
+        <!-- ==================== COMMUNICATION / PRESENTATION ==================== -->
+        <option value="pyramid">PYRAMID — Point · Reason · Evidence · Point</option>
+        <option value="scqa2">SCQA-R — Situation · Complication · Question · Answer · Result</option>
+        <option value="bluf2">BLUF-A — Bottom · Line · Up · Front · Action</option>
+        <option value="prep2">PREP-A — Point · Reason · Example · Point · Action</option>
+        <option value="ppf">PPF — Past · Present · Future</option>
+        <option value="whatso">WHAT-SO — What · So-What · Now-What</option>
+        <option value="mece">MECE — Mutually · Exclusive · Collectively · Exhaustive</option>
+        <option value="scr">SCR — Situation · Complication · Resolution</option>
+        <option value="star3">STAR-COM — Situation · Task · Action · Result · Communication</option>
+        <option value="elevator">ELEVATOR — Hook · Problem · Solution · Ask</option>
+        <option value="pitch">PITCH — Problem · Insight · Target · Concept · Hook</option>
+        <option value="narrative">NARRATIVE — Need · Arc · Resolution · Relevance · Audience · Tone · Insight · Vision · Ending</option>
+        <option value="4mat">4MAT — Why · What · How · What-if</option>
+        <option value="tell">TELL — Topic · Example · Lesson · Link</option>
+        <option value="show">SHOW — Situation · Highlight · Outcome · Wrap</option>
+
+        <!-- ==================== LEARNING / TEACHING ==================== -->
+        <option value="bloom">BLOOM — Remember · Understand · Apply · Analyze · Evaluate · Create</option>
+        <option value="addie">ADDIE — Analysis · Design · Development · Implementation · Evaluation</option>
+        <option value="gagne">GAGNE — Gain · Inform · Recall · Present · Guide · Elicit · Feedback · Assess · Enhance · Retain</option>
+        <option value="merrill">MERRILL — Problem · Activation · Demonstration · Application · Integration</option>
+        <option value="keller">KELLER — Attention · Relevance · Confidence · Satisfaction</option>
+        <option value="explain">EXPLAIN — Example · Plain · Language · Analogy · Illustrate · Narrow</option>
+        <option value="teach">TEACH — Topic · Example · Analogy · Check · Help</option>
+        <option value="learn">LEARN — Lead · Example · Assess · Refine · Nail</option>
+        <option value="feynman">FEYNMAN — Explain · Identify · Simplify · Analogy</option>
+        <option value="socratic3">SOCRATIC-T — Question · Probe · Challenge · Reflect · Refine · Teach</option>
+        <option value="scaffold">SCAFFOLD — Simplify · Context · Analogy · Foundation · Frame · Outline · Lead · Demonstrate</option>
+
+        <!-- ==================== MEETINGS / WORKFLOWS ==================== -->
+        <option value="agenda">AGENDA — Aim · Gather · Explain · Note · Decide · Assign</option>
+        <option value="standup">STANDUP — Status · Task · Update · Next · Deliverables</option>
+        <option value="retro">RETRO — Review · Examine · Takeaway · Revise · Outcome</option>
+        <option value="postmortem">POSTMORTEM — Problem · Outline · Solution · Timeline · Metrics · Outcome · Result · Team · Evaluate · Mitigate</option>
+        <option value="rca">RCA — Root · Cause · Analysis</option>
+        <option value="capa">CAPA — Corrective · Action · Preventive · Action</option>
+        <option value="pdca">PDCA — Plan · Do · Check · Act</option>
+        <option value="kaizen">KAIZEN — Keep · Assess · Improve · Zero-in · Evaluate · Next</option>
+        <option value="5s">5S — Sort · Set · Shine · Standardize · Sustain</option>
+        <option value="gemba">GEMBA — Go · Examine · Measure · Better · Act</option>
+
+        <!-- ==================== SALES / MARKETING ==================== -->
+        <option value="spin">SPIN — Situation · Problem · Implication · Need</option>
+        <option value="bant">BANT — Budget · Authority · Need · Timeline</option>
+        <option value="champ">CHAMP — Challenges · Authority · Money · Prioritization</option>
+        <option value="meddic">MEDDIC — Metrics · Economic · Decision · Decision · Identify · Champion</option>
+        <option value="meddpicc">MEDDPICC — Metrics · Economic · Decision · Decision · Paper · Identify · Champion · Competition</option>
+        <option value="spin2">SPIN-S — Situation · Problem · Implication · Need · Solution</option>
+        <option value="hook2">HOOK-S — Hook · Offer · Outcome · Kickoff</option>
+        <option value="aida3">AIDA-A — Attention · Interest · Desire · Action · Advocacy</option>
+        <option value="4c">4Cs — Clear · Concise · Compelling · Credible</option>
+        <option value="seo">SEO — Search · Engine · Optimization</option>
+        <option value="aida4">AIDA-SEO — Attention · Interest · Desire · Action · Search · Engine · Optimization</option>
+        <option value="content">CONTENT — Context · Objective · Narrative · Tone · Example · Next · Teach</option>
+
+        <!-- ==================== DECISION / RISK ==================== -->
+        <option value="odds">ODDS — Options · Decision · Data · Strategy</option>
+        <option value="decide">DECIDE — Define · Establish · Consider · Identify · Develop · Evaluate</option>
+        <option value="grade">GRADE — Gather · Rate · Assess · Decide · Evaluate</option>
+        <option value="risk">RISK — Recognize · Investigate · Solve · Keep</option>
+        <option value="stake">STAKE — Situation · Task · Action · Knowledge · Evaluate</option>
+        <option value="ethics">ETHICS — Evaluate · Test · Harm · Intent · Consequences · Stakeholders</option>
+        <option value="procon">PRO-CON — Pros · Cons · Trade-offs · Decision</option>
+        <option value="ice">ICE — Impact · Confidence · Ease</option>
+        <option value="wsjf">WSJF — Weighted · Shortest · Job · First</option>
+        <option value="cost">COST — Constraints · Options · Strategy · Trade-offs</option>
+        <option value="value">VALUE — Verify · Analyze · Listen · Understand · Evaluate</option>
+        <option value="triage">TRIAGE — Triage · Rank · Investigate · Act · Guide · Evaluate</option>
+
+        <!-- ==================== AI / LLM-SPECIFIC ==================== -->
+        <option value="react2">REACT-AI — Reason · Act · Observe · Reflect</option>
+        <option value="mcp">MCP — Model · Context · Protocol</option>
+        <option value="rag">RAG — Retrieve · Augment · Generate</option>
+        <option value="agent">AGENT — Assess · Goal · Execute · Navigate · Test</option>
+        <option value="multiagent">MULTI-AGENT — Roles · Goals · Communication · Coordination · Output</option>
+        <option value="guard">GUARD — Goal · Understand · Assess · Respond · Defend</option>
+        <option value="prompteval">EVAL — Examine · Validate · Assess · Learn</option>
+        <option value="prompttest">TEST-PROMPT — Task · Example · Scenario · Trial · Prompt · Refine</option>
+        <option value="context">CONTEXT-WIN — Context · Objective · Notation · Token · Example · X-factor · Task · Window</option>
+        <option value="temp">TEMP — Temperature · Example · Method · Prompt</option>
+        <option value="system">SYSTEM — System · Yield · Syntax · Tone · Example · Message</option>
+        <option value="assistant">ASSISTANT — Audience · Style · Syntax · Intent · Steps · Tone · Answer · Next · Tone</option>
+        <option value="tool">TOOL — Task · Objective · Output · Logic</option>
+        <option value="function">FUNCTION — Format · Use · Notation · Context · Task · Input · Output · Next</option>
+
+        <!-- ==================== MISCELLANEOUS / HYBRID ==================== -->
+        <option value="ace">ACE — Action · Context · Expectation</option>
+        <option value="ace2">ACE+ — Audience · Context · Execution</option>
+        <option value="air">AIR — Audience · Intent · Result</option>
+        <option value="art">ART — Audience · Result · Tone</option>
+        <option value="act">ACT — Audience · Context · Task</option>
+        <option value="aim">AIM — Audience · Intent · Message</option>
+        <option value="apt">APT — Audience · Purpose · Tone</option>
+        <option value="ask">ASK — Audience · Situation · Knowledge</option>
+        <option value="bite">BITE — Background · Intent · Task · Example</option>
+        <option value="cake">CAKE — Context · Audience · Knowledge · Example</option>
+        <option value="dare">DARE — Define · Analyze · Recommend · Execute</option>
+        <option value="dice">DICE — Define · Investigate · Create · Evaluate</option>
+        <option value="ease">EASE — Example · Audience · Style · Execution</option>
+        <option value="fact">FACT — Focus · Audience · Content · Tone</option>
+        <option value="give">GIVE — Goal · Insight · Value · Example</option>
+        <option value="hint">HINT — Hook · Insight · Next · Task</option>
+        <option value="idea2">IDEA+ — Intent · Detail · Example · Action</option>
+        <option value="jump">JUMP — Justify · Understand · Map · Proceed</option>
+        <option value="kind">KIND — Knowledge · Intent · Notation · Detail</option>
+        <option value="lead">LEAD — Listen · Empathize · Assess · Deliver</option>
+        <option value="move">MOVE — Mission · Objective · Value · Execution</option>
+        <option value="need">NEED — Notice · Evaluate · Execute · Deliver</option>
+        <option value="open">OPEN — Objective · Plan · Example · Next</option>
+        <option value="pace">PACE — Purpose · Audience · Content · Execution</option>
+        <option value="plan">PLAN — Purpose · Listen · Assess · Next</option>
+        <option value="quest2">QUEST+ — Question · Understand · Explore · Solve · Test</option>
+        <option value="real">REAL — Relevant · Example · Action · Learn</option>
+        <option value="safe">SAFE — Situation · Action · Feedback · Evaluate</option>
+        <option value="task">TASK — Target · Audience · Skill · Knowledge</option>
+        <option value="true">TRUE — Task · Reason · Understand · Execute</option>
     </div>
     <div class="forge-toolbar-divider"></div>
     <div class="forge-toolbar-section">
