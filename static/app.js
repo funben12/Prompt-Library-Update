@@ -21892,6 +21892,597 @@ Must avoid: [Anything sensitive or previously declined]`
                     placeholder: 'e.g. Format: bullet list, max 150 words. Tone: matches attached example. Every action item must include an owner and deadline...'
                 }
         ]
+    },
+    trest: {
+        label: 'TREST',
+        fields: [{
+                id: 'forgeTrTask',
+                label: 'Task',
+                icon: 'task_alt',
+                hint: 'What needs doing',
+                rows: 3,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Draft a rejection email for a job candidate...'
+            },
+            {
+                id: 'forgeTrRole',
+                label: 'Role',
+                icon: 'person',
+                hint: 'Who the AI is acting as',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. You are a compassionate but direct HR manager...'
+            },
+            {
+                id: 'forgeTrExamples',
+                label: 'Examples',
+                icon: 'library_books',
+                hint: 'Sample input/output pairs',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Example tone: "Thank you for your time and interest..."'
+            },
+            {
+                id: 'forgeTrScope',
+                label: 'Scope',
+                icon: 'crop_free',
+                hint: 'Boundaries — what is out of bounds',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Do not mention salary or specific interview feedback...'
+            },
+            {
+                id: 'forgeTrTone',
+                label: 'Tone',
+                icon: 'record_voice_over',
+                hint: 'Voice and register',
+                rows: 1,
+                weight: 1,
+                placeholder: 'e.g. Warm, professional, brief'
+            }
+        ]
+    },
+    tag: {
+        label: 'TAG',
+        fields: [{
+                id: 'forgeTagTask',
+                label: 'Task',
+                icon: 'task_alt',
+                hint: 'What to do',
+                rows: 3,
+                required: true,
+                weight: 3,
+                placeholder: 'e.g. Summarise the attached research paper...'
+            },
+            {
+                id: 'forgeTagAction',
+                label: 'Action',
+                icon: 'play_arrow',
+                hint: 'The specific action to take',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. Extract the methodology and key findings only...'
+            },
+            {
+                id: 'forgeTagGoal',
+                label: 'Goal',
+                icon: 'flag',
+                hint: 'The end result you want',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. A 200-word summary a non-expert can understand...'
+            }
+        ]
+    },
+    ricce: {
+        label: 'RICCE',
+        fields: [{
+                id: 'forgeRicRole',
+                label: 'Role',
+                icon: 'person',
+                hint: 'Who the AI is',
+                rows: 2,
+                required: true,
+                weight: 2,
+                placeholder: 'e.g. You are a senior data analyst...'
+            },
+            {
+                id: 'forgeRicInstructions',
+                label: 'Instructions',
+                icon: 'checklist',
+                hint: 'What to do, step by step',
+                rows: 3,
+                required: true,
+                weight: 2.5,
+                placeholder: 'e.g. Analyse the dataset and identify the top 3 trends...'
+            },
+            {
+                id: 'forgeRicContext',
+                label: 'Context',
+                icon: 'info',
+                hint: 'Background the AI needs',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. This is Q3 sales data for a mid-market SaaS company...'
+            },
+            {
+                id: 'forgeRicConstraints',
+                label: 'Constraints',
+                icon: 'block',
+                hint: 'Hard limits or rules',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Do not speculate beyond the data provided...'
+            },
+            {
+                id: 'forgeRicExamples',
+                label: 'Examples',
+                icon: 'library_books',
+                hint: 'Sample output format',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Format each trend as: Trend / Evidence / Impact...'
+            }
+        ]
+    },
+    apex: {
+        label: 'APEX',
+        fields: [{
+                id: 'forgeApxAim',
+                label: 'Aim',
+                icon: 'flag',
+                hint: 'The end goal',
+                rows: 2,
+                required: true,
+                weight: 2.5,
+                placeholder: 'e.g. Increase newsletter sign-ups from the blog...'
+            },
+            {
+                id: 'forgeApxPersona',
+                label: 'Persona',
+                icon: 'person',
+                hint: 'Who the AI acts as',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. A conversion-focused copywriter...'
+            },
+            {
+                id: 'forgeApxExecution',
+                label: 'Execution',
+                icon: 'build',
+                hint: 'How to do it',
+                rows: 3,
+                required: true,
+                weight: 2,
+                placeholder: 'e.g. Write a 3-sentence CTA block to place at the end of blog posts...'
+            },
+            {
+                id: 'forgeApxExamples',
+                label: 'eXamples',
+                icon: 'library_books',
+                hint: 'Reference examples',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Similar to Substack\'s "Subscribe for weekly insights"...'
+            }
+        ]
+    },
+    cop: {
+        label: 'COP',
+        fields: [{
+                id: 'forgeCopContext',
+                label: 'Context',
+                icon: 'info',
+                hint: 'Background information',
+                rows: 3,
+                required: true,
+                weight: 2,
+                placeholder: 'e.g. We are launching a new pricing tier next month...'
+            },
+            {
+                id: 'forgeCopObjective',
+                label: 'Objective',
+                icon: 'flag',
+                hint: 'What success looks like',
+                rows: 2,
+                required: true,
+                weight: 2,
+                placeholder: 'e.g. Write an announcement email that drives upgrades...'
+            },
+            {
+                id: 'forgeCopPersona',
+                label: 'Persona',
+                icon: 'person',
+                hint: 'Voice to write in',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Friendly, confident product marketer...'
+            }
+        ]
+    },
+    cidi: {
+        label: 'CIDI',
+        fields: [{
+                id: 'forgeCidiContext',
+                label: 'Context',
+                icon: 'info',
+                hint: 'Situation and background',
+                rows: 3,
+                required: true,
+                weight: 2,
+                placeholder: 'e.g. Our support team is overwhelmed with duplicate tickets...'
+            },
+            {
+                id: 'forgeCidiInstruction',
+                label: 'Instruction',
+                icon: 'checklist',
+                hint: 'The specific task',
+                rows: 3,
+                required: true,
+                weight: 2.5,
+                placeholder: 'e.g. Draft a canned response that resolves the top 3 duplicate issues...'
+            },
+            {
+                id: 'forgeCidiDetail',
+                label: 'Detail',
+                icon: 'notes',
+                hint: 'Supporting detail or data',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Issues are: login errors, billing confusion, password resets...'
+            },
+            {
+                id: 'forgeCidiInput',
+                label: 'Input',
+                icon: 'input',
+                hint: 'Raw material to work from',
+                rows: 3,
+                weight: 1,
+                placeholder: 'e.g. [Paste sample tickets here]'
+            }
+        ]
+    },
+    react: {
+        label: 'REACT',
+        fields: [{
+                id: 'forgeReRole',
+                label: 'Role',
+                icon: 'person',
+                hint: 'Who the AI is acting as',
+                rows: 2,
+                required: true,
+                weight: 1.5,
+                placeholder: 'e.g. You are a troubleshooting assistant for a SaaS product...'
+            },
+            {
+                id: 'forgeReExamples',
+                label: 'Examples',
+                icon: 'library_books',
+                hint: 'Sample reasoning traces or outputs',
+                rows: 3,
+                weight: 1,
+                placeholder: 'e.g. Thought: check logs first. Action: search error code...'
+            },
+            {
+                id: 'forgeReAction',
+                label: 'Action',
+                icon: 'play_arrow',
+                hint: 'What action to take at each step',
+                rows: 3,
+                required: true,
+                weight: 2,
+                placeholder: 'e.g. Diagnose the root cause and propose a fix, showing your reasoning...'
+            },
+            {
+                id: 'forgeReContext',
+                label: 'Context',
+                icon: 'info',
+                hint: 'Available tools or information',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. You have access to: error logs, the changelog, and the user report...'
+            },
+            {
+                id: 'forgeReTask',
+                label: 'Task',
+                icon: 'task_alt',
+                hint: 'The overall objective',
+                rows: 2,
+                required: true,
+                weight: 2,
+                placeholder: 'e.g. Resolve the reported bug and explain the fix in plain language...'
+            }
+        ]
+    },
+    error: {
+        label: 'ERROR',
+        fields: [{
+                id: 'forgeErrExamples',
+                label: 'Examples',
+                icon: 'library_books',
+                hint: 'What good output looks like',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. Similar to how you would write for The Economist...'
+            },
+            {
+                id: 'forgeErrRole',
+                label: 'Role',
+                icon: 'person',
+                hint: 'Who the AI is',
+                rows: 2,
+                required: true,
+                weight: 1.5,
+                placeholder: 'e.g. You are a meticulous copy editor...'
+            },
+            {
+                id: 'forgeErrRestrict',
+                label: 'Restrictions',
+                icon: 'block',
+                hint: 'What not to do',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Do not change quotes or statistics...'
+            },
+            {
+                id: 'forgeErrOutput',
+                label: 'Output',
+                icon: 'output',
+                hint: 'Exact output format',
+                rows: 2,
+                required: true,
+                weight: 2,
+                placeholder: 'e.g. Return a bullet list of corrections with line references...'
+            },
+            {
+                id: 'forgeErrResponse',
+                label: 'Response',
+                icon: 'reply',
+                hint: 'How to handle uncertainty',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. If unsure, flag the passage instead of guessing...'
+            }
+        ]
+    },
+    crispe: {
+        label: 'CRISPE',
+        fields: [{
+                id: 'forgeCrCapacity',
+                label: 'Capacity & Role',
+                icon: 'person',
+                hint: 'Who the AI is and what it can do',
+                rows: 2,
+                required: true,
+                weight: 2,
+                placeholder: 'e.g. You are an expert career coach with 15 years of experience...'
+            },
+            {
+                id: 'forgeCrInsight',
+                label: 'Insight',
+                icon: 'lightbulb',
+                hint: 'Background knowledge to draw on',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. The candidate is switching from finance to product management...'
+            },
+            {
+                id: 'forgeCrStatement',
+                label: 'Statement',
+                icon: 'task_alt',
+                hint: 'The task itself',
+                rows: 3,
+                required: true,
+                weight: 2.5,
+                placeholder: 'e.g. Rewrite their resume summary to highlight transferable skills...'
+            },
+            {
+                id: 'forgeCrPersonality',
+                label: 'Personality',
+                icon: 'mood',
+                hint: 'Tone of voice',
+                rows: 1,
+                weight: 1,
+                placeholder: 'e.g. Encouraging but honest'
+            },
+            {
+                id: 'forgeCrExperiment',
+                label: 'Experiment',
+                icon: 'science',
+                hint: 'Ask for multiple variations',
+                rows: 1,
+                weight: 1,
+                placeholder: 'e.g. Give me 3 versions with different emphasis'
+            }
+        ]
+    },
+    ipcc: {
+        label: 'IPCC',
+        fields: [{
+                id: 'forgeIpccInput',
+                label: 'Input',
+                icon: 'input',
+                hint: 'The raw material',
+                rows: 3,
+                required: true,
+                weight: 2,
+                placeholder: 'e.g. [Paste the raw customer feedback here]'
+            },
+            {
+                id: 'forgeIpccProcess',
+                label: 'Process',
+                icon: 'settings',
+                hint: 'How to transform the input',
+                rows: 3,
+                required: true,
+                weight: 2.5,
+                placeholder: 'e.g. Categorise each piece of feedback into theme buckets...'
+            },
+            {
+                id: 'forgeIpccConstraints',
+                label: 'Constraints',
+                icon: 'block',
+                hint: 'Rules to follow',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. Use no more than 6 theme categories...'
+            },
+            {
+                id: 'forgeIpccContent',
+                label: 'Content/Output',
+                icon: 'output',
+                hint: 'What the final output looks like',
+                rows: 2,
+                required: true,
+                weight: 2,
+                placeholder: 'e.g. A table: Theme, Count, Example Quote...'
+            }
+        ]
+    },
+    goal: {
+        label: 'GOAL',
+        fields: [{
+                id: 'forgeGoalGoal',
+                label: 'Goal',
+                icon: 'flag',
+                hint: 'What you want to achieve',
+                rows: 2,
+                required: true,
+                weight: 2.5,
+                placeholder: 'e.g. Get more qualified replies from cold outreach emails...'
+            },
+            {
+                id: 'forgeGoalObstacle',
+                label: 'Obstacle',
+                icon: 'block',
+                hint: 'What is currently blocking you',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. Open rates are fine but replies are low...'
+            },
+            {
+                id: 'forgeGoalAction',
+                label: 'Action',
+                icon: 'play_arrow',
+                hint: 'What to actually do',
+                rows: 3,
+                required: true,
+                weight: 2,
+                placeholder: 'e.g. Rewrite this email to lead with a specific, relevant insight...'
+            },
+            {
+                id: 'forgeGoalLookahead',
+                label: 'Look-ahead',
+                icon: 'visibility',
+                hint: 'What to check or anticipate',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Make sure it still sounds human, not templated...'
+            }
+        ]
+    },
+    tcref: {
+        label: 'TCREF',
+        fields: [{
+                id: 'forgeTcrTask',
+                label: 'Task',
+                icon: 'task_alt',
+                hint: 'The task to complete',
+                rows: 3,
+                required: true,
+                weight: 2.5,
+                placeholder: 'e.g. Write onboarding documentation for a new API endpoint...'
+            },
+            {
+                id: 'forgeTcrContext',
+                label: 'Context',
+                icon: 'info',
+                hint: 'Background',
+                rows: 3,
+                weight: 1.5,
+                placeholder: 'e.g. The endpoint handles webhook subscriptions for enterprise customers...'
+            },
+            {
+                id: 'forgeTcrReferences',
+                label: 'References',
+                icon: 'library_books',
+                hint: 'Source material to draw from',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. Follow the style of our existing docs at /docs/webhooks...'
+            },
+            {
+                id: 'forgeTcrEvaluate',
+                label: 'Evaluate',
+                icon: 'fact_check',
+                hint: 'How to judge the result',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. A developer should be able to implement it without asking questions...'
+            },
+            {
+                id: 'forgeTcrFormat',
+                label: 'Format',
+                icon: 'format_list_bulleted',
+                hint: 'Output structure',
+                rows: 2,
+                required: true,
+                weight: 2,
+                placeholder: 'e.g. Markdown with code blocks, headed sections: Overview, Auth, Request, Response, Errors...'
+            }
+        ]
+    },
+    persona: {
+        label: 'PERSONA',
+        fields: [{
+                id: 'forgePersPersona',
+                label: 'Persona',
+                icon: 'person',
+                hint: 'Detailed character the AI adopts',
+                rows: 3,
+                required: true,
+                weight: 2.5,
+                placeholder: 'e.g. A blunt, no-nonsense VC partner who has seen 1000 pitches...'
+            },
+            {
+                id: 'forgePersExpertise',
+                label: 'Expertise',
+                icon: 'school',
+                hint: 'What domain knowledge they hold',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. 20 years evaluating seed-stage SaaS startups...'
+            },
+            {
+                id: 'forgePersRules',
+                label: 'Rules',
+                icon: 'gavel',
+                hint: 'How they behave / respond',
+                rows: 2,
+                weight: 1.5,
+                placeholder: 'e.g. Always ask about unit economics before anything else...'
+            },
+            {
+                id: 'forgePersScenario',
+                label: 'Scenario',
+                icon: 'theater_comedy',
+                hint: 'The situation to role-play',
+                rows: 3,
+                required: true,
+                weight: 2,
+                placeholder: 'e.g. I am pitching you my startup idea, respond as this persona would...'
+            },
+            {
+                id: 'forgePersOutput',
+                label: 'Output',
+                icon: 'output',
+                hint: 'What form the response takes',
+                rows: 2,
+                weight: 1,
+                placeholder: 'e.g. In-character dialogue, followed by 3 blunt questions'
+            }
+        ]
     }
 };
 
