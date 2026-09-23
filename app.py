@@ -390,6 +390,12 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_board_pins_board_id  ON board_pins(board_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_board_pins_prompt_id ON board_pins(prompt_id)')
 
+    # ── boards column migrations ────────────────────────────────────────────
+    c.execute('PRAGMA table_info(boards)')
+    board_cols = {row[1] for row in c.fetchall()}
+    if 'colour_label' not in board_cols:
+        c.execute('ALTER TABLE boards ADD COLUMN colour_label TEXT')
+
     # Reusable meta-prompt blueprints. Prompts that generate prompts.
     c.execute('''CREATE TABLE IF NOT EXISTS meta_blueprints (
         id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -845,8 +851,12 @@ def get_vault_index_conn(vault_path):
     index_dir = os.path.join(vault_path, '.promptvault')
     os.makedirs(index_dir, exist_ok=True)
     index_db_path = os.path.join(index_dir, 'index.db')
-    conn = sqlite3.connect(index_db_path)
+    conn = sqlite3.connect(index_db_path, timeout=10)
     conn.row_factory = sqlite3.Row
+    # WAL lets concurrent reads/writes from waitress's thread pool coexist --
+    # the default rollback-journal mode serialises every writer and was
+    # producing "database is locked" under normal multi-request use.
+    conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('''CREATE TABLE IF NOT EXISTS prompts (
         relative_path   TEXT PRIMARY KEY,
         title           TEXT,
@@ -876,6 +886,27 @@ def get_vault_index_conn(vault_path):
     return conn
 
 
+def _scalar(value):
+    """Front matter values can come back as a list (e.g. 'category: [a, b]'
+    flow-style YAML) for any key, not just tags/related_prompts -- SQLite
+    can't bind a list, so collapse one to a comma-joined string here."""
+    if isinstance(value, list):
+        return ', '.join(str(v) for v in value)
+    return value
+
+
+def _as_list(value):
+    """Normalise a tags/related_prompts front matter value to a list: pass
+    a list through, wrap a non-empty scalar as a single-item list, drop
+    anything else -- a bare 'tags: foo' (no brackets) used to be silently
+    discarded here instead of kept as one tag."""
+    if isinstance(value, list):
+        return value
+    if value:
+        return [value]
+    return []
+
+
 def rescan_vault_index(vault_path):
     """Walk vault_path, upsert every .md file into .promptvault/index.db,
     drop rows for files no longer on disk. Returns count of files indexed
@@ -887,36 +918,38 @@ def rescan_vault_index(vault_path):
     for r in results:
         r['relative_path'] = r['relative_path'].replace(os.sep, '/')
     conn = get_vault_index_conn(vault_path)
-    on_disk = {r['relative_path'] for r in results}
-    existing = {row['relative_path'] for row in conn.execute('SELECT relative_path FROM prompts')}
-    for stale in existing - on_disk:
-        conn.execute('DELETE FROM prompts WHERE relative_path = ?', (stale,))
-    for r in results:
-        m = r['metadata']
-        conn.execute('''INSERT INTO prompts
-            (relative_path, title, category, subcategory, tags, difficulty,
-             target_audience, inputs, expected_output, related_prompts,
-             version, last_updated, body, parse_error, scanned_at, description)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
-            ON CONFLICT(relative_path) DO UPDATE SET
-                title=excluded.title, category=excluded.category,
-                subcategory=excluded.subcategory, tags=excluded.tags,
-                difficulty=excluded.difficulty,
-                target_audience=excluded.target_audience,
-                inputs=excluded.inputs, expected_output=excluded.expected_output,
-                related_prompts=excluded.related_prompts, version=excluded.version,
-                last_updated=excluded.last_updated, body=excluded.body,
-                parse_error=excluded.parse_error, scanned_at=excluded.scanned_at,
-                description=excluded.description''',
-            (r['relative_path'], m.get('title'), m.get('category'),
-             m.get('subcategory'),
-             json.dumps(m.get('tags', []) if isinstance(m.get('tags'), list) else []),
-             m.get('difficulty'), m.get('target_audience'), m.get('inputs'),
-             m.get('expected_output'),
-             json.dumps(m.get('related_prompts', []) if isinstance(m.get('related_prompts'), list) else []),
-             m.get('version'), m.get('last_updated'), r['body'], r['error'], m.get('description')))
-    conn.commit()
-    conn.close()
+    try:
+        on_disk = {r['relative_path'] for r in results}
+        existing = {row['relative_path'] for row in conn.execute('SELECT relative_path FROM prompts')}
+        for stale in existing - on_disk:
+            conn.execute('DELETE FROM prompts WHERE relative_path = ?', (stale,))
+        for r in results:
+            m = r['metadata']
+            conn.execute('''INSERT INTO prompts
+                (relative_path, title, category, subcategory, tags, difficulty,
+                 target_audience, inputs, expected_output, related_prompts,
+                 version, last_updated, body, parse_error, scanned_at, description)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+                ON CONFLICT(relative_path) DO UPDATE SET
+                    title=excluded.title, category=excluded.category,
+                    subcategory=excluded.subcategory, tags=excluded.tags,
+                    difficulty=excluded.difficulty,
+                    target_audience=excluded.target_audience,
+                    inputs=excluded.inputs, expected_output=excluded.expected_output,
+                    related_prompts=excluded.related_prompts, version=excluded.version,
+                    last_updated=excluded.last_updated, body=excluded.body,
+                    parse_error=excluded.parse_error, scanned_at=excluded.scanned_at,
+                    description=excluded.description''',
+                (r['relative_path'], _scalar(m.get('title')), _scalar(m.get('category')),
+                 _scalar(m.get('subcategory')),
+                 json.dumps(_as_list(m.get('tags'))),
+                 _scalar(m.get('difficulty')), _scalar(m.get('target_audience')), _scalar(m.get('inputs')),
+                 _scalar(m.get('expected_output')),
+                 json.dumps(_as_list(m.get('related_prompts'))),
+                 _scalar(m.get('version')), _scalar(m.get('last_updated')), r['body'], r['error'], _scalar(m.get('description'))))
+        conn.commit()
+    finally:
+        conn.close()
     return len(results)
 
 
@@ -2268,12 +2301,15 @@ def toggle_chain_favorite(cid):
 def serialize_board(row, pin_count=0):
     b = dict(row)
     b['pin_count'] = pin_count
+    b.setdefault('colour_label', '')
+    b['colour_label'] = b.get('colour_label') or ''
     return b
 
 def _board_payload(data):
     return {
-        'name':        (data.get('name') or 'Untitled board').strip() or 'Untitled board',
-        'description': data.get('description') or '',
+        'name':         (data.get('name') or 'Untitled board').strip() or 'Untitled board',
+        'description':  data.get('description') or '',
+        'colour_label': data.get('colour_label') or '',
     }
 
 @app.route('/api/boards', methods=['GET'])
@@ -2294,8 +2330,8 @@ def create_board():
     p = _board_payload(_json_body())
     conn = get_db()
     try:
-        cur = conn.execute('INSERT INTO boards (name, description) VALUES (?,?)',
-                            (p['name'], p['description']))
+        cur = conn.execute('INSERT INTO boards (name, description, colour_label) VALUES (?,?,?)',
+                            (p['name'], p['description'], p['colour_label']))
         bid = cur.lastrowid
         conn.commit()
     finally:
@@ -2308,9 +2344,9 @@ def update_board(bid):
     conn = get_db()
     try:
         conn.execute('''
-            UPDATE boards SET name=?, description=?, updated_at=CURRENT_TIMESTAMP
+            UPDATE boards SET name=?, description=?, colour_label=?, updated_at=CURRENT_TIMESTAMP
              WHERE id=?
-        ''', (p['name'], p['description'], bid))
+        ''', (p['name'], p['description'], p['colour_label'], bid))
         conn.commit()
     finally:
         conn.close()

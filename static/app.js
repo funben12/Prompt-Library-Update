@@ -3690,104 +3690,47 @@ NOTE: Return only the JSON array — no explanatory text around it.
         }
     };
 
-    const _MARKDOWN_TEMPLATE_TEXT = `Prompt Library Pro — Markdown Import Template
-===============================================
-Format your prompts using the structure below.
-Separate multiple prompts with a horizontal rule (---).
-Paste the result into the Markdown tab above.
+    const _MARKDOWN_TEMPLATE_TEXT = `I have a collection of prompts I've written for AI models. Please organise them into Markdown I can paste into my prompt library.
 
-YOUR TASK:
-You are a prompt formatter. Your job is to take raw prompts and convert them into structured Markdown that this app can import.
+Use this exact structure for each one:
 
-FORMATTING RULES:
+## Prompt Title
+> One-line outcome. What does this prompt do? Start with a verb.
 
-1. TITLE (## Heading)
-   - Must be a clear, concise name (3-8 words typically)
-   - Use sentence case, not ALL CAPS
-   - No special characters except hyphens, apostrophes, colons
-   - Examples: "Email Opener", "Code Reviewer", "JSON-to-YAML"
+Categories: cat1, cat2
+Tags: tag1, tag2
 
-2. DESCRIPTION (*italics*)
-   - One sentence only, 8-15 words
-   - Should explain what the prompt does, not how to use it
-   - Start with an action verb: "Write", "Generate", "Analyze", "Convert", etc.
-   - Examples: "*Generates professional email openings for any audience.*"
-
-3. CATEGORIES (**Categories:** ...)
-   - Comma-separated list (no periods)
-   - 1-3 categories per prompt
-   - Use broad buckets: Content, Code, Analysis, Writing, Design, Business, etc.
-   - If unsure, leave as single appropriate category
-
-4. TAGS (**Tags:** comma-separated)
-   - Lowercase, hyphenated words (no spaces, no underscores)
-   - 2-5 tags per prompt
-   - Be specific: "cold-email" not "email", "python-debugging" not "code"
-   - If a tag would be 1 word, combine it: use "api-design" not "api"
-
-5. PROMPT TEXT (with backticks)
-   - Include the ENTIRE prompt text
-   - Preserve all formatting (line breaks, bullet points, etc.)
-   - Replace values with placeholders like [[variable_name]] (lowercase, underscores)
-   - Example: [[prospect_name]], [[company_name]], [[topic]], [[word_count]]
-   - DO NOT include instructions about how to use the prompt—just the prompt itself
-
-HANDLING EDGE CASES:
-
-- MISSING DESCRIPTION: Generate a one-sentence summary of the title and prompt
-- MISSING CATEGORIES: Use "General" or infer from prompt type (Writing, Code, etc.)
-- MISSING TAGS: Infer 2-3 tags from the prompt's purpose
-- LONG TITLES (>12 words): Shorten to essential terms only
-- QUOTES IN TITLE: Escape them or rephrase without quotes
-- SPECIAL CHARACTERS IN TEXT: Keep as-is (do not remove dashes, slashes, etc.)
-
-VALIDATION BEFORE RETURNING:
-
-Check: Each prompt has a title, description, categories, and tags
-Check: Descriptions are one sentence only
-Check: Prompt text is inside backticks
-Check: All placeholders use [[snake_case]] format
-Check: Tags use hyphens, not spaces or underscores
-Check: Prompts separated by "---" on its own line
-Check: No explanatory text before/after the Markdown
-
-EXAMPLE OUTPUT:
-
-## Cold Email Hook
-*Generates a personalized opener for sales prospecting emails.*
-**Categories:** Writing, Business
-**Tags:** email, sales, cold-outreach, prospecting
-
-\`\`\`
-Write a cold email opener to [[prospect_name]] at [[company]].
-Subject line should grab attention in 8 words or less.
-Keep the body under [[word_count]] words.
-End with a specific, non-salesy call to action.
-\`\`\`
+The full prompt text, verbatim, goes here. Everything after the blank line
+and before the next ## is the prompt body — preserve line breaks and
+formatting. Replace values that should vary between uses with a
+placeholder like [[company_name]] or [[word_count]].
 
 ---
 
-## Python Function Debugger
-*Diagnoses errors in Python functions and suggests fixes.*
-**Categories:** Code
-**Tags:** python, debugging, error-analysis
+## Next Prompt Title
+> Another outcome in one line.
 
-\`\`\`
-I have a Python function with an error.
-Function: [[function_name]]
-Error message: [[error_message]]
+Categories: cat3
+Tags: tag4, tag5
 
-Debug this step-by-step:
-1. Identify the root cause
-2. Explain why it's broken
-3. Provide the corrected code
-4. Suggest how to test the fix
-\`\`\`
+Another prompt body.
 
 ---
 
-FINAL INSTRUCTION:
-Return ONLY the formatted Markdown — no preamble, no explanation, no commentary.
+Rules:
+- "## Title" starts a new prompt (always two hashes)
+- "> " on its own line is the one-line outcome (start with a verb)
+- "Categories:" is 1-3 broad buckets (Writing, Code, Business, Design, Analysis, Marketing...)
+- "Tags:" is 2-5 lowercase, hyphenated tags (e.g. "cold-email", not "Cold Email")
+- "---" separates prompts
+- Keep the prompt body verbatim — do not rewrite or summarise it
+- If a description, category or tag is missing from what I give you, infer a reasonable one
+- Return only the formatted Markdown — no preamble, no explanation, no commentary
+
+Here are my prompts:
+---
+[PASTE YOUR PROMPTS HERE]
+---
     `;
 
     window.PL_copyMarkdownTemplate = async function() {
@@ -3799,29 +3742,42 @@ Return ONLY the formatted Markdown — no preamble, no explanation, no commentar
         }
     };
 
-    const _MARKDOWN_TEMPLATE_SHORT_TEXT = `Format each prompt using this structure. If I give you multiple prompts, format each the same way and separate them with "---" on its own line.
+    const _MARKDOWN_TEMPLATE_SHORT_TEXT = `I have a collection of prompts I've written for AI models. Please organise them into Markdown I can paste into my prompt library.
 
-## Title
-3-8 words, sentence case, no trailing punctuation. Example: "Cold Email Hook", not "COLD EMAIL HOOK GENERATOR!!!".
+Use this exact structure:
 
-*One-sentence description*
-Starts with a verb (Write, Generate, Analyze, Convert, Summarize, etc.), 8-15 words, explains what the prompt does rather than how to use it.
+## Prompt Title
+> One-line outcome. What does this prompt do? Start with a verb.
 
-**Categories:** Comma-separated, 1-3 broad buckets such as Writing, Code, Business, Design, Analysis, Marketing. Pick the closest fit rather than inventing a new one.
+Categories: cat1, cat2
+Tags: tag1, tag2
 
-**Tags:** Comma-separated, 2-5 items, lowercase and hyphenated. Use "cold-email" and "api-design", never "cold email", "coldemail", or "API_Design".
-
-\`\`\`
-Full prompt text here, exactly as it should run. Replace any value that
-should vary between uses with a placeholder in double square brackets,
-lowercase with underscores: [[company_name]], [[word_count]],
-[[target_audience]]. Preserve line breaks, bullet points, and any other
-formatting from the source text.
-\`\`\`
+The full prompt text, verbatim, goes here. Everything after the blank line and before the next ## is the prompt body.
 
 ---
 
-Rules: nothing outside this structure -- no preamble, no explanation, no numbered list wrapper around the prompts. If a description, category, or tag is missing from what I give you, infer a reasonable one instead of leaving it blank. Keep every placeholder lowercase with underscores, never spaces or camelCase. Return only the formatted Markdown, nothing else.`;
+## Next Prompt Title
+> Another outcome in one line.
+
+Categories: cat3
+Tags: tag4, tag5
+
+Another prompt body.
+
+---
+
+Rules:
+- "## Title" starts a new prompt (double hash)
+- "> " on its own line is the one-line outcome
+- "Categories:" and "Tags:" are comma-separated, tags lowercase and hyphenated
+- "---" between prompts is optional but preferred
+- Keep the prompt body verbatim - do not rewrite or summarise it
+- If unsure of a category or tag, use your best guess rather than leaving it blank
+
+Here are my prompts:
+---
+[PASTE YOUR PROMPTS HERE]
+---`;
 
     window.PL_copyMarkdownTemplateShort = async function() {
         try {
@@ -3831,6 +3787,30 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
             toast('Copy failed', 'error');
         }
     };
+
+    /**
+     * Parse a pasted JSON array of prompts, tolerating the extras an AI
+     * model commonly adds: a ```json fence around it, or a sentence of
+     * preamble/trailing commentary before or after the array itself.
+     */
+    function _extractJsonArray(raw) {
+        let text = (raw || '').trim();
+        const fenced = text.match(/```(?:json)?\s*\n([\s\S]*?)\n```/i);
+        if (fenced) text = fenced[1].trim();
+        try {
+            const parsed = JSON.parse(text);
+            if (Array.isArray(parsed)) return parsed;
+        } catch {}
+        const start = text.indexOf('[');
+        const end = text.lastIndexOf(']');
+        if (start !== -1 && end > start) {
+            try {
+                const parsed = JSON.parse(text.slice(start, end + 1));
+                if (Array.isArray(parsed)) return parsed;
+            } catch {}
+        }
+        return null;
+    }
 
     function _switchImportFmt(fmt) {
         _importFmt = fmt;
@@ -3851,66 +3831,95 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
     }
 
     /**
-     * Parse the app's Markdown export format into an array of prompt objects.
-     * Format:
+     * Parse Markdown into an array of prompt objects. A new "#" or "##"
+     * heading always starts a new prompt (an explicit "---" also forces a
+     * break, for a stray top-level heading with no body of its own -- e.g.
+     * a "# Board Name" line above several "## Prompt Title" prompts -- so
+     * neither "---" nor a fixed heading level is required from the AI).
+     * Recognised per-prompt fields, each optional except the title:
      *   ## Title
-     *   *Description*
-     *   **Categories:** cat1, cat2
-     *   **Tags:** tag1, tag2
-     *   ```
-     *   prompt content
-     *   ```
-     *   ---
+     *   > One-line outcome                  (or *italic description*)
+     *   Categories: cat1, cat2              (bold **Categories:** also works)
+     *   Tags: tag1, tag2                    (bold **Tags:** also works)
+     *   Everything else non-blank is the prompt body, verbatim. A ``` fence
+     *   around the body is accepted but not required; content inside a
+     *   fence is never re-parsed as a heading/field so real code (e.g. a
+     *   Python "#" comment) can't be mistaken for a new prompt.
      */
+    function _stripOuterFence(md) {
+        const trimmed = md.trim();
+        const m = trimmed.match(/^```[a-zA-Z]*\n([\s\S]*)\n```$/);
+        return m ? m[1] : md;
+    }
+
     function parseMarkdownImport(md) {
         const prompts = [];
-        // Normalise blank-line-padded separators, then split on --- or === rules
-        const normalised = md.replace(/\n{2,}([-=]{3,})\n{2,}/g, '\n$1\n');
-        const blocks = normalised.split(/\n[-=]{3,}\n/);
-        for (const block of blocks) {
-            const lines = block.split('\n');
-            let title = '',
-                description = '',
-                content = '',
-                categories = '',
-                tags = '',
-                firstNonEmpty = '';
-            let inCode = false;
-            const contentLines = [];
+        const lines = _stripOuterFence(md).replace(/\r\n/g, '\n').split('\n');
+        let current = null;
+        let inCode = false;
 
-            for (const line of lines) {
-                const trimmed = line.trim();
-                if (!firstNonEmpty && trimmed && !inCode && !/^\*/.test(trimmed) && !/^```/.test(trimmed)) {
-                    firstNonEmpty = trimmed;
-                }
-                if (/^#{1,2}\s+/.test(line) && !inCode) {
-                    title = line.replace(/^#{1,2}\s+/, '').trim();
-                } else if (/^\*[^*].*[^*]\*$/.test(trimmed) && !inCode) {
-                    description = trimmed.replace(/^\*|\*$/g, '').trim();
-                } else if (/^\*\*Categories\*\*:|^\*\*Categories:\*\*/i.test(trimmed) && !inCode) {
-                    categories = trimmed.replace(/^\*\*Categories\*\*:|^\*\*Categories:\*\*/i, '').trim();
-                } else if (/^\*\*Tags\*\*:|^\*\*Tags:\*\*/i.test(trimmed) && !inCode) {
-                    tags = trimmed.replace(/^\*\*Tags\*\*:|^\*\*Tags:\*\*/i, '').trim();
-                } else if (trimmed === '```') {
-                    inCode = !inCode;
-                } else if (inCode) {
-                    contentLines.push(line);
+        function flush() {
+            if (current) {
+                const content = current.contentLines.join('\n').trim();
+                if (current.title && content) {
+                    prompts.push({
+                        title: current.title,
+                        description: current.description,
+                        content,
+                        categories: current.categories,
+                        tags: current.tags
+                    });
                 }
             }
-            if (!title && firstNonEmpty) {
-                title = firstNonEmpty;
-            }
-            content = contentLines.join('\n').trim();
-            if (title && content) {
-                prompts.push({
-                    title,
-                    description,
-                    content,
-                    categories,
-                    tags
-                });
-            }
+            current = null;
         }
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+
+            if (/^```/.test(trimmed)) {
+                inCode = !inCode;
+                continue;
+            }
+            if (inCode) {
+                if (current) current.contentLines.push(line);
+                continue;
+            }
+            if (/^#{1,2}\s+/.test(line)) {
+                flush();
+                current = {
+                    title: line.replace(/^#{1,2}\s+/, '').trim(),
+                    description: '',
+                    categories: '',
+                    tags: '',
+                    contentLines: []
+                };
+                continue;
+            }
+            if (/^[-=]{3,}$/.test(trimmed)) {
+                flush();
+                continue;
+            }
+            if (!current) continue; // preamble before the first heading -- ignore
+            if (!current.description && /^\*[^*].*[^*]\*$/.test(trimmed)) {
+                current.description = trimmed.replace(/^\*|\*$/g, '').trim();
+                continue;
+            }
+            if (!current.description && /^>\s?/.test(trimmed)) {
+                current.description = trimmed.replace(/^>\s?/, '').trim();
+                continue;
+            }
+            if (/^(\*\*Categories\*\*:|\*\*Categories:\*\*|Categories:)/i.test(trimmed)) {
+                current.categories = trimmed.replace(/^(\*\*Categories\*\*:|\*\*Categories:\*\*|Categories:)/i, '').trim();
+                continue;
+            }
+            if (/^(\*\*Tags\*\*:|\*\*Tags:\*\*|Tags:)/i.test(trimmed)) {
+                current.tags = trimmed.replace(/^(\*\*Tags\*\*:|\*\*Tags:\*\*|Tags:)/i, '').trim();
+                continue;
+            }
+            current.contentLines.push(line);
+        }
+        flush();
         return prompts;
     }
 
@@ -3975,11 +3984,8 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
         try {
             if (_importFmt === 'json') {
                 const raw = $('#importContent').value.trim();
-                let prompts;
-                try {
-                    prompts = JSON.parse(raw);
-                    if (!Array.isArray(prompts)) throw new Error();
-                } catch {
+                const prompts = _extractJsonArray(raw);
+                if (!prompts) {
                     toast('Invalid JSON — paste an array of prompt objects', 'warning');
                     return;
                 }
@@ -4004,10 +4010,8 @@ Rules: nothing outside this structure -- no preamble, no explanation, no numbere
                 const text = await file.text();
                 let prompts;
                 if (file.name.endsWith('.json')) {
-                    try {
-                        prompts = JSON.parse(text);
-                        if (!Array.isArray(prompts)) throw new Error();
-                    } catch {
+                    prompts = _extractJsonArray(text);
+                    if (!prompts) {
                         toast('Invalid JSON file', 'warning');
                         return;
                     }
@@ -14107,246 +14111,660 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
-       PROMPT BOARD WORKSPACE
-       Pin prompts into curated boards -- cross-cutting collections independent of
-       folders/tags. Boards live server-side (boards + board_pins tables).
+       PROMPT BOARD WORKSPACE  ("Promptboard")
+       Pinterest-style board/pin system: masonry feed, boards, favorites, tags.
+       Boards live server-side (boards + board_pins tables); prompts are the
+       full real prompt records from /api/prompts -- this workspace is a
+       browsing/organising skin over the same data every other view uses.
        data-view="board" | openBoardWorkspace() | initBoardWorkspace()
        ============================================================================ */
 
-    let _boardState = {
+    const PMB_COLOUR_NAMES = ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'teal', 'cyan', 'blue', 'indigo', 'violet', 'purple', 'magenta', 'fuchsia', 'pink', 'rose', 'lavender'];
+    function _pmbColourName(record) {
+        if (record && typeof record === 'object' && record.colour_label) return record.colour_label;
+        const id = (record && typeof record === 'object') ? record.id : record;
+        const s = String(id);
+        let h = 0;
+        for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+        return PMB_COLOUR_NAMES[h % PMB_COLOUR_NAMES.length];
+    }
+    function _pmbColor(record) {
+        return 'var(--c-' + _pmbColourName(record) + '-soft)';
+    }
+    function _pmbSolidColor(record) {
+        return 'var(--c-' + _pmbColourName(record) + ')';
+    }
+    function _pmbSwatchGridHtml(containerId, selected) {
+        return '<div class="colour-swatches" id="' + containerId + '">' +
+            '<div class="swatch none' + (!selected ? ' active' : '') + '" data-colour="" title="None"></div>' +
+            PMB_COLOUR_NAMES.map(n => '<div class="swatch c-' + n + (selected === n ? ' active' : '') + '" data-colour="' + n + '" title="' + n.charAt(0).toUpperCase() + n.slice(1) + '"></div>').join('') +
+            '</div>';
+    }
+    function _pmbBindSwatchGrid(containerId) {
+        const picker = document.getElementById(containerId);
+        if (!picker) return;
+        picker.addEventListener('click', (e) => {
+            const sw = e.target.closest('.swatch');
+            if (!sw) return;
+            picker.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+            sw.classList.add('active');
+        });
+    }
+    function _pmbSwatchValue(containerId) {
+        return document.getElementById(containerId)?.querySelector('.swatch.active')?.dataset.colour || '';
+    }
+
+    let _pmbState = {
+        view: 'feed',       // feed | boards | board | favorites | tags
         boards: [],
-        activeId: null,
-        pins: []
+        prompts: [],
+        boardPins: [],
+        boardId: null,
+        activeTag: null,
+        search: '',
+        sort: 'recent'
     };
 
-    const _boardCoverPalette = ['#0047ff', '#141414', '#4a4a4a', '#0038cc'];
-
-    function _boardHashColor(id) {
-        return _boardCoverPalette[Math.abs(Number(id) || 0) % _boardCoverPalette.length];
+    async function _pmbLoadAll() {
+        try {
+            const [boards, prompts] = await Promise.all([api('/boards'), api('/prompts')]);
+            _pmbState.boards = boards;
+            _pmbState.prompts = prompts;
+        } catch {
+            toast('Could not load Prompt Board', 'error');
+        }
     }
 
-    async function _boardLoadList(keepSelection) {
-        const listEl = $('#boardList');
-        if (listEl) listEl.innerHTML = '<div class="hint" style="padding:var(--sp-4);">\u23f3 Loading boards\u2026</div>';
-        try {
-            _boardState.boards = await api('/boards');
-        } catch {
-            _boardState.boards = [];
+    const _pmbBoardById = id => _pmbState.boards.find(b => b.id === id);
+
+    function _pmbAllTags() {
+        const map = new Map();
+        _pmbState.prompts.forEach(p => (p.tags || []).forEach(t => map.set(t, (map.get(t) || 0) + 1)));
+        return [...map.entries()].sort((a, b) => b[1] - a[1]);
+    }
+
+    function _pmbFiltered() {
+        let list = _pmbState.view === 'board' ? _pmbState.boardPins.slice() : _pmbState.prompts.slice();
+        if (_pmbState.view === 'favorites') list = list.filter(p => !!p.is_favorite);
+        if (_pmbState.activeTag) list = list.filter(p => (p.tags || []).includes(_pmbState.activeTag));
+        const q = _pmbState.search.trim().toLowerCase();
+        if (q) {
+            list = list.filter(p =>
+                (p.title || '').toLowerCase().includes(q) ||
+                (p.description || '').toLowerCase().includes(q) ||
+                (p.content || '').toLowerCase().includes(q) ||
+                (p.tags || []).some(t => t.toLowerCase().includes(q))
+            );
         }
-        _boardRenderList();
-        const stillExists = _boardState.boards.some(b => b.id === _boardState.activeId);
-        if (keepSelection && stillExists) {
-            _boardLoadDetail(_boardState.activeId);
-        } else if (_boardState.boards.length) {
-            _boardSelect(_boardState.boards[0].id);
+        const ts = p => new Date(p.updated_at || p.created_at || 0).getTime();
+        if (_pmbState.sort === 'recent') list.sort((a, b) => ts(b) - ts(a));
+        if (_pmbState.sort === 'oldest') list.sort((a, b) => ts(a) - ts(b));
+        if (_pmbState.sort === 'alpha') list.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+        if (_pmbState.sort === 'used') list.sort((a, b) => (b.use_count || 0) - (a.use_count || 0));
+        if (_pmbState.sort === 'starred') list.sort((a, b) => ((b.is_favorite ? 1 : 0) - (a.is_favorite ? 1 : 0)) || ts(b) - ts(a));
+        return list;
+    }
+    const _pmbSortLabel = s => s === 'recent' ? 'Newest' : s === 'oldest' ? 'Oldest' : s === 'alpha' ? 'A-Z' : s === 'used' ? 'Most used' : 'Most starred';
+
+    function _pmbRender() {
+        _pmbRenderSidebar();
+        _pmbRenderMain();
+    }
+
+    function _pmbRenderSidebar() {
+        const el = $('#pmbSidebar');
+        if (!el) return;
+        const favCount = _pmbState.prompts.filter(p => p.is_favorite).length;
+        el.innerHTML =
+            '<nav class="pmb-nav" aria-label="Primary">' +
+                '<button class="pmb-nav-item' + (_pmbState.view === 'feed' ? ' active' : '') + '" data-pmb="go-feed">' +
+                    '<span class="material-symbols-outlined">home</span><span>Feed</span><span class="pmb-nav-count">' + _pmbState.prompts.length + '</span></button>' +
+                '<button class="pmb-nav-item' + (_pmbState.view === 'boards' || _pmbState.view === 'board' ? ' active' : '') + '" data-pmb="go-boards">' +
+                    '<span class="material-symbols-outlined">grid_view</span><span>Boards</span><span class="pmb-nav-count">' + _pmbState.boards.length + '</span></button>' +
+                '<button class="pmb-nav-item' + (_pmbState.view === 'favorites' ? ' active' : '') + '" data-pmb="go-favorites">' +
+                    '<span class="material-symbols-outlined">star</span><span>Favorites</span><span class="pmb-nav-count">' + favCount + '</span></button>' +
+                '<button class="pmb-nav-item' + (_pmbState.view === 'tags' ? ' active' : '') + '" data-pmb="go-tags">' +
+                    '<span class="material-symbols-outlined">sell</span><span>Tags</span><span class="pmb-nav-count">' + _pmbAllTags().length + '</span></button>' +
+            '</nav>' +
+            '<div class="pmb-sidebar-divider"></div>' +
+            '<div class="pmb-sidebar-head"><h3>Your boards</h3>' +
+                '<button data-pmb="open-add-board" aria-label="New board"><span class="material-symbols-outlined">add</span></button></div>' +
+            '<nav class="pmb-nav" aria-label="Boards">' +
+                _pmbState.boards.map(b =>
+                    '<button class="pmb-board-nav-item' + (_pmbState.view === 'board' && _pmbState.boardId === b.id ? ' active' : '') + '" data-pmb="go-board" data-board-id="' + b.id + '">' +
+                        '<span class="pmb-board-dot" style="background:' + _pmbColor(b) + '"></span>' +
+                        '<span>' + escapeHtml(b.name) + '</span>' +
+                        '<span class="pmb-board-count">' + (b.pin_count || 0) + '</span></button>'
+                ).join('') +
+            '</nav>';
+        el.querySelectorAll('[data-pmb]').forEach(_pmbBind);
+    }
+
+    function _pmbRenderMain() {
+        const main = $('#pmbMain');
+        if (!main) return;
+        if (_pmbState.view === 'feed') return _pmbViewFeed(main);
+        if (_pmbState.view === 'boards') return _pmbViewBoards(main);
+        if (_pmbState.view === 'board') return _pmbViewBoard(main);
+        if (_pmbState.view === 'favorites') return _pmbViewFavorites(main);
+        if (_pmbState.view === 'tags') return _pmbViewTags(main);
+    }
+
+    function _pmbPinCard(p) {
+        const preview = (p.content || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+        const tags = (p.tags || []).slice(0, 2);
+        const isFork = !!p.parent_id;
+        const showUsage = (p.use_count || 0) >= 5;
+        const hasFooter = tags.length || isFork || showUsage;
+        return (
+            '<article class="pmb-pin" style="--tint:' + _pmbColor(p) + ';--tint-solid:' + _pmbSolidColor(p) + '" data-pmb-pin="' + p.id + '" tabindex="0" role="button" aria-label="' + escapeHtml(p.title || 'Untitled') + '">' +
+                '<div class="pmb-pin-save-wrap"><button class="pmb-pin-save-pill" data-pmb="add-to-board" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined" style="font-size:14px;">push_pin</span> Save</button></div>' +
+                '<div class="pmb-pin-overlay">' +
+                    '<button class="pmb-pin-action' + (p.is_favorite ? ' fav' : '') + '" data-pmb="toggle-fav" data-prompt-id="' + p.id + '" aria-label="Favorite" title="Favorite"><span class="material-symbols-outlined">star</span></button>' +
+                    '<button class="pmb-pin-action" data-pmb="copy-prompt" data-prompt-id="' + p.id + '" aria-label="Copy prompt" title="Copy"><span class="material-symbols-outlined">content_copy</span></button>' +
+                '</div>' +
+                '<div class="pmb-pin-body">' +
+                    '<div class="pmb-pin-cat"><span>' + (p.categories && p.categories[0] ? escapeHtml(p.categories[0]) : 'Unsorted') + '</span>' +
+                        (p.is_favorite ? '<span class="pmb-pin-fav-badge"><span class="material-symbols-outlined">star</span></span>' : '') + '</div>' +
+                    '<h3 class="pmb-pin-title">' + escapeHtml(p.title || 'Untitled') + '</h3>' +
+                    (p.description ? '<p class="pmb-pin-outcome">' + escapeHtml(p.description) + '</p>' : '') +
+                    '<p class="pmb-pin-preview">' + escapeHtml(preview) + '</p>' +
+                '</div>' +
+                (hasFooter ?
+                    '<div class="pmb-pin-foot">' +
+                        (isFork ? '<span class="pmb-pin-variant-badge"><span class="material-symbols-outlined" style="font-size:12px;">call_split</span>Fork</span>' : '') +
+                        tags.map(t => '<span class="pmb-pin-tag">#' + escapeHtml(t) + '</span>').join('') +
+                        (showUsage ? '<span class="pmb-pin-usage">Used ' + p.use_count + '&times;</span>' : '') +
+                    '</div>' : '') +
+            '</article>'
+        );
+    }
+
+    function _pmbRelated(p) {
+        const tags = new Set(p.tags || []);
+        const cat = p.categories && p.categories[0];
+        return _pmbState.prompts
+            .filter(x => x.id !== p.id)
+            .map(x => {
+                let score = 0;
+                if (cat && x.categories && x.categories[0] === cat) score += 2;
+                (x.tags || []).forEach(t => { if (tags.has(t)) score += 1; });
+                return { x, score };
+            })
+            .filter(r => r.score > 0)
+            .sort((a, b) => b.score - a.score || new Date(b.x.updated_at || b.x.created_at || 0) - new Date(a.x.updated_at || a.x.created_at || 0))
+            .slice(0, 6)
+            .map(r => r.x);
+    }
+
+    function _pmbBoardCard(b) {
+        const count = b.pin_count || 0;
+        const sub = b.description ? escapeHtml(b.description) : (count + ' prompt' + (count === 1 ? '' : 's'));
+        return (
+            '<button class="pmb-board-card" data-pmb="go-board" data-board-id="' + b.id + '">' +
+                '<div class="pmb-board-cover" style="--tint:' + _pmbColor(b) + ';--tint-solid:' + _pmbSolidColor(b) + '">' +
+                    '<div class="pmb-board-cover-count">' + count + ' prompt' + (count === 1 ? '' : 's') + '</div>' +
+                    '<div class="pmb-board-cover-name">' + escapeHtml(b.name) + '</div>' +
+                '</div>' +
+                '<div class="pmb-board-meta"><div class="pmb-board-name">' + escapeHtml(b.name) + '</div><div class="pmb-board-sub">' + sub + '</div></div>' +
+            '</button>'
+        );
+    }
+
+    function _pmbEmpty(icon, title, body, actions) {
+        return (
+            '<div class="pmb-empty"><div class="pmb-empty-icon"><span class="material-symbols-outlined">' + icon + '</span></div>' +
+                '<h2>' + escapeHtml(title) + '</h2><p>' + body + '</p>' +
+                '<div class="pmb-empty-actions">' +
+                    (actions || []).map(a =>
+                        '<button class="btn ' + (a.cls || 'btn-ghost') + '" data-pmb="' + a.action + '"' + (a.boardId ? ' data-board-id="' + a.boardId + '"' : '') + '>' + a.label + '</button>'
+                    ).join('') +
+                '</div></div>'
+        );
+    }
+
+    function _pmbViewFeed(main) {
+        const list = _pmbFiltered();
+        const tags = _pmbAllTags().slice(0, 8);
+        let html = '<div class="pmb-page-head"><div><h1 class="pmb-page-title">Your prompt feed</h1>' +
+            '<p class="pmb-page-sub">Everything in your library, most recent first.</p></div>' +
+            '<div class="pmb-page-head-actions"><button class="pmb-chip" data-pmb="cycle-sort"><span class="material-symbols-outlined" style="font-size:14px;">sort</span><span>' + _pmbSortLabel(_pmbState.sort) + '</span></button></div></div>';
+        if (_pmbState.search && !list.length) {
+            main.innerHTML = html + _pmbEmpty('search', 'No prompts match that search', 'Nothing matches &ldquo;' + escapeHtml(_pmbState.search) + '&rdquo;. Try another word.', [{ label: 'Clear search', action: 'clear-search', cls: 'btn-accent' }]);
+            _pmbBindMain(main); return;
+        }
+        if (!list.length) {
+            main.innerHTML = html + _pmbEmpty('inbox', 'Your feed is empty', 'Add your first prompt to get started.', [{ label: 'Add a prompt', action: 'open-add-prompt', cls: 'btn-accent' }]);
+            _pmbBindMain(main); return;
+        }
+        if (tags.length) {
+            html += '<div class="pmb-chip-row"><button class="pmb-chip' + (!_pmbState.activeTag ? ' active' : '') + '" data-pmb="filter-tag" data-tag="">All</button>' +
+                tags.map(([t, c]) => '<button class="pmb-chip' + (_pmbState.activeTag === t ? ' active' : '') + '" data-pmb="filter-tag" data-tag="' + escapeHtml(t) + '">#' + escapeHtml(t) + ' <span style="opacity:.55">' + c + '</span></button>').join('') +
+                '</div>';
+        }
+        html += '<div class="pmb-masonry">' + list.map(_pmbPinCard).join('') + '</div>';
+        main.innerHTML = html;
+        _pmbBindMain(main);
+    }
+
+    function _pmbViewBoards(main) {
+        let html = '<div class="pmb-page-head"><div><h1 class="pmb-page-title">Your boards</h1><p class="pmb-page-sub">Group prompts by what they are for.</p></div>' +
+            '<div class="pmb-page-head-actions"><button class="btn btn-accent" data-pmb="open-add-board"><span class="material-symbols-outlined">add</span> New board</button></div></div>';
+        if (!_pmbState.boards.length) {
+            html += _pmbEmpty('dashboard_customize', 'No boards yet', 'Boards let you group related prompts. Start with one.', [{ label: 'Create a board', action: 'open-add-board', cls: 'btn-accent' }]);
         } else {
-            _boardState.activeId = null;
-            _boardRenderDetail();
+            html += '<div class="pmb-board-grid">' + _pmbState.boards.map(_pmbBoardCard).join('') + '</div>';
+        }
+        main.innerHTML = html;
+        _pmbBindMain(main);
+    }
+
+    async function _pmbGoBoard(id) {
+        _pmbState.view = 'board';
+        _pmbState.boardId = id;
+        _pmbState.activeTag = null;
+        _pmbState.boardPins = [];
+        _pmbRender();
+        try {
+            _pmbState.boardPins = await api('/boards/' + id + '/pins');
+        } catch {
+            toast('Could not load board', 'error');
+        }
+        if (_pmbState.view === 'board' && _pmbState.boardId === id) _pmbRenderMain();
+        await _wsFillPromptPicker('#pmbPinPicker');
+    }
+
+    function _pmbViewBoard(main) {
+        const b = _pmbBoardById(_pmbState.boardId);
+        if (!b) { _pmbState.view = 'boards'; return _pmbViewBoards(main); }
+        const list = _pmbFiltered();
+        let html = '<button class="pmb-back-btn" data-pmb="go-boards"><span class="material-symbols-outlined" style="font-size:16px;">chevron_left</span> All boards</button>' +
+            '<div class="pmb-board-header">' +
+                '<div class="pmb-board-header-cover" style="--tint:' + _pmbColor(b) + ';--tint-solid:' + _pmbSolidColor(b) + '">' + escapeHtml((b.name || '?').slice(0, 1).toUpperCase()) + '</div>' +
+                '<div class="pmb-board-header-info"><h1>' + escapeHtml(b.name) + '</h1>' +
+                '<p>' + escapeHtml(b.description || '') + (b.description ? ' &middot; ' : '') + list.length + ' prompt' + (list.length === 1 ? '' : 's') + '</p>' +
+                '<div class="pmb-pin-picker-row">' +
+                    '<select id="pmbPinPicker" class="forge-input pmb-select"><option value="">Pin an existing prompt&hellip;</option></select>' +
+                    '<button class="btn btn-ghost" id="pmbPinExistingBtn">Pin</button>' +
+                '</div>' +
+                '<div class="pmb-board-header-actions">' +
+                    '<button class="btn btn-accent" data-pmb="open-add-prompt" data-board-id="' + b.id + '"><span class="material-symbols-outlined">add</span> New prompt</button>' +
+                    '<button class="btn btn-ghost" data-pmb="rename-board" data-board-id="' + b.id + '"><span class="material-symbols-outlined">edit</span> Rename</button>' +
+                    '<button class="btn btn-danger" data-pmb="delete-board" data-board-id="' + b.id + '"><span class="material-symbols-outlined">delete</span> Delete</button>' +
+                '</div></div></div>';
+        if (!list.length) {
+            html += _pmbEmpty('inbox', 'Nothing pinned yet', 'Pin an existing prompt above, or create a new one for this board.', [{ label: 'New prompt', action: 'open-add-prompt', cls: 'btn-accent', boardId: b.id }]);
+        } else {
+            html += '<div class="pmb-masonry">' + list.map(p => _pmbPinCard(p).replace('<div class="pmb-pin-overlay">', '<div class="pmb-pin-overlay"><button class="pmb-pin-action" data-pmb="unpin" data-prompt-id="' + p.id + '" aria-label="Remove from board" title="Remove from board"><span class="material-symbols-outlined">close</span></button>')).join('') + '</div>';
+        }
+        main.innerHTML = html;
+        _pmbBindMain(main);
+        $('#pmbPinExistingBtn')?.addEventListener('click', _pmbPinExisting);
+    }
+
+    async function _pmbPinExisting() {
+        const p = _wsPickedPrompt('#pmbPinPicker');
+        if (!p) { toast('Pick a prompt to pin', 'warning'); return; }
+        try {
+            await api('/boards/' + _pmbState.boardId + '/pins', { method: 'POST', body: { prompt_id: p.id } });
+            toast('Pinned to board', 'success');
+            const board = _pmbBoardById(_pmbState.boardId);
+            if (board) board.pin_count = (board.pin_count || 0) + 1;
+            await _pmbGoBoard(_pmbState.boardId);
+        } catch {
+            toast('Could not pin prompt', 'error');
         }
     }
 
-    function _boardRenderList() {
-        const listEl = $('#boardList');
-        if (!listEl) return;
-        if (!_boardState.boards.length) {
-            listEl.innerHTML = '<div class="hint" style="padding:var(--sp-4);">No boards yet. Create one below.</div>';
-            return;
+    function _pmbViewFavorites(main) {
+        const list = _pmbFiltered();
+        let html = '<div class="pmb-page-head"><div><h1 class="pmb-page-title">Favorites</h1><p class="pmb-page-sub">The prompts you reach for most.</p></div></div>';
+        if (!list.length) {
+            html += _pmbEmpty('star', 'No favorites yet', 'Star any prompt to pin it here for quick access.', [{ label: 'Browse your feed', action: 'go-feed', cls: 'btn-accent' }]);
+        } else {
+            html += '<div class="pmb-masonry">' + list.map(_pmbPinCard).join('') + '</div>';
         }
-        listEl.innerHTML = _boardState.boards.map(b =>
-            '<div class="board-row' + (b.id === _boardState.activeId ? ' active' : '') + '" data-board-id="' + b.id + '">' +
-                '<span class="board-row-cover" style="background:' + _boardHashColor(b.id) + '"><span class="material-symbols-outlined">dashboard_customize</span></span>' +
-                '<span class="board-row-name">' + escapeHtml(b.name) + '</span>' +
-                '<span class="board-row-count">' + b.pin_count + '</span>' +
-                '<button class="board-row-del material-symbols-outlined" data-board-del="' + b.id + '" title="Delete board" aria-label="Delete board">delete</button>' +
+        main.innerHTML = html;
+        _pmbBindMain(main);
+    }
+
+    function _pmbViewTags(main) {
+        const tags = _pmbAllTags();
+        let html = '<div class="pmb-page-head"><div><h1 class="pmb-page-title">Tags</h1><p class="pmb-page-sub">Every tag across your library, most used first.</p></div></div>';
+        if (!tags.length) {
+            html += _pmbEmpty('sell', 'No tags yet', 'Tags are added when you create or edit a prompt.', [{ label: 'Add a prompt', action: 'open-add-prompt', cls: 'btn-accent' }]);
+        } else {
+            html += '<div class="pmb-tag-grid">' + tags.map(([t, c]) =>
+                '<button class="pmb-tag-card" data-pmb="go-tag" data-tag="' + escapeHtml(t) + '"><span class="pmb-tag-card-name">' + escapeHtml(t) + '</span><span class="pmb-tag-card-count">' + c + '</span></button>'
+            ).join('') + '</div>';
+        }
+        main.innerHTML = html;
+        _pmbBindMain(main);
+    }
+
+    function _pmbBindMain(main) {
+        main.querySelectorAll('[data-pmb]').forEach(_pmbBind);
+        main.querySelectorAll('[data-pmb-pin]').forEach(card => {
+            card.addEventListener('click', e => {
+                if (e.target.closest('[data-pmb]')) return;
+                _pmbOpenPinDetail(Number(card.dataset.pmbPin));
+            });
+            card.addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.target.closest('[data-pmb]')) _pmbOpenPinDetail(Number(card.dataset.pmbPin));
+            });
+        });
+    }
+
+    function _pmbOpenModal(html) {
+        const modal = $('#pmbModal');
+        const card = $('#pmbModalCard');
+        if (!modal || !card) return;
+        card.innerHTML = html;
+        modal.hidden = false;
+        document.body.style.overflow = 'hidden';
+        card.querySelectorAll('[data-pmb-close]').forEach(el => el.addEventListener('click', _pmbCloseModal));
+        card.querySelectorAll('[data-pmb]').forEach(_pmbBind);
+        setTimeout(() => card.querySelector('input, textarea')?.focus(), 30);
+    }
+    function _pmbCloseModal() {
+        const modal = $('#pmbModal');
+        if (!modal) return;
+        modal.hidden = true;
+        $('#pmbModalCard').innerHTML = '';
+        document.body.style.overflow = '';
+    }
+
+    function _pmbOpenPinDetail(id) {
+        const p = _pmbState.prompts.find(x => x.id === id) || _pmbState.boardPins.find(x => x.id === id);
+        if (!p) return;
+        const uses = p.use_count || 0;
+        const meta = [uses === 0 ? 'Not used yet' : ('Used ' + uses + (uses === 1 ? ' time' : ' times'))];
+        if (p.created_at) meta.push('Added ' + new Date(p.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+        const related = _pmbRelated(p);
+        const pmbVars = detectVariables(p.content);
+        _pmbOpenModal(
+            '<div class="pmb-modal-head"><h2>Prompt</h2><button class="icon-btn" data-pmb-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></div>' +
+            '<div class="pmb-modal-body">' +
+                '<div class="pmb-prompt-hero" style="--tint:' + _pmbColor(p) + '">' +
+                    '<div class="pmb-prompt-hero-cat">' + (p.categories && p.categories[0] ? escapeHtml(p.categories[0]) : 'Unsorted') + (p.parent_id ? ' &middot; Fork' : '') + '</div>' +
+                    '<h2>' + escapeHtml(p.title || 'Untitled') + '</h2>' +
+                    (p.description ? '<p class="pmb-prompt-hero-outcome">' + escapeHtml(p.description) + '</p>' : '') +
+                    '<div class="pmb-prompt-hero-meta">' + meta.map((m, i) => (i > 0 ? '<span class="pmb-dot"></span>' : '') + '<span>' + escapeHtml(m) + '</span>').join('') + '</div>' +
+                    '<div class="pmb-prompt-hero-tags">' + (p.tags || []).map(t => '<span class="pmb-pin-tag">#' + escapeHtml(t) + '</span>').join('') + '</div>' +
+                '</div>' +
+                (pmbVars.length ?
+                    '<div class="pmb-var-panel" id="pmbVarPanel"><h3 class="pmb-related-title">Fill in variables</h3><div class="pmb-var-grid">' +
+                        pmbVars.map(v => '<div class="pmb-var-field"><label>' + escapeHtml(v) + '</label><input type="text" class="forge-input pmb-var-input" data-pmb-var="' + escapeAttr(v) + '" placeholder="' + escapeAttr(v) + '"></div>').join('') +
+                    '</div></div>' : '') +
+                '<div class="pmb-prompt-block" id="pmbPromptBlock">' + escapeHtml(p.content || '') + '</div>' +
+                '<div class="pmb-prompt-actions">' +
+                    (pmbVars.length ?
+                        '<button class="btn btn-accent" data-pmb="copy-filled" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined">content_copy</span> Copy filled</button>' :
+                        '<button class="btn btn-accent" data-pmb="copy-prompt" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined">content_copy</span> Copy</button>') +
+                    '<button class="btn btn-ghost" data-pmb="toggle-fav" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined">star</span> ' + (p.is_favorite ? 'Favorited' : 'Favorite') + '</button>' +
+                    '<button class="btn btn-ghost" data-pmb="fork-prompt" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined">call_split</span> Fork</button>' +
+                    '<button class="btn btn-ghost" data-pmb="add-to-board" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined">push_pin</span> Add to board</button>' +
+                    '<button class="btn btn-ghost" data-pmb="edit-prompt" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined">edit</span> Edit</button>' +
+                    '<button class="btn btn-danger" data-pmb="delete-prompt" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined">delete</span> Delete</button>' +
+                '</div>' +
+                (related.length ? '<div class="pmb-related"><h3 class="pmb-related-title">More like this</h3><div class="pmb-related-feed">' + related.map(_pmbPinCard).join('') + '</div></div>' : '') +
             '</div>'
-        ).join('');
-        listEl.querySelectorAll('[data-board-id]').forEach(row => {
-            row.addEventListener('click', (e) => {
-                if (e.target.closest('[data-board-del]')) return;
-                _boardSelect(Number(row.dataset.boardId));
+        );
+        $('#pmbModalCard')?.querySelectorAll('[data-pmb-pin]').forEach(card => {
+            card.addEventListener('click', e => {
+                if (e.target.closest('[data-pmb]')) return;
+                _pmbOpenPinDetail(Number(card.dataset.pmbPin));
             });
         });
-        listEl.querySelectorAll('[data-board-del]').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const id = Number(btn.dataset.boardDel);
-                const board = _boardState.boards.find(b => b.id === id);
-                if (!confirm('Delete board "' + (board ? board.name : '') + '"? Pins are removed, prompts are not.')) return;
-                try {
-                    await api('/boards/' + id, { method: 'DELETE' });
-                    if (_boardState.activeId === id) _boardState.activeId = null;
-                    toast('Board deleted', 'success');
-                    _boardLoadList(true);
-                } catch {
-                    toast('Could not delete board', 'error');
+        document.querySelectorAll('#pmbVarPanel .pmb-var-input').forEach(inp => {
+            inp.addEventListener('input', () => {
+                const map = {};
+                document.querySelectorAll('#pmbVarPanel .pmb-var-input').forEach(i2 => { map[i2.dataset.pmbVar] = i2.value || ('{{' + i2.dataset.pmbVar + '}}'); });
+                const block = $('#pmbPromptBlock');
+                if (block) block.textContent = replaceVariables(p.content || '', map);
+            });
+        });
+    }
+
+    function _pmbOpenPromptSheet(promptId, presetBoardId) {
+        const editing = promptId ? _pmbState.prompts.find(p => p.id === promptId) : null;
+        const title = editing ? 'Edit prompt' : 'Add a prompt';
+        _pmbOpenModal(
+            '<div class="pmb-modal-head"><h2>' + title + '</h2><button class="icon-btn" data-pmb-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></div>' +
+            '<div class="pmb-modal-body">' +
+                '<div class="pmb-field"><label for="pmb-title">Title</label>' +
+                    '<input id="pmb-title" class="forge-input" type="text" placeholder="e.g. Blog post outline generator" value="' + (editing ? escapeHtml(editing.title || '') : '') + '" maxlength="120"></div>' +
+                '<div class="pmb-field"><label for="pmb-outcome">Outcome</label>' +
+                    '<input id="pmb-outcome" class="forge-input" type="text" placeholder="One line: what does this prompt do?" value="' + (editing ? escapeHtml(editing.description || '') : '') + '" maxlength="200">' +
+                    '<div class="pmb-hint">Shown under the title in the feed.</div></div>' +
+                '<div class="pmb-field"><label for="pmb-content">Prompt text</label>' +
+                    '<textarea id="pmb-content" class="forge-input pmb-textarea tall" placeholder="Paste or write the full prompt here&hellip;">' + (editing ? escapeHtml(editing.content || '') : '') + '</textarea></div>' +
+                '<div class="pmb-field"><label for="pmb-tags">Tags</label>' +
+                    '<input id="pmb-tags" class="forge-input" type="text" placeholder="writing, blog, seo" value="' + (editing ? escapeHtml((editing.tags || []).join(', ')) : '') + '">' +
+                    '<div class="pmb-hint">Comma separated.</div></div>' +
+                '<div class="pmb-field"><label>Colour</label>' + _pmbSwatchGridHtml('pmbPromptColour', editing ? (editing.colour_label || '') : '') + '</div>' +
+            '</div>' +
+            '<div class="pmb-modal-foot"><button class="btn btn-ghost" data-pmb-close>Cancel</button>' +
+                '<button class="btn btn-accent" data-pmb="save-prompt" data-prompt-id="' + (editing ? editing.id : '') + '" data-board-id="' + (presetBoardId || '') + '">' + (editing ? 'Save changes' : 'Add to library') + '</button></div>'
+        );
+        _pmbBindSwatchGrid('pmbPromptColour');
+    }
+
+    async function _pmbSavePrompt(promptId, presetBoardId) {
+        const titleEl = $('#pmb-title'), outcomeEl = $('#pmb-outcome'), contentEl = $('#pmb-content'), tagsEl = $('#pmb-tags');
+        const title = (titleEl?.value || '').trim();
+        const content = (contentEl?.value || '').trim();
+        if (!title) { toast('Title is required', 'warning'); titleEl?.focus(); return; }
+        if (!content) { toast('Prompt text is required', 'warning'); contentEl?.focus(); return; }
+        const tags = (tagsEl?.value || '').split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+        const body = { title, description: (outcomeEl?.value || '').trim(), content, tags, colour_label: _pmbSwatchValue('pmbPromptColour') };
+        try {
+            if (promptId) {
+                await api('/prompts/' + promptId, { method: 'PUT', body });
+                toast('Prompt updated', 'success');
+            } else {
+                const result = await api('/prompts', { method: 'POST', body });
+                if (presetBoardId && result?.id) {
+                    await api('/boards/' + presetBoardId + '/pins', { method: 'POST', body: { prompt_id: result.id } });
                 }
-            });
-        });
-    }
-
-    function _boardSelect(id) {
-        _boardState.activeId = id;
-        _boardRenderList();
-        _boardLoadDetail(id);
-    }
-
-    async function _boardLoadDetail(id) {
-        const body = $('#boardPinsBody');
-        if (body) body.innerHTML = '<div class="hint" style="padding:var(--sp-4);">\u23f3 Loading pins\u2026</div>';
-        try {
-            _boardState.pins = await api('/boards/' + id + '/pins');
-        } catch {
-            _boardState.pins = [];
-        }
-        _boardRenderDetail();
-    }
-
-    function _boardRenderDetail() {
-        const empty = $('#boardEmptyState');
-        const detail = $('#boardDetailPane');
-        const board = _boardState.boards.find(b => b.id === _boardState.activeId);
-        if (!board) {
-            if (empty) empty.style.display = 'flex';
-            if (detail) detail.style.display = 'none';
-            return;
-        }
-        if (empty) empty.style.display = 'none';
-        if (detail) detail.style.display = 'flex';
-
-        const nameInput = $('#boardNameInput');
-        const descInput = $('#boardDescInput');
-        if (nameInput && document.activeElement !== nameInput) nameInput.value = board.name;
-        if (descInput && document.activeElement !== descInput) descInput.value = board.description || '';
-
-        const body = $('#boardPinsBody');
-        if (!body) return;
-        if (!_boardState.pins.length) {
-            body.innerHTML = '<div class="board-pins-empty hint">No prompts pinned yet. Pick one above and add it.</div>';
-            return;
-        }
-        body.innerHTML = _boardState.pins.map(p => {
-            const contentLen = (p.content || '').length;
-            const mediaHeight = 64 + (Math.abs(p.id) * 37 + contentLen) % 96;
-            return '<div class="board-pin-card" data-board-pin-id="' + p.id + '">' +
-                '<div class="board-pin-media" style="height:' + mediaHeight + 'px;background:' + _boardHashColor(p.id) + '">' +
-                    '<span class="material-symbols-outlined">bolt</span>' +
-                    '<span class="board-pin-media-tag">Prompt</span>' +
-                    '<button class="board-pin-save-pill" data-board-copy="' + p.id + '" title="Save / copy prompt">' +
-                        '<span class="material-symbols-outlined" style="font-size:14px;">content_copy</span> Save' +
-                    '</button>' +
-                '</div>' +
-                '<div class="board-pin-body-wrap">' +
-                    '<span class="board-pin-title">' + escapeHtml(p.title || 'Untitled') + '</span>' +
-                    '<span class="board-pin-desc">' + escapeHtml((p.description || '').slice(0, 90)) + '</span>' +
-                    '<span class="board-pin-body">' + escapeHtml((p.content || '').slice(0, 220)) + '</span>' +
-                '</div>' +
-                '<button class="board-pin-remove material-symbols-outlined" data-board-unpin="' + p.id + '" title="Remove from board" aria-label="Remove from board">close</button>' +
-            '</div>';
-        }).join('');
-        body.querySelectorAll('[data-board-pin-id]').forEach(card => {
-            card.addEventListener('click', (e) => {
-                if (e.target.closest('[data-board-unpin]') || e.target.closest('[data-board-copy]')) return;
-                const id = Number(card.dataset.boardPinId);
-                const pin = _boardState.pins.find(p => p.id === id);
-                if (pin) _boardOpenLightbox(pin);
-            });
-        });
-        body.querySelectorAll('[data-board-copy]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                window.PL_useFromCard(Number(btn.dataset.boardCopy));
-            });
-        });
-        body.querySelectorAll('[data-board-unpin]').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const promptId = Number(btn.dataset.boardUnpin);
-                try {
-                    await api('/boards/' + _boardState.activeId + '/pins/' + promptId, { method: 'DELETE' });
-                    _boardState.pins = _boardState.pins.filter(p => p.id !== promptId);
-                    _boardRenderDetail();
-                    _boardLoadList(true);
-                } catch {
-                    toast('Could not remove pin', 'error');
-                }
-            });
-        });
-    }
-
-    function _boardOpenLightbox(pin) {
-        $('#boardLightboxTitle').textContent = pin.title || 'Untitled';
-        $('#boardLightboxDesc').textContent = pin.description || '';
-        $('#boardLightboxDesc').style.display = pin.description ? '' : 'none';
-        $('#boardLightboxContent').textContent = pin.content || '';
-        const copyBtn = $('#boardLightboxCopyBtn');
-        if (copyBtn) copyBtn.onclick = () => window.PL_useFromCard(pin.id);
-        const openBtn = $('#boardLightboxOpenBtn');
-        if (openBtn) openBtn.onclick = () => {
-            closeBoardWorkspace();
-            setTimeout(() => openDetail(pin.id), 150);
-        };
-        $('#boardPinLightbox').hidden = false;
-    }
-
-    function _boardCloseLightbox() {
-        $('#boardPinLightbox').hidden = true;
-    }
-
-    async function _boardCreate() {
-        const input = $('#boardNewName');
-        const name = (input?.value || '').trim();
-        if (!name) {
-            toast('Name the board first', 'warning');
-            return;
-        }
-        try {
-            const result = await api('/boards', { method: 'POST', body: { name } });
-            if (input) input.value = '';
-            await _boardLoadList(false);
-            if (result?.id) _boardSelect(result.id);
-        } catch {
-            toast('Could not create board', 'error');
-        }
-    }
-
-    async function _boardSaveMeta() {
-        if (!_boardState.activeId) return;
-        const name = ($('#boardNameInput')?.value || '').trim();
-        const description = $('#boardDescInput')?.value || '';
-        if (!name) return;
-        try {
-            await api('/boards/' + _boardState.activeId, { method: 'PUT', body: { name, description } });
-            const board = _boardState.boards.find(b => b.id === _boardState.activeId);
-            if (board) {
-                board.name = name;
-                board.description = description;
+                toast('Added to library', 'success');
             }
-            _boardRenderList();
-            toast('Board saved', 'success');
+            _pmbCloseModal();
+            await _pmbLoadAll();
+            if (_pmbState.view === 'board' && _pmbState.boardId) await _pmbGoBoard(_pmbState.boardId);
+            else _pmbRender();
+        } catch {
+            toast('Could not save prompt', 'error');
+        }
+    }
+
+    function _pmbOpenBoardSheet(boardId) {
+        const editing = boardId ? _pmbBoardById(boardId) : null;
+        _pmbOpenModal(
+            '<div class="pmb-modal-head"><h2>' + (editing ? 'Rename board' : 'New board') + '</h2><button class="icon-btn" data-pmb-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></div>' +
+            '<div class="pmb-modal-body">' +
+                '<div class="pmb-field"><label for="pmb-board-name">Name</label>' +
+                    '<input id="pmb-board-name" class="forge-input" type="text" placeholder="e.g. Coding" value="' + (editing ? escapeHtml(editing.name) : '') + '" maxlength="80"></div>' +
+                '<div class="pmb-field"><label for="pmb-board-desc">Description <span style="font-weight:400;">(optional)</span></label>' +
+                    '<input id="pmb-board-desc" class="forge-input" type="text" placeholder="What goes in this board?" value="' + (editing ? escapeHtml(editing.description || '') : '') + '" maxlength="140"></div>' +
+                '<div class="pmb-field"><label>Colour</label>' + _pmbSwatchGridHtml('pmbBoardColour', editing ? (editing.colour_label || '') : '') + '</div>' +
+            '</div>' +
+            '<div class="pmb-modal-foot"><button class="btn btn-ghost" data-pmb-close>Cancel</button>' +
+                '<button class="btn btn-accent" data-pmb="save-board" data-board-id="' + (editing ? editing.id : '') + '">' + (editing ? 'Save changes' : 'Create board') + '</button></div>'
+        );
+        _pmbBindSwatchGrid('pmbBoardColour');
+    }
+
+    async function _pmbSaveBoard(boardId) {
+        const nameEl = $('#pmb-board-name'), descEl = $('#pmb-board-desc');
+        const name = (nameEl?.value || '').trim();
+        if (!name) { toast('Name is required', 'warning'); nameEl?.focus(); return; }
+        const description = (descEl?.value || '').trim();
+        const colour_label = _pmbSwatchValue('pmbBoardColour');
+        try {
+            if (boardId) {
+                await api('/boards/' + boardId, { method: 'PUT', body: { name, description, colour_label } });
+                toast('Board updated', 'success');
+            } else {
+                await api('/boards', { method: 'POST', body: { name, description, colour_label } });
+                toast('Board created', 'success');
+            }
+            _pmbCloseModal();
+            await _pmbLoadAll();
+            _pmbRender();
         } catch {
             toast('Could not save board', 'error');
         }
     }
 
-    async function _boardAddPin() {
-        if (!_boardState.activeId) {
-            toast('Select or create a board first', 'warning');
-            return;
-        }
-        const p = _wsPickedPrompt('#boardPinPicker');
-        if (!p) {
-            toast('Pick a prompt to add', 'warning');
-            return;
-        }
-        try {
-            await api('/boards/' + _boardState.activeId + '/pins', { method: 'POST', body: { prompt_id: p.id } });
-            const picker = $('#boardPinPicker');
-            if (picker) picker.value = '';
-            await _boardLoadDetail(_boardState.activeId);
-            _boardLoadList(true);
-        } catch {
-            toast('Could not add pin', 'error');
-        }
+    function _pmbOpenBoardPicker(promptId) {
+        const p = _pmbState.prompts.find(x => x.id === promptId);
+        if (!p) return;
+        _pmbOpenModal(
+            '<div class="pmb-modal-head"><h2>Add to board</h2><button class="icon-btn" data-pmb-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></div>' +
+            '<div class="pmb-modal-body">' +
+                (_pmbState.boards.length ?
+                    '<div class="pmb-board-picker">' + _pmbState.boards.map(b =>
+                        '<button class="pmb-board-pick-item" data-pmb="assign-board" data-prompt-id="' + p.id + '" data-board-id="' + b.id + '">' +
+                            '<span class="pmb-board-pick-dot" style="background:' + _pmbColor(b) + '"></span>' +
+                            '<span class="pmb-board-pick-info"><span class="pmb-board-pick-name">' + escapeHtml(b.name) + '</span>' +
+                            '<span class="pmb-board-pick-meta">' + (b.pin_count || 0) + ' prompt' + ((b.pin_count || 0) === 1 ? '' : 's') + '</span></span>' +
+                        '</button>'
+                    ).join('') + '</div>'
+                    : '<p class="pmb-hint">No boards yet.</p>') +
+            '</div>' +
+            '<div class="pmb-modal-foot"><button class="btn btn-ghost" data-pmb="open-add-board-from-picker">New board</button>' +
+                '<button class="btn btn-accent" data-pmb-close>Done</button></div>'
+        );
+    }
+
+    function _pmbBind(el) {
+        if (el._pmbBound) return;
+        el._pmbBound = true;
+        el.addEventListener('click', async e => {
+            const action = el.dataset.pmb;
+            const promptId = Number(el.dataset.promptId) || null;
+            const boardId = el.dataset.boardId ? Number(el.dataset.boardId) : null;
+            const tag = el.dataset.tag;
+            switch (action) {
+                case 'go-feed': _pmbState.view = 'feed'; _pmbState.boardId = null; _pmbState.activeTag = null; _pmbRender(); break;
+                case 'go-boards': _pmbState.view = 'boards'; _pmbState.boardId = null; _pmbRender(); break;
+                case 'go-favorites': _pmbState.view = 'favorites'; _pmbState.boardId = null; _pmbState.activeTag = null; _pmbRender(); break;
+                case 'go-tags': _pmbState.view = 'tags'; _pmbState.boardId = null; _pmbRender(); break;
+                case 'go-tag': _pmbState.activeTag = tag; _pmbState.view = 'feed'; _pmbState.boardId = null; _pmbRender(); break;
+                case 'go-board': await _pmbGoBoard(boardId); _pmbRenderSidebar(); break;
+                case 'filter-tag': _pmbState.activeTag = tag || null; _pmbRenderMain(); break;
+                case 'cycle-sort': {
+                    const order = ['recent', 'oldest', 'alpha', 'used', 'starred'];
+                    _pmbState.sort = order[(order.indexOf(_pmbState.sort) + 1) % order.length];
+                    _pmbRenderMain();
+                    break;
+                }
+                case 'clear-search': {
+                    _pmbState.search = '';
+                    const input = $('#pmbSearchInput'); if (input) input.value = '';
+                    $('#pmbSearchClear')?.classList.remove('visible');
+                    _pmbRenderMain();
+                    break;
+                }
+                case 'open-add-prompt': _pmbOpenPromptSheet(null, boardId); break;
+                case 'open-add-board': _pmbOpenBoardSheet(); break;
+                case 'edit-prompt': _pmbCloseModal(); setTimeout(() => _pmbOpenPromptSheet(promptId), 160); break;
+                case 'save-prompt': _pmbSavePrompt(promptId, boardId); break;
+                case 'rename-board': _pmbOpenBoardSheet(boardId); break;
+                case 'save-board': _pmbSaveBoard(boardId); break;
+                case 'delete-board': {
+                    const b = _pmbBoardById(boardId);
+                    if (!b) return;
+                    if (!confirm('Delete "' + b.name + '"? Pins are removed, prompts are not.')) return;
+                    try {
+                        await api('/boards/' + boardId, { method: 'DELETE' });
+                        toast('Board deleted', 'success');
+                        _pmbState.view = 'boards'; _pmbState.boardId = null;
+                        await _pmbLoadAll();
+                        _pmbRender();
+                    } catch { toast('Could not delete board', 'error'); }
+                    break;
+                }
+                case 'toggle-fav': {
+                    try {
+                        const res = await api('/prompts/' + promptId + '/favorite', { method: 'POST' });
+                        const p = _pmbState.prompts.find(x => x.id === promptId);
+                        if (p) p.is_favorite = res.is_favorite;
+                        const bp = _pmbState.boardPins.find(x => x.id === promptId);
+                        if (bp) bp.is_favorite = res.is_favorite;
+                        toast(res.is_favorite ? 'Added to favorites' : 'Removed from favorites', 'success');
+                        if ($('#pmbModal') && !$('#pmbModal').hidden) _pmbOpenPinDetail(promptId);
+                        _pmbRenderMain(); _pmbRenderSidebar();
+                    } catch { toast('Could not update favorite', 'error'); }
+                    break;
+                }
+                case 'copy-prompt': window.PL_useFromCard(promptId); break;
+                case 'copy-filled': {
+                    const p2 = _pmbState.prompts.find(x => x.id === promptId) || _pmbState.boardPins.find(x => x.id === promptId);
+                    if (!p2) break;
+                    const map = {};
+                    document.querySelectorAll('#pmbVarPanel .pmb-var-input').forEach(inp => { map[inp.dataset.pmbVar] = inp.value.trim() || ('[' + inp.dataset.pmbVar + ']'); });
+                    const filled = replaceVariables(p2.content || '', map);
+                    copyToClipboard(filled).then(ok => {
+                        if (ok) {
+                            api('/prompts/' + promptId + '/use', { method: 'POST' }).catch(() => {});
+                            toast('Copied with variables filled', 'success');
+                        }
+                    });
+                    break;
+                }
+                case 'fork-prompt': {
+                    try {
+                        const result = await api('/prompts/' + promptId + '/fork', { method: 'POST', body: {} });
+                        toast('Fork created', 'success');
+                        _pmbCloseModal();
+                        await _pmbLoadAll();
+                        _pmbRender();
+                        if (result?.id) setTimeout(() => _pmbOpenPinDetail(result.id), 150);
+                    } catch { toast('Could not fork prompt', 'error'); }
+                    break;
+                }
+                case 'add-to-board': _pmbOpenBoardPicker(promptId); break;
+                case 'open-add-board-from-picker': _pmbCloseModal(); setTimeout(() => _pmbOpenBoardSheet(), 160); break;
+                case 'assign-board': {
+                    try {
+                        await api('/boards/' + boardId + '/pins', { method: 'POST', body: { prompt_id: promptId } });
+                        const b = _pmbBoardById(boardId);
+                        toast('Added to ' + (b ? b.name : 'board'), 'success');
+                        if (b) b.pin_count = (b.pin_count || 0) + 1;
+                        _pmbCloseModal();
+                        _pmbRenderSidebar();
+                    } catch { toast('Could not add to board', 'error'); }
+                    break;
+                }
+                case 'unpin': {
+                    try {
+                        await api('/boards/' + _pmbState.boardId + '/pins/' + promptId, { method: 'DELETE' });
+                        _pmbState.boardPins = _pmbState.boardPins.filter(p => p.id !== promptId);
+                        const b = _pmbBoardById(_pmbState.boardId);
+                        if (b) b.pin_count = Math.max(0, (b.pin_count || 1) - 1);
+                        toast('Removed from board', 'success');
+                        _pmbRenderMain(); _pmbRenderSidebar();
+                    } catch { toast('Could not remove pin', 'error'); }
+                    break;
+                }
+                case 'delete-prompt': {
+                    const p = _pmbState.prompts.find(x => x.id === promptId);
+                    if (!p) return;
+                    if (!confirm('Delete "' + (p.title || 'this prompt') + '"? This cannot be undone.')) return;
+                    try {
+                        await api('/prompts/' + promptId, { method: 'DELETE' });
+                        toast('Prompt deleted', 'success');
+                        _pmbCloseModal();
+                        await _pmbLoadAll();
+                        if (_pmbState.view === 'board' && _pmbState.boardId) await _pmbGoBoard(_pmbState.boardId);
+                        else _pmbRender();
+                    } catch { toast('Could not delete prompt', 'error'); }
+                    break;
+                }
+            }
+        });
     }
 
     window.openBoardWorkspace = function() {
@@ -14359,13 +14777,13 @@ Must avoid: [Anything sensitive or previously declined]`
         ws.classList.add('open');
         document.body.style.overflow = 'hidden';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'board'));
-        _boardLoadList(true);
-        _wsFillPromptPicker('#boardPinPicker');
-        const floatSaveBtn = $('#boardFloatingSaveBtn');
-        if (floatSaveBtn) floatSaveBtn.onclick = _boardSaveMeta;
+        _pmbState.view = 'feed'; _pmbState.boardId = null; _pmbState.activeTag = null; _pmbState.search = '';
+        const input = $('#pmbSearchInput'); if (input) input.value = '';
+        _pmbLoadAll().then(_pmbRender);
     };
 
     function closeBoardWorkspace() {
+        _pmbCloseModal();
         $('#boardWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
@@ -14375,23 +14793,38 @@ Must avoid: [Anything sensitive or previously declined]`
         const ws = $('#boardWorkspace');
         if (!ws) return;
         $('#closeBoardBtn')?.addEventListener('click', closeBoardWorkspace);
-        $('#boardCreateBtn')?.addEventListener('click', _boardCreate);
-        $('#boardNewName')?.addEventListener('keydown', e => {
-            if (e.key === 'Enter') _boardCreate();
+        $('#pmbAddPromptBtn')?.addEventListener('click', () => _pmbOpenPromptSheet(null, _pmbState.view === 'board' ? _pmbState.boardId : null));
+        $('#pmbModalBackdrop')?.addEventListener('click', _pmbCloseModal);
+        const searchInput = $('#pmbSearchInput');
+        const searchClear = $('#pmbSearchClear');
+        let searchTimer = null;
+        searchInput?.addEventListener('input', e => {
+            const val = e.target.value;
+            searchClear?.classList.toggle('visible', val.length > 0);
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => { _pmbState.search = val; _pmbRenderMain(); }, 120);
         });
-        $('#boardAddPinBtn')?.addEventListener('click', _boardAddPin);
-        $('#boardNameInput')?.addEventListener('change', _boardSaveMeta);
-        $('#boardDescInput')?.addEventListener('change', _boardSaveMeta);
-        $('#boardLightboxCloseBtn')?.addEventListener('click', _boardCloseLightbox);
-        $('#boardPinLightboxBackdrop')?.addEventListener('click', _boardCloseLightbox);
+        searchInput?.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                searchInput.value = ''; searchInput.blur();
+                _pmbState.search = '';
+                searchClear?.classList.remove('visible');
+                _pmbRenderMain();
+            }
+        });
+        searchClear?.addEventListener('click', () => {
+            searchInput.value = ''; _pmbState.search = '';
+            searchClear.classList.remove('visible');
+            searchInput.focus();
+            _pmbRenderMain();
+        });
         ws.addEventListener('keydown', e => {
             if (e.key !== 'Escape') return;
-            const lightbox = $('#boardPinLightbox');
-            if (lightbox && !lightbox.hidden) _boardCloseLightbox();
+            const modal = $('#pmbModal');
+            if (modal && !modal.hidden) _pmbCloseModal();
             else closeBoardWorkspace();
         });
     }
-
     /* ============================================================================
        SNIPPETS STORE
        Powers the prompt-editor side panel (search, insert-at-cursor, Quick-add).
