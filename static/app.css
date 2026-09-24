@@ -9462,3 +9462,83 @@
 .evr-history-case-icon.evr-fail { color: var(--danger); }
 .evr-history-case-main { min-width: 0; }
 
+
+/* =============================================================
+   WORKSPACE: Model Compare  [PRO]
+   Two-column layout like Eval Runner (.evr-body/.evr-left/.evr-right)
+   for prompt/provider setup (left) + side-by-side output panels
+   (right). Panel grid itself is a new shape (multiple output panels
+   shown at once) so it gets its own rules rather than reusing
+   Eval Runner's single-column status list.
+   ============================================================= */
+#compareWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+}
+#compareWorkspace.open { display: flex; }
+.mcw-body { display: grid; grid-template-columns: minmax(340px, 40%) 1fr; flex: 1; overflow: hidden; }
+.mcw-left { display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-5); border-right: 1px solid var(--line); overflow-y: auto; }
+.mcw-right { display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-5); overflow-y: auto; }
+@media (max-width: 900px) { .mcw-body { grid-template-columns: 1fr; } .mcw-left { border-right: none; border-bottom: 1px solid var(--line); } }
+
+.mcw-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.mcw-provider-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.mcw-provider-item input[type="checkbox"] { flex-shrink: 0; }
+.mcw-provider-disabled { opacity: 0.5; cursor: not-allowed; }
+.mcw-provider-hint { width: 100%; font-size: var(--fs-xs); color: var(--ink-4); }
+
+#mcSelectHint { margin-top: var(--sp-2); }
+
+.mcw-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--sp-3);
+  align-content: start;
+}
+.mcw-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  min-width: 0;
+}
+.mcw-panel-head { display: flex; align-items: center; gap: var(--sp-2); }
+.mcw-panel-status-icon { font-size: 18px; color: var(--ink-4); flex-shrink: 0; }
+.mcw-panel-status-icon[data-status="done"] { color: var(--success); }
+.mcw-panel-status-icon[data-status="error"] { color: var(--danger); }
+.mcw-panel-status-icon[data-status="running"] { color: var(--accent); }
+.mcw-panel-title { font-size: var(--fs-sm); font-weight: 600; color: var(--ink); }
+.mcw-panel-output {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.mcw-panel-error { font-size: var(--fs-sm); color: var(--danger); }
+.mcw-panel-actions { display: flex; gap: var(--sp-2); margin-top: var(--sp-1); }

@@ -4605,6 +4605,7 @@ Here are my prompts:
             ['Cost Lens', 'calculate', 'openCostWorkspace', 'tokens cost estimate price'],
             ['Library Organizer', 'monitor_heart', 'openPulseWorkspace', 'health scan library quality organize duplicates stale cleanup'],
             ['Eval Runner', 'playlist_add_check', 'openEvalWorkspace', 'eval test cases run regression pass fail judge grade'],
+            ['Model Compare', 'compare_arrows', 'openCompareWorkspace', 'compare providers side by side models openai anthropic gemini'],
             ['Prompt X-Ray', 'visibility', 'openXrayWorkspace', 'deconstruct analyse parts anatomy'],
             ['Prompt Splicer', 'call_merge', 'openSpliceWorkspace', 'merge combine two prompts'],
             ['Agents', 'smart_toy', 'openRolesWorkspace', 'agents roles personas ai'],
@@ -4892,7 +4893,7 @@ Here are my prompts:
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#safetyWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
-            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace',
+            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5049,6 +5050,10 @@ Here are my prompts:
                 }
                 if (v === 'eval') {
                     window.openEvalWorkspace();
+                    return;
+                }
+                if (v === 'compare') {
+                    window.openCompareWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -16387,6 +16392,247 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
+       WORKSPACE: Model Compare
+       data-view="compare" | openCompareWorkspace() | initCompareWorkspace()
+       Runs one prompt across every provider the user has an API key saved for,
+       sequentially, and shows the real outputs side by side. Does NOT touch
+       callAI() — each provider hop swaps localStorage['pl_ai_provider'] to the
+       target provider immediately before the call and restores the original
+       value in a finally block, reusing callAI's existing per-provider request
+       logic untouched. Sequential (not Promise.all) because that localStorage
+       key is shared global state a parallel run would race on. Pure client-side,
+       no schema changes, no new routes. Premium-gated like the other AI-call
+       workspaces.
+       ============================================================================ */
+
+    const MC_PROVIDER_ORDER = ['openai', 'anthropic', 'gemini', 'openrouter', 'mistral',
+        'groq', 'deepseek', 'xai', 'cohere', 'perplexity', 'azure_openai'];
+
+    const _mcState = {
+        running: false,
+        results: {} // provider -> { status: 'pending'|'running'|'done'|'error', output, error }
+    };
+
+    function _mcHasKey(provider) {
+        return !!localStorage.getItem('pl_api_key_' + provider);
+    }
+
+    function _mcSelectedProviders() {
+        return MC_PROVIDER_ORDER.filter(p => {
+            const cb = $('[data-mc-provider="' + p + '"]');
+            return cb && !cb.disabled && cb.checked;
+        });
+    }
+
+    function _mcRenderProviderPicker() {
+        let preChecked = 0;
+        MC_PROVIDER_ORDER.forEach(p => {
+            const cb = $('[data-mc-provider="' + p + '"]');
+            if (!cb) return;
+            const item = cb.closest('.mcw-provider-item');
+            const hasKey = _mcHasKey(p);
+            cb.disabled = !hasKey;
+            if (hasKey && preChecked < 3) {
+                cb.checked = true;
+                preChecked++;
+            } else {
+                cb.checked = false;
+            }
+            const hintEl = item?.querySelector('.mcw-provider-hint');
+            if (hintEl) hintEl.hidden = hasKey;
+            if (item) item.classList.toggle('mcw-provider-disabled', !hasKey);
+        });
+        _mcUpdateCompareBtn();
+    }
+
+    function _mcUpdateCompareBtn() {
+        const btn = $('#mcCompareBtn');
+        const hint = $('#mcSelectHint');
+        const count = _mcSelectedProviders().length;
+        if (btn) btn.disabled = _mcState.running || count < 2;
+        if (hint) hint.hidden = _mcState.running || count >= 2;
+    }
+
+    function _mcTrunc(text, n) {
+        text = (text || '').trim();
+        if (text.length <= n) return text;
+        return text.slice(0, n).trim() + '…';
+    }
+
+    const _MC_STATUS_ICON = {
+        pending: 'schedule',
+        running: 'progress_activity',
+        done: 'check_circle',
+        error: 'error'
+    };
+
+    function _mcRenderResults(providers) {
+        const el = $('#mcResults');
+        if (!el) return;
+        if (!providers.length) {
+            el.innerHTML = '<p class="hint">Select 2+ providers and run Compare to see outputs side by side.</p>';
+            return;
+        }
+        el.innerHTML = providers.map(p => {
+            const label = MA_PROVIDER_LABELS[p] || p;
+            const r = _mcState.results[p] || { status: 'pending' };
+            const icon = _MC_STATUS_ICON[r.status] || 'schedule';
+            const spin = r.status === 'running' ? ' style="animation:spin 1s linear infinite"' : '';
+            let body = '';
+            if (r.status === 'pending') body = '<p class="hint">Waiting…</p>';
+            else if (r.status === 'running') body = '<p class="hint">Running…</p>';
+            else if (r.status === 'error') body = '<p class="mcw-panel-error">' + escapeHtml(r.error || 'Something went wrong') + '</p>';
+            else body = '<div class="mcw-panel-output">' + escapeHtml(r.output || '') + '</div>';
+            const actions = r.status === 'done' ? (
+                '<div class="mcw-panel-actions">' +
+                '<button class="btn btn-ghost btn-sm" data-mc-copy="' + escapeAttr(p) + '"><span class="material-symbols-outlined">content_copy</span> Copy</button>' +
+                '<button class="btn btn-ghost btn-sm" data-mc-save="' + escapeAttr(p) + '"><span class="material-symbols-outlined">bookmark_add</span> Save to Library</button>' +
+                '</div>'
+            ) : '';
+            return '<div class="mcw-panel" data-status="' + r.status + '">' +
+                '<div class="mcw-panel-head">' +
+                '<span class="material-symbols-outlined mcw-panel-status-icon" data-status="' + r.status + '"' + spin + '>' + icon + '</span>' +
+                '<span class="mcw-panel-title">' + escapeHtml(label) + '</span>' +
+                '</div>' +
+                body +
+                actions +
+                '</div>';
+        }).join('');
+
+        el.querySelectorAll('[data-mc-copy]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const p = btn.dataset.mcCopy;
+                copyToClipboard(_mcState.results[p]?.output || '');
+            });
+        });
+        el.querySelectorAll('[data-mc-save]').forEach(btn => {
+            btn.addEventListener('click', () => _mcSaveResult(btn.dataset.mcSave, btn));
+        });
+    }
+
+    async function _mcSaveResult(provider, btn) {
+        const r = _mcState.results[provider];
+        if (!r || r.status !== 'done' || !r.output) return;
+        const label = MA_PROVIDER_LABELS[provider] || provider;
+        const promptText = $('#mcPromptInput')?.value?.trim() || '';
+        const title = (promptText.split(' ').slice(0, 6).join(' ') || 'Model Compare result') + ' (via ' + label + ')';
+        if (btn) btn.disabled = true;
+        try {
+            const result = await api('/prompts', {
+                method: 'POST',
+                body: {
+                    title,
+                    content: r.output,
+                    description: 'Generated via Model Compare workspace (' + label + ')',
+                    categories: 'Prompt Engineering',
+                    tags: 'model-compare, ' + provider
+                }
+            });
+            await loadPrompts();
+            await loadFilterOptions();
+            toast('Saved: ' + title, 'success');
+            if (btn) btn.innerHTML = '<span class="material-symbols-outlined">check</span> Saved';
+        } catch {
+            toast('Could not save', 'error');
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async function _mcRunAll() {
+        if (_mcState.running) return;
+        const prompt = $('#mcPromptInput')?.value?.trim();
+        if (!prompt) {
+            toast('Add a prompt first', 'warning');
+            return;
+        }
+        const providers = _mcSelectedProviders();
+        if (providers.length < 2) {
+            toast('Select at least 2 providers to compare', 'warning');
+            return;
+        }
+        const testInput = $('#mcTestInput')?.value?.trim();
+        const usr = testInput || '(No test input provided — respond based on the prompt alone)';
+
+        _mcState.running = true;
+        _mcState.results = {};
+        providers.forEach(p => { _mcState.results[p] = { status: 'pending' }; });
+        _mcRenderResults(providers);
+        _mcUpdateCompareBtn();
+        const btn = $('#mcCompareBtn');
+        if (btn) btn.innerHTML = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite">progress_activity</span> Comparing…';
+
+        for (const p of providers) {
+            _mcState.results[p] = { status: 'running' };
+            _mcRenderResults(providers);
+            const originalProvider = localStorage.getItem('pl_ai_provider');
+            try {
+                localStorage.setItem('pl_ai_provider', p);
+                const output = await callAI(prompt, usr, 1200);
+                _mcState.results[p] = { status: 'done', output };
+            } catch (err) {
+                _mcState.results[p] = { status: 'error', error: err.message };
+            } finally {
+                if (originalProvider === null) localStorage.removeItem('pl_ai_provider');
+                else localStorage.setItem('pl_ai_provider', originalProvider);
+            }
+            _mcRenderResults(providers);
+        }
+
+        _mcState.running = false;
+        if (btn) btn.innerHTML = '<span class="material-symbols-outlined">bolt</span> Compare';
+        _mcUpdateCompareBtn();
+        const errored = providers.filter(p => _mcState.results[p]?.status === 'error').length;
+        if (errored) toast(errored + ' of ' + providers.length + ' provider(s) failed — see panels below', 'warning');
+        else toast('Compared ' + providers.length + ' providers', 'success');
+    }
+
+    window.openCompareWorkspace = function() {
+        if (!state.isPremium) {
+            showPremiumModal();
+            return;
+        }
+        const ws = $('#compareWorkspace');
+        if (!ws) return;
+        ws.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'compare'));
+        _mcState.running = false;
+        _mcState.results = {};
+        _mcRenderProviderPicker();
+        _mcRenderResults([]);
+        setTimeout(() => $('#mcPromptInput')?.focus(), 80);
+    };
+
+    function closeCompareWorkspace() {
+        $('#compareWorkspace')?.classList.remove('open');
+        document.body.style.overflow = '';
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    function initCompareWorkspace() {
+        const ws = $('#compareWorkspace');
+        if (!ws) return;
+        $('#closeCompareBtn')?.addEventListener('click', closeCompareWorkspace);
+        $('#mcCompareBtn')?.addEventListener('click', async () => {
+            try {
+                await _mcRunAll();
+            } catch (err) {
+                toast('Compare failed: ' + err.message, 'error');
+                _mcState.running = false;
+                _mcUpdateCompareBtn();
+                const btn = $('#mcCompareBtn');
+                if (btn) btn.innerHTML = '<span class="material-symbols-outlined">bolt</span> Compare';
+            }
+        });
+        MC_PROVIDER_ORDER.forEach(p => {
+            $('[data-mc-provider="' + p + '"]')?.addEventListener('change', _mcUpdateCompareBtn);
+        });
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeCompareWorkspace();
+        });
+    }
+
+    /* ============================================================================
        WORKSPACES LAUNCHER
        ============================================================================ */
 
@@ -17697,6 +17943,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initExampleWorkspace(); // prompt from example workspace
         initAdapterWorkspace(); // model adapter workspace
         initEvalWorkspace(); // eval runner workspace
+        initCompareWorkspace(); // model compare workspace
         initDashboardWorkspace(); // dashboard
         initBackupWorkspace(); // backup & restore workspace
         initWorkspacesLauncher(); // workspaces launcher grid
@@ -25786,7 +26033,7 @@ Must avoid: [Anything sensitive or previously declined]`
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
         '#playgroundWorkspace', '#chainWorkspace',
         '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace',
-        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace'
+        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace'
     ];
 
     function _closeTourWorkspaces() {
