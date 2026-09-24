@@ -2756,6 +2756,86 @@ def unlock_prompt(pid):
     return jsonify({'ok': True, 'locked': sorted(ids)})
 
 
+@app.route('/api/integrity-check', methods=['GET'])
+def integrity_check():
+    """Read-only diagnostics for the data layer itself, distinct from Library
+    Organizer's organisational health scan (tags, staleness, duplicates)."""
+    conn = get_db()
+    try:
+        results = []
+
+        ic_rows = conn.execute('PRAGMA integrity_check').fetchall()
+        ic_ok = len(ic_rows) == 1 and ic_rows[0][0] == 'ok'
+        results.append({
+            'check': 'SQLite database integrity',
+            'ok': ic_ok,
+            'detail': 'ok' if ic_ok else '; '.join(r[0] for r in ic_rows),
+            'fixable': False,
+        })
+
+        orphan_rels = conn.execute('''
+            SELECT COUNT(*) as n FROM prompt_relationships
+            WHERE prompt_a NOT IN (SELECT id FROM prompts) OR prompt_b NOT IN (SELECT id FROM prompts)
+        ''').fetchone()['n']
+        results.append({
+            'check': 'Orphaned prompt relationships',
+            'ok': orphan_rels == 0,
+            'detail': 'none found' if not orphan_rels else f'{orphan_rels} relationship(s) reference a deleted prompt',
+            'fixable': orphan_rels > 0,
+        })
+
+        orphan_folders = conn.execute('''
+            SELECT COUNT(*) as n FROM prompts
+            WHERE folder_id IS NOT NULL AND folder_id NOT IN (SELECT id FROM folders)
+        ''').fetchone()['n']
+        results.append({
+            'check': 'Prompts pointing to a deleted folder',
+            'ok': orphan_folders == 0,
+            'detail': 'none found' if not orphan_folders else f'{orphan_folders} prompt(s) reference a deleted folder',
+            'fixable': orphan_folders > 0,
+        })
+
+        vault_rows = conn.execute('SELECT id, name, path FROM vaults').fetchall()
+        missing_vaults = [dict(v) for v in vault_rows if not os.path.isdir(v['path'])]
+        results.append({
+            'check': 'Vault folders present on disk',
+            'ok': len(missing_vaults) == 0,
+            'detail': 'none found' if not missing_vaults else ', '.join(v['name'] for v in missing_vaults) + ' — folder no longer exists',
+            'fixable': False,
+        })
+    finally:
+        conn.close()
+    return jsonify(results)
+
+@app.route('/api/integrity-check/fix-orphaned-relationships', methods=['POST'])
+def fix_orphaned_relationships():
+    conn = get_db()
+    try:
+        cur = conn.execute('''
+            DELETE FROM prompt_relationships
+            WHERE prompt_a NOT IN (SELECT id FROM prompts) OR prompt_b NOT IN (SELECT id FROM prompts)
+        ''')
+        removed = cur.rowcount
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'ok': True, 'removed': removed})
+
+@app.route('/api/integrity-check/fix-orphaned-folders', methods=['POST'])
+def fix_orphaned_folders():
+    conn = get_db()
+    try:
+        cur = conn.execute('''
+            UPDATE prompts SET folder_id = NULL
+            WHERE folder_id IS NOT NULL AND folder_id NOT IN (SELECT id FROM folders)
+        ''')
+        fixed = cur.rowcount
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'ok': True, 'fixed': fixed})
+
+
 def _backup_dir():
     """Folder holding whole-DB snapshots, alongside PromptLibrary.db."""
     path = os.path.join(get_data_dir(), 'backups')
