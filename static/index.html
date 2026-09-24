@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" media="print" onload="this.media='all'">
 
-<link rel="stylesheet" href="/static/app.css?v=d418dc0c">
+<link rel="stylesheet" href="/static/app.css?v=17f0712b">
 </head>
 <body>
 
@@ -3852,6 +3852,32 @@
 </div>
 
 <!-- ============================================================
+     WORKSPACE: Integrity Check
+     Runs diagnostics on the database and vault files.
+     data-view="integrity"
+     ============================================================ -->
+<div id="integrityWorkspace" role="dialog" aria-modal="true" aria-label="Integrity Check">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">troubleshoot</span>
+      <div>
+        <h2 class="ws-title">Integrity Check</h2>
+        <p class="ws-subtitle">Run diagnostics on the database and vault files, not just your tags.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-accent" id="integrityRunBtn"><span class="material-symbols-outlined">troubleshoot</span> Run Diagnostics</button>
+      <button class="icon-btn" id="closeIntegrityBtn" aria-label="Close Integrity Check"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body ic-body">
+    <div class="ic-list" id="integrityList">
+      <div class="ic-loading">Running diagnostics&hellip;</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
      WORKSPACE: Batch Runner
      Runs one prompt across many input rows via callAI, one at a time.
      data-view="batch"
@@ -4231,6 +4257,13 @@
         <span class="launcher-card-desc">Lock a prompt against accidental edits or deletes</span>
       </span>
       </button>
+      <button class="launcher-card" data-open="openIntegrityWorkspace">
+        <span class="material-symbols-outlined launcher-card-icon">troubleshoot</span>
+        <span class="launcher-card-text">
+        <span class="launcher-card-title">Integrity Check</span>
+        <span class="launcher-card-desc">Diagnose database and vault issues -- orphaned rows, missing folders</span>
+      </span>
+      </button>
         </div>
       </div>
       <p class="launcher-empty" id="launcherEmpty" hidden>No tools match your search</p>
@@ -4371,7 +4404,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=08f6f6e7"></script>
+<script defer src="/static/app.js?v=2db02c04"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

@@ -4614,6 +4614,7 @@ Here are my prompts:
             ['Version Timeline', 'history', 'openVersionWorkspace', 'version history restore baseline diff'],
             ['Run History', 'manage_history', 'openHistoryWorkspace', 'run history log usage every time used runs list'],
             ['Version Lock', 'lock', 'openLockWorkspace', 'lock unlock protect prevent accidental edit delete final production ready'],
+            ['Integrity Check', 'troubleshoot', 'openIntegrityWorkspace', 'integrity check diagnostics database orphaned rows vault folders structural health'],
         ];
         return table.map(([label, icon, fn, keywords]) => ({
             kind: 'workspace',
@@ -4895,7 +4896,7 @@ Here are my prompts:
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#safetyWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
-            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace',
+            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5064,6 +5065,10 @@ Here are my prompts:
                 }
                 if (v === 'lock') {
                     window.openLockWorkspace();
+                    return;
+                }
+                if (v === 'integrity') {
+                    window.openIntegrityWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -17186,6 +17191,110 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
+       WORKSPACE: Integrity Check
+       data-view="integrity" | openIntegrityWorkspace() | initIntegrityWorkspace()
+       Read-only diagnostics on the data layer itself (SQLite integrity, orphaned
+       prompt_relationships, prompts pointing at a deleted folder, vault folders
+       missing from disk) -- distinct from Library Organizer (Pulse), which scans
+       organisational health (tags, staleness, duplicates), not structural health.
+       Auto-runs on open, same convention as Pulse. Not premium-gated -- a
+       data-protection utility, like Backup & Restore and Version Lock.
+       ============================================================================ */
+
+    // Maps a check's `check` name to the fix route that resolves it -- only
+    // findings the backend marks fixable: true have an entry here.
+    const IC_FIX_ROUTES = {
+        'Orphaned prompt relationships': '/integrity-check/fix-orphaned-relationships',
+        'Prompts pointing to a deleted folder': '/integrity-check/fix-orphaned-folders',
+    };
+
+    function _icRowHtml(r) {
+        const ok = !!r.ok;
+        const fixRoute = (r.fixable && !ok) ? IC_FIX_ROUTES[r.check] : null;
+        return `
+      <div class="ic-row${ok ? '' : ' ic-row-fail'}">
+        <div class="ic-row-main">
+          <span class="material-symbols-outlined ic-row-icon">${ok ? 'check_circle' : 'error'}</span>
+          <div class="ic-row-text">
+            <div class="ic-row-title">${escapeHtml(r.check || '')}</div>
+            <div class="ic-row-detail">${escapeHtml(r.detail || '')}</div>
+          </div>
+        </div>
+        <div class="ic-row-actions">
+          <span class="ic-badge ${ok ? 'ic-good' : 'ic-bad'}">${ok ? 'Pass' : 'Fail'}</span>
+          ${fixRoute ? `<button class="btn btn-accent btn-xs" data-ic-fix="${escapeAttr(fixRoute)}" data-ic-check="${escapeAttr(r.check)}">Fix</button>` : ''}
+        </div>
+      </div>`;
+    }
+
+    function _icRender(rows) {
+        const listEl = $('#integrityList');
+        if (!listEl) return;
+        if (!Array.isArray(rows) || !rows.length) {
+            listEl.innerHTML = '<div class="ic-empty"><p>No diagnostics returned.</p></div>';
+            return;
+        }
+        listEl.innerHTML = rows.map(_icRowHtml).join('');
+        listEl.querySelectorAll('[data-ic-fix]').forEach(btn => {
+            btn.addEventListener('click', () => _icFix(btn.dataset.icFix, btn.dataset.icCheck, btn));
+        });
+    }
+
+    async function _icRun() {
+        const listEl = $('#integrityList');
+        const runBtn = $('#integrityRunBtn');
+        if (listEl) listEl.innerHTML = '<div class="ic-loading">Running diagnostics\u2026</div>';
+        if (runBtn) runBtn.disabled = true;
+        try {
+            const rows = await api('/integrity-check');
+            _icRender(rows);
+        } catch (e) {
+            if (listEl) listEl.innerHTML = `<div class="ic-empty ic-error"><p>Couldn\u2019t run diagnostics: ${escapeHtml(e.message)}</p></div>`;
+        } finally {
+            if (runBtn) runBtn.disabled = false;
+        }
+    }
+
+    async function _icFix(route, checkName, btn) {
+        if (!route) return;
+        if (btn) btn.disabled = true;
+        try {
+            const res = await api(route, { method: 'POST' });
+            const n = (res && (res.removed ?? res.fixed)) || 0;
+            toast((checkName || 'Fix') + ': fixed ' + n + ' row' + (n === 1 ? '' : 's'), 'success');
+            await _icRun();
+        } catch (e) {
+            toast('Fix failed: ' + e.message, 'error');
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    window.openIntegrityWorkspace = function() {
+        $('#integrityWorkspace')?.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'integrity'));
+        _icRun();
+    };
+
+    function closeIntegrityWorkspace() {
+        $('#integrityWorkspace')?.classList.remove('open');
+        document.body.style.overflow = '';
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    function initIntegrityWorkspace() {
+        const ws = $('#integrityWorkspace');
+        if (!ws) return;
+        $('#closeIntegrityBtn')?.addEventListener('click', closeIntegrityWorkspace);
+        $('#integrityRunBtn')?.addEventListener('click', _icRun);
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeIntegrityWorkspace();
+        });
+    }
+
+    /* ============================================================================
        WORKSPACE: Batch Runner
        data-view="batch" | openBatchWorkspace() | initBatchWorkspace()
        Runs one prompt across many input rows via callAI, one row at a time.
@@ -18170,6 +18279,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initBackupWorkspace(); // backup & restore workspace
         initHistoryWorkspace(); // run history workspace
         initLockWorkspace(); // version lock workspace
+        initIntegrityWorkspace(); // integrity check workspace
         initWorkspacesLauncher(); // workspaces launcher grid
         initFillWorkspace(); // quick fill workspace
         initAuditWorkspace(); // prompt auditor workspace
@@ -26257,7 +26367,7 @@ Must avoid: [Anything sensitive or previously declined]`
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
         '#playgroundWorkspace', '#chainWorkspace',
         '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace',
-        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace'
+        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace'
     ];
 
     function _closeTourWorkspaces() {

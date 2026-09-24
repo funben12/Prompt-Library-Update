@@ -8664,6 +8664,89 @@
   color: var(--danger, #d33);
 }
 
+/* =============================================================
+   INTEGRITY CHECK
+   Single-column diagnostics list -- structurally follows Version
+   Lock / Backup & Restore's row pattern, own ic- prefix. Pass/fail
+   badge colours reuse the Auditor's aud-badge green/red convention.
+   ============================================================= */
+.ic-body {
+  overflow-y: auto;
+  padding: var(--sp-5);
+  gap: var(--sp-2);
+}
+.ic-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.ic-loading {
+  font-size: var(--fs-sm);
+  color: var(--ink-3);
+  padding: var(--sp-3) 0;
+}
+.ic-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.ic-row-fail {
+  border-color: color-mix(in oklch, #ef4444 35%, var(--line));
+}
+.ic-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.ic-row-icon {
+  font-size: 22px;
+  color: #16a34a;
+  flex-shrink: 0;
+}
+.ic-row-fail .ic-row-icon {
+  color: #dc2626;
+}
+.ic-row-text {
+  min-width: 0;
+}
+.ic-row-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+.ic-row-detail {
+  font-size: var(--fs-xs);
+  color: var(--ink-4);
+}
+.ic-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+.ic-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.ic-badge.ic-good { background: color-mix(in oklch, #22c55e 18%, transparent); color: #16a34a; }
+.ic-badge.ic-bad  { background: color-mix(in oklch, #ef4444 18%, transparent); color: #dc2626; }
+.ic-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  text-align: center;
+  padding: var(--sp-6);
+  color: var(--ink-3);
+}
+.ic-empty.ic-error {
+  color: var(--danger, #d33);
+}
+
 #genOutputActions {
   display: flex;
   gap: var(--sp-2);
@@ -8706,7 +8789,8 @@
    ============================================================= */
 #fillWorkspace, #auditWorkspace, #diffWorkspace, #costWorkspace,
 #pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace,
-#taxonomyWorkspace, #versionWorkspace, #backupWorkspace, #historyWorkspace, #lockWorkspace {
+#taxonomyWorkspace, #versionWorkspace, #backupWorkspace, #historyWorkspace, #lockWorkspace,
+#integrityWorkspace {
   display: none;
   position: fixed;
   inset: 0;
@@ -8717,7 +8801,8 @@
 #fillWorkspace.open, #auditWorkspace.open, #diffWorkspace.open, #costWorkspace.open,
 #pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open,
 #batchWorkspace.open, #boardWorkspace.open, #taxonomyWorkspace.open,
-#versionWorkspace.open, #backupWorkspace.open, #historyWorkspace.open, #lockWorkspace.open { display: flex; }
+#versionWorkspace.open, #backupWorkspace.open, #historyWorkspace.open, #lockWorkspace.open,
+#integrityWorkspace.open { display: flex; }
 
 /* -- Batch Runner -- */
 .br-body { display: grid; grid-template-columns: minmax(340px, 40%) 1fr; flex: 1; overflow: hidden; }
