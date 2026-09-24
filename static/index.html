@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" media="print" onload="this.media='all'">
 
-<link rel="stylesheet" href="/static/app.css?v=78748f51">
+<link rel="stylesheet" href="/static/app.css?v=88880612">
 </head>
 <body>
 
@@ -3611,6 +3611,58 @@
 </div>
 
 <!-- ============================================================
+     WORKSPACE: Tone & Style Rewriter  [PRO]
+     data-view="tone"
+     Rewrites a prompt's tone/register while preserving its exact
+     intent, instructions, and constraints.
+     ============================================================ -->
+<div id="toneWorkspace" role="dialog" aria-modal="true" aria-label="Tone & Style Rewriter">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">tune</span>
+      <div>
+        <h2 class="ws-title">Tone &amp; Style Rewriter</h2>
+        <p class="ws-subtitle">Shift a prompt's register without changing what it asks for.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="icon-btn" id="closeToneBtn" aria-label="Close Tone &amp; Style Rewriter"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body pfe-body">
+    <div class="opt-section-label">Prompt to Rewrite <span class="hint" style="text-transform:none;font-weight:400;">(required)</span></div>
+    <textarea id="tonePromptInput" class="forge-input" rows="8" placeholder="Paste the prompt whose tone you want to shift here..."></textarea>
+
+    <div class="opt-section-label" style="margin-top:var(--sp-3);">Target Tone</div>
+    <div class="tone-picker" id="tonePickerGroup">
+      <button type="button" class="tone-btn" data-tone="formal">Formal</button>
+      <button type="button" class="tone-btn" data-tone="casual">Casual</button>
+      <button type="button" class="tone-btn" data-tone="friendly">Friendly</button>
+      <button type="button" class="tone-btn" data-tone="technical">Technical</button>
+      <button type="button" class="tone-btn" data-tone="persuasive">Persuasive</button>
+      <button type="button" class="tone-btn" data-tone="direct">Concise &amp; Direct</button>
+      <button type="button" class="tone-btn" data-tone="playful">Playful</button>
+    </div>
+    <p class="hint">Pick the register to rewrite into — every instruction and constraint stays intact, only the voice changes.</p>
+
+    <div class="opt-actions" style="margin-top:var(--sp-2);">
+      <button class="btn btn-accent" id="toneRunBtn"><span class="material-symbols-outlined">tune</span> Rewrite</button>
+    </div>
+
+    <div class="opt-section-label" style="margin-top:var(--sp-4);">Rewritten Prompt</div>
+    <div class="opt-output" id="toneOutput"><span class="hint">Paste a prompt above, pick a target tone, and click <strong>Rewrite</strong> — the result appears here.</span></div>
+
+    <div class="opt-section-label" id="toneChangesLabel" style="margin-top:var(--sp-3);" hidden>What Changed in Tone</div>
+    <div class="pfe-why" id="toneChanges" hidden></div>
+
+    <div class="opt-actions" id="toneOutputActions" style="display:none;margin-top:var(--sp-2);">
+      <button class="btn btn-ghost" id="toneCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy</button>
+      <button class="btn btn-accent" id="toneSaveBtn"><span class="material-symbols-outlined">save</span> Save to Library</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
      WORKSPACE: Eval Runner  [PRO]
      Regression suite for a library prompt: save test cases (input +
      plain-English expected outcome), run them via AI, judge pass/fail,
@@ -4209,6 +4261,14 @@
       </span>
         <span class="launcher-card-pro">PRO</span>
       </button>
+      <button class="launcher-card" data-open="openToneWorkspace" data-premium="true">
+        <span class="material-symbols-outlined launcher-card-icon">tune</span>
+        <span class="launcher-card-text">
+        <span class="launcher-card-title">Tone &amp; Style Rewriter</span>
+        <span class="launcher-card-desc">Shift a prompt's register — formal, casual, technical and more</span>
+      </span>
+        <span class="launcher-card-pro">PRO</span>
+      </button>
         </div>
       </div>
       <div class="launcher-group" data-group="inspect">
@@ -4506,7 +4566,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=008e8552"></script>
+<script defer src="/static/app.js?v=95a3405a"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

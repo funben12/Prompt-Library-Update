@@ -4594,6 +4594,7 @@ Here are my prompts:
             ['Prompt Optimizer', 'rocket_launch', 'openOptimizerWorkspace', 'optimize improve score quality'],
             ['Model Adapter', 'sync_alt', 'openAdapterWorkspace', 'adapt provider convert rewrite openai anthropic gemini openrouter mistral groq deepseek xai cohere perplexity azure'],
             ['Prompt Simplifier', 'compress', 'openSimplifyWorkspace', 'simplify trim shorten compress debloat reduce cut'],
+            ['Tone & Style Rewriter', 'tune', 'openToneWorkspace', 'tone style rewrite voice register formal casual friendly technical persuasive playful direct concise'],
             ['Prompt Components', 'extension', 'openComponentsWorkspace', 'blocks drag drop builder frameworks'],
             ['Prompt Forge', 'construction', 'openForgeWorkspace', 'build structured framework rtf costar'],
             ['Prompt Lab', 'biotech', 'openLabWorkspace', 'ab test variants compare experiment'],
@@ -4898,7 +4899,7 @@ Here are my prompts:
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#safetyWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
-            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace',
+            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5079,6 +5080,10 @@ Here are my prompts:
                 }
                 if (v === 'simplify') {
                     window.openSimplifyWorkspace();
+                    return;
+                }
+                if (v === 'tone') {
+                    window.openToneWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -16269,6 +16274,178 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
+       WORKSPACE: Tone & Style Rewriter
+       data-view="tone" | openToneWorkspace() | initToneWorkspace()
+       Rewrites a prompt's tone/register (formal, casual, technical, etc.) while
+       preserving its exact intent, instructions, and constraints -- distinct from
+       the Optimizer (generic quality pass), Prompt Simplifier (removes cruft,
+       same tone), and Model Adapter (rewrites for a different AI provider, not a
+       human tone). Pure client-side (callAI + existing POST /api/prompts), no
+       schema changes.
+       ============================================================================ */
+
+    const _toneState = {
+        lastOutput: '',
+        lastChanges: '',
+        lastOriginal: '',
+        lastTone: ''
+    };
+
+    const TONE_LABELS = {
+        formal: 'Formal',
+        casual: 'Casual',
+        friendly: 'Friendly',
+        technical: 'Technical',
+        persuasive: 'Persuasive',
+        direct: 'Concise & Direct',
+        playful: 'Playful'
+    };
+
+    const TONE_GUIDANCE = {
+        formal: 'Rewrite in a formal, professional register -- precise word choice, no contractions, no slang, measured sentence structure.',
+        casual: 'Rewrite in a casual, conversational register -- contractions are fine, relaxed sentence structure, natural everyday phrasing.',
+        friendly: 'Rewrite in a warm, friendly register -- approachable and encouraging in tone, like a helpful colleague, without becoming informal or losing precision.',
+        technical: 'Rewrite in a technical, precise register -- exact terminology, unambiguous phrasing, written for a technically literate reader.',
+        persuasive: 'Rewrite in a persuasive, confident register -- compelling and direct language that motivates action, without adding new claims or instructions.',
+        direct: 'Rewrite in a concise, direct register -- strip softening language and hedging, use short direct sentences, get straight to the instruction.',
+        playful: 'Rewrite in a playful, light register -- inject personality and a bit of wit, while keeping every instruction clear and unambiguous.'
+    };
+
+    window.openToneWorkspace = function() {
+        if (!state.isPremium) {
+            showPremiumModal();
+            return;
+        }
+        $('#toneWorkspace')?.classList.add('open');
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'tone'));
+        setTimeout(() => $('#tonePromptInput')?.focus(), 80);
+    };
+
+    function closeToneWorkspace() {
+        $('#toneWorkspace')?.classList.remove('open');
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    async function _toneRun() {
+        const prompt = $('#tonePromptInput')?.value?.trim();
+        if (!prompt) {
+            toast('Paste a prompt first', 'warning');
+            return;
+        }
+        const toneBtn = $('#tonePickerGroup .tone-btn.active');
+        if (!toneBtn) {
+            toast('Pick a tone first', 'warning');
+            return;
+        }
+        const tone = toneBtn.dataset.tone;
+        const toneLabel = TONE_LABELS[tone] || tone;
+        const guidance = TONE_GUIDANCE[tone] || '';
+        const sys = 'You are an expert prompt engineer who specialises in rewriting a prompt\'s tone and register without changing what it asks for. ' + guidance + ' Do not change the task, and do not add, remove, or reinterpret any instruction, constraint, required output format, or variable/placeholder -- only change the voice and phrasing. Preserve all variables/placeholders exactly. Output ONLY the rewritten prompt, then a new line starting with "CHANGES:" followed by a short (1-3 sentence) note describing what changed in tone. No markdown fencing, no extra preamble.';
+        const usr = 'Rewrite this prompt in a ' + toneLabel + ' tone:\n\n"""\n' + prompt + '\n"""';
+        const out = $('#toneOutput');
+        if (out) out.innerHTML = '<span class="hint">\u23f3 Rewriting\u2026</span>';
+        const changesLabel = $('#toneChangesLabel');
+        const changesEl = $('#toneChanges');
+        if (changesLabel) changesLabel.hidden = true;
+        if (changesEl) {
+            changesEl.hidden = true;
+            changesEl.textContent = '';
+        }
+        const actions = $('#toneOutputActions');
+        if (actions) actions.style.display = 'none';
+
+        const result = await callAI(sys, usr, 1600);
+        const changesMatch = result.match(/\bCHANGES:\s*([\s\S]*)$/i);
+        const changes = changesMatch ? changesMatch[1].trim() : '';
+        const rewritten = changesMatch ? result.slice(0, result.lastIndexOf(changesMatch[0])).trim() : result.trim();
+
+        if (out) out.textContent = rewritten;
+        _toneState.lastOutput = rewritten;
+        _toneState.lastChanges = changes;
+        _toneState.lastOriginal = prompt;
+        _toneState.lastTone = tone;
+
+        if (changes) {
+            if (changesEl) {
+                changesEl.textContent = changes;
+                changesEl.hidden = false;
+            }
+            if (changesLabel) changesLabel.hidden = false;
+        }
+        if (actions) actions.style.display = 'flex';
+        toast('Prompt rewritten (' + toneLabel + ')', 'success');
+    }
+
+    function initToneWorkspace() {
+        const ws = $('#toneWorkspace');
+        if (!ws) return;
+
+        $$('#tonePickerGroup .tone-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                $$('#tonePickerGroup .tone-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+
+        $('#toneRunBtn')?.addEventListener('click', async function() {
+            this.disabled = true;
+            this.innerHTML = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite">progress_activity</span> Rewriting\u2026';
+            try {
+                await _toneRun();
+            } catch (err) {
+                const out = $('#toneOutput');
+                if (out) out.innerHTML = '<span class="hint">Error: ' + escapeHtml(err.message) + '</span>';
+                toast('Tone rewrite failed: ' + err.message, 'error');
+            } finally {
+                this.disabled = false;
+                this.innerHTML = '<span class="material-symbols-outlined">tune</span> Rewrite';
+            }
+        });
+
+        $('#toneCopyBtn')?.addEventListener('click', async () => {
+            const text = _toneState.lastOutput || $('#toneOutput')?.textContent?.trim();
+            if (!text) return;
+            if (await copyToClipboard(text)) toast('Prompt copied', 'success');
+        });
+
+        $('#toneSaveBtn')?.addEventListener('click', async () => {
+            if (!_toneState.lastOutput) {
+                toast('Rewrite a prompt first', 'warning');
+                return;
+            }
+            const toneLabel = TONE_LABELS[_toneState.lastTone] || _toneState.lastTone;
+            const title = (_toneState.lastOutput.split(' ').slice(0, 6).join(' ') || 'Rewritten prompt') + ' (' + toneLabel + ')';
+            try {
+                const result = await api('/prompts', {
+                    method: 'POST',
+                    body: {
+                        title,
+                        content: _toneState.lastOutput,
+                        description: 'Tone rewrite (' + toneLabel + ') via Tone & Style Rewriter workspace',
+                        categories: 'Prompt Engineering',
+                        tags: 'tone-rewrite,' + _toneState.lastTone,
+                        notes: _toneState.lastChanges || ''
+                    }
+                });
+                await loadPrompts();
+                await loadFilterOptions();
+                toast('Saved: ' + title, 'success');
+                closeToneWorkspace();
+                if (result?.id) setTimeout(() => openDetail(result.id), 200);
+            } catch {
+                toast('Could not save', 'error');
+            }
+        });
+
+        $('#closeToneBtn')?.addEventListener('click', closeToneWorkspace);
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeToneWorkspace();
+        });
+    }
+
+    /* ============================================================================
        WORKSPACE: Eval Runner
        data-view="eval" | openEvalWorkspace() | initEvalWorkspace()
        Regression suite for an existing library prompt: save test cases (input +
@@ -18624,6 +18801,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initExampleWorkspace(); // prompt from example workspace
         initAdapterWorkspace(); // model adapter workspace
         initSimplifyWorkspace(); // prompt simplifier workspace
+        initToneWorkspace(); // tone & style rewriter workspace
         initEvalWorkspace(); // eval runner workspace
         initCompareWorkspace(); // model compare workspace
         initDashboardWorkspace(); // dashboard
@@ -26719,7 +26897,7 @@ Must avoid: [Anything sensitive or previously declined]`
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
         '#playgroundWorkspace', '#chainWorkspace',
         '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace',
-        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace'
+        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace'
     ];
 
     function _closeTourWorkspaces() {

@@ -10003,3 +10003,41 @@
   border-color: var(--accent-line);
   color: var(--accent);
 }
+/* =============================================================
+   WORKSPACE: Tone & Style Rewriter  [PRO]
+   Rewrites a prompt's tone/register while preserving intent.
+   Reuses .pfe-body (layout) and .pfe-why (info box) from the
+   Prompt from Example workspace, and .opt-section-label /
+   .opt-output / .opt-actions / .forge-input from the Optimizer --
+   only the tone picker is new (tone- prefix, unclaimed; adapted
+   from Prompt Simplifier's .simp-level-btn pattern for a larger,
+   7-option single-select set).
+   ============================================================= */
+#toneWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+}
+#toneWorkspace.open { display: flex; }
+
+.tone-picker { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.tone-btn {
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+.tone-btn:hover { background: var(--surface-2); }
+.tone-btn.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
