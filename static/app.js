@@ -14119,7 +14119,7 @@ Must avoid: [Anything sensitive or previously declined]`
        data-view="board" | openBoardWorkspace() | initBoardWorkspace()
        ============================================================================ */
 
-    const PMB_COLOUR_NAMES = ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'teal', 'cyan', 'blue', 'indigo', 'violet', 'purple', 'magenta', 'fuchsia', 'pink', 'rose', 'lavender'];
+    const PMB_COLOUR_NAMES = ['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'indigo', 'violet', 'pink'];
     function _pmbColourName(record) {
         if (record && typeof record === 'object' && record.colour_label) return record.colour_label;
         const id = (record && typeof record === 'object') ? record.id : record;
