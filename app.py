@@ -1521,6 +1521,8 @@ def create_prompt():
 
 @app.route('/api/prompts/<int:pid>', methods=['PUT'])
 def update_prompt(pid):
+    if pid in _locked_prompt_ids():
+        return jsonify({'error': 'This prompt is locked. Unlock it in Version Lock before editing.'}), 423
     data = _prompt_payload(_json_body())
     if not data['content'].strip():
         return jsonify({'error': 'Prompt content is required'}), 400
@@ -1570,6 +1572,8 @@ def update_prompt(pid):
 
 @app.route('/api/prompts/<int:pid>', methods=['DELETE'])
 def delete_prompt(pid):
+    if pid in _locked_prompt_ids():
+        return jsonify({'error': 'This prompt is locked. Unlock it in Version Lock before deleting.'}), 423
     conn = get_db()
     conn.execute('DELETE FROM prompts WHERE id=?', (pid,))
     conn.commit()
@@ -1627,6 +1631,9 @@ def bulk_delete_prompts():
     ids = data.get('ids') or []
     if not ids:
         return jsonify({'error': 'ids is required'}), 400
+    locked = _locked_prompt_ids()
+    skipped_locked = [pid for pid in ids if pid in locked]
+    ids = [pid for pid in ids if pid not in locked]
     conn = get_db()
     success, failed = 0, 0
     try:
@@ -1639,7 +1646,7 @@ def bulk_delete_prompts():
         conn.commit()
     finally:
         conn.close()
-    return jsonify({'success': success, 'failed': failed})
+    return jsonify({'success': success, 'failed': failed, 'skipped_locked': skipped_locked})
 
 @app.route('/api/prompts/<int:pid>/fork', methods=['POST'])
 def fork_prompt(pid):
@@ -2708,6 +2715,45 @@ def export_bulk():
     buf.seek(0)
     return Response(buf.getvalue(), mimetype='application/zip',
                     headers={'Content-Disposition': 'attachment; filename=prompts-export.zip'})
+
+
+LOCKED_PROMPTS_KEY = 'locked_prompts'
+
+def _locked_prompt_ids():
+    raw = get_setting(LOCKED_PROMPTS_KEY)
+    try:
+        ids = json.loads(raw) if raw else []
+        return set(int(i) for i in ids) if isinstance(ids, list) else set()
+    except (ValueError, TypeError):
+        return set()
+
+def _save_locked_prompt_ids(ids):
+    set_setting(LOCKED_PROMPTS_KEY, json.dumps(sorted(ids)))
+
+@app.route('/api/locked-prompts', methods=['GET'])
+def get_locked_prompts():
+    return jsonify(sorted(_locked_prompt_ids()))
+
+@app.route('/api/locked-prompts/<int:pid>', methods=['POST'])
+def lock_prompt(pid):
+    conn = get_db()
+    try:
+        exists = conn.execute('SELECT id FROM prompts WHERE id=?', (pid,)).fetchone()
+    finally:
+        conn.close()
+    if not exists:
+        return jsonify({'error': 'Prompt not found'}), 404
+    ids = _locked_prompt_ids()
+    ids.add(pid)
+    _save_locked_prompt_ids(ids)
+    return jsonify({'ok': True, 'locked': sorted(ids)})
+
+@app.route('/api/locked-prompts/<int:pid>', methods=['DELETE'])
+def unlock_prompt(pid):
+    ids = _locked_prompt_ids()
+    ids.discard(pid)
+    _save_locked_prompt_ids(ids)
+    return jsonify({'ok': True, 'locked': sorted(ids)})
 
 
 def _backup_dir():
