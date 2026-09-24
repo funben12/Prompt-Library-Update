@@ -2688,6 +2688,86 @@ def export_bulk():
                     headers={'Content-Disposition': 'attachment; filename=prompts-export.zip'})
 
 
+def _backup_dir():
+    """Folder holding whole-DB snapshots, alongside PromptLibrary.db."""
+    path = os.path.join(get_data_dir(), 'backups')
+    os.makedirs(path, exist_ok=True)
+    return path
+
+def _backup_info(dir_path, filename):
+    st = os.stat(os.path.join(dir_path, filename))
+    return {
+        'filename':   filename,
+        'size':       st.st_size,
+        'created_at': datetime.fromtimestamp(st.st_mtime).isoformat(),
+    }
+
+@app.route('/api/backup', methods=['GET'])
+def list_backups():
+    """List whole-DB snapshots, newest first."""
+    d = _backup_dir()
+    rows = [_backup_info(d, f) for f in os.listdir(d) if f.endswith('.db')]
+    rows.sort(key=lambda r: r['created_at'], reverse=True)
+    return jsonify(rows)
+
+@app.route('/api/backup', methods=['POST'])
+def create_backup():
+    """Snapshot the live DB via sqlite3's backup API, safe under WAL and concurrent access."""
+    d = _backup_dir()
+    filename = f"PromptLibrary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+    dest_path = os.path.join(d, filename)
+    src = sqlite3.connect(DATABASE)
+    dest = sqlite3.connect(dest_path)
+    try:
+        with dest:
+            src.backup(dest)
+    finally:
+        src.close()
+        dest.close()
+    return jsonify(_backup_info(d, filename))
+
+@app.route('/api/backup/<path:filename>', methods=['DELETE'])
+def delete_backup(filename):
+    filename = os.path.basename(filename)
+    fp = os.path.join(_backup_dir(), filename)
+    if not filename.endswith('.db') or not os.path.isfile(fp):
+        return jsonify({'error': 'Backup not found'}), 404
+    os.remove(fp)
+    return jsonify({'ok': True})
+
+@app.route('/api/backup/<path:filename>/restore', methods=['POST'])
+def restore_backup(filename):
+    """Restore a snapshot over the live DB. Takes a pre-restore safety snapshot first,
+    then uses sqlite3's backup API both ways so WAL state is handled correctly."""
+    filename = os.path.basename(filename)
+    d = _backup_dir()
+    src_path = os.path.join(d, filename)
+    if not filename.endswith('.db') or not os.path.isfile(src_path):
+        return jsonify({'error': 'Backup not found'}), 404
+
+    safety_name = f"PromptLibrary_pre-restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+    live = sqlite3.connect(DATABASE)
+    safety = sqlite3.connect(os.path.join(d, safety_name))
+    try:
+        with safety:
+            live.backup(safety)
+        live.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+    finally:
+        live.close()
+        safety.close()
+
+    restore_src = sqlite3.connect(src_path)
+    live_dest = sqlite3.connect(DATABASE)
+    try:
+        with live_dest:
+            restore_src.backup(live_dest)
+    finally:
+        restore_src.close()
+        live_dest.close()
+
+    return jsonify({'ok': True, 'safety_backup': safety_name})
+
+
 @app.route('/api/import', methods=['POST'])
 def import_json():
     """Import a previously exported list of prompts. Body: {prompts: [...]}."""
