@@ -2405,6 +2405,58 @@ def remove_board_pin(bid, prompt_id):
     conn.close()
     return jsonify({'success': True})
 
+@app.route('/api/boards/<int:bid>/duplicate', methods=['POST'])
+def duplicate_board(bid):
+    """Copy a board and its pins (pointers to the same prompts, not prompt copies)."""
+    conn = get_db()
+    try:
+        row = conn.execute('SELECT * FROM boards WHERE id=?', (bid,)).fetchone()
+        if not row:
+            return jsonify({'error': 'Not found'}), 404
+        b = dict(row)
+        cur = conn.execute(
+            'INSERT INTO boards (name, description, colour_label) VALUES (?,?,?)',
+            (b['name'] + ' (Copy)', b.get('description', ''), b.get('colour_label'))
+        )
+        new_id = cur.lastrowid
+        pin_ids = [r['prompt_id'] for r in conn.execute(
+            'SELECT prompt_id FROM board_pins WHERE board_id=?', (bid,)
+        ).fetchall()]
+        conn.executemany(
+            'INSERT OR IGNORE INTO board_pins (board_id, prompt_id) VALUES (?,?)',
+            [(new_id, pid) for pid in pin_ids]
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'id': new_id})
+
+@app.route('/api/boards/<int:bid>/export', methods=['GET'])
+def export_board(bid):
+    """Bundle a single board's pinned prompts as a shareable JSON file, distinct from
+    the whole-library export — for handing one curated board to someone else."""
+    conn = get_db()
+    try:
+        board = conn.execute('SELECT * FROM boards WHERE id=?', (bid,)).fetchone()
+        if not board:
+            return jsonify({'error': 'Not found'}), 404
+        rows = conn.execute('''
+            SELECT p.* FROM prompts p
+              JOIN board_pins bp ON bp.prompt_id = p.id
+             WHERE bp.board_id = ?
+             ORDER BY bp.added_at DESC
+        ''', (bid,)).fetchall()
+    finally:
+        conn.close()
+    payload = {
+        'board': {'name': board['name'], 'description': board['description']},
+        'exported_at': datetime.now().isoformat(),
+        'prompts': [serialize_prompt(r) for r in rows],
+    }
+    safe_name = re.sub(r'[^A-Za-z0-9_-]+', '-', board['name']).strip('-') or 'board'
+    return Response(json.dumps(payload, indent=2), mimetype='application/json',
+                     headers={'Content-Disposition': f'attachment; filename={safe_name}-board.json'})
+
 
 # ============================================================
 # META BLUEPRINTS — prompts that generate prompts
