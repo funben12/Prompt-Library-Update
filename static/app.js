@@ -4593,6 +4593,7 @@ Here are my prompts:
             ['Prompt from Example', 'content_paste_search', 'openExampleWorkspace', 'reverse engineer output example input infer'],
             ['Prompt Optimizer', 'rocket_launch', 'openOptimizerWorkspace', 'optimize improve score quality'],
             ['Model Adapter', 'sync_alt', 'openAdapterWorkspace', 'adapt provider convert rewrite openai anthropic gemini openrouter mistral groq deepseek xai cohere perplexity azure'],
+            ['Prompt Simplifier', 'compress', 'openSimplifyWorkspace', 'simplify trim shorten compress debloat reduce cut'],
             ['Prompt Components', 'extension', 'openComponentsWorkspace', 'blocks drag drop builder frameworks'],
             ['Prompt Forge', 'construction', 'openForgeWorkspace', 'build structured framework rtf costar'],
             ['Prompt Lab', 'biotech', 'openLabWorkspace', 'ab test variants compare experiment'],
@@ -4897,7 +4898,7 @@ Here are my prompts:
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#safetyWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
-            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace',
+            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5074,6 +5075,10 @@ Here are my prompts:
                 }
                 if (v === 'credentials') {
                     window.openCredentialsWorkspace();
+                    return;
+                }
+                if (v === 'simplify') {
+                    window.openSimplifyWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -16088,6 +16093,182 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
+       WORKSPACE: Prompt Simplifier
+       data-view="simplify" | openSimplifyWorkspace() | initSimplifyWorkspace()
+       De-bloats an over-engineered or repetitive prompt: same behaviour, fewer
+       words. Opposite axis from the Optimizer (which adds rigor/structure) --
+       this only trims redundancy. Pure client-side (callAI + existing
+       POST /api/prompts), no schema changes.
+       ============================================================================ */
+
+    const _simpState = {
+        lastOutput: '',
+        lastChanges: '',
+        lastOriginal: ''
+    };
+
+    const SIMP_LEVEL_LABELS = {
+        light: 'Light',
+        balanced: 'Balanced',
+        aggressive: 'Aggressive'
+    };
+
+    const SIMP_LEVEL_GUIDANCE = {
+        light: 'Trim only obvious redundancy, filler words, and repeated instructions -- keep the structure and most of the detail intact. Aim for a modest reduction.',
+        balanced: 'Cut redundant phrasing, merge overlapping instructions, and tighten wording throughout while keeping every distinct instruction, constraint, and example. Aim for a noticeable reduction without losing any behaviour.',
+        aggressive: 'Cut as much as possible -- remove all redundancy, merge every overlapping instruction, drop unnecessary explanation, and use the fewest words that still fully preserve the exact behaviour, instructions, and constraints. Aim for a large reduction.'
+    };
+
+    function _simpWordCount(text) {
+        return (text.trim().match(/\S+/g) || []).length;
+    }
+
+    window.openSimplifyWorkspace = function() {
+        if (!state.isPremium) {
+            showPremiumModal();
+            return;
+        }
+        $('#simplifyWorkspace')?.classList.add('open');
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'simplify'));
+        setTimeout(() => $('#simpPromptInput')?.focus(), 80);
+    };
+
+    function closeSimplifyWorkspace() {
+        $('#simplifyWorkspace')?.classList.remove('open');
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    async function _simpRun() {
+        const prompt = $('#simpPromptInput')?.value?.trim();
+        if (!prompt) {
+            toast('Paste a prompt first', 'warning');
+            return;
+        }
+        const level = $('#simpLevelGroup .simp-level-btn.active')?.dataset.level || 'balanced';
+        const levelLabel = SIMP_LEVEL_LABELS[level] || level;
+        const guidance = SIMP_LEVEL_GUIDANCE[level] || '';
+        const sys = 'You are an expert prompt engineer who specialises in compressing prompts without changing their behaviour. Shorten the given prompt so it produces the exact same behaviour, instructions, and constraints, using fewer words. ' + guidance + ' Do not add new instructions, do not change the meaning, and do not remove any constraint or requirement -- only cut redundancy and tighten wording. Preserve all variables/placeholders exactly. Output ONLY the simplified prompt, then a new line starting with "CHANGES:" followed by a short (1-3 sentence) summary of what was cut and why. No markdown fencing, no extra preamble.';
+        const usr = 'Simplify this prompt (' + levelLabel + ' trim):\n\n"""\n' + prompt + '\n"""';
+        const out = $('#simpOutput');
+        if (out) out.innerHTML = '<span class="hint">\u23f3 Simplifying\u2026</span>';
+        const changesLabel = $('#simpChangesLabel');
+        const changesEl = $('#simpChanges');
+        if (changesLabel) changesLabel.hidden = true;
+        if (changesEl) {
+            changesEl.hidden = true;
+            changesEl.textContent = '';
+        }
+        const statsLabel = $('#simpStatsLabel');
+        const statsEl = $('#simpStats');
+        if (statsLabel) statsLabel.hidden = true;
+        if (statsEl) {
+            statsEl.hidden = true;
+            statsEl.textContent = '';
+        }
+        const actions = $('#simpOutputActions');
+        if (actions) actions.style.display = 'none';
+
+        const result = await callAI(sys, usr, 1600);
+        const changesMatch = result.match(/\bCHANGES:\s*([\s\S]*)$/i);
+        const changes = changesMatch ? changesMatch[1].trim() : '';
+        const simplified = changesMatch ? result.slice(0, result.lastIndexOf(changesMatch[0])).trim() : result.trim();
+
+        if (out) out.textContent = simplified;
+        _simpState.lastOutput = simplified;
+        _simpState.lastChanges = changes;
+        _simpState.lastOriginal = prompt;
+
+        const beforeWords = _simpWordCount(prompt);
+        const afterWords = _simpWordCount(simplified);
+        const pctSaved = beforeWords > 0 ? Math.round((1 - (afterWords / beforeWords)) * 100) : 0;
+        if (statsEl) {
+            statsEl.textContent = beforeWords + ' words (' + prompt.length + ' chars) \u2192 ' + afterWords + ' words (' + simplified.length + ' chars) \u2014 ' +
+                (pctSaved >= 0 ? pctSaved + '% shorter' : Math.abs(pctSaved) + '% longer');
+            statsEl.hidden = false;
+        }
+        if (statsLabel) statsLabel.hidden = false;
+
+        if (changes) {
+            if (changesEl) {
+                changesEl.textContent = changes;
+                changesEl.hidden = false;
+            }
+            if (changesLabel) changesLabel.hidden = false;
+        }
+        if (actions) actions.style.display = 'flex';
+        toast('Prompt simplified (' + levelLabel + ')', 'success');
+    }
+
+    function initSimplifyWorkspace() {
+        const ws = $('#simplifyWorkspace');
+        if (!ws) return;
+
+        $$('#simpLevelGroup .simp-level-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                $$('#simpLevelGroup .simp-level-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+
+        $('#simpRunBtn')?.addEventListener('click', async function() {
+            this.disabled = true;
+            this.innerHTML = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite">progress_activity</span> Simplifying\u2026';
+            try {
+                await _simpRun();
+            } catch (err) {
+                const out = $('#simpOutput');
+                if (out) out.innerHTML = '<span class="hint">Error: ' + escapeHtml(err.message) + '</span>';
+                toast('Simplify failed: ' + err.message, 'error');
+            } finally {
+                this.disabled = false;
+                this.innerHTML = '<span class="material-symbols-outlined">compress</span> Simplify';
+            }
+        });
+
+        $('#simpCopyBtn')?.addEventListener('click', async () => {
+            const text = _simpState.lastOutput || $('#simpOutput')?.textContent?.trim();
+            if (!text) return;
+            if (await copyToClipboard(text)) toast('Prompt copied', 'success');
+        });
+
+        $('#simpSaveBtn')?.addEventListener('click', async () => {
+            if (!_simpState.lastOutput) {
+                toast('Simplify a prompt first', 'warning');
+                return;
+            }
+            const level = $('#simpLevelGroup .simp-level-btn.active')?.dataset.level || 'balanced';
+            const title = (_simpState.lastOutput.split(' ').slice(0, 6).join(' ') || 'Simplified prompt') + ' (simplified)';
+            try {
+                const result = await api('/prompts', {
+                    method: 'POST',
+                    body: {
+                        title,
+                        content: _simpState.lastOutput,
+                        description: 'Simplified (' + (SIMP_LEVEL_LABELS[level] || level) + ' trim) via Prompt Simplifier workspace',
+                        categories: 'Prompt Engineering',
+                        tags: 'simplified,' + level,
+                        notes: _simpState.lastChanges || ''
+                    }
+                });
+                await loadPrompts();
+                await loadFilterOptions();
+                toast('Saved: ' + title, 'success');
+                closeSimplifyWorkspace();
+                if (result?.id) setTimeout(() => openDetail(result.id), 200);
+            } catch {
+                toast('Could not save', 'error');
+            }
+        });
+
+        $('#closeSimplifyBtn')?.addEventListener('click', closeSimplifyWorkspace);
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeSimplifyWorkspace();
+        });
+    }
+
+    /* ============================================================================
        WORKSPACE: Eval Runner
        data-view="eval" | openEvalWorkspace() | initEvalWorkspace()
        Regression suite for an existing library prompt: save test cases (input +
@@ -18442,6 +18623,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initGenWorkspace(); // prompt generator workspace
         initExampleWorkspace(); // prompt from example workspace
         initAdapterWorkspace(); // model adapter workspace
+        initSimplifyWorkspace(); // prompt simplifier workspace
         initEvalWorkspace(); // eval runner workspace
         initCompareWorkspace(); // model compare workspace
         initDashboardWorkspace(); // dashboard
@@ -26537,7 +26719,7 @@ Must avoid: [Anything sensitive or previously declined]`
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
         '#playgroundWorkspace', '#chainWorkspace',
         '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace',
-        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace'
+        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace'
     ];
 
     function _closeTourWorkspaces() {

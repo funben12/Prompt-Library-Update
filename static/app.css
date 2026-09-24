@@ -9966,3 +9966,40 @@
 }
 .mcw-panel-error { font-size: var(--fs-sm); color: var(--danger); }
 .mcw-panel-actions { display: flex; gap: var(--sp-2); margin-top: var(--sp-1); }
+
+/* =============================================================
+   WORKSPACE: Prompt Simplifier  [PRO]
+   De-bloats a prompt without changing its behaviour. Reuses
+   .pfe-body (layout) and .pfe-why (info box) from the Prompt
+   from Example workspace, and .opt-section-label / .opt-output /
+   .opt-actions / .forge-input from the Optimizer — only the
+   trim-level segmented control is new (simp- prefix, unclaimed).
+   ============================================================= */
+#simplifyWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+}
+#simplifyWorkspace.open { display: flex; }
+
+.simp-level-group { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.simp-level-btn {
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+.simp-level-btn:hover { background: var(--surface-2); }
+.simp-level-btn.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
