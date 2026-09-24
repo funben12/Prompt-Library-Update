@@ -5557,8 +5557,9 @@ Here are my prompts:
 
         list.innerHTML = roles.map(r => `
     <div class="role-list-item ${r.id === _rolesState.activeId ? 'active' : ''}"
+         style="--role-accent:${escapeHtml(r.colour || '#6366f1')}"
          onclick="openRoleInEditor(${r.id})">
-      <span class="role-item-icon">${escapeHtml(r.icon || '🤖')}</span>
+      <span class="role-item-icon-wrap"><span class="role-item-icon">${escapeHtml(r.icon || '🤖')}</span></span>
       <span class="role-item-name">${escapeHtml(r.name)}</span>
       ${(r._useCount > 0) ? `<span class="role-item-count" title="Used by ${r._useCount} prompt${r._useCount !== 1 ? 's' : ''}">${r._useCount}</span>` : ''}
       <button class="role-item-fav ${r.is_favorite ? 'active' : ''} material-symbols-outlined"
@@ -6137,6 +6138,58 @@ Here are my prompts:
             toast('Copy failed', 'error');
         }
     };
+
+    /* ── Test Agent — quick-run the built prompt against the live form state ─── */
+    async function runRoleTest() {
+        const role = getRoleFromForm();
+        const sys = buildRolePrompt(role, 'structured');
+        const input = $('#roleTestInput');
+        const msg = input?.value?.trim() || '';
+        const outEl = $('#roleTestOutput');
+        const btn = $('#roleTestRunBtn');
+
+        if (!sys) {
+            toast('Fill in agent fields first', 'warn');
+            return;
+        }
+        if (!msg) {
+            toast('Type a sample message to test with', 'warn');
+            input?.focus();
+            return;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite;font-size:15px;">progress_activity</span> Running…';
+        }
+        if (outEl) {
+            outEl.hidden = false;
+            outEl.classList.remove('is-error');
+            outEl.classList.add('is-loading');
+            outEl.textContent = 'Thinking…';
+        }
+
+        try {
+            const response = await callAI(sys, msg, 600);
+            if (outEl) {
+                outEl.classList.remove('is-loading', 'is-error');
+                outEl.textContent = response || '(empty response)';
+            }
+        } catch (err) {
+            console.error('Test Agent error:', err);
+            if (outEl) {
+                outEl.classList.remove('is-loading');
+                outEl.classList.add('is-error');
+                outEl.textContent = 'Error: ' + err.message;
+            }
+            toast('Test failed: ' + err.message, 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span> Run';
+            }
+        }
+    }
 
     /* ── Save ─────────────────────────────────────────────────────────────────── */
     window.PL_saveRole = async function() {
@@ -6947,6 +7000,9 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
 
         const delBtn = $('#rolesDeleteBtn');
         if (delBtn) delBtn.addEventListener('click', window.PL_deleteRole);
+
+        const testBtn = $('#roleTestRunBtn');
+        if (testBtn) testBtn.addEventListener('click', runRoleTest);
 
         // ── Search ──────────────────────────────────────────────────────────────
         const search = $('#rolesSearch');

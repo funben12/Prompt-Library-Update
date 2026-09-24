@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" media="print" onload="this.media='all'">
 
-<link rel="stylesheet" href="/static/app.css?v=f7f260e7">
+<link rel="stylesheet" href="/static/app.css?v=32265eda">
 </head>
 <body>
 
@@ -453,7 +453,10 @@
     <!-- Header -->
     <div class="roles-header">
       <span class="material-symbols-outlined" style="font-size:24px;color:var(--accent)">smart_toy</span>
-      <h2>Agents</h2>
+      <div class="roles-header-titles">
+        <h2>Agents</h2>
+        <span class="roles-header-sub">Personas your prompts run as</span>
+      </div>
       <button class="btn btn-ghost" id="rolesNewBtn"><span class="material-symbols-outlined">add</span> New agent</button>
       <button class="icon-btn" id="rolesCloseBtn" title="Close" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
     </div>
@@ -474,25 +477,27 @@
         </div>
         <!-- Stats -->
         <div class="roles-sidebar-stats" id="rolesStats">
-          <div class="roles-stat-row">
-            <span class="material-symbols-outlined">smart_toy</span>
-            <span>Agents</span>
-            <span class="roles-stat-value" id="rolesStatAgents">0</span>
-          </div>
-          <div class="roles-stat-row">
-            <span class="material-symbols-outlined">star</span>
-            <span>Favourites</span>
-            <span class="roles-stat-value" id="rolesStatFavs">0</span>
-          </div>
-          <div class="roles-stat-row">
-            <span class="material-symbols-outlined">library_books</span>
-            <span>KB entries</span>
-            <span class="roles-stat-value" id="rolesStatKb">0</span>
-          </div>
-          <div class="roles-stat-row">
-            <span class="material-symbols-outlined">psychology</span>
-            <span>Skills</span>
-            <span class="roles-stat-value" id="rolesStatSkills">0</span>
+          <div class="roles-stats-grid">
+            <div class="roles-stat-tile">
+              <span class="material-symbols-outlined">smart_toy</span>
+              <span class="roles-stat-value" id="rolesStatAgents">0</span>
+              <span class="roles-stat-tile-label">Agents</span>
+            </div>
+            <div class="roles-stat-tile">
+              <span class="material-symbols-outlined">star</span>
+              <span class="roles-stat-value" id="rolesStatFavs">0</span>
+              <span class="roles-stat-tile-label">Favourites</span>
+            </div>
+            <div class="roles-stat-tile">
+              <span class="material-symbols-outlined">library_books</span>
+              <span class="roles-stat-value" id="rolesStatKb">0</span>
+              <span class="roles-stat-tile-label">KB entries</span>
+            </div>
+            <div class="roles-stat-tile">
+              <span class="material-symbols-outlined">psychology</span>
+              <span class="roles-stat-value" id="rolesStatSkills">0</span>
+              <span class="roles-stat-tile-label">Skills</span>
+            </div>
           </div>
         </div>
       </div>
@@ -502,8 +507,9 @@
 
         <!-- Empty state -->
         <div class="roles-editor-empty" id="rolesEditorEmpty">
-          <span class="material-symbols-outlined">smart_toy</span>
-          <p style="font-size:var(--fs-sm);margin:0;">Select an agent, create your own, or start from a preset:</p>
+          <span class="material-symbols-outlined roles-editor-empty-icon">smart_toy</span>
+          <h3 class="roles-editor-empty-title">Design an agent</h3>
+          <p class="roles-editor-empty-sub">Select an existing agent on the left, build one from scratch, or start from a preset below.</p>
           <div class="role-preset-grid">
             <button type="button" class="role-preset-card" onclick="window.PL_newRoleFromPreset(0)"><span class="role-preset-icon">✍️</span><span class="role-preset-name">Senior Copywriter</span><span class="role-preset-desc">Conversion copy with zero fluff</span></button>
             <button type="button" class="role-preset-card" onclick="window.PL_newRoleFromPreset(1)"><span class="role-preset-icon">🔍</span><span class="role-preset-name">Code Reviewer</span><span class="role-preset-desc">Severity-tagged findings, no padding</span></button>
@@ -989,6 +995,21 @@
                 <button class="btn" onclick="window.PL_copyBuiltPrompt('structured')"><span class="material-symbols-outlined">segment</span> Copy Structured</button>
                 <button class="btn" onclick="window.PL_copyBuiltPrompt('xml')"><span class="material-symbols-outlined">code</span> Copy XML</button>
                 <button class="btn" onclick="window.PL_copyBuiltPrompt('prose')"><span class="material-symbols-outlined">article</span> Copy Prose</button>
+              </div>
+            </div>
+
+            <!-- ── TEST AGENT — quick-run the built prompt without leaving the editor ── -->
+            <div class="role-test-panel" id="roleTestPanel">
+              <div class="role-test-header">
+                <span class="material-symbols-outlined" style="font-size:18px;color:var(--accent)">bolt</span>
+                <span>Test Agent</span>
+              </div>
+              <div class="role-test-body">
+                <textarea id="roleTestInput" class="form-input role-test-input" rows="2" placeholder="Type a sample message to try this agent&#8230;"></textarea>
+                <button type="button" class="btn btn-accent role-test-run-btn" id="roleTestRunBtn">
+                  <span class="material-symbols-outlined">play_arrow</span> Run
+                </button>
+                <div class="role-test-output" id="roleTestOutput" hidden></div>
               </div>
             </div>
           </div><!-- /roles-preview-rail -->
@@ -4435,7 +4456,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=dc49b38f"></script>
+<script defer src="/static/app.js?v=081ef43d"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>
