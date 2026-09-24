@@ -4888,7 +4888,7 @@ Here are my prompts:
             '#chainWorkspace', '#metaWorkspace', '#metaPromptingWorkspace', '#contextBankWorkspace', '#componentsWorkspace',
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
-            '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace',
+            '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5029,6 +5029,10 @@ Here are my prompts:
                 }
                 if (v === 'board') {
                     window.openBoardWorkspace();
+                    return;
+                }
+                if (v === 'backup') {
+                    window.openBackupWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -15631,6 +15635,129 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
+       WORKSPACE: Backup
+       data-view="backup" | openBackupWorkspace() | initBackupWorkspace()
+       One-click snapshot + restore of the whole local SQLite library (PromptLibrary.db).
+       ============================================================================ */
+
+    function _backupFormatSize(bytes) {
+        if (!Number.isFinite(bytes)) return '';
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+    }
+
+    function _backupFormatDate(iso) {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return iso || '';
+        return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    }
+
+    async function _backupLoadList() {
+        const listEl = $('#backupList');
+        if (!listEl) return;
+        listEl.innerHTML = '<div class="backup-loading">Loading snapshots\u2026</div>';
+        try {
+            const rows = await api('/backup');
+            if (!Array.isArray(rows) || !rows.length) {
+                listEl.innerHTML = `
+          <div class="backup-empty">
+            <span class="material-symbols-outlined">save</span>
+            <p>No snapshots yet. Back up your library to protect it.</p>
+            <button class="btn btn-accent" id="backupEmptyBtn"><span class="material-symbols-outlined">save</span> Back up now</button>
+          </div>`;
+                $('#backupEmptyBtn')?.addEventListener('click', _backupCreate);
+                return;
+            }
+            listEl.innerHTML = rows.map(r => `
+        <div class="backup-row" data-filename="${escapeAttr(r.filename)}">
+          <div class="backup-row-main">
+            <span class="material-symbols-outlined backup-row-icon">description</span>
+            <div>
+              <div class="backup-row-date">${escapeHtml(_backupFormatDate(r.created_at))}</div>
+              <div class="backup-row-meta">${escapeHtml(r.filename)} &middot; ${escapeHtml(_backupFormatSize(r.size))}</div>
+            </div>
+          </div>
+          <div class="backup-row-actions">
+            <button class="btn btn-ghost btn-xs" data-backup-restore="${escapeAttr(r.filename)}">Restore</button>
+            <button class="btn btn-danger btn-xs" data-backup-delete="${escapeAttr(r.filename)}">Delete</button>
+          </div>
+        </div>`).join('');
+
+            listEl.querySelectorAll('[data-backup-restore]').forEach(btn => {
+                btn.addEventListener('click', () => _backupRestore(btn.dataset.backupRestore));
+            });
+            listEl.querySelectorAll('[data-backup-delete]').forEach(btn => {
+                btn.addEventListener('click', () => _backupDelete(btn.dataset.backupDelete));
+            });
+        } catch (e) {
+            listEl.innerHTML = `<div class="backup-empty"><p>Couldn\u2019t load snapshots: ${escapeHtml(e.message)}</p></div>`;
+        }
+    }
+
+    async function _backupCreate() {
+        const btn = $('#backupNowBtn');
+        if (btn) btn.disabled = true;
+        try {
+            await api('/backup', { method: 'POST' });
+            toast('Snapshot created', 'success');
+            await _backupLoadList();
+        } catch (e) {
+            toast('Backup failed: ' + e.message, 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async function _backupRestore(filename) {
+        if (!filename) return;
+        if (!confirm(`Restore "${filename}"? This overwrites your current library. A safety snapshot of the current state is taken automatically first.`)) return;
+        try {
+            const res = await api(`/backup/${encodeURIComponent(filename)}/restore`, { method: 'POST' });
+            toast('Library restored (safety snapshot: ' + (res?.safety_backup || 'saved') + '). Reload the app to see the restored data.', 'success');
+            await _backupLoadList();
+        } catch (e) {
+            toast('Restore failed: ' + e.message, 'error');
+        }
+    }
+
+    async function _backupDelete(filename) {
+        if (!filename) return;
+        if (!confirm(`Delete snapshot "${filename}"? This can't be undone.`)) return;
+        try {
+            await api(`/backup/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+            toast('Snapshot deleted', 'success');
+            await _backupLoadList();
+        } catch (e) {
+            toast('Delete failed: ' + e.message, 'error');
+        }
+    }
+
+    window.openBackupWorkspace = function() {
+        $('#backupWorkspace')?.classList.add('open');
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'backup'));
+        _backupLoadList();
+    };
+
+    function closeBackupWorkspace() {
+        $('#backupWorkspace')?.classList.remove('open');
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    function initBackupWorkspace() {
+        const ws = $('#backupWorkspace');
+        if (!ws) return;
+        $('#closeBackupBtn')?.addEventListener('click', closeBackupWorkspace);
+        $('#backupNowBtn')?.addEventListener('click', _backupCreate);
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeBackupWorkspace();
+        });
+    }
+
+    /* ============================================================================
        WORKSPACE: Batch Runner
        data-view="batch" | openBatchWorkspace() | initBatchWorkspace()
        Runs one prompt across many input rows via callAI, one row at a time.
@@ -16609,6 +16736,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initOptimizerWorkspace(); // prompt optimizer workspace
         initGenWorkspace(); // prompt generator workspace
         initDashboardWorkspace(); // dashboard
+        initBackupWorkspace(); // backup & restore workspace
         initWorkspacesLauncher(); // workspaces launcher grid
         initFillWorkspace(); // quick fill workspace
         initAuditWorkspace(); // prompt auditor workspace

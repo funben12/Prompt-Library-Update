@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" media="print" onload="this.media='all'">
 
-<link rel="stylesheet" href="/static/app.css?v=a9353ae1">
+<link rel="stylesheet" href="/static/app.css?v=aea8e948">
 </head>
 <body>
 
@@ -3544,6 +3544,33 @@
 </div>
 
 <!-- ============================================================
+     WORKSPACE: Backup
+     One-click snapshot + restore of the whole local library.
+     data-view="backup"
+     ============================================================ -->
+<div id="backupWorkspace" role="dialog" aria-modal="true" aria-label="Backup &amp; Restore">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">restore</span>
+      <div>
+        <h2 class="ws-title">Backup &amp; Restore</h2>
+        <p class="ws-subtitle">Snapshot your whole library. Restore any snapshot in one click.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="btn btn-accent" id="backupNowBtn"><span class="material-symbols-outlined">save</span> Back up now</button>
+      <button class="icon-btn" id="closeBackupBtn" aria-label="Close Backup &amp; Restore"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body backup-body">
+    <div class="backup-section-label">Snapshots</div>
+    <div class="backup-list" id="backupList">
+      <div class="backup-loading">Loading snapshots&hellip;</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
      WORKSPACE: Batch Runner
      Runs one prompt across many input rows via callAI, one at a time.
      data-view="batch"
@@ -3863,6 +3890,22 @@
       </button>
         </div>
       </div>
+      <div class="launcher-group" data-group="protect">
+        <div class="launcher-group-label">
+          <span class="material-symbols-outlined">shield</span>
+          <span>Protect</span>
+          <span class="launcher-group-hint">Safeguard your whole library</span>
+        </div>
+        <div class="launcher-grid">
+      <button class="launcher-card" data-open="openBackupWorkspace">
+        <span class="material-symbols-outlined launcher-card-icon">restore</span>
+        <span class="launcher-card-text">
+        <span class="launcher-card-title">Backup &amp; Restore</span>
+        <span class="launcher-card-desc">Snapshot your library and restore any snapshot in one click</span>
+      </span>
+      </button>
+        </div>
+      </div>
       <p class="launcher-empty" id="launcherEmpty" hidden>No tools match your search</p>
     </div>
   </div>
@@ -4001,7 +4044,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=5917dc72"></script>
+<script defer src="/static/app.js?v=3951639c"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

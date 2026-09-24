@@ -8377,6 +8377,86 @@
   .dash-stats { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* =============================================================
+   BACKUP & RESTORE
+   ============================================================= */
+.backup-body {
+  overflow-y: auto;
+  padding: var(--sp-5);
+  gap: var(--sp-2);
+}
+.backup-section-label {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-4);
+  margin: 0 0 var(--sp-2);
+}
+.backup-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.backup-loading {
+  font-size: var(--fs-sm);
+  color: var(--ink-3);
+  padding: var(--sp-3) 0;
+}
+.backup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.backup-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.backup-row-icon {
+  font-size: 22px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.backup-row-date {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+.backup-row-meta {
+  font-size: var(--fs-xs);
+  color: var(--ink-4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.backup-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+.backup-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  text-align: center;
+  padding: var(--sp-6);
+  color: var(--ink-3);
+}
+.backup-empty .material-symbols-outlined {
+  font-size: 32px;
+  color: var(--ink-4);
+}
+
 #genOutputActions {
   display: flex;
   gap: var(--sp-2);
@@ -8419,7 +8499,7 @@
    ============================================================= */
 #fillWorkspace, #auditWorkspace, #diffWorkspace, #costWorkspace,
 #pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace,
-#taxonomyWorkspace, #versionWorkspace {
+#taxonomyWorkspace, #versionWorkspace, #backupWorkspace {
   display: none;
   position: fixed;
   inset: 0;
@@ -8430,7 +8510,7 @@
 #fillWorkspace.open, #auditWorkspace.open, #diffWorkspace.open, #costWorkspace.open,
 #pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open,
 #batchWorkspace.open, #boardWorkspace.open, #taxonomyWorkspace.open,
-#versionWorkspace.open { display: flex; }
+#versionWorkspace.open, #backupWorkspace.open { display: flex; }
 
 /* -- Batch Runner -- */
 .br-body { display: grid; grid-template-columns: minmax(340px, 40%) 1fr; flex: 1; overflow: hidden; }
