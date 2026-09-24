@@ -4592,6 +4592,7 @@ Here are my prompts:
             ['Prompt Generator', 'bolt', 'openGenWorkspace', 'generate create task describe ai'],
             ['Prompt from Example', 'content_paste_search', 'openExampleWorkspace', 'reverse engineer output example input infer'],
             ['Prompt Optimizer', 'rocket_launch', 'openOptimizerWorkspace', 'optimize improve score quality'],
+            ['Model Adapter', 'sync_alt', 'openAdapterWorkspace', 'adapt provider convert rewrite openai anthropic gemini openrouter mistral groq deepseek xai cohere perplexity azure'],
             ['Prompt Components', 'extension', 'openComponentsWorkspace', 'blocks drag drop builder frameworks'],
             ['Prompt Forge', 'construction', 'openForgeWorkspace', 'build structured framework rtf costar'],
             ['Prompt Lab', 'biotech', 'openLabWorkspace', 'ab test variants compare experiment'],
@@ -4889,7 +4890,7 @@ Here are my prompts:
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
-            '#exampleWorkspace',
+            '#exampleWorkspace', '#adapterWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5034,6 +5035,10 @@ Here are my prompts:
                 }
                 if (v === 'example') {
                     window.openExampleWorkspace();
+                    return;
+                }
+                if (v === 'adapter') {
+                    window.openAdapterWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -15567,6 +15572,167 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
+       WORKSPACE: Model Adapter
+       data-view="adapter" | openAdapterWorkspace() | initAdapterWorkspace()
+       Rewrites a prompt to suit a different AI provider's conventions, using
+       the same fixed provider list as Settings' config-provider-tabs. Pure
+       client-side (callAI + existing POST /api/prompts), no schema changes.
+       ============================================================================ */
+
+    const _maState = {
+        lastOutput: '',
+        lastChanges: ''
+    };
+
+    const MA_PROVIDER_LABELS = {
+        openai: 'OpenAI',
+        anthropic: 'Anthropic',
+        gemini: 'Gemini',
+        openrouter: 'Open Router',
+        mistral: 'Mistral',
+        groq: 'Groq',
+        deepseek: 'DeepSeek',
+        xai: 'xAI (Grok)',
+        cohere: 'Cohere',
+        perplexity: 'Perplexity',
+        azure_openai: 'Azure OpenAI'
+    };
+
+    const MA_PROVIDER_GUIDANCE = {
+        openai: 'OpenAI models respond best to clear system/user role separation, explicit step-by-step instructions, and delimiter-fenced sections (e.g. triple quotes or markdown headers) separating context from task.',
+        anthropic: 'Anthropic (Claude) models respond well to XML-tag structuring (e.g. <context>, <task>, <format>) and benefit from explicit reasoning space (e.g. a <thinking> section) before the final answer.',
+        gemini: 'Gemini models respond well to very explicit, numbered step lists and unambiguous formatting instructions rather than implied structure.',
+        openrouter: 'Open Router routes to many different underlying models, so behaviour varies by model — favour explicit output-format constraints and self-contained instructions rather than relying on any one model\'s quirks.',
+        mistral: 'Mistral models respond well to concise, direct instructions with explicit formatting constraints and minimal ambiguity.',
+        groq: 'Groq-hosted open models benefit from explicit output-format constraints and simple, unambiguous phrasing since behaviour varies by underlying model.',
+        deepseek: 'DeepSeek models respond well to explicit step-by-step reasoning instructions and a clear separation between context and task.',
+        xai: 'xAI (Grok) models respond well to direct, conversational instructions with explicit constraints on tone and format.',
+        cohere: 'Cohere models respond well to clearly labelled sections (preamble, task, format) and explicit output constraints.',
+        perplexity: 'Perplexity models are tuned for research/search-grounded answers — favour explicit instructions to cite sources and keep the query separate from formatting requirements.',
+        azure_openai: 'Azure OpenAI runs OpenAI models, so favour the same conventions: clear system/user role separation, explicit step-by-step instructions, and delimiter-fenced sections.'
+    };
+
+    window.openAdapterWorkspace = function() {
+        if (!state.isPremium) {
+            showPremiumModal();
+            return;
+        }
+        $('#adapterWorkspace')?.classList.add('open');
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'adapter'));
+        setTimeout(() => $('#maPromptInput')?.focus(), 80);
+    };
+
+    function closeAdapterWorkspace() {
+        $('#adapterWorkspace')?.classList.remove('open');
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    async function _maRun() {
+        const prompt = $('#maPromptInput')?.value?.trim();
+        if (!prompt) {
+            toast('Paste a prompt first', 'warning');
+            return;
+        }
+        const provider = $('#maProviderSelect')?.value || 'openai';
+        const providerLabel = MA_PROVIDER_LABELS[provider] || provider;
+        const guidance = MA_PROVIDER_GUIDANCE[provider] || '';
+        const sys = 'You are an expert prompt engineer specialising in adapting prompts between AI providers. Rewrite the given prompt to suit ' + providerLabel + '\'s known conventions and strengths. ' + guidance + ' Preserve the original intent, task, and any variables/placeholders exactly. Output ONLY the rewritten prompt, then a new line starting with "CHANGES:" followed by a short (2-4 sentence) explanation of what changed and why. No markdown fencing, no extra preamble.';
+        const usr = 'Adapt this prompt for ' + providerLabel + ':\n\n"""\n' + prompt + '\n"""';
+        const out = $('#maOutput');
+        if (out) out.innerHTML = '<span class="hint">⏳ Adapting…</span>';
+        const changesLabel = $('#maChangesLabel');
+        const changesEl = $('#maChanges');
+        if (changesLabel) changesLabel.hidden = true;
+        if (changesEl) {
+            changesEl.hidden = true;
+            changesEl.textContent = '';
+        }
+        const actions = $('#maOutputActions');
+        if (actions) actions.style.display = 'none';
+
+        const result = await callAI(sys, usr, 1600);
+        const changesMatch = result.match(/\bCHANGES:\s*([\s\S]*)$/i);
+        const changes = changesMatch ? changesMatch[1].trim() : '';
+        const adapted = changesMatch ? result.slice(0, result.lastIndexOf(changesMatch[0])).trim() : result.trim();
+
+        if (out) out.textContent = adapted;
+        _maState.lastOutput = adapted;
+        _maState.lastChanges = changes;
+
+        if (changes) {
+            if (changesEl) {
+                changesEl.textContent = changes;
+                changesEl.hidden = false;
+            }
+            if (changesLabel) changesLabel.hidden = false;
+        }
+        if (actions) actions.style.display = 'flex';
+        toast('Prompt adapted for ' + providerLabel, 'success');
+    }
+
+    function initAdapterWorkspace() {
+        const ws = $('#adapterWorkspace');
+        if (!ws) return;
+
+        $('#maRunBtn')?.addEventListener('click', async function() {
+            this.disabled = true;
+            this.innerHTML = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite">progress_activity</span> Adapting…';
+            try {
+                await _maRun();
+            } catch (err) {
+                const out = $('#maOutput');
+                if (out) out.innerHTML = '<span class="hint">Error: ' + escapeHtml(err.message) + '</span>';
+                toast('Adaptation failed: ' + err.message, 'error');
+            } finally {
+                this.disabled = false;
+                this.innerHTML = '<span class="material-symbols-outlined">sync_alt</span> Adapt Prompt';
+            }
+        });
+
+        $('#maCopyBtn')?.addEventListener('click', async () => {
+            const text = _maState.lastOutput || $('#maOutput')?.textContent?.trim();
+            if (!text) return;
+            if (await copyToClipboard(text)) toast('Prompt copied', 'success');
+        });
+
+        $('#maSaveBtn')?.addEventListener('click', async () => {
+            if (!_maState.lastOutput) {
+                toast('Adapt a prompt first', 'warning');
+                return;
+            }
+            const providerLabel = MA_PROVIDER_LABELS[$('#maProviderSelect')?.value] || 'target provider';
+            const title = (_maState.lastOutput.split(' ').slice(0, 6).join(' ') || 'Adapted prompt') + ' (' + providerLabel + ')';
+            try {
+                const result = await api('/prompts', {
+                    method: 'POST',
+                    body: {
+                        title,
+                        content: _maState.lastOutput,
+                        description: 'Adapted for ' + providerLabel + ' via Model Adapter workspace',
+                        categories: 'Prompt Engineering',
+                        tags: 'adapted,' + ($('#maProviderSelect')?.value || ''),
+                        notes: _maState.lastChanges || ''
+                    }
+                });
+                await loadPrompts();
+                await loadFilterOptions();
+                toast('Saved: ' + title, 'success');
+                closeAdapterWorkspace();
+                if (result?.id) setTimeout(() => openDetail(result.id), 200);
+            } catch {
+                toast('Could not save', 'error');
+            }
+        });
+
+        $('#closeAdapterBtn')?.addEventListener('click', closeAdapterWorkspace);
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeAdapterWorkspace();
+        });
+    }
+
+    /* ============================================================================
        WORKSPACES LAUNCHER
        ============================================================================ */
 
@@ -16875,6 +17041,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initOptimizerWorkspace(); // prompt optimizer workspace
         initGenWorkspace(); // prompt generator workspace
         initExampleWorkspace(); // prompt from example workspace
+        initAdapterWorkspace(); // model adapter workspace
         initDashboardWorkspace(); // dashboard
         initBackupWorkspace(); // backup & restore workspace
         initWorkspacesLauncher(); // workspaces launcher grid
@@ -24963,7 +25130,7 @@ Must avoid: [Anything sensitive or previously declined]`
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
         '#playgroundWorkspace', '#chainWorkspace',
         '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace',
-        '#exampleWorkspace'
+        '#exampleWorkspace', '#adapterWorkspace'
     ];
 
     function _closeTourWorkspaces() {

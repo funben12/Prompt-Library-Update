@@ -9342,3 +9342,22 @@
   line-height: 1.6;
   color: var(--ink-3);
 }
+
+/* =============================================================
+   WORKSPACE: Model Adapter  [PRO]
+   Rewrites a prompt for a different AI provider's conventions.
+   Reuses .pfe-body (layout) and .pfe-why (info box) from the
+   Prompt from Example workspace — same generic bordered-box /
+   scroll-column shape, no need for a duplicate .ma-* pair.
+   Reuses .opt-section-label / .opt-output / .opt-actions / .forge-input.
+   ============================================================= */
+#adapterWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+}
+#adapterWorkspace.open { display: flex; }
+
