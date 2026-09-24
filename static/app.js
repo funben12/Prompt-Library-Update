@@ -4612,6 +4612,7 @@ Here are my prompts:
             ['Playground', 'science', 'openPlaygroundWorkspace', 'playground sessions test freeform'],
             ['Taxonomy Studio', 'sell', 'openTaxonomyWorkspace', 'taxonomy domain use case organise tag'],
             ['Version Timeline', 'history', 'openVersionWorkspace', 'version history restore baseline diff'],
+            ['Run History', 'manage_history', 'openHistoryWorkspace', 'run history log usage every time used runs list'],
         ];
         return table.map(([label, icon, fn, keywords]) => ({
             kind: 'workspace',
@@ -4893,7 +4894,7 @@ Here are my prompts:
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#safetyWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
-            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace',
+            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5054,6 +5055,10 @@ Here are my prompts:
                 }
                 if (v === 'compare') {
                     window.openCompareWorkspace();
+                    return;
+                }
+                if (v === 'history') {
+                    window.openHistoryWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -16964,6 +16969,99 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
+       WORKSPACE: Run History
+       data-view="history" | openHistoryWorkspace() | initHistoryWorkspace()
+       Full chronological log of every prompt run (usage_log), read-only,
+       searchable, click a row to jump back into that prompt. No AI calls.
+       ============================================================================ */
+
+    let _rhSearchTimer = null;
+
+    function _rhTruncate(text, max) {
+        if (!text) return '';
+        const t = String(text).trim().replace(/\s+/g, ' ');
+        return t.length > max ? t.slice(0, max) + '\u2026' : t;
+    }
+
+    async function _rhLoadList(search) {
+        const listEl = $('#historyList');
+        if (!listEl) return;
+        listEl.innerHTML = '<div class="rh-loading">Loading run history\u2026</div>';
+        try {
+            const q = search ? ('?search=' + encodeURIComponent(search)) : '';
+            const rows = await api('/usage-log' + q);
+            if (!Array.isArray(rows) || !rows.length) {
+                listEl.innerHTML = `
+          <div class="rh-empty">
+            <span class="material-symbols-outlined">manage_history</span>
+            <p>${search ? 'No runs match your search.' : 'No runs yet. Use a prompt and it\u2019ll show up here.'}</p>
+          </div>`;
+                return;
+            }
+            listEl.innerHTML = rows.map(r => `
+        <div class="rh-row" data-prompt-id="${r.prompt_id}" tabindex="0" role="button">
+          <div class="rh-row-main">
+            <span class="material-symbols-outlined rh-row-icon">play_circle</span>
+            <div class="rh-row-text">
+              <div class="rh-row-title">${escapeHtml(r.prompt_title || 'Untitled prompt')}</div>
+              <div class="rh-row-preview">${escapeHtml(_rhTruncate(r.prompt_content, 140))}</div>
+            </div>
+          </div>
+          <div class="rh-row-time">${escapeHtml(_backupFormatDate(r.used_at))}</div>
+        </div>`).join('');
+
+            listEl.querySelectorAll('.rh-row').forEach(row => {
+                const openRow = () => {
+                    const id = Number(row.dataset.promptId);
+                    if (!id) return;
+                    closeHistoryWorkspace();
+                    openDetail(id);
+                };
+                row.addEventListener('click', openRow);
+                row.addEventListener('keydown', e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        openRow();
+                    }
+                });
+            });
+        } catch (e) {
+            listEl.innerHTML = `<div class="rh-empty rh-error"><p>Couldn\u2019t load run history: ${escapeHtml(e.message)}</p></div>`;
+        }
+    }
+
+    window.openHistoryWorkspace = function() {
+        $('#historyWorkspace')?.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'history'));
+        const input = $('#historySearchInput');
+        if (input) input.value = '';
+        _rhLoadList('');
+    };
+
+    function closeHistoryWorkspace() {
+        $('#historyWorkspace')?.classList.remove('open');
+        document.body.style.overflow = '';
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    function initHistoryWorkspace() {
+        const ws = $('#historyWorkspace');
+        if (!ws) return;
+        $('#closeHistoryBtn')?.addEventListener('click', closeHistoryWorkspace);
+        $('#historySearchInput')?.addEventListener('input', e => {
+            clearTimeout(_rhSearchTimer);
+            const val = e.target.value;
+            _rhSearchTimer = setTimeout(() => _rhLoadList(val), 120);
+        });
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeHistoryWorkspace();
+        });
+    }
+
+    /* ============================================================================
        WORKSPACE: Batch Runner
        data-view="batch" | openBatchWorkspace() | initBatchWorkspace()
        Runs one prompt across many input rows via callAI, one row at a time.
@@ -17946,6 +18044,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initCompareWorkspace(); // model compare workspace
         initDashboardWorkspace(); // dashboard
         initBackupWorkspace(); // backup & restore workspace
+        initHistoryWorkspace(); // run history workspace
         initWorkspacesLauncher(); // workspaces launcher grid
         initFillWorkspace(); // quick fill workspace
         initAuditWorkspace(); // prompt auditor workspace
@@ -26033,7 +26132,7 @@ Must avoid: [Anything sensitive or previously declined]`
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
         '#playgroundWorkspace', '#chainWorkspace',
         '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace',
-        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace'
+        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace', '#historyWorkspace'
     ];
 
     function _closeTourWorkspaces() {

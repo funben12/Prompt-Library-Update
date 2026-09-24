@@ -8457,6 +8457,109 @@
   color: var(--ink-4);
 }
 
+/* =============================================================
+   RUN HISTORY
+   Single-column, read-mostly list -- structurally follows
+   Backup & Restore's .backup-row pattern, own rh- prefix.
+   ============================================================= */
+.rh-body {
+  overflow-y: auto;
+  padding: var(--sp-5);
+  gap: var(--sp-3);
+}
+.rh-search-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.rh-search-input {
+  padding-left: 38px;
+}
+.rh-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  color: var(--ink-4);
+  pointer-events: none;
+}
+.rh-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.rh-loading {
+  font-size: var(--fs-sm);
+  color: var(--ink-3);
+  padding: var(--sp-3) 0;
+}
+.rh-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.rh-row:hover, .rh-row:focus-visible {
+  border-color: var(--accent);
+  background: var(--surface-2);
+  outline: none;
+}
+.rh-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.rh-row-icon {
+  font-size: 22px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.rh-row-text {
+  min-width: 0;
+}
+.rh-row-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+.rh-row-preview {
+  font-size: var(--fs-xs);
+  color: var(--ink-4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rh-row-time {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.rh-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  text-align: center;
+  padding: var(--sp-6);
+  color: var(--ink-3);
+}
+.rh-empty .material-symbols-outlined {
+  font-size: 32px;
+  color: var(--ink-4);
+}
+.rh-empty.rh-error {
+  color: var(--danger, #d33);
+}
+
 #genOutputActions {
   display: flex;
   gap: var(--sp-2);
@@ -8499,7 +8602,7 @@
    ============================================================= */
 #fillWorkspace, #auditWorkspace, #diffWorkspace, #costWorkspace,
 #pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace,
-#taxonomyWorkspace, #versionWorkspace, #backupWorkspace {
+#taxonomyWorkspace, #versionWorkspace, #backupWorkspace, #historyWorkspace {
   display: none;
   position: fixed;
   inset: 0;
@@ -8510,7 +8613,7 @@
 #fillWorkspace.open, #auditWorkspace.open, #diffWorkspace.open, #costWorkspace.open,
 #pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open,
 #batchWorkspace.open, #boardWorkspace.open, #taxonomyWorkspace.open,
-#versionWorkspace.open, #backupWorkspace.open { display: flex; }
+#versionWorkspace.open, #backupWorkspace.open, #historyWorkspace.open { display: flex; }
 
 /* -- Batch Runner -- */
 .br-body { display: grid; grid-template-columns: minmax(340px, 40%) 1fr; flex: 1; overflow: hidden; }
