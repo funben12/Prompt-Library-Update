@@ -4595,7 +4595,6 @@ Here are my prompts:
             ['Prompt Forge', 'construction', 'openForgeWorkspace', 'build structured framework rtf costar'],
             ['Prompt Lab', 'biotech', 'openLabWorkspace', 'ab test variants compare experiment'],
             ['Prompt Chain', 'account_tree', 'openChainWorkspace', 'pipeline multi step sequence'],
-            ['Metaprompting', 'auto_fix_high', 'openMetaWorkspace', 'rewrite improve rough polish'],
             ['Context Bank', 'database', 'openContextBankWorkspace', 'context blocks reusable snippets'],
             ['Quick Fill', 'dynamic_form', 'openFillWorkspace', 'placeholders template variables fill'],
             ['Prompt Auditor', 'fact_check', 'openAuditWorkspace', 'audit rubric score check'],
@@ -4885,7 +4884,7 @@ Here are my prompts:
     function _escapeToLibrary() {
         // Close any open workspaces
         ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace', '#playgroundWorkspace',
-            '#chainWorkspace', '#metaWorkspace', '#metaPromptingWorkspace', '#contextBankWorkspace', '#componentsWorkspace',
+            '#chainWorkspace', '#metaPromptingWorkspace', '#contextBankWorkspace', '#componentsWorkspace',
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
@@ -4969,10 +4968,6 @@ Here are my prompts:
                 }
                 if (v === 'chain') {
                     window.openChainWorkspace();
-                    return;
-                }
-                if (v === 'meta') {
-                    window.openMetaWorkspace();
                     return;
                 }
                 if (v === 'contextBank') {
@@ -12319,10 +12314,12 @@ Must avoid: [Anything sensitive or previously declined]`
         const techniques = Array.from(_optState.selectedTechniques.entries())
             .map(([t, lvl]) => lvl > 1 ? t + ' (emphasis ×' + lvl + ')' : t).join(', ');
         const custom = $('#optCustomInstructions')?.value?.trim();
+        const goal = $('#optGoalInput')?.value?.trim();
         const sys = 'You are an expert prompt engineer. Optimize the given prompt and return: 1. The optimized prompt 2. Key improvements 3. Why these changes work. End your response with SCORE: [number 1-100] reflecting the optimized prompt quality. Plain text only, no markdown fencing.';
         let usr = 'Optimize this prompt:\n\n"' + prompt + '"\n\n';
         if (frameworks) usr += 'Apply frameworks: ' + frameworks + '.\n';
         if (techniques) usr += 'Enhance with techniques: ' + techniques + '.\n';
+        if (goal) usr += 'Intended outcome / goal: ' + goal + '.\n';
         if (custom) usr += 'Additional requirements: ' + custom + '.\n';
         const out = $('#optOutput');
         if (out) out.innerHTML = '<span class="hint">⏳ Optimizing…</span>';
@@ -12346,8 +12343,10 @@ Must avoid: [Anything sensitive or previously declined]`
             return;
         }
         const custom = $('#optCustomInstructions')?.value?.trim();
+        const goal = $('#optGoalInput')?.value?.trim();
         const sys = 'You are an expert prompt engineer. Analyze the given prompt and provide: 1. Overall quality score (1-100) 2. Strengths 3. Areas for improvement 4. Enhancement suggestions. End with SCORE: [number].';
         let usr = 'Analyze this prompt:\n\n"' + prompt + '"';
+        if (goal) usr += '\n\nIntended outcome / goal: ' + goal;
         if (custom) usr += '\n\nConsider: ' + custom;
         const out = $('#optOutput');
         if (out) out.innerHTML = '<span class="hint">⏳ Analyzing…</span>';
@@ -16730,7 +16729,6 @@ Must avoid: [Anything sensitive or previously declined]`
         initForgeWorkspace(); // prompt forge workspace
         initLabWorkspace(); // prompt lab workspace
         initChainWorkspace(); // prompt chain workspace
-        initMetaWorkspace(); // metaprompting workspace
         initMetaPromptingWorkspace(); // meta prompting workspace (prompt-that-writes-prompts)
         initContextBankWorkspace(); // context bank workspace + wiring
         initOptimizerWorkspace(); // prompt optimizer workspace
@@ -24184,224 +24182,6 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
-       METAPROMPTING WORKSPACE
-       ============================================================================ */
-
-    let _metaRounds = [];
-
-    function _renderMetaRounds() {
-        const wrap = $('#metaRounds');
-        if (!wrap) return;
-        if (!_metaRounds.length) {
-            wrap.hidden = true;
-            wrap.innerHTML = '';
-            return;
-        }
-        wrap.hidden = false;
-        wrap.innerHTML = '<div class="meta-rounds-label">' +
-            '<span class="material-symbols-outlined">history</span> Refinement rounds</div>' +
-            '<div class="meta-rounds-row">' +
-            _metaRounds.map((r, i) => {
-                const active = i === _metaRounds.length - 1 ? ' active' : '';
-                return '<button type="button" class="meta-round-chip' + active + '" data-meta-round="' + i + '">Round ' + (i + 1) + '</button>';
-            }).join('') +
-            '</div>';
-        wrap.querySelectorAll('[data-meta-round]').forEach(chip => {
-            chip.addEventListener('click', () => {
-                const idx = Number(chip.dataset.metaRound);
-                const round = _metaRounds[idx];
-                if (!round) return;
-                wrap.querySelectorAll('.meta-round-chip').forEach(c => c.classList.remove('active'));
-                chip.classList.add('active');
-                _showMetaResult(round.text, round.assessment);
-            });
-        });
-    }
-
-    function _showMetaResult(text, assessment) {
-        const outEl = $('#metaOutputBody');
-        const emptyEl = $('#metaOutputEmpty');
-        const actionsEl = $('#metaOutputActions');
-        const scoreEl = $('#metaScoreBlock');
-        const assessEl = $('#metaAssessment');
-        if (outEl) {
-            outEl.textContent = text;
-            outEl.style.display = '';
-        }
-        if (emptyEl) emptyEl.style.display = 'none';
-        if (actionsEl) actionsEl.hidden = false;
-        if (assessment && assessEl) {
-            assessEl.textContent = assessment;
-            if (scoreEl) scoreEl.hidden = false;
-        } else if (scoreEl) {
-            scoreEl.hidden = true;
-        }
-    }
-
-    window.openMetaWorkspace = function() {
-        $('#metaWorkspace')?.classList.add('open');
-        $$('.nav-item[data-view]').forEach(el =>
-            el.classList.toggle('active', el.dataset.view === 'meta'));
-        _metaRounds = [];
-        _renderMetaRounds();
-        setTimeout(() => $('#metaRoughPrompt')?.focus(), 80);
-    };
-
-    function closeMetaWorkspace() {
-        $('#metaWorkspace')?.classList.remove('open');
-        $$('.nav-item[data-view]').forEach(el =>
-            el.classList.toggle('active', el.dataset.view === 'library'));
-    }
-
-    async function runMetaImprovement() {
-        const rough = $('#metaRoughPrompt')?.value?.trim();
-        const goal = $('#metaGoal')?.value?.trim();
-        const technique = $('#metaTechnique')?.value || 'structured';
-        if (!rough) {
-            toast('Paste your rough prompt first', 'warning');
-            return;
-        }
-
-        const techniques = {
-            structured: 'Use a structured format with clearly labelled sections: Role, Context, Task, Output Format, and Constraints.',
-            chain_of_thought: 'Rewrite the prompt to elicit step-by-step reasoning. Add "Think through this step by step before giving your final answer."',
-            few_shot: 'Add 2-3 concrete examples showing the expected input/output pattern.',
-            persona: 'Build a vivid, specific persona that the AI embodies throughout the response.',
-            compression: 'Preserve all essential meaning while cutting the word count by at least 30%. Remove redundancy and throat-clearing.',
-            adversarial: 'Harden the prompt against misuse: add edge case handling, clarify ambiguities, add constraints that prevent off-topic responses.',
-        };
-
-        const sys = 'You are a world-class prompt engineer. Your job is to take a rough prompt and rewrite it into a high-quality, production-ready version. Return ONLY the improved prompt text — no preamble, no explanation, no markdown fencing. Then on a new line write: ASSESSMENT: (one sentence on what you improved and why it will perform better).';
-        const usr = 'ORIGINAL PROMPT:\n' + rough +
-            (goal ? '\n\nGOAL: ' + goal : '') +
-            '\n\nTECHNIQUE: ' + techniques[technique];
-
-        const outEl = $('#metaOutputBody');
-        const emptyEl = $('#metaOutputEmpty');
-        const actionsEl = $('#metaOutputActions');
-        const scoreEl = $('#metaScoreBlock');
-        const assessEl = $('#metaAssessment');
-
-        if (emptyEl) emptyEl.style.display = 'none';
-        if (outEl) {
-            outEl.textContent = '⏳ Improving your prompt...';
-            outEl.style.display = '';
-        }
-        if (actionsEl) actionsEl.hidden = true;
-        if (scoreEl) scoreEl.hidden = true;
-
-        try {
-            const response = await callAI(sys, usr, 1500);
-            const assessMatch = response.match(/\nASSESSMENT:\s*(.+)$/s);
-            const improved = assessMatch ? response.slice(0, response.lastIndexOf('\nASSESSMENT:')).trim() : response;
-            const assessment = assessMatch ? assessMatch[1].trim() : '';
-
-            _metaRounds.push({ text: improved, assessment, technique });
-            _renderMetaRounds();
-            _showMetaResult(improved, assessment);
-            toast('Prompt improved — round ' + _metaRounds.length, 'success');
-        } catch (err) {
-            if (outEl) outEl.innerHTML = '<span class="hint">Error: ' + escapeHtml(err.message) + '</span>';
-            toast('Improvement failed: ' + err.message, 'error');
-        }
-    }
-
-    function initMetaWorkspace() {
-        const ws = $('#metaWorkspace');
-        if (!ws) return;
-
-        $('#metaRunBtn')?.addEventListener('click', async () => {
-            const btn = $('#metaRunBtn');
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite">progress_activity</span> Improving...';
-            }
-            try {
-                await runMetaImprovement();
-            } finally {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = '<span class="material-symbols-outlined">auto_fix_high</span> Improve with AI';
-                }
-            }
-        });
-        $('#metaRefineBtn')?.addEventListener('click', async () => {
-            // Load current output back into rough for another pass
-            const current = $('#metaOutputBody')?.textContent?.trim();
-            if (!current || current.includes('⏳') || current.includes('Fill in')) {
-                toast('Run an improvement first', 'warning');
-                return;
-            }
-            const rough = $('#metaRoughPrompt');
-            if (rough) rough.value = current;
-            await runMetaImprovement();
-        });
-        $('#metaIterateBtn')?.addEventListener('click', async () => {
-            const current = $('#metaOutputBody')?.textContent?.trim();
-            if (!current) return;
-            const rough = $('#metaRoughPrompt');
-            if (rough) rough.value = current;
-            await runMetaImprovement();
-        });
-        $('#metaCopyBtn')?.addEventListener('click', async () => {
-            const text = $('#metaOutputBody')?.textContent?.trim();
-            if (!text) return;
-            const ok = await copyToClipboard(text);
-            if (ok) toast('Improved prompt copied', 'success');
-        });
-        $('#metaSaveBtn')?.addEventListener('click', async () => {
-            const text = $('#metaOutputBody')?.textContent?.trim();
-            if (!text || text.includes('⏳') || text.includes('Fill in')) {
-                toast('Improve a prompt first', 'warning');
-                return;
-            }
-            const rough = $('#metaRoughPrompt')?.value?.trim() || '';
-            const title = (rough.split(' ').slice(0, 6).join(' ') || 'Improved prompt') + ' (meta)';
-            try {
-                const result = await api('/prompts', {
-                    method: 'POST',
-                    body: {
-                        title,
-                        content: text,
-                        description: 'Improved via Metaprompting workspace',
-                        categories: 'Prompt Engineering',
-                        tags: 'meta,improved'
-                    }
-                });
-                await loadPrompts();
-                await loadFilterOptions();
-                toast('Saved: ' + title, 'success');
-                closeMetaWorkspace();
-                if (result?.id) setTimeout(() => openDetail(result.id), 200);
-            } catch {
-                toast('Could not save', 'error');
-            }
-        });
-        $('#closeMetaBtn')?.addEventListener('click', closeMetaWorkspace);
-        ws.addEventListener('keydown', e => {
-            if (e.key === 'Escape') closeMetaWorkspace();
-        });
-
-        // Live prompt preview — shows as user types in rough prompt box
-        const roughEl = $('#metaRoughPrompt');
-        const previewPanel = $('#metaPromptPreview');
-        const previewBody = $('#metaPromptPreviewBody');
-        if (roughEl && previewPanel && previewBody) {
-            const _updateMetaPreview = () => {
-                const val = roughEl.value.trim();
-                if (val) {
-                    previewBody.textContent = val;
-                    previewPanel.style.display = '';
-                } else {
-                    previewPanel.style.display = 'none';
-                }
-            };
-            roughEl.addEventListener('input', _updateMetaPreview);
-            roughEl.addEventListener('paste', () => setTimeout(_updateMetaPreview, 0));
-        }
-    }
-
-    /* ============================================================================
        META PROMPTING WORKSPACE
        Distinct from Refiner (improves ONE existing prompt) and Prompt Generator
        (writes ONE prompt for ONE task): this builds a reusable META-PROMPT — a
@@ -25039,7 +24819,7 @@ Must avoid: [Anything sensitive or previously declined]`
         contextBank: 'openContextBankWorkspace'
     };
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
-        '#playgroundWorkspace', '#chainWorkspace', '#metaWorkspace',
+        '#playgroundWorkspace', '#chainWorkspace',
         '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace'
     ];
 

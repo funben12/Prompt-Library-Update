@@ -2457,80 +2457,6 @@
 <!-- ============================================================
      WORKSPACE: Metaprompting
      ============================================================ -->
-<div id="metaWorkspace" role="dialog" aria-modal="true" aria-label="Refiner">
-  <div class="ws-header">
-    <div class="ws-header-left">
-      <span class="material-symbols-outlined ws-header-icon">auto_fix_high</span>
-      <div>
-        <h2 class="ws-title">Refiner</h2>
-        <p class="ws-subtitle">Paste a rough prompt. Describe the goal. Refine it round by round into a production-quality version.</p>
-      </div>
-    </div>
-    <div class="ws-header-actions">
-      <button class="btn btn-ghost" id="metaRefineBtn"><span class="material-symbols-outlined">auto_fix_high</span> Refine Again</button>
-      <button class="btn btn-accent" id="metaSaveBtn"><span class="material-symbols-outlined">save</span> Save Improved</button>
-      <button class="icon-btn" id="closeMetaBtn" aria-label="Close Refiner"><span class="material-symbols-outlined">close</span></button>
-    </div>
-  </div>
-  <div class="ws-body meta-body">
-    <div class="meta-left">
-      <div class="meta-section">
-        <label class="forge-label"><span class="material-symbols-outlined">edit_note</span> Your Rough Prompt <span class="forge-hint">Paste what you have — even a single sentence is fine</span></label>
-        <textarea id="metaRoughPrompt" class="forge-input" rows="8" placeholder="e.g. Write a good email about the project update..."></textarea>
-      </div>
-      <div class="meta-section">
-        <label class="forge-label"><span class="material-symbols-outlined">target</span> What should it do? <span class="forge-hint">Describe the outcome you want</span></label>
-        <textarea id="metaGoal" class="forge-input" rows="3" placeholder="e.g. It should produce a concise professional email that summarises progress, highlights blockers, and ends with a clear ask..."></textarea>
-      </div>
-      <div class="meta-section">
-        <label class="forge-label"><span class="material-symbols-outlined">tune</span> Technique <span class="forge-hint">Metaprompting strategy to apply</span></label>
-        <select id="metaTechnique" class="form-input">
-          <option value="structured">Structured (Role + Task + Format + Constraints)</option>
-          <option value="chain_of_thought">Chain of Thought (step-by-step reasoning)</option>
-          <option value="few_shot">Few-Shot (include examples)</option>
-          <option value="persona">Persona-driven (strong character voice)</option>
-          <option value="compression">Compression (same quality, fewer tokens)</option>
-          <option value="adversarial">Adversarial hardening (stress-test edge cases)</option>
-        </select>
-      </div>
-      <button class="btn btn-accent" id="metaRunBtn" style="align-self:flex-start;">
-        <span class="material-symbols-outlined">auto_fix_high</span>
-        Improve with AI
-      </button>
-
-      <!-- Live preview of typed rough prompt -->
-      <div class="meta-preview-panel" id="metaPromptPreview" style="display:none;">
-        <div class="meta-preview-label">
-          <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">visibility</span>
-          Prompt preview
-        </div>
-        <div class="meta-preview-body" id="metaPromptPreviewBody"></div>
-      </div>
-    </div>
-    <div class="meta-right">
-      <div class="meta-rounds" id="metaRounds" hidden></div>
-      <div class="meta-output-empty" id="metaOutputEmpty">
-        <span class="material-symbols-outlined meta-output-empty-icon">auto_fix_high</span>
-        <p class="meta-output-empty-text">Fill in your rough prompt and click <strong>Improve with AI</strong>.</p>
-      </div>
-      <div class="meta-output-body" id="metaOutputBody" style="display:none;"></div>
-      <div class="meta-score-block" id="metaScoreBlock" hidden>
-        <div class="meta-score-label">Assessment</div>
-        <div id="metaAssessment" class="meta-assessment-text"></div>
-      </div>
-      <div class="meta-output-actions" id="metaOutputActions" hidden>
-        <button class="btn btn-ghost btn-sm" id="metaCopyBtn">
-          <span class="material-symbols-outlined">content_copy</span> Copy
-        </button>
-        <button class="btn btn-ghost btn-sm" id="metaIterateBtn">
-          <span class="material-symbols-outlined">refresh</span> Iterate
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
 <!-- ============================================================
      WORKSPACE: Meta Prompting
      data-view="metaprompting"
@@ -2653,6 +2579,9 @@
     <div class="opt-center">
       <div class="opt-section-label">Prompt Input</div>
       <textarea id="optPromptInput" class="forge-input" rows="5" placeholder="Paste your prompt or describe your goal here..."></textarea>
+
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">Goal <span class="hint">(optional — describe the outcome you want, especially useful if your prompt above is rough)</span></div>
+      <textarea id="optGoalInput" class="forge-input" rows="2" placeholder="e.g. Produce a concise professional email that summarises progress and ends with a clear ask..."></textarea>
 
       <div class="opt-section-label" style="margin-top:var(--sp-3);">Enhancement Techniques</div>
       <div style="display:flex;gap:var(--sp-2);margin-bottom:var(--sp-2);">
@@ -3775,14 +3704,6 @@
       </span>
         <span class="launcher-card-pro">PRO</span>
       </button>
-      <button class="launcher-card" data-open="openMetaWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">auto_fix_high</span>
-        <span class="launcher-card-text">
-        <span class="launcher-card-title">Refiner</span>
-        <span class="launcher-card-desc">Iterate on a prompt with AI — rewrite, tighten, and polish it round by round</span>
-      </span>
-        <span class="launcher-card-pro">PRO</span>
-      </button>
       <button class="launcher-card" data-open="openSpliceWorkspace" data-premium="true">
         <span class="material-symbols-outlined launcher-card-icon">call_merge</span>
         <span class="launcher-card-text">
@@ -4044,7 +3965,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=3951639c"></script>
+<script defer src="/static/app.js?v=2c9a239b"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>
