@@ -4595,6 +4595,7 @@ Here are my prompts:
             ['Model Adapter', 'sync_alt', 'openAdapterWorkspace', 'adapt provider convert rewrite openai anthropic gemini openrouter mistral groq deepseek xai cohere perplexity azure'],
             ['Prompt Simplifier', 'compress', 'openSimplifyWorkspace', 'simplify trim shorten compress debloat reduce cut'],
             ['Tone & Style Rewriter', 'tune', 'openToneWorkspace', 'tone style rewrite voice register formal casual friendly technical persuasive playful direct concise'],
+            ['Prompt Translator', 'translate', 'openTranslateWorkspace', 'translate language spanish french german portuguese italian japanese chinese korean arabic hindi localize'],
             ['Prompt Components', 'extension', 'openComponentsWorkspace', 'blocks drag drop builder frameworks'],
             ['Prompt Forge', 'construction', 'openForgeWorkspace', 'build structured framework rtf costar'],
             ['Prompt Lab', 'biotech', 'openLabWorkspace', 'ab test variants compare experiment'],
@@ -4899,7 +4900,7 @@ Here are my prompts:
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#safetyWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
-            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace',
+            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5084,6 +5085,10 @@ Here are my prompts:
                 }
                 if (v === 'tone') {
                     window.openToneWorkspace();
+                    return;
+                }
+                if (v === 'translate') {
+                    window.openTranslateWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -16439,6 +16444,172 @@ Must avoid: [Anything sensitive or previously declined]`
             }
         });
 
+    /* ============================================================================
+       WORKSPACE: Prompt Translator
+       data-view="translate" | openTranslateWorkspace() | initTranslateWorkspace()
+       Translates a prompt's natural-language instructions into another human
+       language while leaving [[var]] / {{var}} / {var} placeholders and markdown
+       structure untouched -- distinct from Model Adapter (rewrites for a
+       different AI provider's technical conventions, not a human language).
+       Pure client-side (callAI + existing POST /api/prompts), no schema changes.
+       Third of three new Refine workspaces.
+       ============================================================================ */
+
+    const _xlateState = {
+        lastOutput: '',
+        lastNotes: '',
+        lastOriginal: '',
+        lastLang: '',
+        lastLangLabel: ''
+    };
+
+    const XLATE_LANGUAGES = {
+        es: 'Spanish',
+        fr: 'French',
+        de: 'German',
+        pt: 'Portuguese',
+        it: 'Italian',
+        ja: 'Japanese',
+        zh: 'Chinese (Simplified)',
+        ko: 'Korean',
+        ar: 'Arabic',
+        hi: 'Hindi'
+    };
+
+    window.openTranslateWorkspace = function() {
+        if (!state.isPremium) {
+            showPremiumModal();
+            return;
+        }
+        $('#translateWorkspace')?.classList.add('open');
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'translate'));
+        setTimeout(() => $('#translatePromptInput')?.focus(), 80);
+    };
+
+    function closeTranslateWorkspace() {
+        $('#translateWorkspace')?.classList.remove('open');
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    async function _xlateRun() {
+        const prompt = $('#translatePromptInput')?.value?.trim();
+        if (!prompt) {
+            toast('Paste a prompt first', 'warning');
+            return;
+        }
+        const langBtn = $('#translatePickerGroup .xlate-btn.active');
+        if (!langBtn) {
+            toast('Pick a target language first', 'warning');
+            return;
+        }
+        const lang = langBtn.dataset.lang;
+        const langLabel = XLATE_LANGUAGES[lang] || lang;
+        const sys = 'You are an expert prompt engineer and translator who specialises in translating a prompt\'s natural-language instructions into another language while leaving the prompt\'s structure, formatting, and machine-readable placeholders completely untouched. Translate all natural-language instructions, descriptions, and explanatory text into ' + langLabel + '. Do NOT translate, modify, or reformat any placeholder token matching the pattern [[variable]], {{variable}}, or {variable} -- leave every such token exactly as written, in its original position, character-for-character. Preserve markdown formatting, structure, and line breaks exactly. Preserve the meaning and every instruction exactly -- only the language changes. Output ONLY the translated prompt, then a new line starting with "NOTES:" followed by a short (1-3 sentence) note listing which placeholders (if any) were detected and preserved untranslated, or stating that none were found. No markdown fencing, no extra preamble.';
+        const usr = 'Translate this prompt into ' + langLabel + ':\n\n"""\n' + prompt + '\n"""';
+        const out = $('#translateOutput');
+        if (out) out.innerHTML = '<span class="hint">⏳ Translating…</span>';
+        const notesLabel = $('#translateNotesLabel');
+        const notesEl = $('#translateNotes');
+        if (notesLabel) notesLabel.hidden = true;
+        if (notesEl) {
+            notesEl.hidden = true;
+            notesEl.textContent = '';
+        }
+        const actions = $('#translateOutputActions');
+        if (actions) actions.style.display = 'none';
+
+        const result = await callAI(sys, usr, 1600);
+        const notesMatch = result.match(/\bNOTES:\s*([\s\S]*)$/i);
+        const notes = notesMatch ? notesMatch[1].trim() : '';
+        const translated = notesMatch ? result.slice(0, result.lastIndexOf(notesMatch[0])).trim() : result.trim();
+
+        if (out) out.textContent = translated;
+        _xlateState.lastOutput = translated;
+        _xlateState.lastNotes = notes;
+        _xlateState.lastOriginal = prompt;
+        _xlateState.lastLang = lang;
+        _xlateState.lastLangLabel = langLabel;
+
+        if (notes) {
+            if (notesEl) {
+                notesEl.textContent = notes;
+                notesEl.hidden = false;
+            }
+            if (notesLabel) notesLabel.hidden = false;
+        }
+        if (actions) actions.style.display = 'flex';
+        toast('Prompt translated (' + langLabel + ')', 'success');
+    }
+
+    function initTranslateWorkspace() {
+        const ws = $('#translateWorkspace');
+        if (!ws) return;
+
+        $$('#translatePickerGroup .xlate-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                $$('#translatePickerGroup .xlate-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+
+        $('#translateRunBtn')?.addEventListener('click', async function() {
+            this.disabled = true;
+            this.innerHTML = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite">progress_activity</span> Translating…';
+            try {
+                await _xlateRun();
+            } catch (err) {
+                const out = $('#translateOutput');
+                if (out) out.innerHTML = '<span class="hint">Error: ' + escapeHtml(err.message) + '</span>';
+                toast('Translation failed: ' + err.message, 'error');
+            } finally {
+                this.disabled = false;
+                this.innerHTML = '<span class="material-symbols-outlined">translate</span> Translate';
+            }
+        });
+
+        $('#translateCopyBtn')?.addEventListener('click', async () => {
+            const text = _xlateState.lastOutput || $('#translateOutput')?.textContent?.trim();
+            if (!text) return;
+            if (await copyToClipboard(text)) toast('Prompt copied', 'success');
+        });
+
+        $('#translateSaveBtn')?.addEventListener('click', async () => {
+            if (!_xlateState.lastOutput) {
+                toast('Translate a prompt first', 'warning');
+                return;
+            }
+            const langLabel = _xlateState.lastLangLabel || _xlateState.lastLang;
+            const title = (_xlateState.lastOutput.split(' ').slice(0, 6).join(' ') || 'Translated prompt') + ' (' + langLabel + ')';
+            try {
+                const result = await api('/prompts', {
+                    method: 'POST',
+                    body: {
+                        title,
+                        content: _xlateState.lastOutput,
+                        description: 'Translated to ' + langLabel + ' via Prompt Translator workspace',
+                        categories: 'Prompt Engineering',
+                        tags: 'translated,' + _xlateState.lastLang,
+                        notes: _xlateState.lastNotes || ''
+                    }
+                });
+                await loadPrompts();
+                await loadFilterOptions();
+                toast('Saved: ' + title, 'success');
+                closeTranslateWorkspace();
+                if (result?.id) setTimeout(() => openDetail(result.id), 200);
+            } catch {
+                toast('Could not save', 'error');
+            }
+        });
+
+        $('#closeTranslateBtn')?.addEventListener('click', closeTranslateWorkspace);
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeTranslateWorkspace();
+        });
+    }
+
         $('#closeToneBtn')?.addEventListener('click', closeToneWorkspace);
         ws.addEventListener('keydown', e => {
             if (e.key === 'Escape') closeToneWorkspace();
@@ -18802,6 +18973,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initAdapterWorkspace(); // model adapter workspace
         initSimplifyWorkspace(); // prompt simplifier workspace
         initToneWorkspace(); // tone & style rewriter workspace
+        initTranslateWorkspace(); // prompt translator workspace
         initEvalWorkspace(); // eval runner workspace
         initCompareWorkspace(); // model compare workspace
         initDashboardWorkspace(); // dashboard
@@ -26897,7 +27069,7 @@ Must avoid: [Anything sensitive or previously declined]`
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
         '#playgroundWorkspace', '#chainWorkspace',
         '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace',
-        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace'
+        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace'
     ];
 
     function _closeTourWorkspaces() {
