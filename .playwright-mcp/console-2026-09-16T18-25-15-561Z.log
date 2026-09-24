@@ -1,6 +1,0 @@
-[    2687ms] [LOG] ✓ Components data loaded: {blocks: 467, categories: 24, frameworks: 52} @ http://localhost:5055/static/components-data.js:587
-[    2805ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5055/:0
-[   42564ms] [ERROR] Access to fetch at 'https://api.openai.com/v1/chat/completions' from origin 'http://localhost:5055' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://localhost:5055/:0
-[   42567ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://api.openai.com/v1/chat/completions:0
-[  115886ms] [LOG] ✓ Components data loaded: {blocks: 467, categories: 24, frameworks: 52} @ http://localhost:5055/static/components-data.js:587
-[  115987ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5055/:0
