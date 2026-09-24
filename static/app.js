@@ -14740,6 +14740,8 @@ Must avoid: [Anything sensitive or previously declined]`
                 '<div class="pmb-board-header-actions">' +
                     '<button class="btn btn-accent" data-pmb="open-add-prompt" data-board-id="' + b.id + '"><span class="material-symbols-outlined">add</span> New prompt</button>' +
                     '<button class="btn btn-ghost" data-pmb="rename-board" data-board-id="' + b.id + '"><span class="material-symbols-outlined">edit</span> Rename</button>' +
+                    '<button class="btn btn-ghost" data-pmb="duplicate-board" data-board-id="' + b.id + '"><span class="material-symbols-outlined">content_copy</span> Duplicate</button>' +
+                    '<button class="btn btn-ghost" data-pmb="export-board" data-board-id="' + b.id + '"><span class="material-symbols-outlined">ios_share</span> Export</button>' +
                     '<button class="btn btn-danger" data-pmb="delete-board" data-board-id="' + b.id + '"><span class="material-symbols-outlined">delete</span> Delete</button>' +
                 '</div></div></div>';
         if (!list.length) {
@@ -15034,6 +15036,23 @@ Must avoid: [Anything sensitive or previously declined]`
                         await _pmbLoadAll();
                         _pmbRender();
                     } catch { toast('Could not delete board', 'error'); }
+                    break;
+                }
+                case 'duplicate-board': {
+                    try {
+                        const result = await api('/boards/' + boardId + '/duplicate', { method: 'POST' });
+                        toast('Board duplicated', 'success');
+                        await _pmbLoadAll();
+                        if (result?.id) {
+                            await _pmbGoBoard(result.id);
+                            _pmbRenderSidebar();
+                        }
+                    } catch { toast('Could not duplicate board', 'error'); }
+                    break;
+                }
+                case 'export-board': {
+                    if (!boardId) { toast('Could not export board', 'error'); break; }
+                    window.location.href = API_BASE + '/boards/' + boardId + '/export';
                     break;
                 }
                 case 'toggle-fav': {
