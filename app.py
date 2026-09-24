@@ -2768,6 +2768,60 @@ def restore_backup(filename):
     return jsonify({'ok': True, 'safety_backup': safety_name})
 
 
+def _eval_cases_key(pid):
+    return f'eval_cases_{pid}'
+
+def _eval_runs_key(pid):
+    return f'eval_runs_{pid}'
+
+@app.route('/api/eval-cases/<int:pid>', methods=['GET'])
+def get_eval_cases(pid):
+    """Test cases for a prompt's regression suite, stored as JSON in settings (no schema change)."""
+    raw = get_setting(_eval_cases_key(pid))
+    return jsonify(json.loads(raw) if raw else [])
+
+@app.route('/api/eval-cases/<int:pid>', methods=['POST'])
+def save_eval_cases(pid):
+    """Replace the full test-case list for a prompt. Body: {cases: [{id, input, expected}, ...]}."""
+    data = _json_body()
+    cases = data.get('cases')
+    if not isinstance(cases, list):
+        return jsonify({'error': 'cases must be a list'}), 400
+    set_setting(_eval_cases_key(pid), json.dumps(cases))
+    return jsonify({'ok': True, 'cases': cases})
+
+@app.route('/api/eval-runs/<int:pid>', methods=['GET'])
+def get_eval_runs(pid):
+    """Run history for a prompt's regression suite, newest first."""
+    raw = get_setting(_eval_runs_key(pid))
+    return jsonify(json.loads(raw) if raw else [])
+
+@app.route('/api/eval-runs/<int:pid>', methods=['POST'])
+def add_eval_run(pid):
+    """Append a run result. Body: {results: [{case_id, output, pass, note}, ...], version_id?}."""
+    data = _json_body()
+    results = data.get('results')
+    if not isinstance(results, list):
+        return jsonify({'error': 'results must be a list'}), 400
+    raw = get_setting(_eval_runs_key(pid))
+    runs = json.loads(raw) if raw else []
+    run = {
+        'id': int(datetime.now().timestamp() * 1000),
+        'timestamp': datetime.now().isoformat(),
+        'version_id': data.get('version_id'),
+        'results': results,
+    }
+    runs.insert(0, run)
+    runs = runs[:20]
+    set_setting(_eval_runs_key(pid), json.dumps(runs))
+    return jsonify(run)
+
+@app.route('/api/eval-runs/<int:pid>', methods=['DELETE'])
+def clear_eval_runs(pid):
+    delete_setting(_eval_runs_key(pid))
+    return jsonify({'ok': True})
+
+
 @app.route('/api/import', methods=['POST'])
 def import_json():
     """Import a previously exported list of prompts. Body: {prompts: [...]}."""
