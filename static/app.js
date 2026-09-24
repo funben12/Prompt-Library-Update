@@ -4603,6 +4603,7 @@ Here are my prompts:
             ['Diff Lens', 'compare', 'openDiffWorkspace', 'diff compare two prompts'],
             ['Cost Lens', 'calculate', 'openCostWorkspace', 'tokens cost estimate price'],
             ['Library Organizer', 'monitor_heart', 'openPulseWorkspace', 'health scan library quality organize duplicates stale cleanup'],
+            ['Eval Runner', 'playlist_add_check', 'openEvalWorkspace', 'eval test cases run regression pass fail judge grade'],
             ['Prompt X-Ray', 'visibility', 'openXrayWorkspace', 'deconstruct analyse parts anatomy'],
             ['Prompt Splicer', 'call_merge', 'openSpliceWorkspace', 'merge combine two prompts'],
             ['Agents', 'smart_toy', 'openRolesWorkspace', 'agents roles personas ai'],
@@ -4890,7 +4891,7 @@ Here are my prompts:
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
-            '#exampleWorkspace', '#adapterWorkspace',
+            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5039,6 +5040,10 @@ Here are my prompts:
                 }
                 if (v === 'adapter') {
                     window.openAdapterWorkspace();
+                    return;
+                }
+                if (v === 'eval') {
+                    window.openEvalWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -15733,6 +15738,405 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
+       WORKSPACE: Eval Runner
+       data-view="eval" | openEvalWorkspace() | initEvalWorkspace()
+       Regression suite for an existing library prompt: save test cases (input +
+       plain-English expected outcome), run them all against the prompt via AI,
+       judge each result pass/fail, and keep run history so an edit can be
+       checked against what used to pass. Backend: /api/eval-cases/<pid> and
+       /api/eval-runs/<pid> (JSON blobs in settings, no schema change).
+       ============================================================================ */
+
+    const _evState = {
+        promptId: null,
+        prompt: null,
+        cases: [],
+        runs: [],
+        running: false,
+        editingCaseId: null,
+        live: {} // case_id -> { status: 'pending'|'running'|'pass'|'fail'|'error', note }
+    };
+
+    function _evTrunc(text, n) {
+        text = (text || '').trim();
+        if (text.length <= n) return text;
+        return text.slice(0, n).trim() + '…';
+    }
+
+    function _evUID() {
+        return 'evc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    }
+
+    async function _evLoadForPrompt(pid) {
+        const listEl = $('#evCaseList');
+        if (listEl) listEl.innerHTML = '<p class="hint">Loading test cases…</p>';
+        try {
+            const [cases, runs] = await Promise.all([
+                api('/eval-cases/' + pid),
+                api('/eval-runs/' + pid)
+            ]);
+            _evState.cases = Array.isArray(cases) ? cases : [];
+            _evState.runs = Array.isArray(runs) ? runs : [];
+        } catch (e) {
+            _evState.cases = [];
+            _evState.runs = [];
+            toast('Could not load eval data: ' + e.message, 'error');
+        }
+        _evState.live = {};
+        _evRenderCaseList();
+        _evRenderLive();
+        _evRenderHistory();
+    }
+
+    async function _evPersistCases() {
+        if (!_evState.promptId) return;
+        try {
+            await api('/eval-cases/' + _evState.promptId, { method: 'POST', body: { cases: _evState.cases } });
+        } catch (e) {
+            toast('Could not save test cases: ' + e.message, 'error');
+        }
+    }
+
+    function _evRenderCaseList() {
+        const listEl = $('#evCaseList');
+        const runBtn = $('#evRunAllBtn');
+        const hint = $('#evRunHint');
+        if (!listEl) return;
+        if (!_evState.promptId) {
+            listEl.innerHTML = '<p class="hint">Pick a prompt above to manage its test cases.</p>';
+            if (runBtn) { runBtn.disabled = true; runBtn.style.display = 'none'; }
+            if (hint) hint.hidden = true;
+            return;
+        }
+        if (!_evState.cases.length) {
+            listEl.innerHTML = '<p class="hint">No test cases yet. Add one below to start a regression suite.</p>';
+        } else {
+            listEl.innerHTML = _evState.cases.map(c => `
+        <div class="evr-case-row" data-case-id="${escapeAttr(c.id)}">
+          <div class="evr-case-main">
+            <div class="evr-case-input"><strong>In:</strong> ${escapeHtml(_evTrunc(c.input, 90))}</div>
+            <div class="evr-case-expected"><strong>Expect:</strong> ${escapeHtml(_evTrunc(c.expected, 90))}</div>
+          </div>
+          <div class="evr-case-actions">
+            <button class="icon-btn" data-ev-edit="${escapeAttr(c.id)}" aria-label="Edit test case"><span class="material-symbols-outlined">edit</span></button>
+            <button class="icon-btn" data-ev-remove="${escapeAttr(c.id)}" aria-label="Remove test case"><span class="material-symbols-outlined">delete</span></button>
+          </div>
+        </div>`).join('');
+            listEl.querySelectorAll('[data-ev-edit]').forEach(btn => {
+                btn.addEventListener('click', () => _evOpenCaseForm(btn.dataset.evEdit));
+            });
+            listEl.querySelectorAll('[data-ev-remove]').forEach(btn => {
+                btn.addEventListener('click', () => _evRemoveCase(btn.dataset.evRemove));
+            });
+        }
+        if (runBtn) {
+            runBtn.style.display = '';
+            runBtn.disabled = _evState.running || !_evState.cases.length;
+        }
+        if (hint) hint.hidden = !!_evState.cases.length;
+    }
+
+    function _evOpenCaseForm(caseId) {
+        const form = $('#evCaseForm');
+        const inputEl = $('#evCaseInput');
+        const expectedEl = $('#evCaseExpected');
+        if (!form || !inputEl || !expectedEl) return;
+        if (caseId) {
+            const c = _evState.cases.find(x => String(x.id) === String(caseId));
+            if (!c) return;
+            _evState.editingCaseId = c.id;
+            inputEl.value = c.input || '';
+            expectedEl.value = c.expected || '';
+        } else {
+            _evState.editingCaseId = null;
+            inputEl.value = '';
+            expectedEl.value = '';
+        }
+        form.hidden = false;
+        inputEl.focus();
+    }
+
+    function _evCloseCaseForm() {
+        const form = $('#evCaseForm');
+        if (form) form.hidden = true;
+        _evState.editingCaseId = null;
+    }
+
+    async function _evSubmitCaseForm() {
+        const inputEl = $('#evCaseInput');
+        const expectedEl = $('#evCaseExpected');
+        const input = inputEl?.value?.trim();
+        const expected = expectedEl?.value?.trim();
+        if (!input || !expected) {
+            toast('Fill in both fields', 'warning');
+            return;
+        }
+        if (_evState.editingCaseId) {
+            const c = _evState.cases.find(x => String(x.id) === String(_evState.editingCaseId));
+            if (c) { c.input = input; c.expected = expected; }
+        } else {
+            _evState.cases.push({ id: _evUID(), input, expected });
+        }
+        _evCloseCaseForm();
+        await _evPersistCases();
+        _evRenderCaseList();
+    }
+
+    async function _evRemoveCase(caseId) {
+        _evState.cases = _evState.cases.filter(c => String(c.id) !== String(caseId));
+        await _evPersistCases();
+        _evRenderCaseList();
+    }
+
+    const _EV_STATUS_ICON = {
+        pending: 'schedule',
+        running: 'progress_activity',
+        pass: 'check_circle',
+        fail: 'cancel',
+        error: 'error'
+    };
+
+    function _evRenderLive() {
+        const el = $('#evLiveResults');
+        if (!el) return;
+        if (!_evState.promptId) {
+            el.innerHTML = '<p class="hint">Pick a prompt and run its test cases to see live results here.</p>';
+            return;
+        }
+        if (!_evState.cases.length) {
+            el.innerHTML = '<p class="hint">No test cases yet.</p>';
+            return;
+        }
+        el.innerHTML = _evState.cases.map(c => {
+            const live = _evState.live[c.id] || { status: 'pending' };
+            const icon = _EV_STATUS_ICON[live.status] || 'schedule';
+            const spin = live.status === 'running' ? ' style="animation:spin 1s linear infinite"' : '';
+            return `
+        <div class="evr-status-row" data-status="${live.status}">
+          <span class="material-symbols-outlined evr-status-icon"${spin}>${icon}</span>
+          <div class="evr-status-main">
+            <div class="evr-status-input">${escapeHtml(_evTrunc(c.input, 70))}</div>
+            ${live.note ? `<div class="evr-status-note">${escapeHtml(live.note)}</div>` : ''}
+          </div>
+        </div>`;
+        }).join('');
+    }
+
+    function _evFormatDate(iso) {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return iso || '';
+        return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    }
+
+    function _evRenderHistory() {
+        const el = $('#evHistoryList');
+        const clearBtn = $('#evClearHistoryBtn');
+        if (!el) return;
+        if (!_evState.promptId) {
+            el.innerHTML = '';
+            if (clearBtn) clearBtn.style.display = 'none';
+            return;
+        }
+        if (!_evState.runs.length) {
+            el.innerHTML = '<p class="hint">No runs yet for this prompt.</p>';
+            if (clearBtn) clearBtn.style.display = 'none';
+            return;
+        }
+        if (clearBtn) clearBtn.style.display = '';
+        el.innerHTML = _evState.runs.map(run => {
+            const total = (run.results || []).length;
+            const passed = (run.results || []).filter(r => r.pass).length;
+            const allPass = total > 0 && passed === total;
+            return `
+        <div class="evr-history-row">
+          <button class="evr-history-head" data-run-toggle="${escapeAttr(run.id)}">
+            <span class="evr-history-date">${escapeHtml(_evFormatDate(run.timestamp))}</span>
+            <span class="evr-history-score ${allPass ? 'evr-pass' : 'evr-fail'}">${passed}/${total} passed</span>
+            <span class="material-symbols-outlined evr-history-caret">expand_more</span>
+          </button>
+          <div class="evr-history-detail" id="evHistDetail${escapeAttr(run.id)}" hidden>
+            ${(run.results || []).map(r => {
+                const c = _evState.cases.find(x => String(x.id) === String(r.case_id));
+                return `
+            <div class="evr-history-case">
+              <span class="material-symbols-outlined evr-history-case-icon ${r.pass ? 'evr-pass' : 'evr-fail'}">${r.pass ? 'check_circle' : 'cancel'}</span>
+              <div class="evr-history-case-main">
+                <div class="evr-status-input">${escapeHtml(_evTrunc(c ? c.input : '(deleted test case)', 70))}</div>
+                ${r.note ? `<div class="evr-status-note">${escapeHtml(r.note)}</div>` : ''}
+              </div>
+            </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+        }).join('');
+        el.querySelectorAll('[data-run-toggle]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const detail = $('#evHistDetail' + btn.dataset.runToggle);
+                if (detail) detail.hidden = !detail.hidden;
+            });
+        });
+    }
+
+    async function _evRunAll() {
+        if (_evState.running) return;
+        if (!_evState.promptId || !_evState.prompt) {
+            toast('Pick a prompt first', 'warning');
+            return;
+        }
+        if (!_evState.cases.length) {
+            toast('Add a test case first', 'warning');
+            return;
+        }
+        _evState.running = true;
+        _evState.live = {};
+        _evState.cases.forEach(c => { _evState.live[c.id] = { status: 'pending' }; });
+        _evRenderLive();
+        const runBtn = $('#evRunAllBtn');
+        if (runBtn) {
+            runBtn.disabled = true;
+            runBtn.innerHTML = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite">progress_activity</span> Running…';
+        }
+
+        const results = [];
+        let passCount = 0;
+        for (const c of _evState.cases) {
+            _evState.live[c.id] = { status: 'running' };
+            _evRenderLive();
+            try {
+                const output = await callAI(_evState.prompt.content || '', c.input || '', 1200);
+                const judgeSys = 'You are a strict grader. Given a task\'s expected outcome and its actual output, respond with exactly PASS or FAIL on the first line, then one short sentence explaining why.';
+                const judgeUsr = 'Expected outcome:\n' + c.expected + '\n\nActual output:\n' + output;
+                const verdict = await callAI(judgeSys, judgeUsr, 200);
+                const lines = verdict.split('\n').map(l => l.trim()).filter(Boolean);
+                const firstLine = (lines[0] || '').toUpperCase();
+                const pass = firstLine.startsWith('PASS');
+                const note = lines.slice(1).join(' ').trim() || (lines[0] || '').replace(/^(PASS|FAIL)[:\-\s]*/i, '').trim();
+                _evState.live[c.id] = { status: pass ? 'pass' : 'fail', note };
+                results.push({ case_id: c.id, output, pass, note });
+                if (pass) passCount++;
+            } catch (err) {
+                _evState.live[c.id] = { status: 'error', note: 'Error: ' + err.message };
+                results.push({ case_id: c.id, output: '', pass: false, note: 'Error: ' + err.message });
+            }
+            _evRenderLive();
+        }
+
+        _evState.running = false;
+        if (runBtn) {
+            runBtn.disabled = !_evState.cases.length;
+            runBtn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span> Run All';
+        }
+
+        try {
+            const run = await api('/eval-runs/' + _evState.promptId, { method: 'POST', body: { results } });
+            _evState.runs.unshift(run);
+            _evState.runs = _evState.runs.slice(0, 20);
+        } catch (e) {
+            toast('Run finished but could not save history: ' + e.message, 'error');
+        }
+        _evRenderHistory();
+        toast(passCount + ' of ' + results.length + ' passed', passCount === results.length ? 'success' : 'warning');
+    }
+
+    window.openEvalWorkspace = function() {
+        if (!state.isPremium) {
+            showPremiumModal();
+            return;
+        }
+        const ws = $('#evalWorkspace');
+        if (!ws) return;
+        ws.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'eval'));
+        _evState.promptId = null;
+        _evState.prompt = null;
+        _evState.cases = [];
+        _evState.runs = [];
+        _evState.live = {};
+        _evCloseCaseForm();
+        _wsFillPromptPicker('#evPicker');
+        _evRenderCaseList();
+        _evRenderLive();
+        _evRenderHistory();
+    };
+
+    function closeEvalWorkspace() {
+        $('#evalWorkspace')?.classList.remove('open');
+        document.body.style.overflow = '';
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    function initEvalWorkspace() {
+        const ws = $('#evalWorkspace');
+        if (!ws) return;
+        $('#closeEvalBtn')?.addEventListener('click', closeEvalWorkspace);
+
+        $('#evPicker')?.addEventListener('change', async () => {
+            const p = _wsPickedPrompt('#evPicker');
+            if (!p) {
+                _evState.promptId = null;
+                _evState.prompt = null;
+                _evState.cases = [];
+                _evState.runs = [];
+                _evState.live = {};
+                _evRenderCaseList();
+                _evRenderLive();
+                _evRenderHistory();
+                return;
+            }
+            _evState.promptId = p.id;
+            _evState.prompt = p;
+            _evCloseCaseForm();
+            try {
+                await _evLoadForPrompt(p.id);
+            } catch (err) {
+                toast('Could not load eval data: ' + err.message, 'error');
+            }
+        });
+
+        $('#evAddCaseBtn')?.addEventListener('click', () => {
+            if (!_evState.promptId) {
+                toast('Pick a prompt first', 'warning');
+                return;
+            }
+            _evOpenCaseForm(null);
+        });
+        $('#evCaseSaveBtn')?.addEventListener('click', () => { _evSubmitCaseForm(); });
+        $('#evCaseCancelBtn')?.addEventListener('click', _evCloseCaseForm);
+
+        $('#evRunAllBtn')?.addEventListener('click', async () => {
+            try {
+                await _evRunAll();
+            } catch (err) {
+                toast('Run failed: ' + err.message, 'error');
+                _evState.running = false;
+                const runBtn = $('#evRunAllBtn');
+                if (runBtn) {
+                    runBtn.disabled = !_evState.cases.length;
+                    runBtn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span> Run All';
+                }
+            }
+        });
+
+        $('#evClearHistoryBtn')?.addEventListener('click', async () => {
+            if (!_evState.promptId) return;
+            if (!confirm('Clear all run history for this prompt? This can\'t be undone.')) return;
+            try {
+                await api('/eval-runs/' + _evState.promptId, { method: 'DELETE' });
+                _evState.runs = [];
+                _evRenderHistory();
+                toast('Run history cleared', 'success');
+            } catch (e) {
+                toast('Could not clear history: ' + e.message, 'error');
+            }
+        });
+
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeEvalWorkspace();
+        });
+    }
+
+    /* ============================================================================
        WORKSPACES LAUNCHER
        ============================================================================ */
 
@@ -17042,6 +17446,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initGenWorkspace(); // prompt generator workspace
         initExampleWorkspace(); // prompt from example workspace
         initAdapterWorkspace(); // model adapter workspace
+        initEvalWorkspace(); // eval runner workspace
         initDashboardWorkspace(); // dashboard
         initBackupWorkspace(); // backup & restore workspace
         initWorkspacesLauncher(); // workspaces launcher grid
@@ -25130,7 +25535,7 @@ Must avoid: [Anything sensitive or previously declined]`
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
         '#playgroundWorkspace', '#chainWorkspace',
         '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace',
-        '#exampleWorkspace', '#adapterWorkspace'
+        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace'
     ];
 
     function _closeTourWorkspaces() {

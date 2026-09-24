@@ -9361,3 +9361,104 @@
 }
 #adapterWorkspace.open { display: flex; }
 
+/* =============================================================
+   WORKSPACE: Eval Runner  [PRO]
+   Two-column layout like Cost Lens (.cl-body/.cl-left/.cl-right)
+   for test-case management (left) + live run + history (right).
+   Row-list styling follows Backup & Restore's .backup-row pattern.
+   ============================================================= */
+#evalWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+}
+#evalWorkspace.open { display: flex; }
+.evr-body { display: grid; grid-template-columns: minmax(340px, 44%) 1fr; flex: 1; overflow: hidden; }
+.evr-left { display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-5); border-right: 1px solid var(--line); overflow-y: auto; }
+.evr-right { display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-5); overflow-y: auto; }
+@media (max-width: 900px) { .evr-body { grid-template-columns: 1fr; } .evr-left { border-right: none; border-bottom: 1px solid var(--line); } }
+
+.evr-case-list, .evr-status-list, .evr-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.evr-case-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.evr-case-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.evr-case-input, .evr-case-expected {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.evr-case-input strong, .evr-case-expected strong { color: var(--ink-2); font-weight: 600; }
+.evr-case-actions { display: flex; align-items: center; gap: var(--sp-1); flex-shrink: 0; }
+
+.evr-case-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  margin-top: var(--sp-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+.evr-status-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.evr-status-icon { font-size: 20px; color: var(--ink-4); flex-shrink: 0; margin-top: 1px; }
+.evr-status-row[data-status="pass"] .evr-status-icon { color: var(--success); }
+.evr-status-row[data-status="fail"] .evr-status-icon { color: var(--danger); }
+.evr-status-row[data-status="error"] .evr-status-icon { color: var(--warning, #f59e0b); }
+.evr-status-row[data-status="running"] .evr-status-icon { color: var(--accent); }
+.evr-status-main { min-width: 0; }
+.evr-status-input { font-size: var(--fs-sm); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.evr-status-note { font-size: var(--fs-xs); color: var(--ink-3); margin-top: 2px; }
+
+.evr-history-header { display: flex; align-items: center; justify-content: space-between; margin-top: var(--sp-4); }
+.evr-history-row { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
+.evr-history-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--ink);
+}
+.evr-history-date { font-size: var(--fs-sm); flex: 1; }
+.evr-history-score { font-size: var(--fs-xs); font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.evr-history-score.evr-pass { color: var(--success); background: var(--success-soft); }
+.evr-history-score.evr-fail { color: var(--danger); background: var(--danger-soft); }
+.evr-history-caret { font-size: 18px; color: var(--ink-4); }
+.evr-history-detail { display: flex; flex-direction: column; gap: var(--sp-2); padding: 0 var(--sp-3) var(--sp-3); }
+.evr-history-case { display: flex; align-items: flex-start; gap: var(--sp-2); }
+.evr-history-case-icon { font-size: 18px; margin-top: 1px; }
+.evr-history-case-icon.evr-pass { color: var(--success); }
+.evr-history-case-icon.evr-fail { color: var(--danger); }
+.evr-history-case-main { min-width: 0; }
+
