@@ -2585,6 +2585,28 @@ def get_analytics():
     })
 
 
+@app.route('/api/usage-log', methods=['GET'])
+def get_usage_log():
+    """Full chronological run history (one row per use), unlike /api/analytics'
+    recent-10-distinct-prompts summary. Optional ?search= filters by prompt title/content."""
+    search = request.args.get('search', '').strip()
+    limit = min(int(request.args.get('limit', 200) or 200), 500)
+    conn = get_db()
+    try:
+        q = '''SELECT l.id, l.prompt_id, l.used_at, p.title AS prompt_title, p.content AS prompt_content
+               FROM usage_log l JOIN prompts p ON p.id = l.prompt_id'''
+        params = []
+        if search:
+            q += ' WHERE p.title LIKE ? OR p.content LIKE ?'
+            params.extend([f'%{search}%', f'%{search}%'])
+        q += ' ORDER BY l.used_at DESC LIMIT ?'
+        params.append(limit)
+        rows = conn.execute(q, params).fetchall()
+    finally:
+        conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
 @app.route('/api/export', methods=['GET'])
 def export_json():
     conn  = get_db()
