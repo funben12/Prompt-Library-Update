@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" media="print" onload="this.media='all'">
 
-<link rel="stylesheet" href="/static/app.css?v=a46f27a3">
+<link rel="stylesheet" href="/static/app.css?v=d418dc0c">
 </head>
 <body>
 
@@ -3823,6 +3823,35 @@
 </div>
 
 <!-- ============================================================
+     WORKSPACE: Version Lock
+     Lock a prompt against accidental edits or deletes.
+     data-view="lock"
+     ============================================================ -->
+<div id="lockWorkspace" role="dialog" aria-modal="true" aria-label="Version Lock">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">lock</span>
+      <div>
+        <h2 class="ws-title">Version Lock</h2>
+        <p class="ws-subtitle">Lock a prompt against accidental edits or deletes.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="icon-btn" id="closeLockBtn" aria-label="Close Version Lock"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body vlock-body">
+    <div class="vlock-search-wrap">
+      <span class="material-symbols-outlined vlock-search-icon">search</span>
+      <input type="text" id="lockSearchInput" class="forge-input vlock-search-input" placeholder="Search prompts by title&hellip;" autocomplete="off" spellcheck="false" aria-label="Search prompts to lock">
+    </div>
+    <div class="vlock-list" id="lockList">
+      <div class="vlock-loading">Loading prompts&hellip;</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
      WORKSPACE: Batch Runner
      Runs one prompt across many input rows via callAI, one at a time.
      data-view="batch"
@@ -4195,6 +4224,13 @@
         <span class="launcher-card-desc">Snapshot your library and restore any snapshot in one click</span>
       </span>
       </button>
+      <button class="launcher-card" data-open="openLockWorkspace">
+        <span class="material-symbols-outlined launcher-card-icon">lock</span>
+        <span class="launcher-card-text">
+        <span class="launcher-card-title">Version Lock</span>
+        <span class="launcher-card-desc">Lock a prompt against accidental edits or deletes</span>
+      </span>
+      </button>
         </div>
       </div>
       <p class="launcher-empty" id="launcherEmpty" hidden>No tools match your search</p>
@@ -4335,7 +4371,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=049ce59f"></script>
+<script defer src="/static/app.js?v=08f6f6e7"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

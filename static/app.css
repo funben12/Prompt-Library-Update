@@ -8560,6 +8560,110 @@
   color: var(--danger, #d33);
 }
 
+/* =============================================================
+   VERSION LOCK
+   Single-column, filterable prompt list with a per-row lock
+   toggle -- structurally follows Run History's .rh- pattern,
+   own vlock- prefix (bare "lock"/"locked" already used by the
+   premium-gating system elsewhere in this file).
+   ============================================================= */
+.vlock-body {
+  overflow-y: auto;
+  padding: var(--sp-5);
+  gap: var(--sp-3);
+}
+.vlock-search-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.vlock-search-input {
+  padding-left: 38px;
+}
+.vlock-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  color: var(--ink-4);
+  pointer-events: none;
+}
+.vlock-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.vlock-loading {
+  font-size: var(--fs-sm);
+  color: var(--ink-3);
+  padding: var(--sp-3) 0;
+}
+.vlock-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.vlock-row-locked {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+.vlock-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.vlock-row-icon {
+  font-size: 22px;
+  color: var(--ink-4);
+  flex-shrink: 0;
+}
+.vlock-row-locked .vlock-row-icon {
+  color: var(--accent);
+}
+.vlock-row-text {
+  min-width: 0;
+}
+.vlock-row-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+.vlock-row-preview {
+  font-size: var(--fs-xs);
+  color: var(--ink-4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vlock-toggle-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.vlock-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  text-align: center;
+  padding: var(--sp-6);
+  color: var(--ink-3);
+}
+.vlock-empty .material-symbols-outlined {
+  font-size: 32px;
+  color: var(--ink-4);
+}
+.vlock-empty.vlock-error {
+  color: var(--danger, #d33);
+}
+
 #genOutputActions {
   display: flex;
   gap: var(--sp-2);
@@ -8602,7 +8706,7 @@
    ============================================================= */
 #fillWorkspace, #auditWorkspace, #diffWorkspace, #costWorkspace,
 #pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace,
-#taxonomyWorkspace, #versionWorkspace, #backupWorkspace, #historyWorkspace {
+#taxonomyWorkspace, #versionWorkspace, #backupWorkspace, #historyWorkspace, #lockWorkspace {
   display: none;
   position: fixed;
   inset: 0;
@@ -8613,7 +8717,7 @@
 #fillWorkspace.open, #auditWorkspace.open, #diffWorkspace.open, #costWorkspace.open,
 #pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open,
 #batchWorkspace.open, #boardWorkspace.open, #taxonomyWorkspace.open,
-#versionWorkspace.open, #backupWorkspace.open, #historyWorkspace.open { display: flex; }
+#versionWorkspace.open, #backupWorkspace.open, #historyWorkspace.open, #lockWorkspace.open { display: flex; }
 
 /* -- Batch Runner -- */
 .br-body { display: grid; grid-template-columns: minmax(340px, 40%) 1fr; flex: 1; overflow: hidden; }

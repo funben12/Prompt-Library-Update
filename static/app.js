@@ -4613,6 +4613,7 @@ Here are my prompts:
             ['Taxonomy Studio', 'sell', 'openTaxonomyWorkspace', 'taxonomy domain use case organise tag'],
             ['Version Timeline', 'history', 'openVersionWorkspace', 'version history restore baseline diff'],
             ['Run History', 'manage_history', 'openHistoryWorkspace', 'run history log usage every time used runs list'],
+            ['Version Lock', 'lock', 'openLockWorkspace', 'lock unlock protect prevent accidental edit delete final production ready'],
         ];
         return table.map(([label, icon, fn, keywords]) => ({
             kind: 'workspace',
@@ -4894,7 +4895,7 @@ Here are my prompts:
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#safetyWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
-            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace',
+            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5059,6 +5060,10 @@ Here are my prompts:
                 }
                 if (v === 'history') {
                     window.openHistoryWorkspace();
+                    return;
+                }
+                if (v === 'lock') {
+                    window.openLockWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -17062,6 +17067,125 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
+       WORKSPACE: Version Lock
+       data-view="lock" | openLockWorkspace() | initLockWorkspace()
+       Locks individual prompts against accidental edit/delete. Backend already
+       enforces this (423 on PUT/DELETE of a locked prompt) -- this workspace is
+       just where a user flips the lock. Searchable list over the full library,
+       locked rows sorted first and visually marked. No AI calls, not premium-gated.
+       ============================================================================ */
+
+    let _vlockSearchTimer = null;
+
+    async function _vlockLoadList(search) {
+        const listEl = $('#lockList');
+        if (!listEl) return;
+        listEl.innerHTML = '<div class="vlock-loading">Loading prompts\u2026</div>';
+        try {
+            const [promptData, lockedData] = await Promise.all([api('/prompts'), api('/locked-prompts')]);
+            const lockedSet = new Set((Array.isArray(lockedData) ? lockedData : []).map(Number));
+            const q = (search || '').trim().toLowerCase();
+            let list = Array.isArray(promptData) ? promptData : (promptData.prompts || []);
+            if (q) list = list.filter(p => (p.title || '').toLowerCase().includes(q));
+            if (!list.length) {
+                listEl.innerHTML = `
+          <div class="vlock-empty">
+            <span class="material-symbols-outlined">lock</span>
+            <p>${q ? 'No prompts match your search.' : 'No prompts in your library yet.'}</p>
+          </div>`;
+                return;
+            }
+            // Locked rows first, stable otherwise
+            list = list.slice().sort((a, b) => (lockedSet.has(b.id) ? 1 : 0) - (lockedSet.has(a.id) ? 1 : 0));
+            listEl.innerHTML = list.map(p => {
+                const locked = lockedSet.has(p.id);
+                return `
+        <div class="vlock-row${locked ? ' vlock-row-locked' : ''}" data-prompt-id="${p.id}" data-locked="${locked ? '1' : '0'}">
+          <div class="vlock-row-main">
+            <span class="material-symbols-outlined vlock-row-icon">${locked ? 'lock' : 'description'}</span>
+            <div class="vlock-row-text">
+              <div class="vlock-row-title">${escapeHtml(p.title || 'Untitled')}</div>
+              <div class="vlock-row-preview">${escapeHtml(_rhTruncate(p.content, 140))}</div>
+            </div>
+          </div>
+          <button class="btn btn-ghost btn-xs vlock-toggle-btn" data-vlock-toggle="${p.id}">
+            <span class="material-symbols-outlined">${locked ? 'lock_open' : 'lock'}</span> ${locked ? 'Unlock' : 'Lock'}
+          </button>
+        </div>`;
+            }).join('');
+
+            listEl.querySelectorAll('.vlock-row').forEach(row => {
+                const btn = row.querySelector('[data-vlock-toggle]');
+                btn?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    _vlockToggle(row);
+                });
+            });
+        } catch (e) {
+            listEl.innerHTML = `<div class="vlock-empty vlock-error"><p>Couldn\u2019t load prompts: ${escapeHtml(e.message)}</p></div>`;
+        }
+    }
+
+    async function _vlockToggle(row) {
+        const id = Number(row.dataset.promptId);
+        if (!id) return;
+        const wasLocked = row.dataset.locked === '1';
+        const btn = row.querySelector('[data-vlock-toggle]');
+        if (btn) btn.disabled = true;
+        try {
+            if (wasLocked) {
+                await api(`/locked-prompts/${id}`, { method: 'DELETE' });
+            } else {
+                await api(`/locked-prompts/${id}`, { method: 'POST' });
+            }
+            const nowLocked = !wasLocked;
+            row.dataset.locked = nowLocked ? '1' : '0';
+            row.classList.toggle('vlock-row-locked', nowLocked);
+            const icon = row.querySelector('.vlock-row-icon');
+            if (icon) icon.textContent = nowLocked ? 'lock' : 'description';
+            if (btn) {
+                btn.innerHTML = `<span class="material-symbols-outlined">${nowLocked ? 'lock_open' : 'lock'}</span> ${nowLocked ? 'Unlock' : 'Lock'}`;
+            }
+            toast(nowLocked ? 'Locked' : 'Unlocked', 'success');
+        } catch (e) {
+            toast('Could not update lock: ' + e.message, 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    window.openLockWorkspace = function() {
+        $('#lockWorkspace')?.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'lock'));
+        const input = $('#lockSearchInput');
+        if (input) input.value = '';
+        _vlockLoadList('');
+    };
+
+    function closeLockWorkspace() {
+        $('#lockWorkspace')?.classList.remove('open');
+        document.body.style.overflow = '';
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    function initLockWorkspace() {
+        const ws = $('#lockWorkspace');
+        if (!ws) return;
+        $('#closeLockBtn')?.addEventListener('click', closeLockWorkspace);
+        $('#lockSearchInput')?.addEventListener('input', e => {
+            clearTimeout(_vlockSearchTimer);
+            const val = e.target.value;
+            _vlockSearchTimer = setTimeout(() => _vlockLoadList(val), 120);
+        });
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeLockWorkspace();
+        });
+    }
+
+    /* ============================================================================
        WORKSPACE: Batch Runner
        data-view="batch" | openBatchWorkspace() | initBatchWorkspace()
        Runs one prompt across many input rows via callAI, one row at a time.
@@ -18045,6 +18169,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initDashboardWorkspace(); // dashboard
         initBackupWorkspace(); // backup & restore workspace
         initHistoryWorkspace(); // run history workspace
+        initLockWorkspace(); // version lock workspace
         initWorkspacesLauncher(); // workspaces launcher grid
         initFillWorkspace(); // quick fill workspace
         initAuditWorkspace(); // prompt auditor workspace
@@ -26132,7 +26257,7 @@ Must avoid: [Anything sensitive or previously declined]`
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
         '#playgroundWorkspace', '#chainWorkspace',
         '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace',
-        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace', '#historyWorkspace'
+        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace'
     ];
 
     function _closeTourWorkspaces() {
