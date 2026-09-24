@@ -9316,3 +9316,29 @@
   .smart-paste-excerpt { margin-top: 6px; }
   .smart-paste-excerpt summary { font-size: 11px; color: var(--ink-3); cursor: pointer; }
   .smart-paste-excerpt pre { white-space: pre-wrap; font-size: 11px; color: var(--ink-2); margin-top: 4px; font-family: var(--ff-mono); }
+
+/* =============================================================
+   WORKSPACE: Prompt from Example  [PRO]
+   Reverse direction of Prompt Generator — example output in,
+   reverse-engineered prompt out. Reuses .opt-section-label /
+   .opt-output / .opt-actions / .forge-input (generic, shared).
+   ============================================================= */
+#exampleWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+}
+#exampleWorkspace.open { display: flex; }
+.pfe-body { display: flex; flex-direction: column; flex: 1; overflow-y: auto; padding: var(--sp-4) var(--sp-5); gap: var(--sp-2); }
+.pfe-why {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--ink-3);
+}

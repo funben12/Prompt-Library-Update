@@ -4590,6 +4590,7 @@ Here are my prompts:
         const table = [
             ['All Workspaces', 'grid_view', 'openWorkspacesLauncher', 'launcher tools browse grid'],
             ['Prompt Generator', 'bolt', 'openGenWorkspace', 'generate create task describe ai'],
+            ['Prompt from Example', 'content_paste_search', 'openExampleWorkspace', 'reverse engineer output example input infer'],
             ['Prompt Optimizer', 'rocket_launch', 'openOptimizerWorkspace', 'optimize improve score quality'],
             ['Prompt Components', 'extension', 'openComponentsWorkspace', 'blocks drag drop builder frameworks'],
             ['Prompt Forge', 'construction', 'openForgeWorkspace', 'build structured framework rtf costar'],
@@ -4888,6 +4889,7 @@ Here are my prompts:
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
+            '#exampleWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5028,6 +5030,10 @@ Here are my prompts:
                 }
                 if (v === 'backup') {
                     window.openBackupWorkspace();
+                    return;
+                }
+                if (v === 'example') {
+                    window.openExampleWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -15426,6 +15432,141 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
+       WORKSPACE: Prompt from Example
+       data-view="example" | openExampleWorkspace() | initExampleWorkspace()
+       Reverse direction of Prompt Generator: starts from an example of the desired
+       OUTPUT (and optionally the input that should produce it) and asks the AI to
+       infer the prompt that would reliably generate output of that kind.
+       ============================================================================ */
+
+    const _pfeState = {
+        lastOutput: '',
+        lastWhy: ''
+    };
+
+    window.openExampleWorkspace = function() {
+        if (!state.isPremium) {
+            showPremiumModal();
+            return;
+        }
+        $('#exampleWorkspace')?.classList.add('open');
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'example'));
+        setTimeout(() => $('#pfeDesiredOutput')?.focus(), 80);
+    };
+
+    function closeExampleWorkspace() {
+        $('#exampleWorkspace')?.classList.remove('open');
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    async function _pfeRun() {
+        const output = $('#pfeDesiredOutput')?.value?.trim();
+        if (!output) {
+            toast('Paste the desired output first', 'warning');
+            return;
+        }
+        const input = $('#pfeExampleInput')?.value?.trim();
+        const sys = 'You are an expert prompt engineer specialising in reverse-engineering prompts from examples of AI output. Given an example of the output a user wants, and optionally the input that should produce it, infer and write ONE complete, production-ready prompt that would reliably generate output of that kind. After the prompt, add a new line starting with "WHY:" followed by a short (2-4 sentence) explanation of why this prompt would produce that output. Output only the prompt and the WHY line — no markdown fencing, no extra preamble.';
+        let usr = 'Desired output:\n"""\n' + output + '\n"""\n';
+        if (input) {
+            usr += '\nExample input that should produce this output:\n"""\n' + input + '\n"""\n';
+        } else {
+            usr += '\nNo specific input is given — the prompt should work from a fresh conversation with no input.\n';
+        }
+        const out = $('#pfeOutput');
+        if (out) out.innerHTML = '<span class="hint">⏳ Reverse-engineering…</span>';
+        const whyLabel = $('#pfeWhyLabel');
+        const whyEl = $('#pfeWhy');
+        if (whyLabel) whyLabel.hidden = true;
+        if (whyEl) {
+            whyEl.hidden = true;
+            whyEl.textContent = '';
+        }
+        const actions = $('#pfeOutputActions');
+        if (actions) actions.style.display = 'none';
+
+        const result = await callAI(sys, usr, 1600);
+        const whyMatch = result.match(/\bWHY:\s*([\s\S]*)$/i);
+        const why = whyMatch ? whyMatch[1].trim() : '';
+        const prompt = whyMatch ? result.slice(0, result.lastIndexOf(whyMatch[0])).trim() : result.trim();
+
+        if (out) out.textContent = prompt;
+        _pfeState.lastOutput = prompt;
+        _pfeState.lastWhy = why;
+
+        if (why) {
+            if (whyEl) {
+                whyEl.textContent = why;
+                whyEl.hidden = false;
+            }
+            if (whyLabel) whyLabel.hidden = false;
+        }
+        if (actions) actions.style.display = 'flex';
+        toast('Prompt reverse-engineered', 'success');
+    }
+
+    function initExampleWorkspace() {
+        const ws = $('#exampleWorkspace');
+        if (!ws) return;
+
+        $('#pfeRunBtn')?.addEventListener('click', async function() {
+            this.disabled = true;
+            this.innerHTML = '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite">progress_activity</span> Reverse-engineering…';
+            try {
+                await _pfeRun();
+            } catch (err) {
+                const out = $('#pfeOutput');
+                if (out) out.innerHTML = '<span class="hint">Error: ' + escapeHtml(err.message) + '</span>';
+                toast('Reverse-engineering failed: ' + err.message, 'error');
+            } finally {
+                this.disabled = false;
+                this.innerHTML = '<span class="material-symbols-outlined">content_paste_search</span> Reverse-engineer prompt';
+            }
+        });
+
+        $('#pfeCopyBtn')?.addEventListener('click', async () => {
+            const text = _pfeState.lastOutput || $('#pfeOutput')?.textContent?.trim();
+            if (!text) return;
+            if (await copyToClipboard(text)) toast('Prompt copied', 'success');
+        });
+
+        $('#pfeSaveBtn')?.addEventListener('click', async () => {
+            if (!_pfeState.lastOutput) {
+                toast('Reverse-engineer a prompt first', 'warning');
+                return;
+            }
+            const title = (_pfeState.lastOutput.split(' ').slice(0, 6).join(' ') || 'Prompt from example') + ' (from example)';
+            try {
+                const result = await api('/prompts', {
+                    method: 'POST',
+                    body: {
+                        title,
+                        content: _pfeState.lastOutput,
+                        description: 'Reverse-engineered via Prompt from Example workspace',
+                        categories: 'Prompt Engineering',
+                        tags: 'reverse-engineered',
+                        notes: _pfeState.lastWhy || ''
+                    }
+                });
+                await loadPrompts();
+                await loadFilterOptions();
+                toast('Saved: ' + title, 'success');
+                closeExampleWorkspace();
+                if (result?.id) setTimeout(() => openDetail(result.id), 200);
+            } catch {
+                toast('Could not save', 'error');
+            }
+        });
+
+        $('#closeExampleBtn')?.addEventListener('click', closeExampleWorkspace);
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeExampleWorkspace();
+        });
+    }
+
+    /* ============================================================================
        WORKSPACES LAUNCHER
        ============================================================================ */
 
@@ -16733,6 +16874,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initContextBankWorkspace(); // context bank workspace + wiring
         initOptimizerWorkspace(); // prompt optimizer workspace
         initGenWorkspace(); // prompt generator workspace
+        initExampleWorkspace(); // prompt from example workspace
         initDashboardWorkspace(); // dashboard
         initBackupWorkspace(); // backup & restore workspace
         initWorkspacesLauncher(); // workspaces launcher grid
@@ -24820,7 +24962,8 @@ Must avoid: [Anything sensitive or previously declined]`
     };
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
         '#playgroundWorkspace', '#chainWorkspace',
-        '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace'
+        '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace',
+        '#exampleWorkspace'
     ];
 
     function _closeTourWorkspaces() {
