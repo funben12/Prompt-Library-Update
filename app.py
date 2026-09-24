@@ -2837,8 +2837,11 @@ def fix_orphaned_folders():
 
 
 def _backup_dir():
-    """Folder holding whole-DB snapshots, alongside PromptLibrary.db."""
-    path = os.path.join(get_data_dir(), 'backups')
+    """Folder holding whole-DB snapshots. Deliberately a sibling of Documents/PromptLibrary,
+    not a subfolder of it — if that whole folder is lost (deleted, drive failure), the
+    backups need to survive it, or Backup & Restore protects nothing in the scenario that
+    actually matters."""
+    path = os.path.join(os.path.expanduser('~'), 'Documents', 'PromptLibraryBackups')
     os.makedirs(path, exist_ok=True)
     return path
 
