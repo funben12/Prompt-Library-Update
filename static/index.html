@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" media="print" onload="this.media='all'">
 
-<link rel="stylesheet" href="/static/app.css?v=17f0712b">
+<link rel="stylesheet" href="/static/app.css?v=a2c99ffb">
 </head>
 <body>
 
@@ -3878,6 +3878,30 @@
 </div>
 
 <!-- ============================================================
+     WORKSPACE: Credential Vault
+     See which providers have an API key stored, clear any of them.
+     data-view="credentials"
+     ============================================================ -->
+<div id="credentialsWorkspace" role="dialog" aria-modal="true" aria-label="Credential Vault">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">vpn_key</span>
+      <div>
+        <h2 class="ws-title">Credential Vault</h2>
+        <p class="ws-subtitle">See which providers have a key stored. Clear any of them in one click.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="icon-btn" id="closeCredentialsBtn" aria-label="Close Credential Vault"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body cv-body">
+    <p class="cv-note">Stored in your browser's local storage, not the database. Never sent anywhere except the selected provider.</p>
+    <div class="cv-list" id="credentialsList"></div>
+  </div>
+</div>
+
+<!-- ============================================================
      WORKSPACE: Batch Runner
      Runs one prompt across many input rows via callAI, one at a time.
      data-view="batch"
@@ -4264,6 +4288,13 @@
         <span class="launcher-card-desc">Diagnose database and vault issues -- orphaned rows, missing folders</span>
       </span>
       </button>
+      <button class="launcher-card" data-open="openCredentialsWorkspace">
+        <span class="material-symbols-outlined launcher-card-icon">vpn_key</span>
+        <span class="launcher-card-text">
+        <span class="launcher-card-title">Credential Vault</span>
+        <span class="launcher-card-desc">See which providers have an API key stored and clear any of them</span>
+      </span>
+      </button>
         </div>
       </div>
       <p class="launcher-empty" id="launcherEmpty" hidden>No tools match your search</p>
@@ -4404,7 +4435,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=2db02c04"></script>
+<script defer src="/static/app.js?v=dc49b38f"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

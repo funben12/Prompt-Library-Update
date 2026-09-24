@@ -4615,6 +4615,7 @@ Here are my prompts:
             ['Run History', 'manage_history', 'openHistoryWorkspace', 'run history log usage every time used runs list'],
             ['Version Lock', 'lock', 'openLockWorkspace', 'lock unlock protect prevent accidental edit delete final production ready'],
             ['Integrity Check', 'troubleshoot', 'openIntegrityWorkspace', 'integrity check diagnostics database orphaned rows vault folders structural health'],
+            ['Credential Vault', 'vpn_key', 'openCredentialsWorkspace', 'credential vault api key keys provider secrets clear stored localstorage'],
         ];
         return table.map(([label, icon, fn, keywords]) => ({
             kind: 'workspace',
@@ -4896,7 +4897,7 @@ Here are my prompts:
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#safetyWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
-            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace',
+            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5069,6 +5070,10 @@ Here are my prompts:
                 }
                 if (v === 'integrity') {
                     window.openIntegrityWorkspace();
+                    return;
+                }
+                if (v === 'credentials') {
+                    window.openCredentialsWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -17295,6 +17300,95 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
+       WORKSPACE: Credential Vault
+       data-view="credentials" | openCredentialsWorkspace() | initCredentialsWorkspace()
+       Read-only overview of which AI providers have an API key stored --
+       keys live in localStorage (pl_api_key_<provider>), set one at a time via
+       the Settings flyout (#configPanel), which is untouched by this workspace.
+       Never renders a key value, not even masked -- boolean presence only.
+       Pure client-side, no fetch, no backend route. Not premium-gated, same
+       reasoning as Backup & Restore / Version Lock / Integrity Check.
+       ============================================================================ */
+
+    const CV_PROVIDERS = [
+        ['openai', 'OpenAI'],
+        ['anthropic', 'Anthropic'],
+        ['gemini', 'Gemini'],
+        ['openrouter', 'Open Router'],
+        ['mistral', 'Mistral'],
+        ['groq', 'Groq'],
+        ['deepseek', 'DeepSeek'],
+        ['xai', 'xAI (Grok)'],
+        ['cohere', 'Cohere'],
+        ['perplexity', 'Perplexity'],
+        ['azure_openai', 'Azure OpenAI'],
+    ];
+
+    function _cvHasKey(provider) {
+        return !!localStorage.getItem('pl_api_key_' + provider);
+    }
+
+    function _cvRowHtml([id, label]) {
+        const set = _cvHasKey(id);
+        return `
+      <div class="cv-row${set ? ' cv-row-set' : ''}" data-cv-provider="${id}">
+        <div class="cv-row-main">
+          <span class="material-symbols-outlined cv-row-icon">${set ? 'lock' : 'lock_open'}</span>
+          <div class="cv-row-text">
+            <div class="cv-row-title">${escapeHtml(label)}</div>
+          </div>
+        </div>
+        <div class="cv-row-actions">
+          <span class="cv-badge ${set ? 'cv-good' : 'cv-neutral'}">${set ? 'Key set' : 'No key'}</span>
+          ${set ? `<button class="btn btn-ghost btn-xs" data-cv-clear="${id}">Clear</button>` : ''}
+        </div>
+      </div>`;
+    }
+
+    function _cvRender() {
+        const listEl = $('#credentialsList');
+        if (!listEl) return;
+        listEl.innerHTML = CV_PROVIDERS.map(_cvRowHtml).join('');
+        listEl.querySelectorAll('[data-cv-clear]').forEach(btn => {
+            btn.addEventListener('click', () => _cvClear(btn.dataset.cvClear));
+        });
+    }
+
+    function _cvClear(provider) {
+        if (!provider) return;
+        const entry = CV_PROVIDERS.find(([id]) => id === provider);
+        const label = entry ? entry[1] : provider;
+        if (!confirm(`Clear the stored API key for ${label}? You'll need to paste it again in Settings to use this provider.`)) return;
+        localStorage.removeItem('pl_api_key_' + provider);
+        toast('Cleared', 'success');
+        _cvRender();
+    }
+
+    window.openCredentialsWorkspace = function() {
+        $('#credentialsWorkspace')?.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'credentials'));
+        _cvRender();
+    };
+
+    function closeCredentialsWorkspace() {
+        $('#credentialsWorkspace')?.classList.remove('open');
+        document.body.style.overflow = '';
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    function initCredentialsWorkspace() {
+        const ws = $('#credentialsWorkspace');
+        if (!ws) return;
+        $('#closeCredentialsBtn')?.addEventListener('click', closeCredentialsWorkspace);
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeCredentialsWorkspace();
+        });
+    }
+
+    /* ============================================================================
        WORKSPACE: Batch Runner
        data-view="batch" | openBatchWorkspace() | initBatchWorkspace()
        Runs one prompt across many input rows via callAI, one row at a time.
@@ -18280,6 +18374,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initHistoryWorkspace(); // run history workspace
         initLockWorkspace(); // version lock workspace
         initIntegrityWorkspace(); // integrity check workspace
+        initCredentialsWorkspace(); // credential vault workspace
         initWorkspacesLauncher(); // workspaces launcher grid
         initFillWorkspace(); // quick fill workspace
         initAuditWorkspace(); // prompt auditor workspace
@@ -26367,7 +26462,7 @@ Must avoid: [Anything sensitive or previously declined]`
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
         '#playgroundWorkspace', '#chainWorkspace',
         '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace',
-        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace'
+        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace'
     ];
 
     function _closeTourWorkspaces() {

@@ -8747,6 +8747,74 @@
   color: var(--danger, #d33);
 }
 
+/* =============================================================
+   CREDENTIAL VAULT
+   Single-column provider list -- structurally follows Integrity
+   Check / Version Lock's row pattern, own cv- prefix. Set/unset
+   badge colours reuse the Integrity Check ic-badge green/red
+   convention (own class names, not a literal reuse of ic-badge).
+   ============================================================= */
+.cv-body {
+  overflow-y: auto;
+  padding: var(--sp-5);
+  gap: var(--sp-3);
+}
+.cv-note {
+  font-size: 11px;
+  color: var(--ink-4);
+  line-height: 1.5;
+  margin: 0 0 var(--sp-2);
+}
+.cv-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.cv-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.cv-row-set {
+  border-color: var(--accent-line);
+}
+.cv-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.cv-row-icon {
+  font-size: 22px;
+  color: var(--ink-4);
+  flex-shrink: 0;
+}
+.cv-row-set .cv-row-icon {
+  color: var(--accent);
+}
+.cv-row-text {
+  min-width: 0;
+}
+.cv-row-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+.cv-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+.cv-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.cv-badge.cv-good { background: color-mix(in oklch, #22c55e 18%, transparent); color: #16a34a; }
+.cv-badge.cv-neutral { background: var(--surface-2); color: var(--ink-4); }
+
 #genOutputActions {
   display: flex;
   gap: var(--sp-2);
@@ -8790,7 +8858,7 @@
 #fillWorkspace, #auditWorkspace, #diffWorkspace, #costWorkspace,
 #pulseWorkspace, #xrayWorkspace, #spliceWorkspace, #batchWorkspace, #boardWorkspace,
 #taxonomyWorkspace, #versionWorkspace, #backupWorkspace, #historyWorkspace, #lockWorkspace,
-#integrityWorkspace {
+#integrityWorkspace, #credentialsWorkspace {
   display: none;
   position: fixed;
   inset: 0;
@@ -8802,7 +8870,7 @@
 #pulseWorkspace.open, #xrayWorkspace.open, #spliceWorkspace.open,
 #batchWorkspace.open, #boardWorkspace.open, #taxonomyWorkspace.open,
 #versionWorkspace.open, #backupWorkspace.open, #historyWorkspace.open, #lockWorkspace.open,
-#integrityWorkspace.open { display: flex; }
+#integrityWorkspace.open, #credentialsWorkspace.open { display: flex; }
 
 /* -- Batch Runner -- */
 .br-body { display: grid; grid-template-columns: minmax(340px, 40%) 1fr; flex: 1; overflow: hidden; }
