@@ -4596,6 +4596,7 @@ Here are my prompts:
             ['Prompt Simplifier', 'compress', 'openSimplifyWorkspace', 'simplify trim shorten compress debloat reduce cut'],
             ['Tone & Style Rewriter', 'tune', 'openToneWorkspace', 'tone style rewrite voice register formal casual friendly technical persuasive playful direct concise'],
             ['Prompt Translator', 'translate', 'openTranslateWorkspace', 'translate language spanish french german portuguese italian japanese chinese korean arabic hindi localize'],
+            ['Gauntlet Loop', 'shield', 'openGauntletWorkspace', 'gauntlet stress test critic adversarial harsh review rounds pass fail refine'],
             ['Prompt Components', 'extension', 'openComponentsWorkspace', 'blocks drag drop builder frameworks'],
             ['Prompt Forge', 'construction', 'openForgeWorkspace', 'build structured framework rtf costar'],
             ['Prompt Lab', 'biotech', 'openLabWorkspace', 'ab test variants compare experiment'],
@@ -4603,7 +4604,6 @@ Here are my prompts:
             ['Context Bank', 'database', 'openContextBankWorkspace', 'context blocks reusable snippets'],
             ['Quick Fill', 'dynamic_form', 'openFillWorkspace', 'placeholders template variables fill'],
             ['Prompt Auditor', 'fact_check', 'openAuditWorkspace', 'audit rubric score check'],
-            ['Safety & Bias Lens', 'shield', 'openSafetyWorkspace', 'safety bias injection jailbreak review scan'],
             ['Diff Lens', 'compare', 'openDiffWorkspace', 'diff compare two prompts'],
             ['Cost Lens', 'calculate', 'openCostWorkspace', 'tokens cost estimate price'],
             ['Library Organizer', 'monitor_heart', 'openPulseWorkspace', 'health scan library quality organize duplicates stale cleanup'],
@@ -4897,10 +4897,10 @@ Here are my prompts:
         // Close any open workspaces
         ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace', '#playgroundWorkspace',
             '#chainWorkspace', '#metaPromptingWorkspace', '#contextBankWorkspace', '#componentsWorkspace',
-            '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#safetyWorkspace', '#diffWorkspace',
+            '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
-            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace',
+            '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace', '#gauntletWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5011,10 +5011,6 @@ Here are my prompts:
                     window.openAuditWorkspace();
                     return;
                 }
-                if (v === 'safety') {
-                    window.openSafetyWorkspace();
-                    return;
-                }
                 if (v === 'diff') {
                     window.openDiffWorkspace();
                     return;
@@ -5089,6 +5085,10 @@ Here are my prompts:
                 }
                 if (v === 'translate') {
                     window.openTranslateWorkspace();
+                    return;
+                }
+                if (v === 'gauntlet') {
+                    window.openGauntletWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -12461,7 +12461,7 @@ Must avoid: [Anything sensitive or previously declined]`
         }
         const custom = $('#optCustomInstructions')?.value?.trim();
         const goal = $('#optGoalInput')?.value?.trim();
-        const sys = 'You are an expert prompt engineer. Analyze the given prompt and provide: 1. Overall quality score (1-100) 2. Strengths 3. Areas for improvement 4. Enhancement suggestions. End with SCORE: [number].';
+        const sys = 'You are a World Class SSS expert prompt engineer, your specialty is analyzing and improving prompts. Analyze the given prompt and provide: 1. Overall quality score (1-100) 2. Strengths 3. Areas for improvement 4. Enhancement suggestions. End with SCORE: [number].';
         let usr = 'Analyze this prompt:\n\n"' + prompt + '"';
         if (goal) usr += '\n\nIntended outcome / goal: ' + goal;
         if (custom) usr += '\n\nConsider: ' + custom;
@@ -12503,7 +12503,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 const tech = this.dataset.tech;
                 const lbl = this.dataset.label;
                 const cur = _optState.selectedTechniques.get(tech) || 0;
-                if (cur >= 12) {
+                if (cur >= 24) {
                     _optState.selectedTechniques.delete(tech);
                     this.classList.remove('active');
                     this.removeAttribute('data-level');
@@ -13273,251 +13273,6 @@ Must avoid: [Anything sensitive or previously declined]`
         });
         ws.addEventListener('keydown', e => {
             if (e.key === 'Escape') closeAuditWorkspace();
-        });
-    }
-
-    /* ============================================================================
-       SAFETY & BIAS LENS WORKSPACE
-       Offline heuristic scan for injection surface, missing refusal boundaries,
-       jailbreak-enabling phrasing, bias-prone generalizations, unscoped
-       authority and sensitive-data solicitation. Optional AI deep review
-       through the shared callAI() helper.
-       data-view="safety" | openSafetyWorkspace() | initSafetyWorkspace()
-       ============================================================================ */
-
-    const SAF_JAILBREAK_PATTERNS = [
-        /ignore (all |any )?(previous|prior|above|earlier) instructions?/i,
-        /you (now )?have no (restrictions|limits|rules|guidelines|filters)/i,
-        /pretend (you are|to be) (dan\b|an? (unfiltered|uncensored|jailbroken))/i,
-        /\bact as dan\b/i,
-        /bypass (your |the )?(safety )?(guidelines|rules|filters|restrictions|safeguards)/i,
-        /act without (any )?(limits|limitations|restriction|filters|rules)/i,
-        /no (filters?|censorship|restrictions) (apply|applied|allowed)?/i,
-        /respond as an? (ai|assistant) with no (rules|restrictions|filters|limits)/i,
-    ];
-    const SAF_ABSOLUTES = ['always', 'never', 'all', 'every', 'none', 'everyone', 'nobody', 'everybody'];
-    const SAF_GROUP_WORDS = ['women', 'men', 'immigrants', 'elderly', 'disabled', 'muslims', 'christians',
-        'jews', 'asians', 'latinos', 'hispanics', 'refugees', 'teenagers', 'millennials', 'boomers',
-        'homosexuals', 'transgender', 'veterans', 'foreigners'
-    ];
-
-    let _safLastResult = null;
-
-    function _safScore(text) {
-        const t = (text || '').trim();
-        const lower = t.toLowerCase();
-        const words = (t.match(/\S+/g) || []).length;
-        const dims = {};
-        const findings = [];
-
-        // Injection surface — bare placeholders with no surrounding delimiter/framing
-        const placeholderRx = /\{\{[^{}\n]{1,60}\}\}|\[\[[^\[\]\n]{1,60}\]\]|\{[^{}\n]{1,40}\}/g;
-        let hasPlaceholder = false;
-        let undelimited = false;
-        let m;
-        while ((m = placeholderRx.exec(t)) !== null) {
-            hasPlaceholder = true;
-            const start = Math.max(0, m.index - 40);
-            const ctx = t.slice(start, m.index + m[0].length + 40);
-            const delimited = /["'“”‘’`]|<\/?[a-zA-Z][^>]*>|user (said|wrote|provided|input|message)|following (text|content|message)|delimited|triple (quotes|backticks)|between the/i.test(ctx);
-            if (!delimited) undelimited = true;
-        }
-        dims['Injection surface'] = !hasPlaceholder ? 95 : (undelimited ? 35 : 85);
-        if (undelimited) findings.push({
-            sev: 'high',
-            text: 'A placeholder for user-supplied content isn\'t fenced or framed (quotes, tags, "the user said:"). Unfenced input is easy to hijack with injected instructions.'
-        });
-
-        // Refusal / safety boundary — only weighted when the prompt reads as user-facing
-        const userFacing = /\byou are\b/i.test(t) && /\b(assistant|chatbot|bot|agent|helper|support|copilot|companion)\b/i.test(t);
-        const hasBoundary = /\b(decline|refuse|will not|won'?t|do not|don'?t|cannot|can'?t)\b[^.\n]{0,50}\b(harmful|illegal|dangerous|unsafe|unethical|inappropriate|malicious|unlawful)\b|\b(harmful|illegal|dangerous|unsafe|unethical|inappropriate|malicious|unlawful)\b[^.\n]{0,50}\b(decline|refuse|will not|won'?t|do not|don'?t|cannot|can'?t)\b/i.test(t);
-        dims['Refusal / safety boundary'] = userFacing ? (hasBoundary ? 90 : 40) : 75;
-        if (userFacing && !hasBoundary) findings.push({
-            sev: 'med',
-            text: 'User-facing assistant prompt has no refusal or boundary language. Consider a line on what to decline (harmful, illegal, dangerous requests).'
-        });
-
-        // Jailbreak-enabling phrasing
-        const jbHits = SAF_JAILBREAK_PATTERNS.filter(rx => rx.test(t));
-        dims['Jailbreak-enabling phrasing'] = jbHits.length ? Math.max(15, 100 - jbHits.length * 35) : 95;
-        if (jbHits.length) findings.push({
-            sev: 'high',
-            text: jbHits.length + ' phrase' + (jbHits.length > 1 ? 's' : '') + ' resembling a jailbreak pattern (e.g. "ignore previous instructions", "bypass your guidelines"). Review and remove.'
-        });
-
-        // Absolute/generalizing language near a demographic or group noun
-        const wordsLower = lower.match(/[a-z']+/g) || [];
-        let biasHit = null;
-        for (let i = 0; i < wordsLower.length && !biasHit; i++) {
-            if (!SAF_ABSOLUTES.includes(wordsLower[i])) continue;
-            for (let j = Math.max(0, i - 4); j <= Math.min(wordsLower.length - 1, i + 4); j++) {
-                if (SAF_GROUP_WORDS.includes(wordsLower[j])) {
-                    biasHit = { abs: wordsLower[i], group: wordsLower[j] };
-                    break;
-                }
-            }
-        }
-        dims['Bias-prone generalizations'] = biasHit ? 55 : 90;
-        if (biasHit) findings.push({
-            sev: 'med',
-            text: '"' + biasHit.abs + '" appears near "' + biasHit.group + '" — worth reviewing for bias. Absolute claims about a group can encode stereotypes even unintentionally.'
-        });
-
-        // Unscoped authority — grants unrestricted scope with no stated boundary
-        const unscopedRx = /\byou can do anything\b|\bno limits?\b|\bany topic,?\s*no matter what\b|\bwithout (any )?(restriction|limitation|boundaries)\b|\bunlimited (scope|authority|power)\b|\banswer (anything|everything) (regardless|no matter)/i;
-        const hasScopeBoundary = /\b(don'?t|do not|never|avoid|must not|only|except|unless|excluding|out of scope)\b/i.test(t);
-        const hasUnscoped = unscopedRx.test(t);
-        dims['Unscoped authority'] = hasUnscoped ? (hasScopeBoundary ? 60 : 30) : 90;
-        if (hasUnscoped) findings.push({
-            sev: hasScopeBoundary ? 'low' : 'high',
-            text: 'Grants unrestricted scope ("no limits", "anything, no matter what") ' + (hasScopeBoundary ? 'with only loose boundaries elsewhere. Tighten the scope statement.' : 'with no stated boundary. Add an explicit out-of-scope list.')
-        });
-
-        // Sensitive-data solicitation with no handling caveat
-        const sensitiveRx = /\b(password|passwords|ssn|social security number|national insurance number|credit card|credit-card number|card number|cvv|bank account|routing number|medical record|health record|medical history|diagnosis|patient data|passport number|driver'?s licen[cs]e|date of birth)\b/i;
-        const caveatRx = /\b(never store|do not store|don'?t store|redact|do not log|don'?t log|no logging|encrypt|do not retain|don'?t retain|anonymi[sz]e|mask (it|the|any)|do not share|confidential(ly)?|comply with (gdpr|hipaa)|delete (it|this|the data)( after| once)?)\b/i;
-        const asksSensitive = sensitiveRx.test(t);
-        const hasCaveat = caveatRx.test(t);
-        dims['Sensitive-data handling'] = asksSensitive ? (hasCaveat ? 75 : 25) : 95;
-        if (asksSensitive && !hasCaveat) findings.push({
-            sev: 'high',
-            text: 'Prompt collects or handles sensitive personal data with no handling caveat nearby (e.g. "never store", "redact", "do not log"). Add one.'
-        });
-
-        const vals = Object.values(dims);
-        const overall = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
-        return {
-            overall,
-            dims,
-            findings,
-            words,
-            tokens: _wsEstTokens(t)
-        };
-    }
-
-    function _safRender(result) {
-        const scoreEl = $('#safScoreNum');
-        if (scoreEl) scoreEl.textContent = result.overall;
-        const badge = $('#safScoreBadge');
-        if (badge) {
-            badge.textContent = result.overall >= 80 ? 'Low risk' : result.overall >= 55 ? 'Review' : 'High risk';
-            badge.className = 'aud-badge ' + (result.overall >= 80 ? 'aud-good' : result.overall >= 55 ? 'aud-mid' : 'aud-bad');
-        }
-        const meta = $('#safMeta');
-        if (meta) meta.textContent = result.words + ' words · ~' + result.tokens + ' tokens';
-
-        const dimsEl = $('#safDims');
-        if (dimsEl) dimsEl.innerHTML = Object.entries(result.dims).map(([label, v]) =>
-            '<div class="aud-dim">' +
-            '<div class="aud-dim-head"><span>' + escapeHtml(label) + '</span><span class="aud-dim-val">' + v + '</span></div>' +
-            '<div class="aud-bar"><div class="aud-bar-fill' + (v >= 70 ? '' : v >= 45 ? ' mid' : ' low') + '" style="width:' + v + '%"></div></div>' +
-            '</div>').join('');
-
-        const list = $('#safFindings');
-        if (list) {
-            list.innerHTML = result.findings.length ?
-                result.findings.map(f =>
-                    '<div class="aud-finding aud-sev-' + f.sev + '">' +
-                    '<span class="aud-sev-chip">' + (f.sev === 'high' ? 'High' : f.sev === 'med' ? 'Med' : 'Low') + '</span>' +
-                    '<span>' + escapeHtml(f.text) + '</span>' +
-                    '</div>').join('') :
-                '<div class="hint" style="padding:var(--sp-3);">No safety or bias risks found in this scan. ✓</div>';
-        }
-        const results = $('#safResults');
-        if (results) results.style.display = '';
-    }
-
-    window.openSafetyWorkspace = function() {
-        if (!state.isPremium) {
-            showPremiumModal();
-            return;
-        }
-        const ws = $('#safetyWorkspace');
-        if (!ws) return;
-        ws.classList.add('open');
-        document.body.style.overflow = 'hidden';
-        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'safety'));
-        _wsFillPromptPicker('#safPicker');
-        setTimeout(() => $('#safInput')?.focus(), 80);
-    };
-
-    function closeSafetyWorkspace() {
-        $('#safetyWorkspace')?.classList.remove('open');
-        document.body.style.overflow = '';
-        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
-    }
-
-    function initSafetyWorkspace() {
-        const ws = $('#safetyWorkspace');
-        if (!ws) return;
-        $('#closeSafetyBtn')?.addEventListener('click', closeSafetyWorkspace);
-        $('#safPicker')?.addEventListener('change', () => {
-            const p = _wsPickedPrompt('#safPicker');
-            if (p) {
-                const el = $('#safInput');
-                if (el) el.value = p.content || '';
-            }
-        });
-        $('#safRunBtn')?.addEventListener('click', () => {
-            const text = $('#safInput')?.value?.trim();
-            if (!text) {
-                toast('Paste a prompt first', 'warning');
-                return;
-            }
-            _safLastResult = _safScore(text);
-            _safRender(_safLastResult);
-        });
-
-        $('#safSaveBtn')?.addEventListener('click', async () => {
-            const text = $('#safInput')?.value?.trim();
-            if (!text) {
-                toast('Scan a prompt first', 'warning');
-                return;
-            }
-            const freshResult = _safScore(text);
-            const picked = _wsPickedPrompt('#safPicker');
-            const title = ((picked?.title || 'Reviewed prompt') + ' (safety reviewed)').slice(0, 120);
-            const topFindings = freshResult.findings.slice(0, 3).map(f => f.text).join(' | ');
-            const note = 'Reviewed via Safety & Bias Lens workspace — score ' + freshResult.overall + '/100.' +
-                (topFindings ? ' Top findings: ' + topFindings : '');
-            const saved = await _wsSaveOrReplace({
-                text,
-                sourcePrompt: picked,
-                newTitle: title,
-                description: 'Reviewed via Safety & Bias Lens workspace',
-                tags: 'safety-reviewed',
-                extraNote: note,
-            });
-            if (saved?.id) {
-                closeSafetyWorkspace();
-                setTimeout(() => openDetail(saved.id), 200);
-            }
-        });
-        $('#safAiBtn')?.addEventListener('click', async function() {
-            const text = $('#safInput')?.value?.trim();
-            if (!text) {
-                toast('Paste a prompt first', 'warning');
-                return;
-            }
-            const out = $('#safAiOutput');
-            this.disabled = true;
-            if (out) {
-                out.style.display = '';
-                out.innerHTML = '<span class="hint">⏳ Running deep review…</span>';
-            }
-            try {
-                const sys = 'You are a responsible-AI reviewer. Identify any bias, safety, or prompt-injection risks in the given prompt that a keyword scan would miss. Be specific and terse. Plain text, no markdown headings.';
-                const result = await callAI(sys, text, 800);
-                if (out) out.textContent = result;
-            } catch (err) {
-                if (out) out.innerHTML = '<span class="hint">Error: ' + escapeHtml(err.message) + '</span>';
-                toast('Deep review failed: ' + err.message, 'error');
-            } finally {
-                this.disabled = false;
-            }
-        });
-        ws.addEventListener('keydown', e => {
-            if (e.key === 'Escape') closeSafetyWorkspace();
         });
     }
 
@@ -15543,45 +15298,132 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     const _genFrameworkGuides = {
-        'rtf': 'Structure the prompt with the RTF framework: Role (who the AI is), Task (what to do), Format (how to answer).',
-        'costar': 'Structure the prompt with the CO-STAR framework: Context, Objective, Style, Tone, Audience, Response format.',
-        'craft': 'Structure the prompt with the CRAFT framework: Context, Role, Action, Format, Tone.',
-        'risen': 'Structure the prompt with the RISEN framework: Role, Instructions, Steps, End goal, Narrowing constraints.',
-        'ape': 'Structure the prompt with the APE framework: Action, Purpose, Expectation.',
-        'care': 'Structure the prompt with the CARE framework: Context, Action, Result, Example.',
-        'rodes': 'Structure the prompt with the RODES framework: Role, Objective, Details, Example, Steps.',
-        'grwc': 'Structure the prompt with the GRWC framework: Goal, Return format, Warnings, Context dump.',
-        'scqa': 'Structure the prompt with the SCQA framework: Situation, Complication, Question, Answer.',
-        'bab': 'Structure the prompt with the Before-After-Bridge framework: current state, desired state, how to bridge them.',
-        'chain-of-thought': 'Build the prompt around chain-of-thought: instruct the AI to reason step by step before its final answer.',
-        'few-shot': 'Build the prompt as few-shot: include 2 worked examples of input and ideal output before the real task.',
-        'tree-of-thought': 'Build the prompt around tree-of-thought: instruct the AI to explore 3 distinct approaches, evaluate each, then commit to the best.'
-    };
+    // ── Core structure & role ──────────────────────────────────────────
+    'rtf': 'Structure the prompt with the RTF framework: Role (who the AI is), Task (what to do), Format (how to answer).',
+    'costar': 'Structure the prompt with the CO-STAR framework: Context, Objective, Style, Tone, Audience, Response format.',
+    'craft': 'Structure the prompt with the CRAFT framework: Context, Role, Action, Format, Tone.',
+    'risen': 'Structure the prompt with the RISEN framework: Role, Instructions, Steps, End goal, Narrowing constraints.',
+    'ape': 'Structure the prompt with the APE framework: Action, Purpose, Expectation.',
+    'care': 'Structure the prompt with the CARE framework: Context, Action, Result, Example.',
+    'rodes': 'Structure the prompt with the RODES framework: Role, Objective, Details, Example, Steps.',
+    'grwc': 'Structure the prompt with the GRWC framework: Goal, Return format, Warnings, Context dump.',
+    'tag': 'Structure the prompt with the TAG framework: Task (what to do), Action (how to do it), Goal (the outcome you want).',
+    'race': 'Structure the prompt with the RACE framework: Role, Action, Context, Expectation.',
+    'rise': 'Structure the prompt with the RISE framework: Role, Input, Steps, Expectation.',
+    'crispe': 'Structure the prompt with the CRISPE framework: Capacity/Role, Request, Insight, Personality, Experiment.',
+    'tide': 'Structure the prompt with the TIDE framework: Task, Instructions, Details, Examples.',
+    'clear': 'Structure the prompt with the CLEAR framework: Concise, Logical, Explicit, Adaptive, Reflective.',
+    'star': 'Structure the prompt with the STAR framework: Situation, Task, Action, Result.',
+    'race-2': 'Structure the prompt with a RACE-style brief: Role, Audience, Constraints, Examples.',
+
+    // ── Communication & strategy ───────────────────────────────────────
+    'scqa': 'Structure the prompt with the SCQA framework: Situation, Complication, Question, Answer.',
+    'bab': 'Structure the prompt with the Before-After-Bridge framework: current state, desired state, how to bridge them.',
+    'prep': 'Structure the prompt with the PREP framework: Point, Reason, Example, Point (restated).',
+    'bluf': 'Structure the prompt with BLUF (Bottom Line Up Front): demand the answer first, then the supporting reasoning underneath.',
+    'peel': 'Structure the prompt with the PEEL framework: Point, Evidence, Explain, Link.',
+    'grow': 'Structure the prompt with the GROW framework: Goal, Reality, Options, Will (what to commit to).',
+    '5w1h': 'Structure the prompt with 5W1H: Who, What, When, Where, Why, How — cover every angle explicitly.',
+    'mece': 'Structure the prompt with MECE: break the topic into parts that are Mutually Exclusive and Collectively Exhaustive.',
+    'smart': 'Structure the prompt with the SMART framework: Specific, Measurable, Achievable, Relevant, Time-bound.',
+    'socratic': 'Structure the prompt as a Socratic dialogue: have the AI probe assumptions with a chain of questions before giving its conclusion.',
+    'feynman': 'Structure the prompt with the Feynman technique: explain it in the simplest possible language as if to a beginner, then tighten it up.',
+    'five-whys': 'Structure the prompt around the Five Whys: ask "why" repeatedly (about five times) to drill down to the root cause.',
+    'six-thinking-hats': 'Structure the prompt with Six Thinking Hats: walk through facts, feelings, risks, benefits, creative alternatives, and process control in turn.',
+    'devils-advocate': 'Structure the prompt for devil\'s advocacy: argue hard against the leading answer, list its weakest points, then say what survives.',
+    'expert-panel': 'Structure the prompt as an expert panel: 3+ named specialists each give their take, then synthesise a combined recommendation.',
+    'eli5': 'Structure the prompt as ELI5: explain it like I am five, then layer in the nuance in a second pass.',
+    'persona': 'Structure the prompt with persona prompting: assign a specific, detailed character (background, expertise, biases, voice) and stay in it.',
+    'clarifying-questions': 'Structure the prompt so the AI asks clarifying questions first and only answers once it has what it needs.',
+    'steelman': 'Structure the prompt to steelman: build the strongest possible version of the opposing case before critiquing it.',
+
+    // ── Reasoning & research ───────────────────────────────────────────
+    'chain-of-thought': 'Build the prompt around chain-of-thought: instruct the AI to reason step by step before its final answer.',
+    'few-shot': 'Build the prompt as few-shot: include 2 worked examples of input and ideal output before the real task.',
+    'tree-of-thought': 'Build the prompt around tree-of-thought: instruct the AI to explore 3 distinct approaches, evaluate each, then commit to the best.',
+    'graph-of-thought': 'Build the prompt around graph-of-thought: map the reasoning as nodes and edges — merge, prune, and loop back between ideas before concluding.',
+    'self-consistency': 'Build the prompt around self-consistency: generate several independent reasoning paths, then take the answer they converge on.',
+    'least-to-most': 'Build the prompt around least-to-most: decompose the problem into easier subproblems, then solve them in order from easiest to hardest.',
+    'step-back': 'Build the prompt around step-back prompting: first ask the general principle or abstract question behind the task, then use it to answer the specific case.',
+    'react': 'Build the prompt around ReAct: alternate Thought → Action (tool/lookup) → Observation until the answer is reached.',
+    'reflexion': 'Build the prompt around Reflexion: answer, critique your own answer, then revise — keeping the lesson from the critique.',
+    'self-refine': 'Build the prompt around Self-Refine: produce a draft, list its flaws, then output an improved second version.',
+    'chain-of-verification': 'Build the prompt around chain-of-verification: draft an answer, generate verification questions for each claim, check them, then rewrite.',
+    'skeleton-of-thought': 'Build the prompt around skeleton-of-thought: outline a skeleton of the answer first, then expand each point in turn.',
+    'program-of-thought': 'Build the prompt around program-of-thought: express the reasoning as code or pseudocode and execute it rather than reasoning in prose.',
+    'generated-knowledge': 'Build the prompt around generated knowledge: first produce relevant facts and background, then answer the question using only those.',
+    'analogical': 'Build the prompt around analogical prompting: recall a relevant analogous problem and its solution, then apply that structure here.',
+    'meta-prompting': 'Build the prompt around meta-prompting: have the AI write or improve the prompt itself, then answer it.',
+    'prompt-chaining': 'Build the prompt as a chain: split the job into a sequence of smaller prompts where each output feeds the next.',
+    'multi-agent-debate': 'Build the prompt as a multi-agent debate: 2-3 personas argue their case, then a judge picks the winner and explains why.',
+    'red-team': 'Build the prompt as a red-team pass: answer first, then attack the answer for holes, then harden it.',
+    'rubric': 'Build the prompt around a rubric: define explicit scoring criteria, have the AI self-score against them, then improve the weak areas.',
+
+    // ── Output & format ────────────────────────────────────────────────
+    'structured-output': 'Build the prompt around structured output: demand a strict schema (JSON, XML, or table) with named fields and nothing else.',
+    'xml-tags': 'Build the prompt using XML-style tags: wrap each part in labels like <context>, <task>, <constraints>, <output_format>.',
+    'markdown-structure': 'Build the prompt around markdown structure: headings, bullets, and tables for every section of the answer.',
+    'rag-grounding': 'Build the prompt around grounded generation: answer only from the supplied source material and cite where each claim came from.',
+    'positive-instructions': 'Build the prompt with positive instructions: say what to do rather than what to avoid, and give a concrete example of the desired behaviour.'
+};
 
     const _genTechniqueGuides = {
-        'persona': 'Open the prompt by assigning the AI a specific expert role or persona.',
-        'context': 'Add a context section explaining the background and why the task matters.',
-        'chain-of-thought': 'Instruct the AI to reason step by step before giving its final answer.',
-        'step-by-step': 'Structure the task as explicit numbered steps.',
-        'few-shot': 'Include 1-2 worked examples of input and ideal output inside the prompt.',
-        'constraints': 'Add a clear constraints section: length, scope, what to avoid.',
-        'guardrails': 'Add guardrails: things the AI must never do or include.',
-        'output-spec': 'Define the exact output format specification in its own section.',
-        'placeholders': 'Use [bracketed placeholders] for every user-specific value.',
-        'self-critique': 'End by instructing the AI to review its answer against the requirements before finalising.',
-        'edge-cases': 'Tell the AI how to handle edge cases and missing information.',
-        'success-criteria': 'Include explicit success criteria the final answer must meet.',
-        'audience-fit': 'Instruct the AI to adapt vocabulary and depth to the stated audience.',
-        'negative': 'Include a short list of things NOT to do.',
-        'delimiters': 'Use clear delimiters or headings to separate the prompt sections.',
-        'xml-structure': 'Structure the prompt with XML tags for each section.',
-        'markdown-structure': 'Structure the prompt with markdown headings for each section.',
-        'verification': 'Ask the AI to state its assumptions and flag any uncertainty.',
-        'brevity': 'Bias the final answer toward brevity: the shortest complete response.',
-        'depth': 'Bias the final answer toward depth: exhaustive, expert-level coverage.',
-        'iteration-hook': 'End the prompt with an offer to refine the answer based on feedback.',
-        'tone-lock': 'Restate the required tone at the end of the prompt to lock it in.'
-    };
+    // ── Framing & role ─────────────────────────────────────────────────
+    'persona': 'Open the prompt by assigning the AI a specific expert role or persona.',
+    'context': 'Add a context section explaining the background and why the task matters.',
+    'audience-fit': 'Instruct the AI to adapt vocabulary and depth to the stated audience.',
+    'tone-lock': 'Restate the required tone at the end of the prompt to lock it in.',
+    'role-reversal': 'Ask the AI to respond as if you were the AI and it were the user, to surface what it would want clarified.',
+    'point-of-view': 'Instruct the AI to answer strictly from a named stakeholder\'s point of view.',
+
+    // ── Reasoning & structure ──────────────────────────────────────────
+    'chain-of-thought': 'Instruct the AI to reason step by step before giving its final answer.',
+    'step-by-step': 'Structure the task as explicit numbered steps.',
+    'decomposition': 'Instruct the AI to break the task into smaller sub-tasks and solve them one at a time.',
+    'first-principles': 'Instruct the AI to strip the problem back to fundamentals and rebuild the answer from there.',
+    'worked-example': 'Walk through one full worked example before asking the AI to produce its own.',
+    'pre-mortem': 'Ask the AI to imagine the answer failed, then list why and adjust the answer to prevent that.',
+
+    // ── Examples & demonstration ───────────────────────────────────────
+    'few-shot': 'Include 1-2 worked examples of input and ideal output inside the prompt.',
+    'zero-shot': 'Give the task with no examples — lean on a tight instruction instead.',
+    'analogy': 'Give the AI an analogy for the desired output to anchor the style or structure.',
+
+    // ── Constraints & boundaries ───────────────────────────────────────
+    'constraints': 'Add a clear constraints section: length, scope, what to avoid.',
+    'guardrails': 'Add guardrails: things the AI must never do or include.',
+    'negative': 'Include a short list of things NOT to do.',
+    'scope-lock': 'Explicitly state what is in scope and what is out of scope.',
+    'budget': 'Set a hard budget: word count, token count, time, or number of items.',
+    'edge-cases': 'Tell the AI how to handle edge cases and missing information.',
+
+    // ── Output & format ────────────────────────────────────────────────
+    'output-spec': 'Define the exact output format specification in its own section.',
+    'placeholders': 'Use [bracketed placeholders] for every user-specific value.',
+    'delimiters': 'Use clear delimiters or headings to separate the prompt sections.',
+    'xml-structure': 'Structure the prompt with XML tags for each section.',
+    'markdown-structure': 'Structure the prompt with markdown headings for each section.',
+    'table-format': 'Ask for the answer as a table with named columns.',
+    'json-format': 'Ask for the answer as strict JSON matching a stated schema.',
+    'brevity': 'Bias the final answer toward brevity: the shortest complete response.',
+    'depth': 'Bias the final answer toward depth: exhaustive, expert-level coverage.',
+
+    // ── Quality & verification ─────────────────────────────────────────
+    'success-criteria': 'Include explicit success criteria the final answer must meet.',
+    'self-critique': 'End by instructing the AI to review its answer against the requirements before finalising.',
+    'verification': 'Ask the AI to state its assumptions and flag any uncertainty.',
+    'self-check': 'Ask the AI to answer the question independently a second time and compare the two answers.',
+    'citation': 'Require the AI to cite a source, file, or section for every factual claim.',
+    'rubric': 'Provide a scoring rubric and have the AI self-score against it before finalising.',
+    'red-team': 'Ask the AI to attack its own answer for weaknesses, then produce a hardened revision.',
+
+    // ── Iteration & workflow ───────────────────────────────────────────
+    'iteration-hook': 'End the prompt with an offer to refine the answer based on feedback.',
+    'clarifying-questions': 'Have the AI ask clarifying questions before answering.',
+    'chunking': 'Split the task into sequential prompts where each output feeds the next.',
+    'checkpoint': 'Ask the AI to pause and confirm its understanding before proceeding.',
+    'reflection': 'After answering, ask the AI to summarise what it learned or what it would do differently.'
+};
 
     window.openGenWorkspace = function() {
         if (!state.isPremium) {
@@ -15965,7 +15807,11 @@ Must avoid: [Anything sensitive or previously declined]`
         xai: 'xAI (Grok)',
         cohere: 'Cohere',
         perplexity: 'Perplexity',
-        azure_openai: 'Azure OpenAI'
+        azure_openai: 'Azure OpenAI',
+        meta_llama: 'Meta (Llama)',
+        amazon_bedrock: 'Amazon Bedrock',
+        together_ai: 'Together AI',
+        fireworks_ai: 'Fireworks AI'
     };
 
     const MA_PROVIDER_GUIDANCE = {
@@ -15979,7 +15825,11 @@ Must avoid: [Anything sensitive or previously declined]`
         xai: 'xAI (Grok) models respond well to direct, conversational instructions with explicit constraints on tone and format.',
         cohere: 'Cohere models respond well to clearly labelled sections (preamble, task, format) and explicit output constraints.',
         perplexity: 'Perplexity models are tuned for research/search-grounded answers — favour explicit instructions to cite sources and keep the query separate from formatting requirements.',
-        azure_openai: 'Azure OpenAI runs OpenAI models, so favour the same conventions: clear system/user role separation, explicit step-by-step instructions, and delimiter-fenced sections.'
+        azure_openai: 'Azure OpenAI runs OpenAI models, so favour the same conventions: clear system/user role separation, explicit step-by-step instructions, and delimiter-fenced sections.',
+        meta_llama: 'Meta Llama models respond well to clearly delimited sections, explicit output-format constraints, and simple direct phrasing over implied context.',
+        amazon_bedrock: 'Amazon Bedrock hosts multiple underlying model families, so behaviour varies by model — favour explicit, self-contained instructions and clear output-format constraints rather than relying on any single model family’s quirks.',
+        together_ai: 'Together AI hosts many open models, so behaviour varies by model — favour explicit output-format constraints and simple, unambiguous phrasing.',
+        fireworks_ai: 'Fireworks AI hosts many open models optimised for speed, so favour concise, direct instructions with explicit output-format constraints.'
     };
 
     window.openAdapterWorkspace = function() {
@@ -16478,7 +16328,8 @@ Must avoid: [Anything sensitive or previously declined]`
         zh: 'Chinese (Simplified)',
         ko: 'Korean',
         ar: 'Arabic',
-        hi: 'Hindi'
+        hi: 'Hindi',
+        ru: 'Russian'
     };
 
     window.openTranslateWorkspace = function() {
@@ -16612,6 +16463,115 @@ Must avoid: [Anything sensitive or previously declined]`
         $('#closeTranslateBtn')?.addEventListener('click', closeTranslateWorkspace);
         ws.addEventListener('keydown', e => {
             if (e.key === 'Escape') closeTranslateWorkspace();
+        });
+    }
+
+    /* ============================================================================
+       WORKSPACE: Gauntlet Loop
+       data-view="gauntlet" | openGauntletWorkspace() | initGauntletWorkspace()
+       Generates a fan-out / /loop / harsh-critic "build this to AAA quality"
+       prompt from three plain inputs (what to build, specifics, language) --
+       pure client-side string templating, no AI call, no schema changes.
+       ============================================================================ */
+
+    const _gauntState = {
+        lastOutput: ''
+    };
+
+    function _gauntTemplate(built, specifics, lang) {
+        const b = built || '[DESCRIBE_WHAT_YOU_WANT_BUILT]';
+        const s = specifics || '[NAME_SOME_SPECIFICS]';
+        const l = lang || '[NAME_CODE_LANGUAGE]';
+        return 'I want you to build a ' + b + ' to an extremley high level. \n\n' +
+            'It should be utterly perfect from a technical perspective, visually beautiful from a UI design perspective with every single thing done at AAA quality from ' + s + ' to anything you could think of.\n\n' +
+            'Fan out sub-agents and have sub-agents tackle each one individually so that the ' + b + ' is utterly perfect. You should /loop on each item and have a separate sub-agent check it visually to ensure it looks triple A. That separate sub-agent should be a really harsh critic, and if it doesn\'t look triple A, it should keep going.\n\n' +
+            'Don\'t stop until each sub-agent is utterly wowed with the quality when compared with the high end, world class version this needs to be. Do this in ' + l + ' /loop until it\'s utterly perfect. Fan out sub-agents and ultracode.';
+    }
+
+    window.openGauntletWorkspace = function() {
+        if (!state.isPremium) {
+            showPremiumModal();
+            return;
+        }
+        $('#gauntletWorkspace')?.classList.add('open');
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'gauntlet'));
+        setTimeout(() => $('#gauntBuiltInput')?.focus(), 80);
+    };
+
+    function closeGauntletWorkspace() {
+        $('#gauntletWorkspace')?.classList.remove('open');
+        $$('.nav-item[data-view]').forEach(el =>
+            el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    function _gauntRun() {
+        const built = $('#gauntBuiltInput')?.value?.trim();
+        if (!built) {
+            toast('Describe what you want built first', 'warning');
+            return;
+        }
+        const specifics = $('#gauntSpecificsInput')?.value?.trim();
+        const lang = $('#gauntLangInput')?.value?.trim();
+        const generated = _gauntTemplate(built, specifics, lang);
+
+        _gauntState.lastOutput = generated;
+        const out = $('#gauntOutput');
+        if (out) out.textContent = generated;
+        const actions = $('#gauntOutputActions');
+        if (actions) actions.style.display = 'flex';
+        toast('Gauntlet prompt generated', 'success');
+    }
+
+    function initGauntletWorkspace() {
+        const ws = $('#gauntletWorkspace');
+        if (!ws) return;
+
+        $('#gauntRunBtn')?.addEventListener('click', () => {
+            try {
+                _gauntRun();
+            } catch (err) {
+                toast('Generation failed: ' + err.message, 'error');
+            }
+        });
+
+        $('#gauntCopyBtn')?.addEventListener('click', async () => {
+            const text = _gauntState.lastOutput || $('#gauntOutput')?.textContent?.trim();
+            if (!text) return;
+            if (await copyToClipboard(text)) toast('Prompt copied', 'success');
+        });
+
+        $('#gauntSaveBtn')?.addEventListener('click', async () => {
+            if (!_gauntState.lastOutput) {
+                toast('Generate a prompt first', 'warning');
+                return;
+            }
+            const built = $('#gauntBuiltInput')?.value?.trim() || 'build';
+            const title = 'Gauntlet: ' + built.split(' ').slice(0, 6).join(' ');
+            try {
+                const result = await api('/prompts', {
+                    method: 'POST',
+                    body: {
+                        title: title,
+                        content: _gauntState.lastOutput,
+                        description: 'Generated via Gauntlet Loop workspace',
+                        categories: 'Prompt Engineering',
+                        tags: 'gauntlet,generated'
+                    }
+                });
+                await loadPrompts();
+                await loadFilterOptions();
+                toast('Saved: ' + title, 'success');
+                closeGauntletWorkspace();
+                if (result?.id) setTimeout(() => openDetail(result.id), 200);
+            } catch {
+                toast('Could not save', 'error');
+            }
+        });
+
+        $('#closeGauntletBtn')?.addEventListener('click', closeGauntletWorkspace);
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeGauntletWorkspace();
         });
     }
 
@@ -18973,6 +18933,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initSimplifyWorkspace(); // prompt simplifier workspace
         initToneWorkspace(); // tone & style rewriter workspace
         initTranslateWorkspace(); // prompt translator workspace
+        initGauntletWorkspace(); // gauntlet loop workspace
         initEvalWorkspace(); // eval runner workspace
         initCompareWorkspace(); // model compare workspace
         initDashboardWorkspace(); // dashboard
@@ -18984,7 +18945,6 @@ Must avoid: [Anything sensitive or previously declined]`
         initWorkspacesLauncher(); // workspaces launcher grid
         initFillWorkspace(); // quick fill workspace
         initAuditWorkspace(); // prompt auditor workspace
-        initSafetyWorkspace(); // safety & bias lens workspace
         initDiffWorkspace(); // diff lens workspace
         initCostWorkspace(); // cost lens workspace
         initPulseWorkspace(); // library pulse workspace
@@ -25999,12 +25959,14 @@ Must avoid: [Anything sensitive or previously declined]`
        ============================================================================ */
 
     let _chainSteps = [];
+    let _chainSelectedIdx = -1;
 
     window.openChainWorkspace = function() {
         $('#chainWorkspace')?.classList.add('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'chain'));
         if (_chainSteps.length === 0) _chainAddStep();
+        else _renderChainNodes();
         setTimeout(() => $('#chainSeedInput')?.focus(), 80);
     };
 
@@ -26019,11 +25981,27 @@ Must avoid: [Anything sensitive or previously declined]`
         _chainSteps.push({
             prompt: '',
             output: '',
-            label: 'Step ' + (_chainSteps.length + 1),
-            _expanded: true,
+            label: 'Function ' + (_chainSteps.length + 1),
             _status: 'idle'
         });
-        _renderChainSteps();
+        _renderChainNodes();
+        _chainSelectStep(_chainSteps.length - 1);
+    }
+
+    function _chainDuplicateStep(i) {
+        const src = _chainSteps[i];
+        if (!src) return;
+        const clone = { prompt: src.prompt, output: '', label: src.label + ' copy', _status: 'idle' };
+        _chainSteps.splice(i + 1, 0, clone);
+        _renderChainNodes();
+        _chainSelectStep(i + 1);
+    }
+
+    function _chainDeleteStep(i) {
+        _chainSteps.splice(i, 1);
+        _chainSelectedIdx = -1;
+        _renderChainNodes();
+        _chainRenderPanel();
     }
 
     function _chainWordCount(text) {
@@ -26031,102 +26009,105 @@ Must avoid: [Anything sensitive or previously declined]`
         return words + 'w / ' + text.length + 'c';
     }
 
-    function _renderChainSteps() {
-        const list = $('#chainStepsList');
+    // Resolves what {{input}} would actually be for step i right now, without running anything.
+    function _chainResolvedInput(i) {
+        if (i <= 0) return ($('#chainSeedInput')?.value || '').trim();
+        const prev = _chainSteps[i - 1];
+        return prev && prev.output ? prev.output : '(' + (prev ? prev.label : 'previous step') + ' has not run yet)';
+    }
+
+    function _chainStatusIcon(status) {
+        if (status === 'running') return 'progress_activity';
+        if (status === 'error') return 'error';
+        if (status === 'done') return 'check_circle';
+        return 'radio_button_unchecked';
+    }
+
+    function _chainStatusLabel(status) {
+        if (status === 'running') return 'Running';
+        if (status === 'error') return 'Failed';
+        if (status === 'done') return 'Completed';
+        return 'Idle';
+    }
+
+    function _renderChainNodes() {
+        const list = $('#chainNodesList');
         if (!list) return;
+        const empty = $('#chainEmptyState');
+        if (empty) empty.hidden = _chainSteps.length > 0;
+        list.hidden = _chainSteps.length === 0;
+        $('#chainSeedWrap')?.classList.toggle('hidden', _chainSteps.length === 0);
+
         list.innerHTML = '';
         _chainSteps.forEach((step, i) => {
-            // Connector between steps
-            if (i > 0) {
-                const conn = document.createElement('div');
-                conn.className = 'chain-connector';
-                conn.setAttribute('aria-hidden', 'true');
-                list.appendChild(conn);
-            }
-
             const div = document.createElement('div');
-            div.className = 'chainw-step' + (step._expanded !== false ? ' expanded' : '');
+            const status = step._status || 'idle';
+            div.className = 'chainv-node status-' + status + (i === _chainSelectedIdx ? ' selected' : '');
             div.dataset.idx = i;
+            div.tabIndex = 0;
+            div.setAttribute('role', 'button');
+            div.setAttribute('aria-label', 'Function ' + (i + 1) + ': ' + step.label + ', ' + _chainStatusLabel(status));
 
-            const inputHint = i === 0 ?
-                'Use <code>{{input}}</code> for the initial seed, or load a prompt below.' :
-                'Use <code>{{input}}</code> for the previous step\'s output, or load a prompt below.';
-
-            const libOptions = '<option value="">— Load from library... —</option>' +
-                (state.prompts || []).map(p =>
-                    '<option value="' + p.id + '">' + escapeHtml(p.title || 'Untitled') + '</option>'
-                ).join('');
-
-            const wordCount = _chainWordCount(step.prompt || '');
-            const isExpanded = step._expanded !== false;
+            const excerpt = (step.prompt || '').trim().slice(0, 90);
+            const invalid = !step.prompt || !step.prompt.trim();
 
             div.innerHTML =
-                '<div class="chainw-step-header" role="button" tabindex="0" aria-expanded="' + isExpanded + '" aria-label="Step ' + (i + 1) + ': ' + escapeHtml(step.label) + '">' +
-                '<div class="chainw-step-num" aria-label="Step ' + (i + 1) + '">' + (i + 1) + '</div>' +
-                '<input type="text" class="chain-step-label-input" value="' + escapeHtml(step.label) + '" placeholder="Step name..." aria-label="Step ' + (i + 1) + ' name" />' +
-                (i > 0 ? '<button class="icon-btn" type="button" title="Move up" aria-label="Move step ' + (i + 1) + ' up" data-move-up="' + i + '"><span class="material-symbols-outlined">arrow_upward</span></button>' : '') +
-                (i < _chainSteps.length - 1 ? '<button class="icon-btn" type="button" title="Move down" aria-label="Move step ' + (i + 1) + ' down" data-move-down="' + i + '"><span class="material-symbols-outlined">arrow_downward</span></button>' : '') +
-                '<button class="icon-btn" title="Remove step" aria-label="Remove step ' + (i + 1) + '" data-remove="' + i + '"><span class="material-symbols-outlined">close</span></button>' +
+                '<div class="chainv-node-port chainv-node-port-in" aria-hidden="true"></div>' +
+                '<div class="chainv-node-header">' +
+                '<span class="chainv-node-status" data-status="' + status + '" title="' + _chainStatusLabel(status) + '"><span class="material-symbols-outlined">' + _chainStatusIcon(status) + '</span></span>' +
+                '<span class="chainv-node-num">' + (i + 1) + '</span>' +
+                '<span class="chainv-node-name">' + escapeHtml(step.label) + '</span>' +
+                (invalid ? '<span class="chainv-node-warn" title="No prompt configured"><span class="material-symbols-outlined">warning</span></span>' : '') +
+                '<div class="chainv-node-controls">' +
+                (i > 0 ? '<button class="icon-btn" type="button" title="Move up" aria-label="Move up" data-move-up="' + i + '"><span class="material-symbols-outlined">arrow_upward</span></button>' : '') +
+                (i < _chainSteps.length - 1 ? '<button class="icon-btn" type="button" title="Move down" aria-label="Move down" data-move-down="' + i + '"><span class="material-symbols-outlined">arrow_downward</span></button>' : '') +
+                '<button class="icon-btn" type="button" title="Duplicate" aria-label="Duplicate" data-duplicate="' + i + '"><span class="material-symbols-outlined">content_copy</span></button>' +
+                '<button class="icon-btn" type="button" title="Delete" aria-label="Delete" data-remove="' + i + '"><span class="material-symbols-outlined">delete</span></button>' +
                 '</div>' +
-                '<div class="chainw-step-body">' +
-                '<p class="chain-step-hint">' + inputHint + '</p>' +
-                '<div class="chain-step-from-library">' +
-                '<select class="chain-step-picker" data-picker="' + i + '">' + libOptions + '</select>' +
                 '</div>' +
-                '<textarea class="forge-input" rows="5" data-prompt="' + i + '" placeholder="Write a prompt or load one above. Use {{input}} to pipe from the previous step.">' + escapeHtml(step.prompt || '') + '</textarea>' +
-                '<div class="chain-word-count" data-count="' + i + '">' + wordCount + '</div>' +
-                '<div class="chain-step-output" data-output-wrap="' + i + '"' + (step._status === 'idle' || !step._status ? ' hidden' : '') + '>' +
-                '<div class="chain-step-output-label"><span class="material-symbols-outlined">' +
-                (step._status === 'running' ? 'progress_activity' : step._status === 'error' ? 'error' : 'check_circle') +
-                '</span>' + (step._status === 'running' ? 'Running...' : step._status === 'error' ? 'Failed' : 'Output') +
-                (step._status && step._status !== 'running' ? '<button class="icon-btn chain-step-retry-btn" type="button" title="Retry this step" aria-label="Retry step ' + (i + 1) + '" data-retry="' + i + '"><span class="material-symbols-outlined">refresh</span></button>' : '') +
+                '<div class="chainv-node-desc">' + (excerpt ? escapeHtml(excerpt) + (step.prompt.length > 90 ? '…' : '') : '<em>No prompt yet — click to configure</em>') + '</div>' +
+                '<div class="chainv-node-io">' +
+                '<span class="chainv-node-io-pill in"><span class="material-symbols-outlined">login</span> input</span>' +
+                '<span class="chainv-node-io-pill out">output <span class="material-symbols-outlined">logout</span></span>' +
                 '</div>' +
-                '<div class="chain-step-output-text">' + escapeHtml(step.output || '') + '</div>' +
-                '</div>' +
-                '</div>';
+                '<div class="chainv-node-output" data-node-output="' + i + '" ' + (status === 'idle' ? 'hidden' : '') + '>' + escapeHtml((step.output || '').slice(0, 140)) + (step.output && step.output.length > 140 ? '…' : '') + '</div>' +
+                '<div class="chainv-node-port chainv-node-port-out" aria-hidden="true"></div>';
+
+            div.addEventListener('click', e => {
+                if (e.target.closest('.chainv-node-controls')) return;
+                _chainSelectStep(i);
+            });
+            div.addEventListener('keydown', e => {
+                if ((e.key === 'Enter' || e.key === ' ') && !e.target.closest('.chainv-node-controls')) {
+                    e.preventDefault();
+                    _chainSelectStep(i);
+                }
+            });
 
             list.appendChild(div);
         });
 
-        // Wire: header click → toggle expand
-        list.querySelectorAll('.chainw-step-header').forEach(header => {
-            const toggle = () => {
-                const card = header.closest('.chainw-step');
-                const expanded = card.classList.toggle('expanded');
-                header.setAttribute('aria-expanded', expanded);
-                const idx = parseInt(card.dataset.idx, 10);
-                if (!isNaN(idx) && _chainSteps[idx]) _chainSteps[idx]._expanded = expanded;
-            };
-            header.addEventListener('click', e => {
-                if (e.target.closest('[data-remove]') || e.target.closest('input')) return;
-                toggle();
-            });
-            header.addEventListener('keydown', e => {
-                if ((e.key === 'Enter' || e.key === ' ') && !e.target.closest('input')) {
-                    e.preventDefault();
-                    toggle();
-                }
-            });
-        });
-
-        // Wire: remove button
         list.querySelectorAll('[data-remove]').forEach(btn => {
             btn.addEventListener('click', e => {
                 e.stopPropagation();
-                const idx = parseInt(btn.dataset.remove, 10);
-                _chainSteps.splice(idx, 1);
-                _renderChainSteps();
+                _chainDeleteStep(parseInt(btn.dataset.remove, 10));
             });
         });
-
-        // Wire: move step up/down
+        list.querySelectorAll('[data-duplicate]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                _chainDuplicateStep(parseInt(btn.dataset.duplicate, 10));
+            });
+        });
         list.querySelectorAll('[data-move-up]').forEach(btn => {
             btn.addEventListener('click', e => {
                 e.stopPropagation();
                 const idx = parseInt(btn.dataset.moveUp, 10);
                 if (idx > 0) {
                     [_chainSteps[idx - 1], _chainSteps[idx]] = [_chainSteps[idx], _chainSteps[idx - 1]];
-                    _renderChainSteps();
+                    if (_chainSelectedIdx === idx) _chainSelectedIdx = idx - 1;
+                    else if (_chainSelectedIdx === idx - 1) _chainSelectedIdx = idx;
+                    _renderChainNodes();
                 }
             });
         });
@@ -26136,143 +26117,125 @@ Must avoid: [Anything sensitive or previously declined]`
                 const idx = parseInt(btn.dataset.moveDown, 10);
                 if (idx < _chainSteps.length - 1) {
                     [_chainSteps[idx], _chainSteps[idx + 1]] = [_chainSteps[idx + 1], _chainSteps[idx]];
-                    _renderChainSteps();
+                    if (_chainSelectedIdx === idx) _chainSelectedIdx = idx + 1;
+                    else if (_chainSelectedIdx === idx + 1) _chainSelectedIdx = idx;
+                    _renderChainNodes();
                 }
             });
         });
 
-        // Wire: retry a single step without re-running the whole chain
-        list.querySelectorAll('[data-retry]').forEach(btn => {
-            btn.addEventListener('click', e => {
-                e.stopPropagation();
-                _chainRetryStep(parseInt(btn.dataset.retry, 10));
-            });
-        });
-
-        // Wire: textarea sync + live word count
-        list.querySelectorAll('[data-prompt]').forEach(ta => {
-            ta.addEventListener('input', () => {
-                const idx = parseInt(ta.dataset.prompt, 10);
-                if (isNaN(idx) || !_chainSteps[idx]) return;
-                _chainSteps[idx].prompt = ta.value;
-                const countEl = list.querySelector('[data-count="' + idx + '"]');
-                if (countEl) countEl.textContent = _chainWordCount(ta.value);
-            });
-        });
-
-        // Wire: library picker
-        list.querySelectorAll('[data-picker]').forEach(sel => {
-            sel.addEventListener('change', () => {
-                const idx = parseInt(sel.dataset.picker, 10);
-                const pid = parseInt(sel.value, 10);
-                if (!pid) return;
-                const p = (state.prompts || []).find(x => x.id === pid);
-                if (!p) return;
-                const ta = list.querySelector('[data-prompt="' + idx + '"]');
-                if (ta) {
-                    ta.value = p.content || '';
-                    _chainSteps[idx].prompt = p.content || '';
-                    const countEl = list.querySelector('[data-count="' + idx + '"]');
-                    if (countEl) countEl.textContent = _chainWordCount(ta.value);
-                    if (_chainSteps[idx].label === 'Step ' + (idx + 1)) {
-                        _chainSteps[idx].label = p.title || _chainSteps[idx].label;
-                        const labelInput = list.querySelector('.chainw-step[data-idx="' + idx + '"] .chain-step-label-input');
-                        if (labelInput) labelInput.value = _chainSteps[idx].label;
-                    }
-                }
-                sel.value = '';
-                toast('Loaded: ' + (p.title || 'prompt'), 'success');
-            });
-        });
-
-        // Wire: label input sync
-        list.querySelectorAll('.chain-step-label-input').forEach(inp => {
-            inp.addEventListener('input', e => {
-                e.stopPropagation();
-                const idx = parseInt(inp.closest('.chainw-step').dataset.idx, 10);
-                if (!isNaN(idx) && _chainSteps[idx]) _chainSteps[idx].label = inp.value;
-            });
-            inp.addEventListener('click', e => e.stopPropagation());
-        });
-    }
-    async function _runChain() {
-        const seed = $('#chainSeedInput')?.value?.trim() || '';
-        if (!_chainSteps.length) {
-            toast('Add at least one step', 'warning');
-            return;
-        }
-        if (!_chainSteps[0].prompt.trim()) {
-            toast('Add a prompt to Step 1', 'warning');
-            return;
-        }
-
-        const finalEl = $('#chainFinalOutput');
-        const finalBody = $('#chainFinalBody');
-        if (finalEl) finalEl.hidden = true;
-
-        let currentInput = seed;
-        for (let i = 0; i < _chainSteps.length; i++) {
-            const step = _chainSteps[i];
-            if (!step.prompt.trim()) {
-                toast('Step ' + (i + 1) + ' has no prompt — skipping', 'warning');
-                continue;
-            }
-
-            const outEl = document.querySelector('[data-out="' + i + '"]');
-            if (outEl) {
-                outEl.hidden = false;
-                outEl.textContent = '⏳ Running step ' + (i + 1) + '...';
-            }
-
-            const filledPrompt = step.prompt.replace(/\{\{input\}\}/gi, currentInput);
-            try {
-                const out = await callAI(filledPrompt, '', 1500);
-                _chainSteps[i].output = out;
-                if (outEl) outEl.textContent = out;
-                currentInput = out;
-            } catch (err) {
-                if (outEl) outEl.textContent = 'Error: ' + err.message;
-                toast('Chain stopped at step ' + (i + 1) + ': ' + err.message, 'error');
-                return;
-            }
-        }
-
-        if (finalEl) finalEl.hidden = false;
-        if (finalBody) finalBody.textContent = currentInput;
-        toast('Chain complete', 'success');
+        requestAnimationFrame(_chainDrawLinks);
     }
 
-    // Actually executes the chain step by step through the AI, piping each
-    // step's real output into the next step's {{input}} — unlike Assemble,
-    // which only concatenates the step text into one paste-elsewhere block.
-    let _chainRunning = false;
+    function _chainDrawLinks() {
+        const svg = $('#chainLinksSvg');
+        const canvas = $('#chainCanvas');
+        if (!svg || !canvas) return;
+        const cRect = canvas.getBoundingClientRect();
+        svg.setAttribute('width', canvas.scrollWidth);
+        svg.setAttribute('height', canvas.scrollHeight);
+        svg.innerHTML = '';
+
+        const nodeEls = [$('#chainSeedWrap'), ...$$('#chainNodesList .chainv-node')].filter(el => el && !el.classList.contains('hidden'));
+        for (let i = 0; i < nodeEls.length - 1; i++) {
+            const a = nodeEls[i].getBoundingClientRect();
+            const b = nodeEls[i + 1].getBoundingClientRect();
+            const x1 = a.left - cRect.left + a.width / 2;
+            const y1 = a.bottom - cRect.top;
+            const x2 = b.left - cRect.left + b.width / 2;
+            const y2 = b.top - cRect.top;
+            const midY = (y1 + y2) / 2;
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', 'M ' + x1 + ' ' + y1 + ' C ' + x1 + ' ' + midY + ', ' + x2 + ' ' + midY + ', ' + x2 + ' ' + y2);
+            const nextStatus = i < _chainSteps.length ? (_chainSteps[i]._status || 'idle') : 'idle';
+            path.setAttribute('class', 'chainv-link status-' + nextStatus);
+            svg.appendChild(path);
+
+            const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            dot.setAttribute('r', '3');
+            dot.setAttribute('class', 'chainv-link-dot status-' + nextStatus);
+            dot.innerHTML = nextStatus === 'running' ?
+                '<animateMotion dur="1.1s" repeatCount="indefinite" path="M ' + x1 + ' ' + y1 + ' C ' + x1 + ' ' + midY + ', ' + x2 + ' ' + midY + ', ' + x2 + ' ' + y2 + '"></animateMotion>' : '';
+            if (nextStatus === 'running') svg.appendChild(dot);
+        }
+    }
+
+    function _chainSelectStep(i) {
+        _chainSelectedIdx = i;
+        $$('#chainNodesList .chainv-node').forEach(el => el.classList.toggle('selected', parseInt(el.dataset.idx, 10) === i));
+        _chainRenderPanel();
+    }
+
+    function _chainRenderPanel() {
+        const empty = $('#chainPanelEmpty');
+        const content = $('#chainPanelContent');
+        const step = _chainSteps[_chainSelectedIdx];
+        if (!step) {
+            if (empty) empty.hidden = false;
+            if (content) content.hidden = true;
+            return;
+        }
+        if (empty) empty.hidden = true;
+        if (content) content.hidden = false;
+
+        const i = _chainSelectedIdx;
+        const labelInput = $('#chainPanelLabel');
+        if (labelInput) labelInput.value = step.label;
+        const hint = $('#chainPanelHint');
+        if (hint) hint.innerHTML = 'Function ' + (i + 1) + ' of ' + _chainSteps.length + ' &middot; ' +
+            (i === 0 ? 'reads the initial input' : 'reads the output of "' + escapeHtml(_chainSteps[i - 1].label) + '"');
+        const promptTa = $('#chainPanelPrompt');
+        if (promptTa) promptTa.value = step.prompt || '';
+        const count = $('#chainPanelCount');
+        if (count) count.textContent = _chainWordCount(step.prompt || '');
+        const resolved = $('#chainPanelResolved');
+        if (resolved) resolved.textContent = _chainResolvedInput(i);
+
+        const outSection = $('#chainPanelOutputSection');
+        const outBody = $('#chainPanelOutput');
+        const hasOutput = step._status && step._status !== 'idle';
+        if (outSection) outSection.hidden = !hasOutput;
+        if (outBody) {
+            if (step._status === 'running') {
+                outBody.innerHTML = '<span class="chainv-panel-output-running"><span class="material-symbols-outlined">progress_activity</span> Running…</span>';
+            } else if (step._status === 'error') {
+                outBody.innerHTML = '<div class="chainv-panel-output-error"><span class="material-symbols-outlined">error</span>' + escapeHtml(step.output || 'Unknown error') + '</div>' +
+                    '<div class="chainv-panel-output-error-hint">Check the prompt above, or the output of the previous function, then retry.</div>';
+            } else {
+                outBody.textContent = step.output || '';
+            }
+        }
+
+        const picker = $('#chainPanelPicker');
+        if (picker) {
+            picker.innerHTML = '<option value="">— Load from library... —</option>' +
+                (state.prompts || []).map(p => '<option value="' + p.id + '">' + escapeHtml(p.title || 'Untitled') + '</option>').join('');
+        }
+    }
 
     function _chainUpdateStepUI(i) {
         const step = _chainSteps[i];
         if (!step) return;
-        const card = $('.chainw-step[data-idx="' + i + '"]');
-        if (!card) return;
-        const wrap = card.querySelector('[data-output-wrap="' + i + '"]');
-        if (!wrap) return;
-        wrap.hidden = !step._status || step._status === 'idle';
-        const label = wrap.querySelector('.chain-step-output-label');
-        const text = wrap.querySelector('.chain-step-output-text');
-        if (label) {
-            const icon = step._status === 'running' ? 'progress_activity' : step._status === 'error' ? 'error' : 'check_circle';
-            const msg = step._status === 'running' ? 'Running...' : step._status === 'error' ? 'Failed' : 'Output';
-            const retryBtn = step._status && step._status !== 'running' ?
-                '<button class="icon-btn chain-step-retry-btn" type="button" title="Retry this step" aria-label="Retry step ' + (i + 1) + '" data-retry="' + i + '"><span class="material-symbols-outlined">refresh</span></button>' : '';
-            label.innerHTML = '<span class="material-symbols-outlined">' + icon + '</span>' + msg + retryBtn;
-            label.classList.toggle('running', step._status === 'running');
-            label.classList.toggle('error', step._status === 'error');
-            const rb = label.querySelector('[data-retry]');
-            if (rb) rb.addEventListener('click', e => {
-                e.stopPropagation();
-                _chainRetryStep(i);
-            });
+        const card = $('.chainv-node[data-idx="' + i + '"]');
+        if (card) {
+            card.className = 'chainv-node status-' + (step._status || 'idle') + (i === _chainSelectedIdx ? ' selected' : '');
+            const statusEl = card.querySelector('.chainv-node-status');
+            if (statusEl) {
+                statusEl.dataset.status = step._status || 'idle';
+                statusEl.title = _chainStatusLabel(step._status);
+                statusEl.innerHTML = '<span class="material-symbols-outlined">' + _chainStatusIcon(step._status) + '</span>';
+            }
+            const outEl = card.querySelector('[data-node-output="' + i + '"]');
+            if (outEl) {
+                outEl.hidden = !step._status || step._status === 'idle';
+                outEl.textContent = (step.output || '').slice(0, 140) + (step.output && step.output.length > 140 ? '…' : '');
+            }
         }
-        if (text) text.textContent = step.output || '';
+        if (i === _chainSelectedIdx) _chainRenderPanel();
+        _chainDrawLinks();
     }
+
+    let _chainRunning = false;
 
     async function _chainRetryStep(i) {
         const step = _chainSteps[i];
@@ -26301,7 +26264,7 @@ Must avoid: [Anything sensitive or previously declined]`
     async function runChain() {
         if (_chainRunning) return;
         if (!_chainSteps.length || !_chainSteps[0].prompt.trim()) {
-            toast('Add at least one step first', 'warning');
+            toast('Add at least one function first', 'warning');
             return;
         }
         _chainRunning = true;
@@ -26328,7 +26291,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 step.output = 'Error: ' + err.message;
                 step._status = 'error';
                 _chainUpdateStepUI(i);
-                toast('Chain stopped at step ' + (i + 1) + ': ' + err.message, 'error');
+                toast('Chain stopped at function ' + (i + 1) + ': ' + err.message, 'error');
                 _chainRunning = false;
                 if (runBtn) {
                     runBtn.disabled = false;
@@ -26352,7 +26315,7 @@ Must avoid: [Anything sensitive or previously declined]`
 
     function assembleChain() {
         if (!_chainSteps.length || !_chainSteps[0].prompt.trim()) {
-            toast('Add at least one step first', 'warning');
+            toast('Add at least one function first', 'warning');
             return;
         }
         const seed = ($('#chainSeedInput')?.value || '').trim();
@@ -26381,8 +26344,10 @@ Must avoid: [Anything sensitive or previously declined]`
         if (!ws) return;
 
         $('#chainAddStepBtn')?.addEventListener('click', _chainAddStep);
+        $('#chainEmptyAddBtn')?.addEventListener('click', _chainAddStep);
         $('#chainClearBtn')?.addEventListener('click', () => {
             _chainSteps = [];
+            _chainSelectedIdx = -1;
             _chainAddStep();
             const fin = $('#chainFinalOutput');
             if (fin) fin.hidden = true;
@@ -26392,7 +26357,7 @@ Must avoid: [Anything sensitive or previously declined]`
 
         $('#chainSaveBtn')?.addEventListener('click', async () => {
             if (!_chainSteps.length || !_chainSteps[0].prompt.trim()) {
-                toast('Add at least one step first', 'warning');
+                toast('Add at least one function first', 'warning');
                 return;
             }
             const seed = ($('#chainSeedInput')?.value || '').trim();
@@ -26489,8 +26454,61 @@ Must avoid: [Anything sensitive or previously declined]`
         $('#chainAddInlineBtn')?.addEventListener('click', _chainAddStep);
         $('#closeChainBtn')?.addEventListener('click', closeChainWorkspace);
         ws.addEventListener('keydown', e => {
-            if (e.key === 'Escape') closeChainWorkspace();
+            if (e.key === 'Escape' && document.activeElement?.tagName !== 'TEXTAREA') closeChainWorkspace();
         });
+
+        // Side panel wiring
+        $('#chainPanelLabel')?.addEventListener('input', e => {
+            const step = _chainSteps[_chainSelectedIdx];
+            if (!step) return;
+            step.label = e.target.value;
+            const card = $('.chainv-node[data-idx="' + _chainSelectedIdx + '"] .chainv-node-name');
+            if (card) card.textContent = e.target.value;
+        });
+        $('#chainPanelPrompt')?.addEventListener('input', e => {
+            const step = _chainSteps[_chainSelectedIdx];
+            if (!step) return;
+            step.prompt = e.target.value;
+            const count = $('#chainPanelCount');
+            if (count) count.textContent = _chainWordCount(e.target.value);
+            const card = $('.chainv-node[data-idx="' + _chainSelectedIdx + '"] .chainv-node-desc');
+            if (card) {
+                const excerpt = e.target.value.trim().slice(0, 90);
+                card.innerHTML = excerpt ? escapeHtml(excerpt) + (e.target.value.length > 90 ? '…' : '') : '<em>No prompt yet — click to configure</em>';
+            }
+            const warn = $('.chainv-node[data-idx="' + _chainSelectedIdx + '"] .chainv-node-warn');
+            if (warn && e.target.value.trim()) warn.remove();
+        });
+        $('#chainPanelPicker')?.addEventListener('change', e => {
+            const step = _chainSteps[_chainSelectedIdx];
+            const pid = parseInt(e.target.value, 10);
+            if (!step || !pid) return;
+            const p = (state.prompts || []).find(x => x.id === pid);
+            if (!p) return;
+            step.prompt = p.content || '';
+            if (step.label.startsWith('Function ')) step.label = p.title || step.label;
+            _renderChainNodes();
+            _chainSelectStep(_chainSelectedIdx);
+            e.target.value = '';
+            toast('Loaded: ' + (p.title || 'prompt'), 'success');
+        });
+        $('#chainPanelDeleteBtn')?.addEventListener('click', () => {
+            if (_chainSelectedIdx >= 0) _chainDeleteStep(_chainSelectedIdx);
+        });
+        $('#chainPanelRunOneBtn')?.addEventListener('click', () => {
+            if (_chainSelectedIdx >= 0) _chainRetryStep(_chainSelectedIdx);
+        });
+        $('#chainPanelCopyOutputBtn')?.addEventListener('click', async () => {
+            const step = _chainSteps[_chainSelectedIdx];
+            if (!step?.output) {
+                toast('No output yet', 'warning');
+                return;
+            }
+            const ok = await copyToClipboard(step.output);
+            if (ok) toast('Copied', 'success');
+        });
+
+        window.addEventListener('resize', () => { if (ws.classList.contains('open')) _chainDrawLinks(); });
     }
 
     /* ============================================================================
@@ -27133,7 +27151,7 @@ Must avoid: [Anything sensitive or previously declined]`
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
         '#playgroundWorkspace', '#chainWorkspace',
         '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace',
-        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace'
+        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace', '#gauntletWorkspace'
     ];
 
     function _closeTourWorkspaces() {

@@ -8327,7 +8327,7 @@ Must avoid: [Anything sensitive or previously declined]`
        ============================================================================ */
     (function initComponentsWorkspace() {
 
-        var CATEGORIES = [{
+         var CATEGORIES = [{
                 id: 'meta',
                 label: 'Metaprompt',
                 icon: 'auto_fix_high',
