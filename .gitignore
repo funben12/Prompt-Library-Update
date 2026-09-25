@@ -32,3 +32,9 @@ all_keys_to_load.txt
 # Editor/vault noise picked up by accident
 .obsidian/
 
+# Prompt Library Interface Files
+"C:\Users\Eugene Phillips\Documents\GitHub\Prompt-Library-Update\.claude\worktrees\Prompt Components Update\Prompt Library Interface Files"
+
+# Ignore any other files that are not part of the project
+*.tmp, *.swp, *.swo, *.bak, *.old, *.orig, *.rej, *.log, *.aux, *.out, *.toc, *.blg, *.bbl, *.fls, *.fdb_latexmk, *.synctex.gz, *.nav, *.snm, *.vrb, *.dvi, *.ps, *.pdf, *.eps, *.png, *.jpg, *.jpeg, *.gif, *.bmp, *.tiff, *.ico, *.svg, *.mp3, *.wav, *.ogg, *.flac, *.mp4, *.avi, *.mov, *.mkv
+
