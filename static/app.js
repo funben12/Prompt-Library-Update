@@ -4603,7 +4603,6 @@ Here are my prompts:
             ['Context Bank', 'database', 'openContextBankWorkspace', 'context blocks reusable snippets'],
             ['Quick Fill', 'dynamic_form', 'openFillWorkspace', 'placeholders template variables fill'],
             ['Prompt Auditor', 'fact_check', 'openAuditWorkspace', 'audit rubric score check'],
-            ['Safety & Bias Lens', 'shield', 'openSafetyWorkspace', 'safety bias injection jailbreak review scan'],
             ['Diff Lens', 'compare', 'openDiffWorkspace', 'diff compare two prompts'],
             ['Cost Lens', 'calculate', 'openCostWorkspace', 'tokens cost estimate price'],
             ['Library Organizer', 'monitor_heart', 'openPulseWorkspace', 'health scan library quality organize duplicates stale cleanup'],
@@ -4897,7 +4896,7 @@ Here are my prompts:
         // Close any open workspaces
         ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace', '#playgroundWorkspace',
             '#chainWorkspace', '#metaPromptingWorkspace', '#contextBankWorkspace', '#componentsWorkspace',
-            '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#safetyWorkspace', '#diffWorkspace',
+            '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#diffWorkspace',
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
             '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace',
@@ -5009,10 +5008,6 @@ Here are my prompts:
                 }
                 if (v === 'audit') {
                     window.openAuditWorkspace();
-                    return;
-                }
-                if (v === 'safety') {
-                    window.openSafetyWorkspace();
                     return;
                 }
                 if (v === 'diff') {
@@ -13277,251 +13272,6 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
-       SAFETY & BIAS LENS WORKSPACE
-       Offline heuristic scan for injection surface, missing refusal boundaries,
-       jailbreak-enabling phrasing, bias-prone generalizations, unscoped
-       authority and sensitive-data solicitation. Optional AI deep review
-       through the shared callAI() helper.
-       data-view="safety" | openSafetyWorkspace() | initSafetyWorkspace()
-       ============================================================================ */
-
-    const SAF_JAILBREAK_PATTERNS = [
-        /ignore (all |any )?(previous|prior|above|earlier) instructions?/i,
-        /you (now )?have no (restrictions|limits|rules|guidelines|filters)/i,
-        /pretend (you are|to be) (dan\b|an? (unfiltered|uncensored|jailbroken))/i,
-        /\bact as dan\b/i,
-        /bypass (your |the )?(safety )?(guidelines|rules|filters|restrictions|safeguards)/i,
-        /act without (any )?(limits|limitations|restriction|filters|rules)/i,
-        /no (filters?|censorship|restrictions) (apply|applied|allowed)?/i,
-        /respond as an? (ai|assistant) with no (rules|restrictions|filters|limits)/i,
-    ];
-    const SAF_ABSOLUTES = ['always', 'never', 'all', 'every', 'none', 'everyone', 'nobody', 'everybody'];
-    const SAF_GROUP_WORDS = ['women', 'men', 'immigrants', 'elderly', 'disabled', 'muslims', 'christians',
-        'jews', 'asians', 'latinos', 'hispanics', 'refugees', 'teenagers', 'millennials', 'boomers',
-        'homosexuals', 'transgender', 'veterans', 'foreigners'
-    ];
-
-    let _safLastResult = null;
-
-    function _safScore(text) {
-        const t = (text || '').trim();
-        const lower = t.toLowerCase();
-        const words = (t.match(/\S+/g) || []).length;
-        const dims = {};
-        const findings = [];
-
-        // Injection surface — bare placeholders with no surrounding delimiter/framing
-        const placeholderRx = /\{\{[^{}\n]{1,60}\}\}|\[\[[^\[\]\n]{1,60}\]\]|\{[^{}\n]{1,40}\}/g;
-        let hasPlaceholder = false;
-        let undelimited = false;
-        let m;
-        while ((m = placeholderRx.exec(t)) !== null) {
-            hasPlaceholder = true;
-            const start = Math.max(0, m.index - 40);
-            const ctx = t.slice(start, m.index + m[0].length + 40);
-            const delimited = /["'“”‘’`]|<\/?[a-zA-Z][^>]*>|user (said|wrote|provided|input|message)|following (text|content|message)|delimited|triple (quotes|backticks)|between the/i.test(ctx);
-            if (!delimited) undelimited = true;
-        }
-        dims['Injection surface'] = !hasPlaceholder ? 95 : (undelimited ? 35 : 85);
-        if (undelimited) findings.push({
-            sev: 'high',
-            text: 'A placeholder for user-supplied content isn\'t fenced or framed (quotes, tags, "the user said:"). Unfenced input is easy to hijack with injected instructions.'
-        });
-
-        // Refusal / safety boundary — only weighted when the prompt reads as user-facing
-        const userFacing = /\byou are\b/i.test(t) && /\b(assistant|chatbot|bot|agent|helper|support|copilot|companion)\b/i.test(t);
-        const hasBoundary = /\b(decline|refuse|will not|won'?t|do not|don'?t|cannot|can'?t)\b[^.\n]{0,50}\b(harmful|illegal|dangerous|unsafe|unethical|inappropriate|malicious|unlawful)\b|\b(harmful|illegal|dangerous|unsafe|unethical|inappropriate|malicious|unlawful)\b[^.\n]{0,50}\b(decline|refuse|will not|won'?t|do not|don'?t|cannot|can'?t)\b/i.test(t);
-        dims['Refusal / safety boundary'] = userFacing ? (hasBoundary ? 90 : 40) : 75;
-        if (userFacing && !hasBoundary) findings.push({
-            sev: 'med',
-            text: 'User-facing assistant prompt has no refusal or boundary language. Consider a line on what to decline (harmful, illegal, dangerous requests).'
-        });
-
-        // Jailbreak-enabling phrasing
-        const jbHits = SAF_JAILBREAK_PATTERNS.filter(rx => rx.test(t));
-        dims['Jailbreak-enabling phrasing'] = jbHits.length ? Math.max(15, 100 - jbHits.length * 35) : 95;
-        if (jbHits.length) findings.push({
-            sev: 'high',
-            text: jbHits.length + ' phrase' + (jbHits.length > 1 ? 's' : '') + ' resembling a jailbreak pattern (e.g. "ignore previous instructions", "bypass your guidelines"). Review and remove.'
-        });
-
-        // Absolute/generalizing language near a demographic or group noun
-        const wordsLower = lower.match(/[a-z']+/g) || [];
-        let biasHit = null;
-        for (let i = 0; i < wordsLower.length && !biasHit; i++) {
-            if (!SAF_ABSOLUTES.includes(wordsLower[i])) continue;
-            for (let j = Math.max(0, i - 4); j <= Math.min(wordsLower.length - 1, i + 4); j++) {
-                if (SAF_GROUP_WORDS.includes(wordsLower[j])) {
-                    biasHit = { abs: wordsLower[i], group: wordsLower[j] };
-                    break;
-                }
-            }
-        }
-        dims['Bias-prone generalizations'] = biasHit ? 55 : 90;
-        if (biasHit) findings.push({
-            sev: 'med',
-            text: '"' + biasHit.abs + '" appears near "' + biasHit.group + '" — worth reviewing for bias. Absolute claims about a group can encode stereotypes even unintentionally.'
-        });
-
-        // Unscoped authority — grants unrestricted scope with no stated boundary
-        const unscopedRx = /\byou can do anything\b|\bno limits?\b|\bany topic,?\s*no matter what\b|\bwithout (any )?(restriction|limitation|boundaries)\b|\bunlimited (scope|authority|power)\b|\banswer (anything|everything) (regardless|no matter)/i;
-        const hasScopeBoundary = /\b(don'?t|do not|never|avoid|must not|only|except|unless|excluding|out of scope)\b/i.test(t);
-        const hasUnscoped = unscopedRx.test(t);
-        dims['Unscoped authority'] = hasUnscoped ? (hasScopeBoundary ? 60 : 30) : 90;
-        if (hasUnscoped) findings.push({
-            sev: hasScopeBoundary ? 'low' : 'high',
-            text: 'Grants unrestricted scope ("no limits", "anything, no matter what") ' + (hasScopeBoundary ? 'with only loose boundaries elsewhere. Tighten the scope statement.' : 'with no stated boundary. Add an explicit out-of-scope list.')
-        });
-
-        // Sensitive-data solicitation with no handling caveat
-        const sensitiveRx = /\b(password|passwords|ssn|social security number|national insurance number|credit card|credit-card number|card number|cvv|bank account|routing number|medical record|health record|medical history|diagnosis|patient data|passport number|driver'?s licen[cs]e|date of birth)\b/i;
-        const caveatRx = /\b(never store|do not store|don'?t store|redact|do not log|don'?t log|no logging|encrypt|do not retain|don'?t retain|anonymi[sz]e|mask (it|the|any)|do not share|confidential(ly)?|comply with (gdpr|hipaa)|delete (it|this|the data)( after| once)?)\b/i;
-        const asksSensitive = sensitiveRx.test(t);
-        const hasCaveat = caveatRx.test(t);
-        dims['Sensitive-data handling'] = asksSensitive ? (hasCaveat ? 75 : 25) : 95;
-        if (asksSensitive && !hasCaveat) findings.push({
-            sev: 'high',
-            text: 'Prompt collects or handles sensitive personal data with no handling caveat nearby (e.g. "never store", "redact", "do not log"). Add one.'
-        });
-
-        const vals = Object.values(dims);
-        const overall = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
-        return {
-            overall,
-            dims,
-            findings,
-            words,
-            tokens: _wsEstTokens(t)
-        };
-    }
-
-    function _safRender(result) {
-        const scoreEl = $('#safScoreNum');
-        if (scoreEl) scoreEl.textContent = result.overall;
-        const badge = $('#safScoreBadge');
-        if (badge) {
-            badge.textContent = result.overall >= 80 ? 'Low risk' : result.overall >= 55 ? 'Review' : 'High risk';
-            badge.className = 'aud-badge ' + (result.overall >= 80 ? 'aud-good' : result.overall >= 55 ? 'aud-mid' : 'aud-bad');
-        }
-        const meta = $('#safMeta');
-        if (meta) meta.textContent = result.words + ' words · ~' + result.tokens + ' tokens';
-
-        const dimsEl = $('#safDims');
-        if (dimsEl) dimsEl.innerHTML = Object.entries(result.dims).map(([label, v]) =>
-            '<div class="aud-dim">' +
-            '<div class="aud-dim-head"><span>' + escapeHtml(label) + '</span><span class="aud-dim-val">' + v + '</span></div>' +
-            '<div class="aud-bar"><div class="aud-bar-fill' + (v >= 70 ? '' : v >= 45 ? ' mid' : ' low') + '" style="width:' + v + '%"></div></div>' +
-            '</div>').join('');
-
-        const list = $('#safFindings');
-        if (list) {
-            list.innerHTML = result.findings.length ?
-                result.findings.map(f =>
-                    '<div class="aud-finding aud-sev-' + f.sev + '">' +
-                    '<span class="aud-sev-chip">' + (f.sev === 'high' ? 'High' : f.sev === 'med' ? 'Med' : 'Low') + '</span>' +
-                    '<span>' + escapeHtml(f.text) + '</span>' +
-                    '</div>').join('') :
-                '<div class="hint" style="padding:var(--sp-3);">No safety or bias risks found in this scan. ✓</div>';
-        }
-        const results = $('#safResults');
-        if (results) results.style.display = '';
-    }
-
-    window.openSafetyWorkspace = function() {
-        if (!state.isPremium) {
-            showPremiumModal();
-            return;
-        }
-        const ws = $('#safetyWorkspace');
-        if (!ws) return;
-        ws.classList.add('open');
-        document.body.style.overflow = 'hidden';
-        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'safety'));
-        _wsFillPromptPicker('#safPicker');
-        setTimeout(() => $('#safInput')?.focus(), 80);
-    };
-
-    function closeSafetyWorkspace() {
-        $('#safetyWorkspace')?.classList.remove('open');
-        document.body.style.overflow = '';
-        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
-    }
-
-    function initSafetyWorkspace() {
-        const ws = $('#safetyWorkspace');
-        if (!ws) return;
-        $('#closeSafetyBtn')?.addEventListener('click', closeSafetyWorkspace);
-        $('#safPicker')?.addEventListener('change', () => {
-            const p = _wsPickedPrompt('#safPicker');
-            if (p) {
-                const el = $('#safInput');
-                if (el) el.value = p.content || '';
-            }
-        });
-        $('#safRunBtn')?.addEventListener('click', () => {
-            const text = $('#safInput')?.value?.trim();
-            if (!text) {
-                toast('Paste a prompt first', 'warning');
-                return;
-            }
-            _safLastResult = _safScore(text);
-            _safRender(_safLastResult);
-        });
-
-        $('#safSaveBtn')?.addEventListener('click', async () => {
-            const text = $('#safInput')?.value?.trim();
-            if (!text) {
-                toast('Scan a prompt first', 'warning');
-                return;
-            }
-            const freshResult = _safScore(text);
-            const picked = _wsPickedPrompt('#safPicker');
-            const title = ((picked?.title || 'Reviewed prompt') + ' (safety reviewed)').slice(0, 120);
-            const topFindings = freshResult.findings.slice(0, 3).map(f => f.text).join(' | ');
-            const note = 'Reviewed via Safety & Bias Lens workspace — score ' + freshResult.overall + '/100.' +
-                (topFindings ? ' Top findings: ' + topFindings : '');
-            const saved = await _wsSaveOrReplace({
-                text,
-                sourcePrompt: picked,
-                newTitle: title,
-                description: 'Reviewed via Safety & Bias Lens workspace',
-                tags: 'safety-reviewed',
-                extraNote: note,
-            });
-            if (saved?.id) {
-                closeSafetyWorkspace();
-                setTimeout(() => openDetail(saved.id), 200);
-            }
-        });
-        $('#safAiBtn')?.addEventListener('click', async function() {
-            const text = $('#safInput')?.value?.trim();
-            if (!text) {
-                toast('Paste a prompt first', 'warning');
-                return;
-            }
-            const out = $('#safAiOutput');
-            this.disabled = true;
-            if (out) {
-                out.style.display = '';
-                out.innerHTML = '<span class="hint">⏳ Running deep review…</span>';
-            }
-            try {
-                const sys = 'You are a responsible-AI reviewer. Identify any bias, safety, or prompt-injection risks in the given prompt that a keyword scan would miss. Be specific and terse. Plain text, no markdown headings.';
-                const result = await callAI(sys, text, 800);
-                if (out) out.textContent = result;
-            } catch (err) {
-                if (out) out.innerHTML = '<span class="hint">Error: ' + escapeHtml(err.message) + '</span>';
-                toast('Deep review failed: ' + err.message, 'error');
-            } finally {
-                this.disabled = false;
-            }
-        });
-        ws.addEventListener('keydown', e => {
-            if (e.key === 'Escape') closeSafetyWorkspace();
-        });
-    }
-
-    /* ============================================================================
        DIFF LENS WORKSPACE
        Word-level diff between two prompts with similarity score. Offline. Free.
        data-view="diff" | openDiffWorkspace() | initDiffWorkspace()
@@ -16443,6 +16193,11 @@ Must avoid: [Anything sensitive or previously declined]`
                 toast('Could not save', 'error');
             }
         });
+        $('#closeToneBtn')?.addEventListener('click', closeToneWorkspace);
+        ws.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeToneWorkspace();
+        });
+    }
 
     /* ============================================================================
        WORKSPACE: Prompt Translator
@@ -16607,12 +16362,6 @@ Must avoid: [Anything sensitive or previously declined]`
         $('#closeTranslateBtn')?.addEventListener('click', closeTranslateWorkspace);
         ws.addEventListener('keydown', e => {
             if (e.key === 'Escape') closeTranslateWorkspace();
-        });
-    }
-
-        $('#closeToneBtn')?.addEventListener('click', closeToneWorkspace);
-        ws.addEventListener('keydown', e => {
-            if (e.key === 'Escape') closeToneWorkspace();
         });
     }
 
@@ -18985,7 +18734,6 @@ Must avoid: [Anything sensitive or previously declined]`
         initWorkspacesLauncher(); // workspaces launcher grid
         initFillWorkspace(); // quick fill workspace
         initAuditWorkspace(); // prompt auditor workspace
-        initSafetyWorkspace(); // safety & bias lens workspace
         initDiffWorkspace(); // diff lens workspace
         initCostWorkspace(); // cost lens workspace
         initPulseWorkspace(); // library pulse workspace
@@ -26065,6 +25813,8 @@ Must avoid: [Anything sensitive or previously declined]`
                 '<div class="chainw-step-header" role="button" tabindex="0" aria-expanded="' + isExpanded + '" aria-label="Step ' + (i + 1) + ': ' + escapeHtml(step.label) + '">' +
                 '<div class="chainw-step-num" aria-label="Step ' + (i + 1) + '">' + (i + 1) + '</div>' +
                 '<input type="text" class="chain-step-label-input" value="' + escapeHtml(step.label) + '" placeholder="Step name..." aria-label="Step ' + (i + 1) + ' name" />' +
+                (i > 0 ? '<button class="icon-btn" type="button" title="Move up" aria-label="Move step ' + (i + 1) + ' up" data-move-up="' + i + '"><span class="material-symbols-outlined">arrow_upward</span></button>' : '') +
+                (i < _chainSteps.length - 1 ? '<button class="icon-btn" type="button" title="Move down" aria-label="Move step ' + (i + 1) + ' down" data-move-down="' + i + '"><span class="material-symbols-outlined">arrow_downward</span></button>' : '') +
                 '<button class="icon-btn" title="Remove step" aria-label="Remove step ' + (i + 1) + '" data-remove="' + i + '"><span class="material-symbols-outlined">close</span></button>' +
                 '</div>' +
                 '<div class="chainw-step-body">' +
@@ -26077,7 +25827,9 @@ Must avoid: [Anything sensitive or previously declined]`
                 '<div class="chain-step-output" data-output-wrap="' + i + '"' + (step._status === 'idle' || !step._status ? ' hidden' : '') + '>' +
                 '<div class="chain-step-output-label"><span class="material-symbols-outlined">' +
                 (step._status === 'running' ? 'progress_activity' : step._status === 'error' ? 'error' : 'check_circle') +
-                '</span>' + (step._status === 'running' ? 'Running...' : step._status === 'error' ? 'Failed' : 'Output') + '</div>' +
+                '</span>' + (step._status === 'running' ? 'Running...' : step._status === 'error' ? 'Failed' : 'Output') +
+                (step._status && step._status !== 'running' ? '<button class="icon-btn chain-step-retry-btn" type="button" title="Retry this step" aria-label="Retry step ' + (i + 1) + '" data-retry="' + i + '"><span class="material-symbols-outlined">refresh</span></button>' : '') +
+                '</div>' +
                 '<div class="chain-step-output-text">' + escapeHtml(step.output || '') + '</div>' +
                 '</div>' +
                 '</div>';
@@ -26113,6 +25865,36 @@ Must avoid: [Anything sensitive or previously declined]`
                 const idx = parseInt(btn.dataset.remove, 10);
                 _chainSteps.splice(idx, 1);
                 _renderChainSteps();
+            });
+        });
+
+        // Wire: move step up/down
+        list.querySelectorAll('[data-move-up]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const idx = parseInt(btn.dataset.moveUp, 10);
+                if (idx > 0) {
+                    [_chainSteps[idx - 1], _chainSteps[idx]] = [_chainSteps[idx], _chainSteps[idx - 1]];
+                    _renderChainSteps();
+                }
+            });
+        });
+        list.querySelectorAll('[data-move-down]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const idx = parseInt(btn.dataset.moveDown, 10);
+                if (idx < _chainSteps.length - 1) {
+                    [_chainSteps[idx], _chainSteps[idx + 1]] = [_chainSteps[idx + 1], _chainSteps[idx]];
+                    _renderChainSteps();
+                }
+            });
+        });
+
+        // Wire: retry a single step without re-running the whole chain
+        list.querySelectorAll('[data-retry]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                _chainRetryStep(parseInt(btn.dataset.retry, 10));
             });
         });
 
@@ -26227,11 +26009,42 @@ Must avoid: [Anything sensitive or previously declined]`
         if (label) {
             const icon = step._status === 'running' ? 'progress_activity' : step._status === 'error' ? 'error' : 'check_circle';
             const msg = step._status === 'running' ? 'Running...' : step._status === 'error' ? 'Failed' : 'Output';
-            label.innerHTML = '<span class="material-symbols-outlined">' + icon + '</span>' + msg;
+            const retryBtn = step._status && step._status !== 'running' ?
+                '<button class="icon-btn chain-step-retry-btn" type="button" title="Retry this step" aria-label="Retry step ' + (i + 1) + '" data-retry="' + i + '"><span class="material-symbols-outlined">refresh</span></button>' : '';
+            label.innerHTML = '<span class="material-symbols-outlined">' + icon + '</span>' + msg + retryBtn;
             label.classList.toggle('running', step._status === 'running');
             label.classList.toggle('error', step._status === 'error');
+            const rb = label.querySelector('[data-retry]');
+            if (rb) rb.addEventListener('click', e => {
+                e.stopPropagation();
+                _chainRetryStep(i);
+            });
         }
         if (text) text.textContent = step.output || '';
+    }
+
+    async function _chainRetryStep(i) {
+        const step = _chainSteps[i];
+        if (!step || _chainRunning) return;
+        _chainRunning = true;
+        step._status = 'running';
+        _chainUpdateStepUI(i);
+        const pipedInput = i === 0 ?
+            ($('#chainSeedInput')?.value || '').trim() :
+            (_chainSteps[i - 1].output || '');
+        const sys = 'You are executing one step in a multi-step prompt chain. Follow the instructions in the user message exactly and return ONLY the direct result of this step — no preamble, no meta-commentary, no "here is the output" framing. Your response becomes the literal input to the next step.';
+        const filledPrompt = (step.prompt || '').replace(/\{\{input\}\}/gi, pipedInput);
+        try {
+            const result = await callAI(sys, filledPrompt, 1500);
+            step.output = result.trim();
+            step._status = 'done';
+        } catch (err) {
+            step.output = 'Error: ' + err.message;
+            step._status = 'error';
+            toast('Retry failed: ' + err.message, 'error');
+        }
+        _chainRunning = false;
+        _chainUpdateStepUI(i);
     }
 
     async function runChain() {
@@ -27069,7 +26882,7 @@ Must avoid: [Anything sensitive or previously declined]`
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
         '#playgroundWorkspace', '#chainWorkspace',
         '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace',
-        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#safetyWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace'
+        '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace'
     ];
 
     function _closeTourWorkspaces() {

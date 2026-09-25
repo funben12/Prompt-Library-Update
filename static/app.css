@@ -4167,6 +4167,13 @@
 .chain-step-output-label.running { color: var(--accent); }
 .chain-step-output-label.running .material-symbols-outlined { animation: spin 1s linear infinite; }
 .chain-step-output-label.error { color: var(--danger, #d33); }
+.chain-step-retry-btn {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+}
+.chain-step-retry-btn .material-symbols-outlined { font-size: 13px; }
 .chain-step-output-text {
   padding: 0 0 0 var(--sp-3);
   font-family: var(--ff-mono);
