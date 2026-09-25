@@ -2884,6 +2884,56 @@
 </div>
 
 <!-- ============================================================
+     WORKSPACE: Safety & Bias Lens
+     Offline heuristic scan for injection surface, missing refusal
+     boundaries, jailbreak-enabling phrasing, bias-prone generalizations,
+     unscoped authority and sensitive-data solicitation.
+     data-view="safety"
+     ============================================================ -->
+<div id="safetyWorkspace" role="dialog" aria-modal="true" aria-label="Safety & Bias Lens">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">shield</span>
+      <div>
+        <h2 class="ws-title">Safety & Bias Lens</h2>
+        <p class="ws-subtitle">Scan a prompt for injection surface, bias risk and unsafe framing. Instant, on-device.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="icon-btn" id="closeSafetyBtn" aria-label="Close Safety & Bias Lens"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="ws-body aud-body">
+    <div class="aud-left">
+      <div class="opt-section-label">Prompt</div>
+      <select id="safPicker" class="forge-input qf-picker"><option value="">Load from library…</option></select>
+      <textarea id="safInput" class="forge-input" rows="10" placeholder="Paste the prompt to scan…"></textarea>
+      <div class="opt-actions" style="margin-top:var(--sp-3);">
+        <button class="btn btn-accent" id="safRunBtn"><span class="material-symbols-outlined">shield</span> Scan</button>
+        <button class="btn btn-ghost" id="safAiBtn" title="Needs an API key in Settings"><span class="material-symbols-outlined">psychology</span> AI Deep Review</button>
+      </div>
+      <div class="opt-output" id="safAiOutput" style="display:none;margin-top:var(--sp-3);"></div>
+    </div>
+    <div class="aud-right" id="safResults" style="display:none;">
+      <div class="aud-score-row">
+        <div class="aud-score"><span id="safScoreNum">0</span><span class="aud-score-max">/100</span></div>
+        <div>
+          <span class="aud-badge" id="safScoreBadge">—</span>
+          <div class="aud-meta" id="safMeta"></div>
+        </div>
+      </div>
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">Dimensions</div>
+      <div id="safDims"></div>
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">Findings</div>
+      <div id="safFindings"></div>
+      <div class="opt-actions" style="margin-top:var(--sp-3);">
+        <button class="btn btn-accent" id="safSaveBtn"><span class="material-symbols-outlined">save</span> Save to Library</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
      WORKSPACE: Diff Lens
      Word-level diff between two prompts, with similarity score.
      data-view="diff"
@@ -4301,6 +4351,14 @@
       </span>
         <span class="launcher-card-pro">PRO</span>
       </button>
+      <button class="launcher-card" data-open="openSafetyWorkspace" data-premium="true">
+        <span class="material-symbols-outlined launcher-card-icon">shield</span>
+        <span class="launcher-card-text">
+        <span class="launcher-card-title">Safety & Bias Lens</span>
+        <span class="launcher-card-desc">Scan for injection surface, bias and unsafe framing</span>
+      </span>
+        <span class="launcher-card-pro">PRO</span>
+      </button>
       <button class="launcher-card" data-open="openXrayWorkspace" data-premium="true">
         <span class="material-symbols-outlined launcher-card-icon">visibility</span>
         <span class="launcher-card-text">
@@ -4573,7 +4631,7 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=26d25ac0"></script>
+<script defer src="/static/app.js?v=99722c09"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>
