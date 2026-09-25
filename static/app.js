@@ -10079,7 +10079,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 cat: 'analysis',
                 icon: 'people',
                 label: 'Stakeholder Analysis',
-                text: 'Analyze stakeholders for [project/decision]:\n\nStakeholder | Interest | Influence | Position | Strategy\n-----------|----------|-----------|----------|---------\n[Name]     | [H/M/L]  | [H/M/L]   | [支持/中立/反对] | [engage/consult/inform]\n\nKey insight: [who matters most]\nRisk: [who could block]'
+                text: 'Analyze stakeholders for [project/decision]:\n\nStakeholder | Interest | Influence | Position | Strategy\n-----------|----------|-----------|----------|---------\n[Name]     | [H/M/L]  | [H/M/L]   | [support/neutral/oppose] | [engage/consult/inform]\n\nKey insight: [who matters most]\nRisk: [who could block]'
             },
             {
                 cat: 'analysis',
