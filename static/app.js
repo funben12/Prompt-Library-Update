@@ -5182,6 +5182,7 @@ Here are my prompts:
 
         $('#closeDetailPanel')?.addEventListener('click', closeDetailPanel);
         $('#panelFavBtn')?.addEventListener('click', () => state.detailId && toggleFav(state.detailId));
+        $('#panelForkBtn')?.addEventListener('click', () => state.detailId && window.openForkWorkstation(state.detailId));
         $('#panelEditBtn')?.addEventListener('click', () => state.detailId && editPrompt(state.detailId));
         $('#panelDeleteBtn')?.addEventListener('click', () => state.detailId && deletePromptById(state.detailId));
         $('#panelDuplicateBtn')?.addEventListener('click', () => state.detailId && duplicatePrompt(state.detailId));
@@ -14384,7 +14385,7 @@ Must avoid: [Anything sensitive or previously declined]`
         });
     }
 
-    function _fwRenderOriginalPane(sourcePrompt) {
+    function _fwRenderOriginalPane(sourcePrompt, isDeleted) {
         const badge = $('#forkOriginalBadge');
         const titleEl = $('#forkOriginalTitle');
         const contentEl = $('#forkOriginalContent');
@@ -14392,6 +14393,12 @@ Must avoid: [Anything sensitive or previously declined]`
             if (badge) { badge.textContent = 'Original deleted'; badge.className = 'fw-badge fw-badge-deleted'; }
             if (titleEl) titleEl.textContent = '(deleted)';
             if (contentEl) contentEl.textContent = '';
+            return;
+        }
+        if (isDeleted) {
+            if (badge) { badge.textContent = 'Original deleted'; badge.className = 'fw-badge fw-badge-deleted'; }
+            if (titleEl) titleEl.textContent = sourcePrompt.title || 'Untitled';
+            if (contentEl) contentEl.textContent = sourcePrompt.content || '';
             return;
         }
         if (badge) {
@@ -14421,13 +14428,17 @@ Must avoid: [Anything sensitive or previously declined]`
         _fwRenderBreadcrumb(chain, prompt);
 
         let sourcePrompt = null;
+        let sourceDeleted = false;
         if (prompt.parent_id) {
             sourcePrompt = state.prompts.find(function(p) { return p.id === prompt.parent_id; }) || null;
-            if (!sourcePrompt && prompt.fork_snapshot) {
-                try { sourcePrompt = JSON.parse(prompt.fork_snapshot); } catch (e) { sourcePrompt = null; }
+            if (!sourcePrompt) {
+                sourceDeleted = true;
+                if (prompt.fork_snapshot) {
+                    try { sourcePrompt = JSON.parse(prompt.fork_snapshot); } catch (e) { sourcePrompt = null; }
+                }
             }
         }
-        _fwRenderOriginalPane(sourcePrompt || (prompt.parent_id ? null : prompt));
+        _fwRenderOriginalPane(sourcePrompt || (prompt.parent_id ? null : prompt), sourceDeleted);
 
         const titleInput = $('#forkTitleInput');
         const contentInput = $('#forkContentInput');
@@ -28456,13 +28467,6 @@ Must avoid: [Anything sensitive or previously declined]`
             };
         }
 
-        const forkBtn = _el('viewerForkBtn');
-        if (forkBtn) {
-            forkBtn.onclick = function() {
-                window.PL_closeViewer();
-                window.openForkWorkstation(id);
-            };
-        }
 
         if (viewer) viewer.classList.add('active');
     };
