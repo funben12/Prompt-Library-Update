@@ -4689,7 +4689,43 @@
   </div>
 </div>
 
-  <div id="promptViewer" aria-modal="true" aria-label="Prompt viewer" role="dialog">
+  <div id="forkWorkstation" role="dialog" aria-modal="true" aria-label="Prompt Forking Workstation">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">call_split</span>
+      <div>
+        <h2 class="ws-title">Fork Workstation</h2>
+        <p class="ws-subtitle">Experiment freely — the original stays untouched.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <button class="icon-btn" id="closeForkBtn" aria-label="Close Fork Workstation"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="fw-breadcrumb" id="forkBreadcrumb"></div>
+  <div class="ws-body fw-body">
+    <div class="fw-left" id="forkOriginalPane">
+      <div class="fw-pane-head">
+        <span class="fw-badge fw-badge-original" id="forkOriginalBadge">Original</span>
+      </div>
+      <h3 id="forkOriginalTitle"></h3>
+      <pre id="forkOriginalContent" class="fw-readonly-content"></pre>
+    </div>
+    <div class="fw-right" id="forkEditPane">
+      <div class="fw-pane-head">
+        <span class="fw-badge fw-badge-fork">Fork</span>
+        <button class="btn btn-sm" id="newForkBtn">+ New Fork</button>
+        <button class="btn btn-sm btn-primary" id="forkSaveBtn">Save</button>
+        <button class="btn btn-sm btn-ghost" id="forkFullEditorBtn">Edit full details&hellip;</button>
+      </div>
+      <input type="text" id="forkTitleInput" class="input" placeholder="Fork title" />
+      <textarea id="forkContentInput" class="textarea" placeholder="Fork content"></textarea>
+      <p class="fw-save-status" id="forkSaveStatus" aria-live="polite"></p>
+    </div>
+  </div>
+</div>
+
+<div id="promptViewer" aria-modal="true" aria-label="Prompt viewer" role="dialog">
     <div class="pv-header">
       <button class="pv-back-btn" id="pvCloseBtn" title="Back to library">
         <span class="material-symbols-outlined">arrow_back</span>
@@ -4697,6 +4733,7 @@
       </button>
       <div class="pv-header-title" id="pvTitle"></div>
       <div class="pv-header-chips" id="pvChips"></div>
+      <button class="icon-btn" id="viewerForkBtn" aria-label="Fork this prompt" title="Fork this prompt"><span class="material-symbols-outlined">call_split</span></button>
       <button class="icon-btn" id="pvEditBtn" title="Edit prompt">
         <span class="material-symbols-outlined">edit</span>
       </button>
