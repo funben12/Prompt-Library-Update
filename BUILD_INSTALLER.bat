@@ -6,11 +6,14 @@ REM ============================================================================
 
 setlocal enabledelayedexpansion
 
-REM Find Inno Setup compiler
-set "ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+REM Find Inno Setup compiler (checks common install locations, newest first)
+set "ISCC="
+if exist "C:\Program Files\Inno Setup 7\ISCC.exe" set "ISCC=C:\Program Files\Inno Setup 7\ISCC.exe"
+if not defined ISCC if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" set "ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+if not defined ISCC if exist "C:\Program Files\Inno Setup 6\ISCC.exe" set "ISCC=C:\Program Files\Inno Setup 6\ISCC.exe"
 
-if not exist "!ISCC!" (
-    echo ERROR: Inno Setup 6 not found at !ISCC!
+if not defined ISCC (
+    echo ERROR: Inno Setup not found in any known location.
     echo Please install from: https://jrsoftware.org/isdl.php
     pause
     exit /b 1
@@ -50,7 +53,7 @@ if errorlevel 1 (
 echo.
 echo ============================================================
 echo Installer created successfully!
-echo Output: installer\PromptLibraryPro_Setup_PreRelease_2.exe
+echo Output: installer\PromptLibraryPro_Setup_v1.0.0.exe
 echo ============================================================
 echo.
 pause

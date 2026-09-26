@@ -6,31 +6,30 @@
 ;  Purchase    : https://payhip.com/MXPhillips
 ;  Compiler    : Inno Setup 6.3+  (https://jrsoftware.org/isinfo.php)
 ;
-;  RELEASE     : Pre-Release 3  (v2.1.0)
-;  DATE        : 2026-08-15
+;  RELEASE     : 1.0.0
+;  DATE        : 2026-09-26
 ;
 ;  PRE-COMPILE CHECKLIST
 ;  ─────────────────────
 ;  [ ] Run Build.bat first  →  produces dist\PromptLibrary.exe
 ;  [ ] Confirm icon.ico exists in the project root
-;  [ ] Confirm AppVersion + AppVersionDisplay below match the release
+;  [ ] Confirm AppVersion below matches the release
 ;  [ ] Open in Inno Setup IDE and press Ctrl+F9  (or: ISCC.exe PromptLibrary.iss)
 ;
 ;  OUTPUT
 ;  ──────
-;  installer\PromptLibraryPro_Setup_PreRelease_3.exe
+;  installer\PromptLibraryPro_Setup_v1.0.0.exe
 ;
 ; =============================================================================
 
 
 ; -----------------------------------------------------------------------------
 ;  GLOBAL DEFINES
-;  Edit these two blocks per release. Nothing else needs to change.
+;  Edit this block per release. Nothing else needs to change.
 ; -----------------------------------------------------------------------------
 
 ; ── Semantic version (used for upgrade detection + Windows version info) ─────
-#define AppVersion        "2.1.0"
-#define AppVersionDisplay "Pre-Release 3"
+#define AppVersion        "1.0.0"
 
 ; ── Identity ──────────────────────────────────────────────────────────────────
 #define AppName        "Prompt Library Pro"
@@ -58,7 +57,7 @@ AppId={{A300D0C3-3DE0-4E9F-A79F-D1A624E8B881}
 
 AppName={#AppName}
 AppVersion={#AppVersion}
-AppVerName={#AppName} {#AppVersionDisplay}
+AppVerName={#AppName} {#AppVersion}
 AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
 AppSupportURL={#AppSupportURL}
@@ -97,10 +96,10 @@ ChangesAssociations=yes
 
 ; ── Output ────────────────────────────────────────────────────────────────────
 OutputDir=installer
-OutputBaseFilename=PromptLibraryPro_Setup_PreRelease_3
+OutputBaseFilename=PromptLibraryPro_Setup_v{#AppVersion}
 SetupIconFile=icon.ico
 UninstallDisplayIcon={app}\{#AppExeName}
-UninstallDisplayName={#AppName} {#AppVersionDisplay}
+UninstallDisplayName={#AppName} {#AppVersion}
 
 ; ── Compression ───────────────────────────────────────────────────────────────
 ; lzma2/max, single-threaded — ultra64 + 4 block threads was blowing past
@@ -129,11 +128,11 @@ ShowLanguageDialog=no
 ; Visible under File Properties → Details.
 VersionInfoVersion={#AppVersion}.0
 VersionInfoCompany={#AppPublisher}
-VersionInfoDescription={#AppName} {#AppVersionDisplay} Installer
+VersionInfoDescription={#AppName} Installer
 VersionInfoProductName={#AppName}
 VersionInfoProductVersion={#AppVersion}
 VersionInfoCopyright=Copyright (C) 2026 Eugene Phillips, trading as {#AppPublisher}
-VersionInfoTextVersion={#AppVersion} ({#AppVersionDisplay})
+VersionInfoTextVersion={#AppVersion}
 
 
 ; =============================================================================
@@ -150,11 +149,11 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 ; ── Welcome page ──────────────────────────────────────────────────────────────
 WelcomeLabel1=Welcome to {#AppName}
-WelcomeLabel2=Setup will install {#AppName} {#AppVersionDisplay} on your computer.%n%n{#AppDescription}%n%nThis is an early pre-release build. Features are complete but feedback is welcome at eugphill@gmail.com%n%nClick Next to continue, or Cancel to exit.
+WelcomeLabel2=Setup will install {#AppName} {#AppVersion} on your computer.%n%n{#AppDescription}%n%nClick Next to continue, or Cancel to exit.
 
 ; ── Finish page ───────────────────────────────────────────────────────────────
 FinishedHeadingLabel=Installation Complete
-FinishedLabel={#AppName} {#AppVersionDisplay} has been installed successfully.%n%nYour prompts are stored locally in Documents\{#AppDataFolder} and are never sent to the cloud.%n%nThank you for trying the pre-release — feedback is always welcome.
+FinishedLabel={#AppName} {#AppVersion} has been installed successfully.%n%nYour prompts are stored locally in Documents\{#AppDataFolder} and are never sent to the cloud.%n%nThank you for installing {#AppName}.
 
 
 ; =============================================================================

@@ -11361,11 +11361,11 @@ Must avoid: [Anything sensitive or previously declined]`
                 });
             }
         }
-        // Drop blocks whose text duplicates an earlier block
+        // Drop duplicate text within each category
         (function() {
             var seen = {};
             BLOCKS = BLOCKS.filter(function(b) {
-                var k = b.text.trim().toLowerCase();
+                var k = String(b.cat || 'core') + ':' + b.text.trim().toLowerCase();
                 if (seen[k]) return false;
                 seen[k] = 1;
                 return true;
