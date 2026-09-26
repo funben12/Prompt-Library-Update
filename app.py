@@ -451,6 +451,8 @@ def init_db():
         ('prompt_use_case',       'ALTER TABLE prompts ADD COLUMN prompt_use_case TEXT'),
         ('prompt_output_format',  'ALTER TABLE prompts ADD COLUMN prompt_output_format TEXT'),
         ('prompt_tone',           'ALTER TABLE prompts ADD COLUMN prompt_tone TEXT'),
+        ('fork_root_id',          'ALTER TABLE prompts ADD COLUMN fork_root_id INTEGER'),
+        ('fork_snapshot',         'ALTER TABLE prompts ADD COLUMN fork_snapshot TEXT'),
     ]
 
     # Knowledge base entries for roles (JSON array)
@@ -485,6 +487,8 @@ def init_db():
     for col, sql in migrations:
         if col not in existing:
             c.execute(sql)
+
+    c.execute('CREATE INDEX IF NOT EXISTS idx_prompts_fork_root_id ON prompts(fork_root_id)')
 
     # ── prompt_versions column migrations ───────────────────────────────────
     c.execute('PRAGMA table_info(prompt_versions)')
