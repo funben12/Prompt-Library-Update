@@ -942,6 +942,7 @@
         const desc = (p.description || (p.content || '').slice(0, 120) + ((p.content || '').length > 120 ? '...' : '')) || '';
         const folder = state.folders.find(f => f.id === p.folder_id);
         const colour = p.colour_label ? `c-${p.colour_label}` : '';
+        const forkParent = p.parent_id ? state.prompts.find(x => x.id === p.parent_id) : null;
         const isFav = !!p.is_favorite;
         const rating = p.rating || 0;
         const varCount = (p.variables || detectVariables(p.content)).length;
@@ -972,6 +973,7 @@
           ${rating > 0 ? `<span class="card-rating">${'\u2605'.repeat(rating)}${'\u2606'.repeat(5 - rating)}</span>` : ''}
         </div>
         ${desc ? `<p class="card-desc">${escapeHtml(desc)}</p>` : ''}
+        ${forkParent ? `<p class="card-fork-subtitle"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px;">call_split</span> forked from ${escapeHtml(forkParent.title || 'Untitled')}</p>` : ''}
         <div class="card-meta">${metaRow}</div>
         ${tagPills ? `<div class="card-tags" style="margin-top: 4px;">${tagPills}</div>` : ''}
       </div>
@@ -4898,7 +4900,7 @@ Here are my prompts:
         ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace', '#playgroundWorkspace',
             '#chainWorkspace', '#metaPromptingWorkspace', '#contextBankWorkspace', '#componentsWorkspace',
             '#optimizerWorkspace', '#genWorkspace', '#dashboardWorkspace', '#workspacesLauncher', '#fillWorkspace', '#auditWorkspace', '#diffWorkspace',
-            '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace',
+            '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace', '#forkWorkstation',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
             '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace', '#gauntletWorkspace',
         ].forEach(sel => {
@@ -5021,6 +5023,10 @@ Here are my prompts:
                 }
                 if (v === 'cost') {
                     window.openCostWorkspace();
+                    return;
+                }
+                if (v === 'fork') {
+                    window.openForkWorkstation(state.detailId);
                     return;
                 }
                 if (v === 'pulse') {
@@ -14345,6 +14351,147 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
+       PROMPT FORKING WORKSTATION
+       Two-pane workspace: original/parent on the left (read-only), fork on the
+       right (editable). Reuses existing fork/lineage API routes.
+       ============================================================================ */
+
+    let _fwState = { currentId: null, sourceId: null };
+
+    async function _fwLoadLineage(promptId) {
+        const res = await fetch('/api/prompts/' + promptId + '/lineage');
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.chain || [];
+    }
+
+    function _fwRenderBreadcrumb(chain, currentPrompt) {
+        const el = $('#forkBreadcrumb');
+        if (!el) return;
+        const all = chain.concat([currentPrompt]);
+        const parts = all.map(function(p, i) {
+            const isLast = i === all.length - 1;
+            const label = escapeHtml(p.title || 'Untitled');
+            return isLast
+                ? '<span class="fw-crumb" style="cursor:default;color:var(--ink-1);font-weight:600;">' + label + '</span>'
+                : '<span class="fw-crumb" data-fork-jump="' + p.id + '">' + label + '</span>';
+        });
+        el.innerHTML = parts.join('<span class="fw-crumb-sep">/</span>');
+        el.querySelectorAll('[data-fork-jump]').forEach(function(node) {
+            node.addEventListener('click', function() {
+                window.openForkWorkstation(parseInt(node.dataset.forkJump, 10));
+            });
+        });
+    }
+
+    function _fwRenderOriginalPane(sourcePrompt) {
+        const badge = $('#forkOriginalBadge');
+        const titleEl = $('#forkOriginalTitle');
+        const contentEl = $('#forkOriginalContent');
+        if (!sourcePrompt) {
+            if (badge) { badge.textContent = 'Original deleted'; badge.className = 'fw-badge fw-badge-deleted'; }
+            if (titleEl) titleEl.textContent = '(deleted)';
+            if (contentEl) contentEl.textContent = '';
+            return;
+        }
+        if (badge) {
+            const isFork = !!sourcePrompt.parent_id;
+            badge.textContent = isFork ? 'Parent Fork' : 'Original';
+            badge.className = 'fw-badge ' + (isFork ? 'fw-badge-fork' : 'fw-badge-original');
+        }
+        if (titleEl) titleEl.textContent = sourcePrompt.title || 'Untitled';
+        if (contentEl) contentEl.textContent = sourcePrompt.content || '';
+    }
+
+    window.openForkWorkstation = async function(promptId) {
+        if (!state.isPremium) { showPremiumModal(); return; }
+        const ws = $('#forkWorkstation');
+        if (!ws || !promptId) return;
+        const prompt = state.prompts.find(function(p) { return p.id === promptId; });
+        if (!prompt) return;
+
+        _fwState.currentId = promptId;
+        _fwState.sourceId = prompt.parent_id || null;
+
+        ws.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        $$('.nav-item[data-view]').forEach(function(el) { el.classList.toggle('active', el.dataset.view === 'fork'); });
+
+        const chain = await _fwLoadLineage(promptId);
+        _fwRenderBreadcrumb(chain, prompt);
+
+        let sourcePrompt = null;
+        if (prompt.parent_id) {
+            sourcePrompt = state.prompts.find(function(p) { return p.id === prompt.parent_id; }) || null;
+            if (!sourcePrompt && prompt.fork_snapshot) {
+                try { sourcePrompt = JSON.parse(prompt.fork_snapshot); } catch (e) { sourcePrompt = null; }
+            }
+        }
+        _fwRenderOriginalPane(sourcePrompt || (prompt.parent_id ? null : prompt));
+
+        const titleInput = $('#forkTitleInput');
+        const contentInput = $('#forkContentInput');
+        if (titleInput) titleInput.value = prompt.title || '';
+        if (contentInput) contentInput.value = prompt.content || '';
+        const statusEl = $('#forkSaveStatus');
+        if (statusEl) statusEl.textContent = '';
+    };
+
+    function closeForkWorkstation() {
+        $('#forkWorkstation')?.classList.remove('open');
+        document.body.style.overflow = '';
+        $$('.nav-item[data-view]').forEach(function(el) { el.classList.toggle('active', el.dataset.view === 'library'); });
+    }
+
+    async function _fwCreateNewFork() {
+        if (!_fwState.currentId) return;
+        const res = await fetch('/api/prompts/' + _fwState.currentId + '/fork', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        await loadPrompts();
+        window.openForkWorkstation(data.id);
+    }
+
+    async function _fwSaveCurrent() {
+        if (!_fwState.currentId) return;
+        const statusEl = $('#forkSaveStatus');
+        const title = $('#forkTitleInput')?.value ?? '';
+        const content = $('#forkContentInput')?.value ?? '';
+        if (statusEl) statusEl.textContent = 'Saving…';
+        const res = await fetch('/api/prompts/' + _fwState.currentId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: title, content: content })
+        });
+        if (!res.ok) {
+            if (statusEl) statusEl.textContent = 'Save failed';
+            return;
+        }
+        await loadPrompts();
+        if (statusEl) statusEl.textContent = 'Saved';
+    }
+
+    function initForkWorkstation() {
+        const ws = $('#forkWorkstation');
+        if (!ws) return;
+        $('#closeForkBtn')?.addEventListener('click', closeForkWorkstation);
+        $('#newForkBtn')?.addEventListener('click', _fwCreateNewFork);
+        $('#forkSaveBtn')?.addEventListener('click', _fwSaveCurrent);
+        $('#forkFullEditorBtn')?.addEventListener('click', function() {
+            const idToEdit = _fwState.currentId;
+            closeForkWorkstation();
+            window.PL_openViewer(idToEdit);
+        });
+        ws.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeForkWorkstation();
+        });
+    }
+
+    /* ============================================================================
        LIBRARY ORGANIZER (formerly Library Pulse)
        Health scan of the whole library — duplicates, missing metadata, stale and
        thin prompts — plus fix actions: delete/keep duplicates, bulk-delete or
@@ -19736,6 +19883,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initAuditWorkspace(); // prompt auditor workspace
         initDiffWorkspace(); // diff lens workspace
         initCostWorkspace(); // cost lens workspace
+        initForkWorkstation(); // prompt forking workstation
         initPulseWorkspace(); // library pulse workspace
         initXrayWorkspace(); // prompt x-ray workspace
         initSpliceWorkspace(); // prompt splicer workspace
@@ -28305,6 +28453,14 @@ Must avoid: [Anything sensitive or previously declined]`
             editBtn.onclick = function() {
                 window.PL_closeViewer();
                 if (window.openEditModal) window.openEditModal(id);
+            };
+        }
+
+        const forkBtn = _el('viewerForkBtn');
+        if (forkBtn) {
+            forkBtn.onclick = function() {
+                window.PL_closeViewer();
+                window.openForkWorkstation(id);
             };
         }
 
