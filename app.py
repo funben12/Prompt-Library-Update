@@ -1696,6 +1696,36 @@ def fork_prompt(pid):
     return jsonify({'id': new_id})
 
 
+@app.route('/api/prompts/<int:pid>/forks', methods=['GET'])
+def list_forks(pid):
+    """List direct children (forks) of a prompt."""
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM prompts WHERE parent_id=? ORDER BY created_at', (pid,)).fetchall()
+    conn.close()
+    return jsonify({'forks': [serialize_prompt(r) for r in rows]})
+
+
+@app.route('/api/prompts/<int:pid>/lineage', methods=['GET'])
+def get_lineage(pid):
+    """Ancestor chain for a prompt, root first, ending at its immediate parent."""
+    conn = get_db()
+    chain = []
+    current = conn.execute('SELECT * FROM prompts WHERE id=?', (pid,)).fetchone()
+    seen = {pid}
+    while current is not None:
+        parent_id = current['parent_id']
+        if parent_id is None or parent_id in seen:
+            break
+        parent = conn.execute('SELECT * FROM prompts WHERE id=?', (parent_id,)).fetchone()
+        if parent is None:
+            break
+        chain.insert(0, serialize_prompt(parent))
+        seen.add(parent_id)
+        current = parent
+    conn.close()
+    return jsonify({'chain': chain})
+
+
 @app.route('/api/prompts/<int:pid>/status', methods=['PATCH'])
 def update_prompt_status(pid):
     """Update just the status field of a prompt."""
