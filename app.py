@@ -1581,6 +1581,13 @@ def delete_prompt(pid):
     if pid in _locked_prompt_ids():
         return jsonify({'error': 'This prompt is locked. Unlock it in Version Lock before deleting.'}), 423
     conn = get_db()
+    row = conn.execute('SELECT title, content FROM prompts WHERE id=?', (pid,)).fetchone()
+    if row is not None:
+        snapshot = json.dumps({'title': row['title'], 'content': row['content']})
+        conn.execute(
+            'UPDATE prompts SET fork_snapshot=? WHERE parent_id=? AND fork_snapshot IS NULL',
+            (snapshot, pid)
+        )
     conn.execute('DELETE FROM prompts WHERE id=?', (pid,))
     conn.commit()
     conn.close()
