@@ -745,6 +745,8 @@ def serialize_prompt(row):
     p.setdefault('prompt_use_case',     '')
     p.setdefault('prompt_output_format','')
     p.setdefault('prompt_tone',         '')
+    p.setdefault('fork_root_id',        None)
+    p.setdefault('fork_snapshot',       None)
     return p
 
 
@@ -1662,14 +1664,16 @@ def fork_prompt(pid):
             conn.close()
             return jsonify({'error': 'Not found'}), 404
         p = serialize_prompt(row)
+        source_root = p.get('fork_root_id') or pid
         data = _json_body()
         title = (data.get('title') or p['title'] + ' (Fork)').strip() or p['title'] + ' (Fork)'
         cur = conn.execute('''
             INSERT INTO prompts
                 (title, description, content, categories, tags, folder_id,
                  colour_label, notes, chain_ids, variable_meta, chat_turns, role_id,
-                 status, parent_id, prompt_domain, prompt_use_case, prompt_output_format, prompt_tone)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 status, parent_id, prompt_domain, prompt_use_case, prompt_output_format, prompt_tone,
+                 fork_root_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ''', (
             title, p['description'], p['content'],
             _list_for_db(p['categories']), _list_for_db(p['tags']), p['folder_id'],
@@ -1683,6 +1687,7 @@ def fork_prompt(pid):
             p.get('prompt_use_case') or '',
             p.get('prompt_output_format') or '',
             p.get('prompt_tone') or '',
+            source_root,
         ))
         new_id = cur.lastrowid
         conn.commit()
