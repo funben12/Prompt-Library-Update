@@ -31,9 +31,11 @@ def get_data_dir():
     return path
 
 def get_static_dir():
-    """Locate the static folder whether running from source or a bundle."""
-    if getattr(sys, 'frozen', False):
+    """Locate the static folder whether running from source, PyInstaller, or py2app."""
+    if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, 'static')
+    if getattr(sys, 'frozen', False):
+        return os.path.join(os.environ['RESOURCEPATH'], 'static')
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 
 DATABASE   = os.path.join(get_data_dir(),   'PromptLibrary.db')
