@@ -450,13 +450,13 @@
     width: 32px; height: 32px;
     border-radius: var(--r-sm);
     display: grid; place-items: center;
-    background: var(--ink);
-    color: var(--bg);
-    font-family: var(--ff-display);
-    font-weight: 600;
-    font-size: 17px;
-    letter-spacing: -0.02em;
-    font-variation-settings: "opsz" 24, "SOFT" 50;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .brand-mark img {
+    display: block;
+    width: 100%; height: 100%;
+    object-fit: cover;
   }
   .brand-name {
     font-family: var(--ff-display);
