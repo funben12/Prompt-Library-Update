@@ -1,0 +1,20 @@
+Prompt Library Pro is not notarised with Apple, so macOS will refuse to
+open it the normal way (double-click) the first time. This is expected
+for an app distributed outside the App Store without a paid Apple
+Developer certificate, not a broken download.
+
+To open it:
+
+1. Copy "Prompt Library Pro.app" out of this disk image and into
+   Applications (or anywhere on your Mac).
+2. Right-click (or Control-click) the app icon and choose "Open".
+3. A dialog will warn the app is from an unidentified developer.
+   Click "Open" again to confirm. You only need to do this once --
+   after that it opens normally, including via double-click.
+
+If step 2 still shows "can't be opened" or the app looks empty, macOS
+has quarantined the download. Open Terminal and run:
+
+    xattr -cr "/Applications/Prompt Library Pro.app"
+
+Then try opening it again.

@@ -43,10 +43,16 @@ jobs:
       - name: Build .app with py2app
         run: python3 mac/setup.py py2app
 
+      - name: Ad-hoc sign the .app
+        run: |
+          codesign --force --deep --sign - "dist/Prompt Library Pro.app"
+          codesign --verify --verbose "dist/Prompt Library Pro.app"
+
       - name: Create .dmg
         run: |
           mkdir dist_dmg
           cp -R "dist/Prompt Library Pro.app" dist_dmg/
+          cp mac/HOW_TO_OPEN.txt dist_dmg/
           hdiutil create -volname "Prompt Library Pro" \
             -srcfolder dist_dmg -ov -format UDZO \
             "Prompt Library Pro.dmg"
