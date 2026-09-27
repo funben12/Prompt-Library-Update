@@ -6794,7 +6794,7 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
             let responseText = '';
 
             if (provider === 'openai') {
-                const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                const res = await _aiFetch('https://api.openai.com/v1/chat/completions', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -6821,7 +6821,7 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
                 responseText = data.choices?.[0]?.message?.content?.trim() || '';
 
             } else if (provider === 'anthropic') {
-                const res = await fetch('https://api.anthropic.com/v1/messages', {
+                const res = await _aiFetch('https://api.anthropic.com/v1/messages', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -6845,7 +6845,7 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
                 responseText = data.content?.[0]?.text?.trim() || '';
 
             } else if (provider === 'gemini') {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                const res = await _aiFetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -6868,7 +6868,7 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
 
             } else if (provider === 'openrouter') {
                 const model = localStorage.getItem('pl_openrouter_model') || 'openai/gpt-5.4-mini';
-                const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                const res = await _aiFetch('https://openrouter.ai/api/v1/chat/completions', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -19105,6 +19105,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 _brResults[i] = { status: 'error', output: 'Cancelled' };
                 continue;
             }
+            if (i > 0) await new Promise(r => setTimeout(r, 400));
             _brResults[i] = { status: 'running', output: '' };
             _brRenderResults();
             try {
@@ -20172,6 +20173,36 @@ Must avoid: [Anything sensitive or previously declined]`
         perplexity: { url: 'https://api.perplexity.ai/chat/completions', model: 'sonar' },
     };
 
+    // Shared network guard for every AI provider call in this file. Fixes two
+    // real bugs: a dropped connection leaving a bare fetch() pending forever
+    // (no timeout = no rejection = a frozen workspace), and a run of requests
+    // (Batch Runner, Eval, Model Compare) blowing through a provider's rate
+    // limit with no backoff. Every provider fetch below goes through this.
+    async function _aiFetch(url, opts, timeoutMs) {
+        timeoutMs = timeoutMs || 30000;
+        const maxRetries = 2;
+        for (let attempt = 0; ; attempt++) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            let res;
+            try {
+                res = await fetch(url, Object.assign({}, opts, { signal: controller.signal }));
+            } catch (e) {
+                if (e.name === 'AbortError') throw new Error('Request timed out — check your network connection and try again');
+                throw new Error('Network error — check your connection and try again');
+            } finally {
+                clearTimeout(timer);
+            }
+            if (res.status === 429 && attempt < maxRetries) {
+                const retryAfter = Number(res.headers.get('retry-after'));
+                const wait = retryAfter > 0 ? retryAfter * 1000 : 1500 * Math.pow(2, attempt);
+                await new Promise(r => setTimeout(r, wait));
+                continue;
+            }
+            return res;
+        }
+    }
+
     async function callAI(systemPrompt, userMsg, maxTokens) {
         maxTokens = maxTokens || 1200;
         const provider = localStorage.getItem('pl_ai_provider') || 'openai';
@@ -20179,7 +20210,7 @@ Must avoid: [Anything sensitive or previously declined]`
         if (!apiKey) throw new Error('No API key — add one in Settings (⚙ bottom left)');
 
         if (provider === 'openai') {
-            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+            const res = await _aiFetch('https://api.openai.com/v1/chat/completions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -20202,7 +20233,7 @@ Must avoid: [Anything sensitive or previously declined]`
             return (data.choices?.[0]?.message?.content || '').trim();
 
         } else if (provider === 'anthropic') {
-            const res = await fetch('https://api.anthropic.com/v1/messages', {
+            const res = await _aiFetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -20225,7 +20256,7 @@ Must avoid: [Anything sensitive or previously declined]`
             return (data.content?.[0]?.text || '').trim();
 
         } else if (provider === 'gemini') {
-            const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey, {
+            const res = await _aiFetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -20247,7 +20278,7 @@ Must avoid: [Anything sensitive or previously declined]`
 
         } else if (provider === 'openrouter') {
             const model = localStorage.getItem('pl_openrouter_model') || 'openai/gpt-5.4-mini';
-            const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            const res = await _aiFetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -20270,7 +20301,7 @@ Must avoid: [Anything sensitive or previously declined]`
             return (data.choices?.[0]?.message?.content || '').trim();
 
         } else if (provider === 'cohere') {
-            const res = await fetch('https://api.cohere.com/v2/chat', {
+            const res = await _aiFetch('https://api.cohere.com/v2/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -20295,7 +20326,7 @@ Must avoid: [Anything sensitive or previously declined]`
 
         } else if (AI_OPENAI_COMPAT[provider]) {
             const cfg = AI_OPENAI_COMPAT[provider];
-            const res = await fetch(cfg.url, {
+            const res = await _aiFetch(cfg.url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -20329,7 +20360,7 @@ Must avoid: [Anything sensitive or previously declined]`
             if (isAzure) headers['api-key'] = apiKey;
             else headers['Authorization'] = 'Bearer ' + apiKey;
             const model = localStorage.getItem('pl_model_' + provider) || '';
-            const res = await fetch(baseUrl, {
+            const res = await _aiFetch(baseUrl, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({
