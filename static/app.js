@@ -28520,4 +28520,85 @@ Must avoid: [Anything sensitive or previously declined]`
         });
     };
 
+    // PHONE SHARE -- "Continue on phone" modal: enable LAN link + QR
+    (function initPhoneShare() {
+        const btn = document.getElementById('phoneShareBtn');
+        if (!btn) return;
+        let overlay = null;
+        const api = (path, method) => fetch('/api/phone/' + path, { method: method || 'GET' }).then(r => r.json());
+
+        function loadQrLib() {
+            if (window.QRCode) return Promise.resolve(true);
+            return new Promise(res => {
+                const sc = document.createElement('script');
+                sc.src = '/static/qrcode.min.js';
+                sc.onload = () => res(!!window.QRCode);
+                sc.onerror = () => res(false);
+                setTimeout(() => res(!!window.QRCode), 4000);
+                document.head.appendChild(sc);
+            });
+        }
+
+        async function render(st) {
+            const body = overlay.querySelector('.phs-body');
+            body.innerHTML = '';
+            if (!st.ip) {
+                body.innerHTML = '<p class="phs-note">No network found. Connect this computer to Wi-Fi or a hotspot, then reopen this.</p>';
+                return;
+            }
+            if (!st.enabled) {
+                body.innerHTML = '<p class="phs-note">Use your library on a phone or tablet over your Wi-Fi. Nothing is copied to the device, and it works without internet. Only devices on your network that open the private link can connect.</p>' +
+                    '<button class="btn btn-primary" id="phsOn" type="button">Turn on phone access</button>';
+                body.querySelector('#phsOn').onclick = async () => render(await api('enable', 'POST'));
+                return;
+            }
+            body.innerHTML = '<div class="phs-qr" id="phsQr"></div>' +
+                '<p class="phs-note">Scan with your phone camera, or type this address into its browser. Phone and computer must be on the same Wi-Fi, and this app must stay open.</p>' +
+                '<input class="form-input phs-url" id="phsUrl" readonly>' +
+                '<div class="phs-actions"><button class="btn" id="phsCopy" type="button">Copy link</button>' +
+                '<button class="btn" id="phsOff" type="button">Turn off</button></div>';
+            const url = body.querySelector('#phsUrl');
+            url.value = st.url;
+            url.onfocus = () => url.select();
+            body.querySelector('#phsCopy').onclick = () => { navigator.clipboard.writeText(st.url).then(() => toast('Link copied'), () => url.select()); };
+            body.querySelector('#phsOff').onclick = async () => render(await api('disable', 'POST'));
+            if (await loadQrLib()) {
+                const box = body.querySelector('#phsQr');
+                if (box) new window.QRCode(box, { text: st.url, width: 184, height: 184, correctLevel: window.QRCode.CorrectLevel.M });
+            }
+        }
+
+        function close() { overlay.classList.remove('active'); }
+
+        btn.addEventListener('click', async () => {
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.className = 'modal-overlay';
+                overlay.innerHTML = '<div class="modal-box-sm" role="dialog" aria-label="Continue on phone">' +
+                    '<div class="modal-header"><h2>Continue on phone</h2>' +
+                    '<button class="modal-close" type="button" aria-label="Close"><span class="material-symbols-outlined">close</span></button></div>' +
+                    '<div class="phs-body"></div></div>';
+                document.body.appendChild(overlay);
+                overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+                overlay.querySelector('.modal-close').onclick = close;
+                document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.classList.contains('active')) close(); });
+            }
+            overlay.classList.add('active');
+            try { render(await api('status')); }
+            catch (e) { overlay.querySelector('.phs-body').textContent = 'Could not read network status.'; }
+        });
+    })();
+
+    // RESPONSIVE SHELL -- sidebar starts closed on phones, closes after navigating or tapping the backdrop
+    (function initMobileShell() {
+        const mq = window.matchMedia('(max-width: 820px)');
+        const hide = () => document.body.classList.add('sidebar-hidden');
+        if (mq.matches) hide();
+        mq.addEventListener('change', e => { document.body.classList.toggle('sidebar-hidden', e.matches); });
+        document.addEventListener('click', e => {
+            if (!mq.matches || document.body.classList.contains('sidebar-hidden')) return;
+            if (e.target.id === 'app' || e.target.closest('#sidebar .nav-item, #sidebar .folder-item, #sidebar #phoneShareBtn, #sidebar #configToggleBtn')) hide();
+        });
+    })();
+
 })();

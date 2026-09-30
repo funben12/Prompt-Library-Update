@@ -20,6 +20,86 @@ def _hash_key(k):
 app = Flask(__name__)
 CORS(app)
 
+# PHONE SHARE -- LAN access for phone/tablet, off by default, token-gated
+import secrets, socket, ipaddress
+from flask import redirect
+
+_phone = {'enabled': False, 'token': None}
+
+
+def _is_loopback(addr):
+    try:
+        return ipaddress.ip_address((addr or '').split('%')[0]).is_loopback
+    except ValueError:
+        return False
+
+
+def _is_private(addr):
+    try:
+        ip = ipaddress.ip_address((addr or '').split('%')[0])
+        if getattr(ip, 'ipv4_mapped', None):
+            ip = ip.ipv4_mapped
+        return ip.is_private
+    except ValueError:
+        return False
+
+
+def _lan_ip():
+    # UDP connect sends no packets; it just picks the outbound interface
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('10.255.255.255', 1))
+        return s.getsockname()[0]
+    except OSError:
+        return None
+    finally:
+        s.close()
+
+
+@app.before_request
+def _phone_gate():
+    if _is_loopback(request.remote_addr):
+        return None
+    if (not _phone['enabled'] or not _is_private(request.remote_addr)
+            or request.path.startswith('/api/phone/')):
+        return Response('Phone access is off. Enable it from Prompt Library on your computer.', 403)
+    supplied = request.args.get('t') or request.cookies.get('plp_phone') or ''
+    if not secrets.compare_digest(supplied, _phone['token'] or ''):
+        return Response('Invalid or expired link. Scan the code again on your computer.', 403)
+    if request.args.get('t') and request.method == 'GET':
+        rest = '&'.join(f'{k}={v}' for k, v in request.args.items(multi=True) if k != 't')
+        resp = redirect(request.path + ('?' + rest if rest else ''))
+        resp.set_cookie('plp_phone', _phone['token'], httponly=True, samesite='Lax', max_age=86400 * 30)
+        return resp
+    return None
+
+
+def _phone_payload():
+    ip = _lan_ip()
+    port = request.environ.get('SERVER_PORT', '5000')
+    url = f"http://{ip}:{port}/?t={_phone['token']}" if (ip and _phone['enabled']) else None
+    return {'enabled': _phone['enabled'], 'ip': ip, 'url': url}
+
+
+@app.route('/api/phone/status', methods=['GET'])
+def phone_status():
+    return jsonify(_phone_payload())
+
+
+@app.route('/api/phone/enable', methods=['POST'])
+def phone_enable():
+    _phone['enabled'] = True
+    _phone['token'] = secrets.token_urlsafe(16)
+    return jsonify(_phone_payload())
+
+
+@app.route('/api/phone/disable', methods=['POST'])
+def phone_disable():
+    _phone['enabled'] = False
+    _phone['token'] = None
+    return jsonify(_phone_payload())
+
+
 
 def get_data_dir():
     """

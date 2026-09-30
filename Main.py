@@ -66,6 +66,7 @@ class Api:
 
 
 HOST = '127.0.0.1'
+BIND_HOST = '0.0.0.0'  # LAN reachable; app.py gate blocks non-local unless Phone Share is on
 PORT = 5000
 
 _server_crashed = threading.Event()
@@ -90,10 +91,10 @@ def start_server(port):
         init_db()
         try:
             from waitress import serve
-            serve(app, host=HOST, port=port, threads=8, _quiet=True)
+            serve(app, host=BIND_HOST, port=port, threads=8, _quiet=True)
         except ImportError:
             # Fallback to the dev server if waitress is missing for any reason
-            app.run(host=HOST, port=port, debug=False, use_reloader=False)
+            app.run(host=BIND_HOST, port=port, debug=False, use_reloader=False)
     except Exception:
         logging.error(traceback.format_exc())
         _server_crashed.set()
