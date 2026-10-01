@@ -10532,6 +10532,16 @@
 .phs-url { font-family: var(--ff-mono); font-size: 12px; }
 .phs-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
 .phs-actions .btn { flex: 1 1 auto; }
+.phs-status { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--ink-3); }
+.phs-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); flex: none; }
+.phs-status[data-state="live"] { color: var(--ink); }
+.phs-status[data-state="live"] .phs-dot { background: var(--success); }
+.phs-status[data-state="idle"] .phs-dot { background: var(--ink-3); }
+.phs-help { font-size: var(--fs-sm); color: var(--ink-3); }
+.phs-help summary { cursor: pointer; color: var(--ink-2); }
+.phs-help ol { margin: var(--sp-2) 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: var(--sp-2); line-height: 1.5; }
+#phoneShareBtn { position: relative; }
+#phoneShareBtn.phs-live::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--success); margin-left: auto; }
 
 /* RESPONSIVE SHELL -- phone/tablet: sidebar becomes an off-canvas drawer (unlayered, beats @layer layout) */
 @media (max-width: 820px) {
