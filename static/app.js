@@ -28520,11 +28520,13 @@ Must avoid: [Anything sensitive or previously declined]`
         });
     };
 
-    // PHONE SHARE -- "Continue on phone" modal: enable LAN link + QR
+    // PHONE SHARE -- "Continue on phone" modal: enable LAN link + QR, live status, help panel
     (function initPhoneShare() {
         const btn = document.getElementById('phoneShareBtn');
         if (!btn) return;
         let overlay = null;
+        let pollTimer = null;
+        let shownKey = '';
         const api = (path, method) => fetch('/api/phone/' + path, { method: method || 'GET' }).then(r => r.json());
 
         function loadQrLib() {
@@ -28539,8 +28541,34 @@ Must avoid: [Anything sensitive or previously declined]`
             });
         }
 
+        function ago(s) { return s < 60 ? s + 's' : Math.round(s / 60) + ' min'; }
+
+        function statusOf(st) {
+            if (st.devices) return { state: 'live', text: st.devices === 1 ? 'Phone connected' : st.devices + ' devices connected' };
+            if (st.last_seen != null) return { state: 'idle', text: 'Phone connected earlier, last active ' + ago(st.last_seen) + ' ago' };
+            return { state: 'wait', text: 'Waiting for a phone to connect' };
+        }
+
+        function paintStatus(st) {
+            const el = overlay && overlay.querySelector('#phsStatus');
+            if (!el) return;
+            const s = statusOf(st);
+            el.dataset.state = s.state;
+            el.querySelector('.phs-status-text').textContent = s.text;
+        }
+
+        function paintBadge(st) { btn.classList.toggle('phs-live', !!(st && st.enabled)); }
+
+        const HELP = '<details class="phs-help"><summary>Can\'t connect?</summary><ol>' +
+            '<li>Put the phone and this computer on the same Wi-Fi. Switch off any VPN on the phone.</li>' +
+            '<li>If Windows asked about network access, choose Private networks and Allow. If you missed it, open Windows Security, Firewall and network protection, Allow an app through firewall, then tick Private for Prompt Library.</li>' +
+            '<li>Public, guest and hotel Wi-Fi often block devices from reaching each other. Use your home Wi-Fi or your phone\'s hotspot.</li>' +
+            '<li>Keep this app open. The computer stays awake while phone access is on.</li></ol></details>';
+
         async function render(st) {
             const body = overlay.querySelector('.phs-body');
+            shownKey = st.enabled + '|' + st.url;
+            paintBadge(st);
             body.innerHTML = '';
             if (!st.ip) {
                 body.innerHTML = '<p class="phs-note">No network found. Connect this computer to Wi-Fi or a hotspot, then reopen this.</p>';
@@ -28552,11 +28580,13 @@ Must avoid: [Anything sensitive or previously declined]`
                 body.querySelector('#phsOn').onclick = async () => render(await api('enable', 'POST'));
                 return;
             }
-            body.innerHTML = '<div class="phs-qr" id="phsQr"></div>' +
-                '<p class="phs-note">Scan with your phone camera, or type this address into its browser. Phone and computer must be on the same Wi-Fi, and this app must stay open.</p>' +
+            body.innerHTML = '<div class="phs-status" id="phsStatus" data-state="wait"><span class="phs-dot"></span><span class="phs-status-text"></span></div>' +
+                '<div class="phs-qr" id="phsQr"></div>' +
+                '<p class="phs-note">Scan with your phone camera, or type this address into its browser. Phone and computer must be on the same Wi-Fi, and this app must stay open. Phone access stays on, even after a restart, until you turn it off.</p>' +
                 '<input class="form-input phs-url" id="phsUrl" readonly>' +
                 '<div class="phs-actions"><button class="btn" id="phsCopy" type="button">Copy link</button>' +
-                '<button class="btn" id="phsOff" type="button">Turn off</button></div>';
+                '<button class="btn" id="phsOff" type="button">Turn off</button></div>' + HELP;
+            paintStatus(st);
             const url = body.querySelector('#phsUrl');
             url.value = st.url;
             url.onfocus = () => url.select();
@@ -28568,7 +28598,18 @@ Must avoid: [Anything sensitive or previously declined]`
             }
         }
 
-        function close() { overlay.classList.remove('active'); }
+        // Redraw only when the link changes; otherwise just update the status line
+        async function poll() {
+            try {
+                const st = await api('status');
+                paintBadge(st);
+                if (st.enabled + '|' + st.url !== shownKey) await render(st);
+                else paintStatus(st);
+            } catch (e) { /* keep the last view if one poll fails */ }
+        }
+
+        function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+        function close() { overlay.classList.remove('active'); stopPoll(); }
 
         btn.addEventListener('click', async () => {
             if (!overlay) {
@@ -28584,9 +28625,14 @@ Must avoid: [Anything sensitive or previously declined]`
                 document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.classList.contains('active')) close(); });
             }
             overlay.classList.add('active');
-            try { render(await api('status')); }
-            catch (e) { overlay.querySelector('.phs-body').textContent = 'Could not read network status.'; }
+            try { await render(await api('status')); }
+            catch (e) { overlay.querySelector('.phs-body').textContent = 'Could not read network status.'; return; }
+            stopPoll();
+            pollTimer = setInterval(poll, 3000);
         });
+
+        // Show the live dot on the sidebar button; fails quietly on a phone, where the API is blocked
+        api('status').then(paintBadge).catch(() => {});
     })();
 
     // RESPONSIVE SHELL -- sidebar starts closed on phones, closes after navigating or tapping the backdrop

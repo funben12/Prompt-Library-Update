@@ -21,10 +21,11 @@ app = Flask(__name__)
 CORS(app)
 
 # PHONE SHARE -- LAN access for phone/tablet, off by default, token-gated
-import secrets, socket, ipaddress
+import secrets, socket, ipaddress, time
 from flask import redirect
 
-_phone = {'enabled': False, 'token': None}
+_phone = {'enabled': False, 'token': None, 'loaded': False, 'seen': {}}
+_awake_stop = None
 
 
 def _is_loopback(addr):
@@ -44,6 +45,48 @@ def _is_private(addr):
         return False
 
 
+def _keep_awake_loop(stop):
+    # SetThreadExecutionState is per thread, so one dedicated thread holds the request
+    if os.name != 'nt':
+        return
+    import ctypes
+    ES_CONTINUOUS, ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
+    while not stop.is_set():
+        ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)
+        stop.wait(30)
+    ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS)
+
+
+def _set_keep_awake(on):
+    global _awake_stop
+    if on and _awake_stop is None:
+        _awake_stop = threading.Event()
+        threading.Thread(target=_keep_awake_loop, args=(_awake_stop,), daemon=True).start()
+    elif not on and _awake_stop is not None:
+        _awake_stop.set()
+        _awake_stop = None
+
+
+def _phone_load():
+    # Restore saved state once so the link survives app restarts
+    if _phone['loaded']:
+        return
+    _phone['loaded'] = True
+    token = get_setting('phone_token')
+    if get_setting('phone_enabled') == '1' and token:
+        _phone['enabled'] = True
+        _phone['token'] = token
+        _set_keep_awake(True)
+
+
+def _phone_save():
+    set_setting('phone_enabled', '1' if _phone['enabled'] else '0')
+    if _phone['token']:
+        set_setting('phone_token', _phone['token'])
+    else:
+        delete_setting('phone_token')
+
+
 def _lan_ip():
     # UDP connect sends no packets; it just picks the outbound interface
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -58,6 +101,7 @@ def _lan_ip():
 
 @app.before_request
 def _phone_gate():
+    _phone_load()
     if _is_loopback(request.remote_addr):
         return None
     if (not _phone['enabled'] or not _is_private(request.remote_addr)
@@ -66,6 +110,7 @@ def _phone_gate():
     supplied = request.args.get('t') or request.cookies.get('plp_phone') or ''
     if not secrets.compare_digest(supplied, _phone['token'] or ''):
         return Response('Invalid or expired link. Scan the code again on your computer.', 403)
+    _phone['seen'][request.remote_addr] = time.time()
     if request.args.get('t') and request.method == 'GET':
         rest = '&'.join(f'{k}={v}' for k, v in request.args.items(multi=True) if k != 't')
         resp = redirect(request.path + ('?' + rest if rest else ''))
@@ -75,10 +120,17 @@ def _phone_gate():
 
 
 def _phone_payload():
+    _phone_load()
     ip = _lan_ip()
     port = request.environ.get('SERVER_PORT', '5000')
     url = f"http://{ip}:{port}/?t={_phone['token']}" if (ip and _phone['enabled']) else None
-    return {'enabled': _phone['enabled'], 'ip': ip, 'url': url}
+    now = time.time()
+    seen = _phone['seen']
+    for k in [k for k, t in seen.items() if now - t > 3600]:
+        del seen[k]
+    return {'enabled': _phone['enabled'], 'ip': ip, 'url': url,
+            'devices': sum(1 for t in seen.values() if now - t < 120),
+            'last_seen': int(now - max(seen.values())) if seen else None}
 
 
 @app.route('/api/phone/status', methods=['GET'])
@@ -90,6 +142,9 @@ def phone_status():
 def phone_enable():
     _phone['enabled'] = True
     _phone['token'] = secrets.token_urlsafe(16)
+    _phone['seen'].clear()
+    _phone_save()
+    _set_keep_awake(True)
     return jsonify(_phone_payload())
 
 
@@ -97,6 +152,9 @@ def phone_enable():
 def phone_disable():
     _phone['enabled'] = False
     _phone['token'] = None
+    _phone['seen'].clear()
+    _phone_save()
+    _set_keep_awake(False)
     return jsonify(_phone_payload())
 
 
