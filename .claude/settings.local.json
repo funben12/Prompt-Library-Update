@@ -13,7 +13,22 @@
       "Bash(python3 -c \"d=open\\('static/index.html','rb'\\).read\\(\\); print\\('HTML OK' if d.count\\(b'<script'\\)==2 and b'</body>' in d else 'ERROR'\\)\")",
       "PowerShell(python3 -c \"d=open\\('static/index.html','rb'\\).read\\(\\); print\\('scripts:', d.count\\(b'<script'\\), '| complete:', b'</body>' in d and b'</html>' in d, '| NUL:', d.count\\(b'\\\\x00'\\)\\)\")",
       "Bash(git add *)",
-      "Bash(git commit -m 'Add components data file and update HTML script loading *)"
+      "Bash(git commit -m 'Add components data file and update HTML script loading *)",
+      "Bash(git checkout *)",
+      "Bash(python3 \"C:\\\\Users\\\\EUGENE~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Eugene-Phillips-Documents-GitHub-Prompt-Library-Update\\\\ed19c133-c83f-4780-82f4-7c324e7fff9f\\\\scratchpad\\\\update_optimizer.py\")",
+      "Bash(timeout 30 python3 Main.py)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "Bash(curl -s http://localhost:5000)",
+      "Bash(cat > *)",
+      "Bash(node --check \"C:\\\\Users\\\\Eugene Phillips\\\\Documents\\\\GitHub\\\\Prompt-Library-Update\\\\static\\\\app.js\")",
+      "Bash(python3 -m py_compile \"C:\\\\Users\\\\Eugene Phillips\\\\Documents\\\\GitHub\\\\Prompt-Library-Update\\\\app.py\")",
+      "Bash(start.bat)",
+      "Bash(Start-Sleep -Seconds 5)",
+      "Bash(Write-Output \"App should be starting\")",
+      "mcp__plugin_playwright_playwright__browser_console_messages",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "mcp__plugin_playwright_playwright__browser_click",
+      "mcp__plugin_playwright_playwright__browser_find"
     ]
   }
 }
