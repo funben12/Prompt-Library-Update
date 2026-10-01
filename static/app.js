@@ -13228,7 +13228,7 @@ Must avoid: [Anything sensitive or previously declined]`
             .map(([t, lvl]) => lvl > 1 ? t + ' (emphasis ×' + lvl + ')' : t).join(', ');
         const custom = $('#optCustomInstructions')?.value?.trim();
         const goal = $('#optGoalInput')?.value?.trim();
-        const sys = 'You are an expert prompt engineer. Optimize the given prompt and return: 1. The optimized prompt 2. Key improvements 3. Why these changes work. End your response with SCORE: [number 1-100] reflecting the optimized prompt quality. Plain text only, no markdown fencing.';
+        const sys = 'You are an expert prompt engineer optimizing AI assistant prompts. Analyze the given prompt and return:\n\n1. OPTIMIZED PROMPT — rewrite for clarity, specificity, and output quality\n2. KEY IMPROVEMENTS — 3-5 specific changes and their impact\n3. WHY THESE WORK — brief explanation of optimization principles applied\n\nOptimize for: clarity (remove ambiguity), task specificity (narrow scope), instruction completeness (edge cases covered), and output usefulness (what the user actually needs).\n\nDO NOT add unnecessary length. DO NOT change the prompt\'s intent. DO NOT assume context the original doesn\'t provide.\n\nSCORE: [1-100] where 50 = no improvement, 70 = clear gains, 90 = production-ready, 100 = exemplary. Justify in one sentence.\n\nPlain text only, no markdown.';
         let usr = 'Optimize this prompt:\n\n"' + prompt + '"\n\n';
         if (frameworks) usr += 'Apply frameworks: ' + frameworks + '.\n';
         if (techniques) usr += 'Enhance with techniques: ' + techniques + '.\n';
