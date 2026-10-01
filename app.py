@@ -21,11 +21,10 @@ app = Flask(__name__)
 CORS(app)
 
 # PHONE SHARE -- LAN access for phone/tablet, off by default, token-gated
-import secrets, socket, ipaddress, subprocess
+import secrets, socket, ipaddress
 from flask import redirect
 
 _phone = {'enabled': False, 'token': None}
-_TAILNET = ipaddress.ip_network('100.64.0.0/10')
 _awake_stop = None
 
 
@@ -41,28 +40,9 @@ def _is_private(addr):
         ip = ipaddress.ip_address((addr or '').split('%')[0])
         if getattr(ip, 'ipv4_mapped', None):
             ip = ip.ipv4_mapped
-        return ip.is_private or ip in _TAILNET
+        return ip.is_private
     except ValueError:
         return False
-
-
-def _tailscale_ip():
-    # Optional: only returns an address when Tailscale is already installed and signed in
-    try:
-        out = subprocess.run(['tailscale', 'ip', '-4'], capture_output=True, text=True, timeout=2,
-                             creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-        for line in out.stdout.split():
-            if ipaddress.ip_address(line) in _TAILNET:
-                return line
-    except (OSError, ValueError, subprocess.SubprocessError):
-        pass
-    try:
-        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
-            if ipaddress.ip_address(info[4][0]) in _TAILNET:
-                return info[4][0]
-    except (OSError, ValueError):
-        pass
-    return None
 
 
 def _keep_awake_loop(stop):
@@ -118,7 +98,7 @@ def _phone_gate():
 
 
 def _phone_payload():
-    ip = _tailscale_ip() or _lan_ip()
+    ip = _lan_ip()
     port = request.environ.get('SERVER_PORT', '5000')
     url = f"http://{ip}:{port}/?t={_phone['token']}" if (ip and _phone['enabled']) else None
     return {'enabled': _phone['enabled'], 'ip': ip, 'url': url}
