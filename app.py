@@ -21,10 +21,12 @@ app = Flask(__name__)
 CORS(app)
 
 # PHONE SHARE -- LAN access for phone/tablet, off by default, token-gated
-import secrets, socket, ipaddress
+import secrets, socket, ipaddress, subprocess
 from flask import redirect
 
 _phone = {'enabled': False, 'token': None}
+_TAILNET = ipaddress.ip_network('100.64.0.0/10')
+_awake_stop = None
 
 
 def _is_loopback(addr):
@@ -39,9 +41,50 @@ def _is_private(addr):
         ip = ipaddress.ip_address((addr or '').split('%')[0])
         if getattr(ip, 'ipv4_mapped', None):
             ip = ip.ipv4_mapped
-        return ip.is_private
+        return ip.is_private or ip in _TAILNET
     except ValueError:
         return False
+
+
+def _tailscale_ip():
+    # Optional: only returns an address when Tailscale is already installed and signed in
+    try:
+        out = subprocess.run(['tailscale', 'ip', '-4'], capture_output=True, text=True, timeout=2,
+                             creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        for line in out.stdout.split():
+            if ipaddress.ip_address(line) in _TAILNET:
+                return line
+    except (OSError, ValueError, subprocess.SubprocessError):
+        pass
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            if ipaddress.ip_address(info[4][0]) in _TAILNET:
+                return info[4][0]
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def _keep_awake_loop(stop):
+    # SetThreadExecutionState is per thread, so one dedicated thread holds the request
+    if os.name != 'nt':
+        return
+    import ctypes
+    ES_CONTINUOUS, ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
+    while not stop.is_set():
+        ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)
+        stop.wait(30)
+    ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS)
+
+
+def _set_keep_awake(on):
+    global _awake_stop
+    if on and _awake_stop is None:
+        _awake_stop = threading.Event()
+        threading.Thread(target=_keep_awake_loop, args=(_awake_stop,), daemon=True).start()
+    elif not on and _awake_stop is not None:
+        _awake_stop.set()
+        _awake_stop = None
 
 
 def _lan_ip():
@@ -75,7 +118,7 @@ def _phone_gate():
 
 
 def _phone_payload():
-    ip = _lan_ip()
+    ip = _tailscale_ip() or _lan_ip()
     port = request.environ.get('SERVER_PORT', '5000')
     url = f"http://{ip}:{port}/?t={_phone['token']}" if (ip and _phone['enabled']) else None
     return {'enabled': _phone['enabled'], 'ip': ip, 'url': url}
@@ -90,6 +133,7 @@ def phone_status():
 def phone_enable():
     _phone['enabled'] = True
     _phone['token'] = secrets.token_urlsafe(16)
+    _set_keep_awake(True)
     return jsonify(_phone_payload())
 
 
@@ -97,6 +141,7 @@ def phone_enable():
 def phone_disable():
     _phone['enabled'] = False
     _phone['token'] = None
+    _set_keep_awake(False)
     return jsonify(_phone_payload())
 
 
