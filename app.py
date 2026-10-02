@@ -24,7 +24,7 @@ CORS(app)
 import secrets, socket, ipaddress
 from flask import redirect
 
-_phone = {'enabled': False, 'token': None}
+_phone = {'enabled': False, 'token': None, 'loaded': False}
 
 
 def _is_loopback(addr):
@@ -56,12 +56,22 @@ def _lan_ip():
         s.close()
 
 
+def _phone_load():
+    if _phone['loaded']:
+        return
+    _phone['loaded'] = True
+    token = get_setting('phone_token')
+    if get_setting('phone_enabled') == '1' and token:
+        _phone['enabled'] = True
+        _phone['token'] = token
+
+
 @app.before_request
 def _phone_gate():
+    _phone_load()
     if _is_loopback(request.remote_addr):
         return None
-    if (not _phone['enabled'] or not _is_private(request.remote_addr)
-            or request.path.startswith('/api/phone/')):
+    if not _phone['enabled'] or not _is_private(request.remote_addr):
         return Response('Phone access is off. Enable it from Prompt Library on your computer.', 403)
     supplied = request.args.get('t') or request.cookies.get('plp_phone') or ''
     if not secrets.compare_digest(supplied, _phone['token'] or ''):
@@ -72,7 +82,6 @@ def _phone_gate():
         resp.set_cookie('plp_phone', _phone['token'], httponly=True, samesite='Lax', max_age=86400 * 30)
         return resp
     return None
-
 
 def _phone_payload():
     ip = _lan_ip()
@@ -90,6 +99,8 @@ def phone_status():
 def phone_enable():
     _phone['enabled'] = True
     _phone['token'] = secrets.token_urlsafe(16)
+    set_setting('phone_enabled', '1')
+    set_setting('phone_token', _phone['token'])
     return jsonify(_phone_payload())
 
 
@@ -97,6 +108,8 @@ def phone_enable():
 def phone_disable():
     _phone['enabled'] = False
     _phone['token'] = None
+    delete_setting('phone_enabled')
+    delete_setting('phone_token')
     return jsonify(_phone_payload())
 
 
