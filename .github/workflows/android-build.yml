@@ -1,0 +1,157 @@
+# Builds the mobile/ Capacitor project into a debug APK on every push that
+# touches it, and a signed release APK + AAB when a version tag (v1.0.0
+# style) is pushed and the four keystore secrets exist.
+#
+# Debug job needs no secrets. Release job only runs on a tag push, and only
+# proceeds if KEYSTORE_BASE64 is present, so tagging a commit before the
+# keystore secrets are set up just skips it rather than failing.
+#
+# Release secrets (Settings > Secrets and variables > Actions):
+# KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD.
+
+name: Build Android
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*.*.*"]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/android-build.yml"
+  pull_request:
+    paths:
+      - "mobile/**"
+      - ".github/workflows/android-build.yml"
+  workflow_dispatch: {}
+
+jobs:
+  debug:
+    name: Debug APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "gradle"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Capacitor sync
+        run: npx cap sync android
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x android/gradlew
+
+      - name: Build debug APK
+        run: |
+          cd android
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  release:
+    name: Signed release APK + AAB
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check release secrets are configured
+        id: check-secrets
+        run: |
+          if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "KEYSTORE_BASE64 secret not set, skipping release build."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node
+        if: steps.check-secrets.outputs.configured == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Set up JDK
+        if: steps.check-secrets.outputs.configured == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "gradle"
+
+      - name: Install dependencies
+        if: steps.check-secrets.outputs.configured == 'true'
+        run: npm install
+
+      - name: Capacitor sync
+        if: steps.check-secrets.outputs.configured == 'true'
+        run: npx cap sync android
+
+      - name: Decode keystore
+        if: steps.check-secrets.outputs.configured == 'true'
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.jks
+
+      - name: Grant execute permission for gradlew
+        if: steps.check-secrets.outputs.configured == 'true'
+        run: chmod +x android/gradlew
+
+      - name: Build signed release APK and AAB
+        if: steps.check-secrets.outputs.configured == 'true'
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          cd android
+          ./gradlew assembleRelease bundleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=app/release.jks \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      - name: Remove decoded keystore
+        if: always()
+        run: rm -f android/app/release.jks
+
+      - name: Upload release APK
+        if: steps.check-secrets.outputs.configured == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+      - name: Upload release AAB
+        if: steps.check-secrets.outputs.configured == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: mobile/android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
