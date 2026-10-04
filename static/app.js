@@ -8236,7 +8236,7 @@ Must avoid: [Anything sensitive or previously declined]`
         if (!ws) return;
         ws.classList.remove('open');
         document.body.style.overflow = '';
-        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+        $$$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
 
     // Expose for modal side-panel + panel refresh compatibility
@@ -17547,7 +17547,7 @@ Must avoid: [Anything sensitive or previously declined]`
         const vars = detectVariables(text || '');
         const tokens = Math.max(0, Math.ceil(text.length / 4));
         const varsEl = $('#pidVariables');
-        const statusEls = $('.pid-quality-status');
+        const statusEls = $$('.pid-quality-status');
         if ($('#pidTokenCount')) $('#pidTokenCount').textContent = '~' + tokens.toLocaleString();
         if ($('#pidCharCount')) $('#pidCharCount').textContent = text.length.toLocaleString() + ' chars';
         if (varsEl) varsEl.innerHTML = vars.length
@@ -17621,7 +17621,7 @@ Must avoid: [Anything sensitive or previously declined]`
             _pidLoadPrompt('');
         }
         ws.classList.add('open');
-        $('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'promptide'));
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'promptide'));
         setTimeout(() => $('#pidPromptEditor')?.focus(), 80);
     };
     function _pidClose() {
