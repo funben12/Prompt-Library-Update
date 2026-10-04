@@ -17687,7 +17687,7 @@ Must avoid: [Anything sensitive or previously declined]`
         _pidState.running = true;
         $('#pidImproveBtn').disabled = true;
         $('#pidRoundLabel').textContent = 'Improving';
-        const improveSystem = 'You are the builder in a Gauntlet Loop. Improve the prompt, not the output. Preserve the original intent. Fix the critic\\'s highest-impact failures. Remove vague language, redundant instructions, accidental conflicts, and ornamental prompt padding. Return only the complete improved prompt, with no commentary. The quality bar is:\n\n' + _pidQualityBar();
+        const improveSystem = 'You are the builder in a Gauntlet Loop. Improve the prompt, not the output. Preserve the original intent. Fix the critic\'s highest-impact failures. Remove vague language, redundant instructions, accidental conflicts, and ornamental prompt padding. Return only the complete improved prompt, with no commentary. The quality bar is:\n\n' + _pidQualityBar();
         const improveUser = 'CURRENT PROMPT:\n' + prompt + '\n\nCRITIC:\n' + critique;
         try {
             const improved = await callAI(improveSystem, improveUser, 2200);
