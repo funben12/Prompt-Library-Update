@@ -4424,7 +4424,7 @@
       </section>
 
       <section data-pfw-panel="compare" class="pfw-panel" hidden>
-        <div class="pfw-panel-head"><div><span class="pfw-kicker">A / B</span><h3>Compare branches</h3><p id="pfwCompareMeta">Select another branch from the lineage.</p></div><div class="pfw-secondary-actions"><button class="btn btn-sm btn-primary" id="pfwRunABBtn">Run blind A/B</button><button class="btn btn-sm" id="pfwMergeBtn">Merge into new branch</button></div></div>
+        <div class="pfw-panel-head"><div><span class="pfw-kicker">A / B</span><h3>Compare branches</h3><p id="pfwCompareMeta">Run the same test against both branches.</p></div><div class="pfw-secondary-actions"><select class="pfw-compare-select" id="pfwCompareSelect" aria-label="Comparison branch"></select><button class="btn btn-sm btn-primary" id="pfwRunABBtn">Run blind A/B</button><button class="btn btn-sm" id="pfwMergeBtn">Merge into new branch</button></div></div>
         <div class="pfw-compare-grid"><div><div class="pfw-compare-label">A, active branch</div><pre id="pfwCompareLeft" class="pfw-compare-box"></pre></div><div><div class="pfw-compare-label">B, comparison branch</div><pre id="pfwCompareRight" class="pfw-compare-box"></pre></div></div>
         <div id="pfwAbResult" class="pfw-ab-result"></div>
         <div class="pfw-compare-tip">The evaluator receives the same test and quality bar for both branches. Scores are stored locally with this experiment.</div>
