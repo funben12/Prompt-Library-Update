@@ -4599,6 +4599,7 @@ Here are my prompts:
             ['Tone & Style Rewriter', 'tune', 'openToneWorkspace', 'tone style rewrite voice register formal casual friendly technical persuasive playful direct concise'],
             ['Prompt Translator', 'translate', 'openTranslateWorkspace', 'translate language spanish french german portuguese italian japanese chinese korean arabic hindi localize'],
             ['Gauntlet Loop', 'shield', 'openGauntletWorkspace', 'gauntlet stress test critic adversarial harsh review rounds pass fail refine'],
+            ['Prompt IDE', 'terminal', 'openPromptIdeWorkspace', 'prompt ide editor power user test critique gauntlet variables tokens run improve iterate'],
             ['Prompt Components', 'extension', 'openComponentsWorkspace', 'blocks drag drop builder frameworks'],
             ['Prompt Forge', 'construction', 'openForgeWorkspace', 'build structured framework rtf costar'],
             ['Prompt Lab', 'biotech', 'openLabWorkspace', 'ab test variants compare experiment'],
@@ -4903,6 +4904,7 @@ Here are my prompts:
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace', '#forkWorkstation',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
             '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace', '#gauntletWorkspace',
+            '#promptIdeWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5095,6 +5097,10 @@ Here are my prompts:
                 }
                 if (v === 'gauntlet') {
                     window.openGauntletWorkspace();
+                    return;
+                }
+                if (v === 'promptide') {
+                    window.openPromptIdeWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -17522,6 +17528,244 @@ Must avoid: [Anything sensitive or previously declined]`
         });
     }
 
+
+    /* ============================================================================
+       WORKSPACE: Prompt IDE
+       Power-user prompt development environment. The prompt is the source of truth.
+       The right rail handles execution, variables, quality signals and the Gauntlet.
+       ============================================================================ */
+    const _pidState = { promptId: null, prompt: null, running: false, round: 0, history: [] };
+
+    function _pidPromptText() { return ($('#pidPromptEditor')?.value || '').trim(); }
+    function _pidTestInput() { return ($('#pidTestInput')?.value || '').trim(); }
+    function _pidQualityBar() {
+        return ($('#pidQualityBar')?.value || '').trim() ||
+            'A best-in-class prompt for its task. It should outperform a normal expert-written prompt on clarity, control, specificity, reliability, and usefulness.';
+    }
+    function _pidRenderMeta() {
+        const text = _pidPromptText();
+        const vars = detectVariables(text || '');
+        const tokens = Math.max(0, Math.ceil(text.length / 4));
+        const varsEl = $('#pidVariables');
+        const statusEls = $('.pid-quality-status');
+        if ($('#pidTokenCount')) $('#pidTokenCount').textContent = '~' + tokens.toLocaleString();
+        if ($('#pidCharCount')) $('#pidCharCount').textContent = text.length.toLocaleString() + ' chars';
+        if (varsEl) varsEl.innerHTML = vars.length
+            ? vars.map(v => '<span class="pid-var-chip">' + escapeHtml(v) + '</span>').join('')
+            : '<span class="hint">No variables detected</span>';
+        const signals = [
+            text.length >= 240,
+            vars.length > 0,
+            /\b(role|goal|task|context|constraint|output|format|criteria)\b/i.test(text),
+            text.includes('[[') || text.includes('{{'),
+            text.split(/\s+/).length >= 60
+        ];
+        const score = Math.round(signals.filter(Boolean).length / signals.length * 100);
+        if ($('#pidQualityMeter')) $('#pidQualityMeter').style.width = score + '%';
+        statusEls.forEach(el => el.textContent = score >= 80 ? 'Strong structure' : score >= 50 ? 'Needs refinement' : 'Early draft');
+    }
+    function _pidSetOutput(text, kind) {
+        const out = $('#pidRunOutput');
+        if (!out) return;
+        out.className = 'pid-output' + (kind ? ' pid-output-' + kind : '');
+        out.textContent = text || '';
+    }
+    function _pidRenderHistory() {
+        const el = $('#pidHistory');
+        if (!el) return;
+        if (!_pidState.history.length) {
+            el.innerHTML = '<div class="hint">No runs yet. Run the prompt to create evidence.</div>';
+            return;
+        }
+        el.innerHTML = _pidState.history.slice().reverse().map(h =>
+            '<div class="pid-history-row"><div><strong>Round ' + h.round + '</strong><span>' +
+            escapeHtml(h.verdict || 'RUN') + '</span></div><small>' +
+            escapeHtml(h.note || '') + '</small></div>'
+        ).join('');
+    }
+    function _pidPopulatePicker(selectedId) {
+        const sel = $('#pidPromptPicker');
+        if (!sel) return;
+        const current = selectedId != null ? String(selectedId) : sel.value;
+        sel.innerHTML = '<option value="">New prompt session</option>' +
+            state.prompts.slice().sort((a,b) => (a.title || '').localeCompare(b.title || ''))
+            .map(p => '<option value="' + p.id + '">' + escapeHtml(p.title || 'Untitled') + '</option>').join('');
+        if (current) sel.value = current;
+    }
+    function _pidLoadPrompt(promptId) {
+        const p = state.prompts.find(x => String(x.id) === String(promptId));
+        _pidState.promptId = p ? p.id : null;
+        _pidState.prompt = p || null;
+        _pidState.round = 0;
+        _pidState.history = [];
+        $('#pidTitleInput').value = p?.title || '';
+        $('#pidDescInput').value = p?.description || '';
+        $('#pidPromptEditor').value = p?.content || '';
+        $('#pidQualityBar').value = '';
+        $('#pidTestInput').value = '';
+        $('#pidRunOutput').textContent = 'Run the prompt to generate evidence here.';
+        $('#pidCritiqueOutput').textContent = 'The critic has not inspected this prompt yet.';
+        $('#pidRoundLabel').textContent = 'Ready';
+        _pidRenderMeta();
+        _pidRenderHistory();
+    }
+    window.openPromptIdeWorkspace = function(promptId) {
+        if (!state.isPremium) { showPremiumModal(); return; }
+        const ws = $('#promptIdeWorkspace');
+        if (!ws) return;
+        _pidPopulatePicker(promptId);
+        if (promptId) {
+            $('#pidPromptPicker').value = String(promptId);
+            _pidLoadPrompt(promptId);
+        } else if (!_pidState.promptId) {
+            _pidLoadPrompt('');
+        }
+        ws.classList.add('open');
+        $('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'promptide'));
+        setTimeout(() => $('#pidPromptEditor')?.focus(), 80);
+    };
+    function _pidClose() {
+        $('#promptIdeWorkspace')?.classList.remove('open');
+        $('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+    async function _pidRunPrompt() {
+        if (_pidState.running) return;
+        const prompt = _pidPromptText();
+        const input = _pidTestInput() || 'Complete the task exactly as instructed.';
+        if (!prompt) { toast('Write a prompt first', 'warning'); return; }
+        _pidState.running = true;
+        $('#pidRunBtn').disabled = true;
+        $('#pidRoundLabel').textContent = 'Running';
+        _pidSetOutput('Thinking...', 'loading');
+        try {
+            const response = await callAI(prompt, input, 1800);
+            _pidSetOutput(response || '(empty response)', '');
+            _pidState.history.push({ round: _pidState.round || 1, verdict: 'RUN', note: 'Prompt executed against the current test input.' });
+            _pidRenderHistory();
+            $('#pidRoundLabel').textContent = 'Run complete';
+        } catch (e) {
+            _pidSetOutput('Error: ' + e.message, 'error');
+            $('#pidRoundLabel').textContent = 'Run failed';
+            toast(e.message, 'error');
+        } finally {
+            _pidState.running = false;
+            $('#pidRunBtn').disabled = false;
+        }
+    }
+    async function _pidCritique() {
+        if (_pidState.running) return;
+        const prompt = _pidPromptText();
+        const output = $('#pidRunOutput')?.textContent?.trim() || '';
+        if (!prompt || !output || output === 'Run the prompt to generate evidence here.') {
+            toast('Run the prompt before asking for a critique', 'warning'); return;
+        }
+        _pidState.running = true;
+        $('#pidCritiqueBtn').disabled = true;
+        $('#pidCritiqueOutput').textContent = 'Critic inspecting...';
+        const criticSystem = 'You are the independent quality critic in a Gauntlet Loop. You have fresh context and no loyalty to the prompt author. Judge the actual prompt and its observed output against the quality bar below. Be ruthless, specific, and useful. Do not praise weak work. Identify the single most important gap first. End with exactly one verdict: PASS or FAIL.\n\nQUALITY BAR:\n' + _pidQualityBar();
+        const criticUser = 'PROMPT:\n' + prompt + '\n\nTEST INPUT:\n' + (_pidTestInput() || '(none)') + '\n\nACTUAL OUTPUT:\n' + output + '\n\nReturn:\n1. Verdict\n2. What failed or succeeded\n3. The highest impact change\n4. Any concrete wording that should change';
+        try {
+            const critique = await callAI(criticSystem, criticUser, 1400);
+            $('#pidCritiqueOutput').textContent = critique || '(empty critique)';
+            _pidState.history.push({ round: _pidState.round || 1, verdict: /PASS\b/i.test(critique) && !/FAIL\b/i.test(critique) ? 'PASS' : 'FAIL', note: 'Independent critic review.' });
+            _pidRenderHistory();
+        } catch (e) {
+            $('#pidCritiqueOutput').textContent = 'Error: ' + e.message;
+            toast(e.message, 'error');
+        } finally {
+            _pidState.running = false;
+            $('#pidCritiqueBtn').disabled = false;
+        }
+    }
+    async function _pidImprove() {
+        if (_pidState.running) return;
+        const prompt = _pidPromptText();
+        const critique = $('#pidCritiqueOutput')?.textContent?.trim() || '';
+        if (!prompt || !critique || critique.startsWith('The critic')) {
+            toast('Run a critique before improving', 'warning'); return;
+        }
+        _pidState.running = true;
+        $('#pidImproveBtn').disabled = true;
+        $('#pidRoundLabel').textContent = 'Improving';
+        const improveSystem = 'You are the builder in a Gauntlet Loop. Improve the prompt, not the output. Preserve the original intent. Fix the critic\\'s highest-impact failures. Remove vague language, redundant instructions, accidental conflicts, and ornamental prompt padding. Return only the complete improved prompt, with no commentary. The quality bar is:\n\n' + _pidQualityBar();
+        const improveUser = 'CURRENT PROMPT:\n' + prompt + '\n\nCRITIC:\n' + critique;
+        try {
+            const improved = await callAI(improveSystem, improveUser, 2200);
+            if (!improved) throw new Error('The improver returned an empty prompt');
+            $('#pidPromptEditor').value = improved;
+            _pidState.round += 1;
+            _pidRenderMeta();
+            $('#pidRoundLabel').textContent = 'Improved, rerun to verify';
+            toast('Prompt improved', 'success');
+        } catch (e) {
+            toast(e.message, 'error');
+        } finally {
+            _pidState.running = false;
+            $('#pidImproveBtn').disabled = false;
+        }
+    }
+    async function _pidGauntlet() {
+        if (_pidState.running) return;
+        if (!_pidPromptText()) { toast('Write a prompt first', 'warning'); return; }
+        _pidState.round += 1;
+        $('#pidRoundLabel').textContent = 'Gauntlet round ' + _pidState.round;
+        await _pidRunPrompt();
+        await _pidCritique();
+        const critique = $('#pidCritiqueOutput')?.textContent || '';
+        if (/PASS\b/i.test(critique) && !/FAIL\b/i.test(critique)) {
+            toast('Gauntlet passed. Stop or continue manually.', 'success'); return;
+        }
+        await _pidImprove();
+        toast('Round complete. Rerun to verify the improvement.', 'info');
+    }
+    async function _pidSave(asNew) {
+        const title = ($('#pidTitleInput')?.value || '').trim() || 'Prompt IDE draft';
+        const description = ($('#pidDescInput')?.value || '').trim();
+        const content = _pidPromptText();
+        if (!content) { toast('Nothing to save', 'warning'); return; }
+        try {
+            const body = {
+                title: asNew || !_pidState.promptId ? title + (asNew ? ' (IDE Draft)' : '') : title,
+                description,
+                content,
+                categories: 'Prompt Engineering',
+                tags: 'prompt-ide'
+            };
+            let result;
+            if (asNew || !_pidState.promptId) result = await api('/prompts', { method: 'POST', body });
+            else result = await api('/prompts/' + _pidState.promptId, { method: 'PUT', body });
+            await loadPrompts();
+            await loadFilterOptions();
+            _pidState.promptId = result?.id || _pidState.promptId;
+            _pidState.prompt = state.prompts.find(p => p.id === _pidState.promptId) || null;
+            _pidPopulatePicker(_pidState.promptId);
+            toast(asNew ? 'Saved as new prompt' : 'Prompt saved', 'success');
+        } catch (e) {
+            toast('Could not save: ' + e.message, 'error');
+        }
+    }
+    function initPromptIdeWorkspace() {
+        const ws = $('#promptIdeWorkspace');
+        if (!ws) return;
+        $('#pidPromptPicker')?.addEventListener('change', e => _pidLoadPrompt(e.target.value));
+        $('#pidRunBtn')?.addEventListener('click', _pidRunPrompt);
+        $('#pidCritiqueBtn')?.addEventListener('click', _pidCritique);
+        $('#pidImproveBtn')?.addEventListener('click', _pidImprove);
+        $('#pidGauntletBtn')?.addEventListener('click', _pidGauntlet);
+        $('#pidSaveBtn')?.addEventListener('click', () => _pidSave(false));
+        $('#pidSaveNewBtn')?.addEventListener('click', () => _pidSave(true));
+        $('#pidCopyBtn')?.addEventListener('click', async () => {
+            if (await copyToClipboard(_pidPromptText())) toast('Prompt copied', 'success');
+        });
+        $('#pidNewBtn')?.addEventListener('click', () => _pidLoadPrompt(''));
+        $('#pidPromptEditor')?.addEventListener('input', _pidRenderMeta);
+        $('#pidQualityBar')?.addEventListener('input', _pidRenderMeta);
+        $('#pidCloseBtn')?.addEventListener('click', _pidClose);
+        ws.addEventListener('keydown', e => { if (e.key === 'Escape') _pidClose(); });
+        _pidRenderMeta();
+        _pidRenderHistory();
+    }
+
     /* ============================================================================
        WORKSPACE: Eval Runner
        data-view="eval" | openEvalWorkspace() | initEvalWorkspace()
@@ -19882,6 +20126,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initToneWorkspace(); // tone & style rewriter workspace
         initTranslateWorkspace(); // prompt translator workspace
         initGauntletWorkspace(); // gauntlet loop workspace
+        initPromptIdeWorkspace(); // prompt IDE workspace
         initEvalWorkspace(); // eval runner workspace
         initCompareWorkspace(); // model compare workspace
         initDashboardWorkspace(); // dashboard
