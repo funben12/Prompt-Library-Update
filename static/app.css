@@ -10654,3 +10654,5 @@
 .pfw-muted{color:var(--ink-4)}
 @media(max-width:1050px){.pfw-main{grid-template-columns:235px minmax(0,1fr)}.pfw-inspector{display:none}.pfw-toolbar{flex-wrap:wrap;height:auto;padding:8px 12px}.pfw-actions{flex-wrap:wrap}.pfw-compare-grid{grid-template-columns:1fr}.pfw-compare-box{min-height:230px}}
 @media(max-width:720px){.pfw-header{height:auto;min-height:64px;padding:10px 12px}.pfw-brand p{display:none}.pfw-brand h2{font-size:18px}.pfw-header-actions .btn span{display:none}.pfw-main{grid-template-columns:1fr}.pfw-sidebar{display:none}.pfw-panel{padding:13px}.pfw-content-input{min-height:280px}.pfw-panel-head{display:block}.pfw-secondary-actions{margin-top:10px}.pfw-picker{padding:28px 14px}.pfw-picker-hero h3{font-size:30px}}
+
+.pfw-compare-select{min-width:180px;padding:7px 9px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-sunk);color:var(--ink);font:600 10px var(--ff-sans)}
