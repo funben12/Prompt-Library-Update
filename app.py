@@ -124,8 +124,8 @@ STATIC_DIR = get_static_dir()
 ACCOUNT_DB_DIR = os.path.join(get_data_dir(), 'accounts')
 os.makedirs(ACCOUNT_DB_DIR, exist_ok=True)
 
-AUTH_COOKIE = '__Host-pl_session'
-DEVICE_COOKIE = '__Host-pl_device'
+AUTH_COOKIE = 'pl_session'
+DEVICE_COOKIE = 'pl_device'
 PBKDF2_ITERATIONS = 600_000
 SESSION_MAX_AGE = 60 * 60 * 12
 RECOVERY_MAX_AGE = 60 * 30
@@ -9372,7 +9372,7 @@ def _issue_session(account_id):
 
 def _set_auth_cookie(response, token):
     response.set_cookie(
-        AUTH_COOKIE, token, httponly=True, secure=False, samesite='Strict',
+        AUTH_COOKIE, token, httponly=True, secure=request.is_secure, samesite='Strict',
         path='/', max_age=SESSION_MAX_AGE
     )
     return response
