@@ -97,7 +97,12 @@
     root.querySelector(".pln-zoom-label").textContent=Math.round(state.view.z*100)+"%";
   }
   function inspectorHtml(){
-    if(state.selected.length!==1||state.selected[0].startsWith("edge:"))return `<div class="pln-empty"><div><strong>Graph inspector</strong>Select a component to edit its role, text and relationships.</div></div>`;
+    if(state.selected.length===1&&state.selected[0].startsWith("edge:")){
+      const id=state.selected[0].slice(5),e=state.edges.find(x=>String(x.id)===id);if(!e)return "";
+      const source=state.nodes.find(n=>n.id===e.source),target=state.nodes.find(n=>n.id===e.target);
+      return `<div class="pln-inspector-body"><div class="pln-inspector-section"><div class="pln-inspector-label">Connection</div><strong>${esc(source?.label||"Source")} → ${esc(target?.label||"Target")}</strong><div class="pln-connection-meta">${esc(e.source_port||"right")} → ${esc(e.target_port||"left")}</div></div><div class="pln-inspector-section"><label class="pln-inspector-label" for="plnRelation">Relationship</label><select id="plnRelation">${["sequence","branch","context","constraint","reference","convergence"].map(v=>`<option value="${v}" ${e.relation===v?"selected":""}>${v}</option>`).join("")}</select></div><button class="pln-danger-btn" id="plnDeleteEdge">Delete connection</button></div>`;
+    }
+    if(state.selected.length!==1)return `<div class="pln-empty"><div><strong>Graph inspector</strong>Select a component to edit its role, text and relationships.</div></div>`;
     const n=state.nodes.find(x=>x.id===state.selected[0]);if(!n)return "";
     return `<div class="pln-inspector-body"><div class="pln-inspector-section"><div class="pln-inspector-label">Component</div><input id="plnTitle" value="${esc(n.label)}"><div style="height:8px"></div><textarea id="plnText">${esc(n.text)}</textarea></div><div class="pln-inspector-section"><div class="pln-inspector-label">Connections</div><div style="font-size:11px;color:var(--ink-3)">Incoming: ${state.edges.filter(e=>e.target===n.id).length}<br>Outgoing: ${state.edges.filter(e=>e.source===n.id).length}<br><br>Connect from any handle to another node. Multiple outputs create branches, multiple inputs create convergence.</div></div><div class="pln-inspector-section"><div class="pln-inspector-label">Generated prompt</div><div class="pln-preview">${esc(buildPrompt().text)}</div></div><div class="pln-auth-actions"><button class="pln-tool" id="plnDeleteSelected">Delete component</button></div></div>`;
   }
@@ -165,7 +170,7 @@
     root.querySelectorAll(".pln-edge").forEach(p=>p.addEventListener("pointerdown",e=>{e.stopPropagation();state.selected=e.shiftKey?[...new Set([...state.selected,"edge:"+p.dataset.edge])]:["edge:"+p.dataset.edge];render();}));    root.querySelectorAll(".pln-edge-endpoint").forEach(p=>p.addEventListener("pointerdown",e=>startEdgeReconnect(e,p.dataset.edge,p.dataset.edgeEnd)));
     const title=inspector.querySelector("#plnTitle");if(title)title.oninput=()=>{const n=state.nodes.find(x=>x.id===state.selected[0]);if(n){n.label=title.value;markDirty(false);render()}};const text=inspector.querySelector("#plnText");if(text)text.oninput=()=>{const n=state.nodes.find(x=>x.id===state.selected[0]);if(n){n.text=text.value;markDirty(false);render()}};const del=inspector.querySelector("#plnDeleteSelected");if(del)del.onclick=()=>deleteNodes([...state.selected]);
   }
-  function updateInspectorPreview(){const p=inspector.querySelector(".pln-preview");if(p)p.textContent=buildPrompt();}
+  function updateInspectorPreview(){const p=inspector.querySelector(".pln-preview");if(p)p.textContent=buildPrompt().text;}
   function moveNode(e){if(!drag)return;const p=screenToWorld(e.clientX,e.clientY),dx=p.x-drag.start.x,dy=p.y-drag.start.y;drag.originals.forEach((o,id)=>{const n=state.nodes.find(x=>x.id===id);if(n){n.x=o.x+dx;n.y=o.y+dy}});render();}
   function endNode(){drag=null;markDirty();}
   function deleteNodes(ids){if(!ids.length)return;snapshot();const set=new Set(ids);state.nodes=state.nodes.filter(n=>!set.has(n.id));state.edges=state.edges.filter(e=>!set.has(e.source)&&!set.has(e.target));state.groups=state.groups.map(g=>({...g,nodes:g.nodes.filter(id=>!set.has(id))})).filter(g=>g.nodes.length>=2);state.selected=[];markDirty();render();}
