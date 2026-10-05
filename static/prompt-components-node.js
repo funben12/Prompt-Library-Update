@@ -161,8 +161,8 @@
       const movingIds=new Set(state.selected);
       state.groups.forEach(g=>{if(g.nodes.includes(id))g.nodes.forEach(x=>movingIds.add(x));});
       const start=screenToWorld(e.clientX,e.clientY), originals=new Map([...movingIds].map(s=>{const x=state.nodes.find(n=>n.id===s);return [s,{x:x.x,y:x.y}]}));snapshot();
-      drag={id,start,originals};el.setPointerCapture(e.pointerId);
-      el.addEventListener("pointermove",moveNode);el.addEventListener("pointerup",endNode,{once:true});
+      drag={id,start,originals};el.setPointerCapture?.(e.pointerId);
+      window.addEventListener("pointermove",moveNode);window.addEventListener("pointerup",endNode,{once:true});
     }));
     root.querySelectorAll("[data-delete-node]").forEach(b=>b.onclick=e=>{e.stopPropagation();deleteNodes([b.dataset.deleteNode])});
     root.querySelectorAll("[data-edit-node]").forEach(t=>t.addEventListener("input",()=>{const n=state.nodes.find(x=>x.id===t.dataset.editNode);if(n){n.text=t.value;markDirty(false);updateInspectorPreview()}}));
@@ -172,7 +172,7 @@
   }
   function updateInspectorPreview(){const p=inspector.querySelector(".pln-preview");if(p)p.textContent=buildPrompt().text;}
   function moveNode(e){if(!drag)return;const p=screenToWorld(e.clientX,e.clientY),dx=p.x-drag.start.x,dy=p.y-drag.start.y;drag.originals.forEach((o,id)=>{const n=state.nodes.find(x=>x.id===id);if(n){n.x=o.x+dx;n.y=o.y+dy}});render();}
-  function endNode(){drag=null;markDirty();}
+  function endNode(){if(!drag)return;drag=null;window.removeEventListener("pointermove",moveNode);root.classList.remove("pln-dragging");markDirty();}
   function deleteNodes(ids){if(!ids.length)return;snapshot();const set=new Set(ids);state.nodes=state.nodes.filter(n=>!set.has(n.id));state.edges=state.edges.filter(e=>!set.has(e.source)&&!set.has(e.target));state.groups=state.groups.map(g=>({...g,nodes:g.nodes.filter(id=>!set.has(id))})).filter(g=>g.nodes.length>=2);state.selected=[];markDirty();render();}
   function startConnect(e,id,side){
     e.stopPropagation();e.preventDefault();
