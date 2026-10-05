@@ -4,7 +4,7 @@
   const SUITE = {
     promptCache: null,
     active: null,
-    ids: ["plxSurgeonWorkspace","plxTeammateWorkspace","plxWorkflowWorkspace","plxTestLabWorkspace"]
+    ids: ["plxSurgeonWorkspace","plxTeammateWorkspace","plxRedTeamWorkspace"]
   };
 
   const $ = id => document.getElementById(id);
