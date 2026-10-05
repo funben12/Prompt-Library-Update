@@ -39,8 +39,9 @@ jobs:
           from pathlib import Path
 
           text = Path("app.py").read_text(encoding="utf-8")
-          block = text[text.index("_SALES_KEY_HASHES = {"):text.index("}
-PREMIUM_KEYS", text.index("_SALES_KEY_HASHES = {"))]
+          sales_start = text.index("_SALES_KEY_HASHES = {")
+          sales_end = text.index("}\nPREMIUM_KEYS", sales_start)
+          block = text[sales_start:sales_end]
           leaked = [
               line for line in block.splitlines()
               if re.search(r"[0-9a-f]{64}[^#\n]*#.+$", line)
