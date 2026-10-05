@@ -20589,8 +20589,11 @@ Must avoid: [Anything sensitive or previously declined]`
                     max_tokens: maxTokens
                 }),
             });
-            const data = await res.json();
-            if (data.error) throw new Error(data.error.message);
+            const raw = await res.text();
+            if (!raw.trim()) throw new Error('OpenRouter sent an empty reply (HTTP ' + res.status + '). Try again.');
+            let data;
+            try { data = JSON.parse(raw); } catch (e) { throw new Error('OpenRouter sent an unreadable reply (HTTP ' + res.status + '). Try again.'); }
+            if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
             return (data.choices?.[0]?.message?.content || '').trim();
 
         } else if (provider === 'cohere') {
@@ -27945,11 +27948,11 @@ Must avoid: [Anything sensitive or previously declined]`
                 '\n\nEXISTING FOLDERS (pick 1 if relevant, else null):\n' + (existingFolders.length ? existingFolders.join(', ') : 'none') +
                 '\n\nRespond with ONLY this JSON (no extra text):\n{"categories":["..."],"tags":["..."],"folder":"...or null"}';
 
-            const response = await callAI(sys, usr, 300);
+            const response = await callAI(sys, usr, 1500);
+            if (!String(response || '').trim()) throw new Error('The AI sent back an empty reply. Try again, or pick a different model in API settings.');
 
-            // Parse — strip any accidental markdown fencing
-            const clean = response.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/, '').trim();
-            const result = JSON.parse(clean);
+            // Tolerates code fences, preamble text and trailing commas
+            const result = _aiExtractJson(response);
 
             // Apply categories — only values that exist in our list
             if (Array.isArray(result.categories) && result.categories.length) {
