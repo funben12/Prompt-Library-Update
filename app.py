@@ -173,6 +173,8 @@ _RAW_KEYS = [
 # Generated 2026-05-23, batch of 15. To add more: generate keys, hash with
 # sha256(KEY.strip().upper()), append the digests below, rebuild.
 _SALES_KEY_HASHES = {
+    # PROMPTLIB-PRO-AND-001
+    '9f728305141767db0715e209090e938ea7582aa5b0ecc25f8e392349124f980a',
     # Personal / manually-issued keys, hashed 2026-08-10.
     # Plaintext for these lives in keys_PRIVATE.txt only.
     'e32d32c75e8eb45147ec866ea074855dd8f593213f70a0cd48927aa320b978dd',
