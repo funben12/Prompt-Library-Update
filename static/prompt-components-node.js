@@ -64,7 +64,14 @@
   }
   function render(){
     applyView();
-    world.querySelectorAll(".pln-node").forEach(e=>e.remove());
+    world.querySelectorAll(".pln-node,.pln-group-frame").forEach(e=>e.remove());
+    state.groups.forEach(g=>{
+      const members=state.nodes.filter(n=>g.nodes.includes(n.id));
+      if(members.length<2)return;
+      const minX=Math.min(...members.map(n=>n.x))-14,minY=Math.min(...members.map(n=>n.y))-28;
+      const maxX=Math.max(...members.map(n=>n.x+n.width))+14,maxY=Math.max(...members.map(n=>n.y+n.height))+14;
+      world.insertAdjacentHTML("beforeend",`<div class="pln-group-frame" style="left:${minX}px;top:${minY}px;width:${maxX-minX}px;height:${maxY-minY}px;z-index:-1"><span>${esc(g.label||"Prompt group")}</span></div>`);
+    });
     state.nodes.forEach(n=>world.insertAdjacentHTML("beforeend",nodeHtml(n)));
     renderEdges();
     inspector.innerHTML=inspectorHtml();
@@ -84,7 +91,9 @@
       const id=el.dataset.dragNode,n=state.nodes.find(x=>x.id===id);if(!n)return;
       if(!e.shiftKey&&!state.selected.includes(id)){state.selected=[id];render();}
       else if(e.shiftKey){state.selected=state.selected.includes(id)?state.selected.filter(x=>x!==id):[...state.selected,id];render();}
-      const start=screenToWorld(e.clientX,e.clientY), originals=new Map(state.selected.map(s=>{const x=state.nodes.find(n=>n.id===s);return [s,{x:x.x,y:x.y}]}));snapshot();
+      const movingIds=new Set(state.selected);
+      state.groups.forEach(g=>{if(g.nodes.includes(id))g.nodes.forEach(x=>movingIds.add(x));});
+      const start=screenToWorld(e.clientX,e.clientY), originals=new Map([...movingIds].map(s=>{const x=state.nodes.find(n=>n.id===s);return [s,{x:x.x,y:x.y}]}));snapshot();
       drag={id,start,originals};el.setPointerCapture(e.pointerId);
       el.addEventListener("pointermove",moveNode);el.addEventListener("pointerup",endNode,{once:true});
     }));
@@ -103,7 +112,7 @@
   function saveDebounced(){clearTimeout(saveTimer);saveTimer=setTimeout(save,500);}
   async function save(){
     if(!state.compositionId)return;
-    const payload={nodes:state.nodes.map(n=>({id:n.id,block_ref:n.block_ref,x:n.x,y:n.y,z_index:n.z_index,collapsed:n.collapsed,body_override:n.text})),edges:state.edges,view_state:state.view};
+    const payload={nodes:state.nodes.map(n=>({id:n.id,block_ref:n.block_ref,x:n.x,y:n.y,z_index:n.z_index,collapsed:n.collapsed,body_override:n.text})),edges:state.edges,view_state:{...state.view,groups:state.groups}};
     const r=await api("/api/compositions/"+state.compositionId+"/graph",{method:"PUT",body:JSON.stringify(payload)}).catch(()=>null);
     if(r?.ok)state.dirty=false;
   }
@@ -118,7 +127,7 @@
     const ref=new Map(blocks().map(b=>[String(b.id||b.label),b]));
     state.nodes=(g.nodes||[]).map(row=>{const b=ref.get(String(row.block_ref));return {id:String(row.id),block_ref:row.block_ref,label:b?.label||row.block_ref,text:row.body_override??b?.text??"",x:+row.x||0,y:+row.y||0,z_index:+row.z_index||0,collapsed:!!row.collapsed,width:240,height:112}});
     state.edges=(g.edges||[]).map(e=>({id:String(e.id),source:String(e.source_block_id),target:String(e.target_block_id),source_port:e.source_port,target_port:e.target_port,relation:e.relation}));
-    try{state.view=JSON.parse(g.composition.view_state||"{}")||state.view}catch(_){}
+    try{const saved=JSON.parse(g.composition.view_state||"{}")||{};state.view={x:+saved.x||80,y:+saved.y||60,z:+saved.z||+saved.zoom||1};state.groups=Array.isArray(saved.groups)?saved.groups:[]}catch(_){}
     render();
   }
   function shell(){
