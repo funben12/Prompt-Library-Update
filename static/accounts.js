@@ -7,6 +7,12 @@
 
   const RAW_KEYS = new Set(["pl_accounts_v1", "pl_session_v1", "pl_active_account_id"]);
   const ACCOUNT_KEY = "pl_active_account_id";
+  const rawStorage = {
+    get: Storage.prototype.getItem,
+    set: Storage.prototype.setItem,
+    remove: Storage.prototype.removeItem,
+    key: Storage.prototype.key
+  };
   let activeId = null;
   try { activeId = Storage.prototype.getItem.call(localStorage, ACCOUNT_KEY) || null; } catch (_) {}
   let booted = false;
@@ -22,6 +28,15 @@
   function scopedKey(key) {
     if (RAW_KEYS.has(key) || String(key).startsWith("pl_auth_")) return key;
     return activeId ? "pl:" + activeId + ":" + key : "pl:anonymous:" + key;
+  }
+
+  function clearAccountStorage(id) {
+    if (!id) return;
+    const prefix = "pl:" + id + ":";
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = rawStorage.key.call(localStorage, i);
+      if (key && key.startsWith(prefix)) rawStorage.remove.call(localStorage, key);
+    }
   }
 
   function patchStorage() {
@@ -210,7 +225,7 @@
         pop.querySelector("#plSignOut").onclick=async()=>{await api("/api/auth/logout",{method:"POST"});setActive(null);window.location.reload();};
         pop.querySelector("#plEditProfile").onclick=async()=>{const name=prompt("Account name",me.account.name);if(!name)return;const avatar=prompt("Profile icon name",me.account.avatar||"person")||"person";await api("/api/auth/profile",{method:"PUT",body:JSON.stringify({name,avatar})});window.location.reload();};
         pop.querySelector("#plChangePassword").onclick=async()=>{const current=prompt("Current password");if(!current)return;const next=prompt("New password, 12+ characters");if(!next)return;const r=await api("/api/auth/password",{method:"PUT",body:JSON.stringify({current_password:current,new_password:next})});const d=await r.json();alert(r.ok?"Password changed.":(d.error||"Password change failed."));};
-        pop.querySelector("#plDeleteAccount").onclick=async()=>{if(!confirm("Delete this account and its private library permanently?"))return;const current=prompt("Enter current password");if(!current)return;const r=await api("/api/auth/delete",{method:"DELETE",body:JSON.stringify({current_password:current})});if(r.ok)window.location.reload();else alert((await r.json()).error||"Delete failed.");};
+        pop.querySelector("#plDeleteAccount").onclick=async()=>{if(!confirm("Delete this account and its private library permanently?"))return;const current=prompt("Enter current password");if(!current)return;const r=await api("/api/auth/delete",{method:"DELETE",body:JSON.stringify({current_password:current})});if(r.ok){clearAccountStorage(activeId);setActive(null);window.location.reload();}else alert((await r.json()).error||"Delete failed.");};
       }
     };
   }
