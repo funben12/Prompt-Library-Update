@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify, send_from_directory, Response, g, make_response
-from flask_cors import CORS
 import sqlite3
 import re
 import hashlib
@@ -4379,23 +4378,6 @@ def licence_status():
             'key': None,
             'activated': None
         })
-
-
-@app.route('/api/admin/licence/count', methods=['GET'])
-def admin_licence_count():
-    """
-    Admin endpoint: count total/used/available keys.
-    """
-    db = get_db()
-    total = db.execute('SELECT COUNT(*) FROM licences').fetchone()[0]
-    used = db.execute('SELECT COUNT(*) FROM licences WHERE is_used = 1').fetchone()[0]
-    available = total - used
-
-    return jsonify({
-        'total': total,
-        'used': used,
-        'available': available
-    })
 
 
 # ══ Component workspace ═════════════════════════════════════════════
