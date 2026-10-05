@@ -4587,22 +4587,6 @@ def delete_composition(cid):
     conn.commit()
     conn.close()
     return jsonify({'success': True})
-, table):
-                continue
-            source_cols = {r[1]: r for r in source.execute(f'PRAGMA table_info("{table}")').fetchall()}
-            target_cols = {r[1]: r for r in target.execute(f'PRAGMA table_info("{table}")').fetchall()}
-            for col, info in source_cols.items():
-                if col in target_cols:
-                    continue
-                col_type = info[2] or 'TEXT'
-                try:
-                    target.execute(f'ALTER TABLE "{table}" ADD COLUMN "{col}" {col_type}')
-                except sqlite3.OperationalError:
-                    pass
-        target.commit()
-    finally:
-        target.close()
-        source.close()
 
 def _issue_session(account_id):
     token = secrets.token_urlsafe(32)
