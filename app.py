@@ -4820,12 +4820,28 @@ def auth_bootstrap():
         for r in _auth_accounts()
     ]
     current = None
-    if getattr(g, 'account_id', None):
-        current = {
-            'id': g.account_id,
-            'name': g.account_name,
-            'avatar': g.account_avatar
-        }
+    token = request.cookies.get(AUTH_COOKIE)
+    if token:
+        conn = _master_db()
+        try:
+            row = conn.execute(
+                'SELECT s.account_id, s.expires_at, a.name, a.avatar '
+                'FROM auth_sessions s JOIN accounts a ON a.id=s.account_id '
+                'WHERE s.token_hash=?',
+                (_token_hash(token),)
+            ).fetchone()
+        finally:
+            conn.close()
+        if row:
+            try:
+                if datetime.fromisoformat(row['expires_at']) > datetime.utcnow():
+                    current = {
+                        'id': row['account_id'],
+                        'name': row['name'],
+                        'avatar': row['avatar'] or 'person'
+                    }
+            except (TypeError, ValueError):
+                pass
     return jsonify({'accounts': accounts, 'current': current})
 
 @app.route('/api/auth/register', methods=['POST'])
