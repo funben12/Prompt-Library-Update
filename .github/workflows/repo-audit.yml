@@ -27,6 +27,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Static Python analysis
+        run: |
+          python -m pip install ruff
+          ruff check . --select E9,F63,F7,F821 --output-format concise
+
       - name: Compile every Python file
         run: |
           set -e
@@ -162,6 +167,73 @@ jobs:
               for key, endpoints in duplicates.items():
                   print(f"Duplicate route: {key} -> {endpoints}")
               raise SystemExit(1)
+          PY
+
+      - name: Runtime smoke test
+        run: |
+          python - <<'PY'
+          import os
+          import tempfile
+          from pathlib import Path
+
+          import app as app_module
+
+          with tempfile.TemporaryDirectory() as tmp:
+              root = Path(tmp)
+              app_module.DATABASE = str(root / "PromptLibrary.db")
+              app_module.ACCOUNT_DB_DIR = str(root / "accounts")
+              os.makedirs(app_module.ACCOUNT_DB_DIR, exist_ok=True)
+
+              app_module.init_db()
+              client = app_module.app.test_client()
+
+              r = client.get("/api/auth/bootstrap")
+              assert r.status_code == 200, r.status_code
+              assert (r.get_json() or {}).get("accounts") == []
+
+              r = client.post("/api/auth/register", json={
+                  "name": "Audit User",
+                  "password": "AuditPassword123!"
+              })
+              assert r.status_code == 200, r.status_code
+              payload = r.get_json() or {}
+              assert payload.get("account", {}).get("name") == "Audit User"
+              assert payload.get("recovery_code")
+
+              r = client.get("/api/auth/me")
+              assert r.status_code == 200 and r.get_json().get("authenticated") is True
+
+              r = client.post("/api/compositions/graph", json={"title": "Audit Graph"})
+              assert r.status_code == 200, r.status_code
+              cid = r.get_json()["id"]
+
+              r = client.put(f"/api/compositions/{cid}/graph", json={
+                  "nodes": [
+                      {"id": "a", "block_ref": "A", "x": 0, "y": 0},
+                      {"id": "b", "block_ref": "B", "x": 300, "y": 0}
+                  ],
+                  "edges": [{
+                      "id": "e1", "source": "a", "target": "b",
+                      "source_port": "right", "target_port": "left",
+                      "relation": "sequence"
+                  }],
+                  "view_state": {"x": 10, "y": 20, "z": 1}
+              })
+              assert r.status_code == 200, r.status_code
+
+              r = client.get(f"/api/compositions/{cid}/graph")
+              assert r.status_code == 200, r.status_code
+              graph = r.get_json()
+              assert len(graph["nodes"]) == 2
+              assert len(graph["edges"]) == 1
+
+              r = client.post("/api/auth/logout")
+              assert r.status_code == 200
+
+              r = client.get("/api/compositions")
+              assert r.status_code == 401, r.status_code
+
+              print("Runtime smoke test passed")
           PY
 
       - name: Run repository prebuild checks
