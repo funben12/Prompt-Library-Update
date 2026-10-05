@@ -691,7 +691,9 @@ def init_db():
                           (domain_id, uc))
 
     conn.commit()
-    conn.close()def _json_body():
+    conn.close()
+
+def _json_body():
     return request.get_json(silent=True) or {}
 
 def _normalise_list(value):
