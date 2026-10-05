@@ -8,9 +8,9 @@
   const uid=p=>p+"_"+Math.random().toString(36).slice(2,10);
   const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const blocks=()=>[...(window._pcwBLOCKS||[]),...(window._pcwFRAMEWORKS||[]).map((f,i)=>({id:"framework:"+i,label:f.name||f.title||"Framework",text:f.template||f.prompt||f.description||"",icon:"schema",cat:"framework"}))];
-  const blank=()=>({id:null,title:"",nodes:[],edges:[],view:{x:80,y:60,z:1},selected:[],groups:[],dirty:false});
+  const blank=()=>({id:null,title:"",nodes:[],edges:[],view:{x:80,y:60,z:1},selected:[],groups:[],dirty:false,snap:true});
   function api(url,opt={}){return fetch(url,{credentials:"same-origin",headers:{"Content-Type":"application/json",...(opt.headers||{})},...opt});}
-  function nodeDef(b,x,y){return {id:uid("n"),block_ref:String(b.id||b.label||uid("b")),label:b.label||b.name||"Component",text:b.text||b.body||"",x,y,z_index:0,collapsed:false,width:240,height:112};}
+  function nodeDef(b,x,y){return {id:uid("n"),block_ref:String(b.id||b.label||uid("b")),label:b.label||b.name||"Component",text:b.text||b.body||"",x,y,z_index:0,collapsed:false,width:260,height:140};}
   function snapshot(){history.push(clone({nodes:state.nodes,edges:state.edges,view:state.view,groups:state.groups}));if(history.length>80)history.shift();future=[];}
   function undo(){if(!history.length)return;future.push(clone({nodes:state.nodes,edges:state.edges,view:state.view,groups:state.groups}));const s=history.pop();Object.assign(state,s);render();}
   function redo(){if(!future.length)return;history.push(clone({nodes:state.nodes,edges:state.edges,view:state.view,groups:state.groups}));const s=future.pop();Object.assign(state,s);render();}
@@ -20,21 +20,27 @@
   function point(n,side){if(side==="left")return{x:n.x,y:n.y+n.height/2};if(side==="right")return{x:n.x+n.width,y:n.y+n.height/2};if(side==="top")return{x:n.x+n.width/2,y:n.y};return{x:n.x+n.width/2,y:n.y+n.height};}
   function relationAllowed(a,b){return a&&b&&a.id!==b.id;}
   function buildPrompt(){
-    const map=new Map(state.nodes.map(n=>[n.id,n])), indeg=new Map(state.nodes.map(n=>[n.id,0]));
-    state.edges.forEach(e=>{if(indeg.has(e.target))indeg.set(e.target,indeg.get(e.target)+1)});
+    const map=new Map(state.nodes.map(n=>[n.id,n]));
+    const indeg=new Map(state.nodes.map(n=>[n.id,0]));
+    const out=new Map(state.nodes.map(n=>[n.id,[]]));
+    state.edges.forEach(e=>{if(indeg.has(e.target))indeg.set(e.target,indeg.get(e.target)+1);if(out.has(e.source))out.get(e.source).push(e)});
     const roots=state.nodes.filter(n=>(indeg.get(n.id)||0)===0).sort((a,b)=>a.y-b.y||a.x-b.x);
-    const out=new Map();state.nodes.forEach(n=>out.set(n.id,[]));state.edges.forEach(e=>{if(out.has(e.source))out.get(e.source).push(e)});
-    const seen=new Set(), result=[];
+    const seen=new Set(),active=new Set(),result=[],warnings=[];
     function walk(n,depth){
-      if(!n||seen.has(n.id))return;
-      seen.add(n.id);
-      const text=(n.text||"").trim();if(text)result.push(text);
-      const children=(out.get(n.id)||[]).slice().sort((a,b)=>{const A=map.get(a.target),B=map.get(b.target);return (A?.y||0)-(B?.y||0)});
-      children.forEach((e,i)=>{if(children.length>1)result.push("\n[Branch "+(i+1)+"]");walk(map.get(e.target),depth+1)});
+      if(!n)return;
+      const pad="  ".repeat(Math.min(depth,8));
+      if(active.has(n.id)){warnings.push("Cycle detected at "+n.label);result.push(pad+"[Cycle omitted: "+n.label+"]");return;}
+      if(seen.has(n.id)){result.push(pad+"[Converges with "+n.label+"]");return;}
+      active.add(n.id);
+      const text=(n.text||"").trim();if(text)result.push(pad+text);
+      const children=(out.get(n.id)||[]).map(e=>({edge:e,node:map.get(e.target)})).filter(x=>x.node).sort((a,b)=>a.node.y-b.node.y||a.node.x-b.node.x);
+      if(children.length>1){children.forEach((item,i)=>{result.push("");result.push(pad+"[Branch "+(i+1)+(item.node.label?": "+item.node.label:"")+"]");walk(item.node,depth+1);});}
+      else if(children.length===1){walk(children[0].node,depth);}
+      seen.add(n.id);active.delete(n.id);
     }
-    roots.forEach(n=>walk(n,0));
-    state.nodes.filter(n=>!seen.has(n.id)).sort((a,b)=>a.y-b.y||a.x-b.x).forEach(n=>walk(n,0));
-    return result.filter(Boolean).join("\n\n").trim();
+    roots.forEach((n,i)=>{if(i)result.push("");walk(n,0);});
+    state.nodes.slice().sort((a,b)=>a.y-b.y||a.x-b.x).forEach(n=>{if(!seen.has(n.id)){result.push("");result.push("[Additional graph component]");walk(n,0);}});
+    return {text:result.filter(Boolean).join("\n").trim(),warnings};
   }
   function renderPalette(){
     const list=palette.querySelector(".pln-palette-list"), q=palette.querySelector(".pln-search").value.toLowerCase();
