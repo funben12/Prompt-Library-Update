@@ -8,19 +8,23 @@ from setuptools import setup
 
 APP = ['Main.py']
 
-DATA_FILES = [
-    ('static', [
-        'static/app.css',
-        'static/app.js',
-        'static/components-data.js',
-        'static/index.html',
-    ]),
-]
+def _static_files():
+    # Bundle every static asset except the retired v1 copies; fonts live in a subfolder.
+    import glob, os
+    out = {}
+    for f in glob.glob('static/**/*', recursive=True):
+        if os.path.isfile(f) and ' - v1' not in f:
+            out.setdefault(os.path.dirname(f), []).append(f)
+    return sorted(out.items())
+
+
+DATA_FILES = _static_files()
 
 OPTIONS = {
     'argv_emulation': False,
     'iconfile': 'mac/app-icon.icns',
-    'packages': ['flask', 'flask_cors', 'webview', 'waitress'],
+    'packages': ['flask', 'webview', 'waitress', 'objc', 'AppKit', 'Foundation', 'WebKit'],
+    'includes': ['webview.platforms.cocoa'],
     'plist': {
         'CFBundleName': 'Prompt Library Pro',
         'CFBundleDisplayName': 'Prompt Library Pro',

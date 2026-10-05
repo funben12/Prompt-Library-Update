@@ -6493,6 +6493,12 @@ Here are my prompts:
                     api('/settings/ai-providers').catch(() => [])
                 ]);
                 (customProviders || []).forEach(cp => _addProviderTab(cp.slug, cp.label));
+                try {
+                    const cfg = await api('/settings/ai-config');
+                    if (cfg && cfg.provider && !localStorage.getItem('pl_ai_provider')) {
+                        localStorage.setItem('pl_ai_provider', cfg.provider);
+                    }
+                } catch (e) { /* keep local choice */ }
                 const presetSlugs = $$('.config-provider-tab').map(t => t.dataset.provider);
                 for (const p of presetSlugs) {
                     const local = localStorage.getItem(`pl_api_key_${p}`) || '';
@@ -6630,6 +6636,7 @@ Here are my prompts:
                 if (key) {
                     localStorage.setItem(`pl_api_key_${provider}`, key);
                     localStorage.setItem('pl_ai_provider', provider);
+                    api('/settings/ai-config', { method: 'POST', body: { provider } }).catch(() => {});
                     api('/settings/ai-keys', {
                         method: 'POST',
                         body: {
@@ -6666,8 +6673,9 @@ Here are my prompts:
 
         // Close when clicking outside
         document.addEventListener('click', e => {
-            if (!panel.contains(e.target) && e.target !== toggleBtn) {
+            if (!panel.contains(e.target) && !toggleBtn.contains(e.target)) {
                 panel.classList.remove('open');
+                toggleBtn.classList.remove('active');
             }
         });
     }

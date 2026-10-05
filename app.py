@@ -16,7 +16,7 @@ import vault_scanner
 def _hash_key(k):
     return hashlib.sha256(k.strip().upper().encode()).hexdigest()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=None)  # /static served by send_static below
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Strict',
@@ -41,7 +41,8 @@ def _is_private(addr):
         ip = ipaddress.ip_address((addr or '').split('%')[0])
         if getattr(ip, 'ipv4_mapped', None):
             ip = ip.ipv4_mapped
-        return ip.is_private
+        # Tailscale addresses (CGNAT range) count as private
+        return ip.is_private or (ip.version == 4 and ip in ipaddress.ip_network('100.64.0.0/10'))
     except ValueError:
         return False
 
@@ -58,9 +59,17 @@ def _lan_ip():
         s.close()
 
 
+def _lan_mode_on():
+    # Tokenless private-network access, opt-in via the file ~/Documents/PromptLibrary/lan_mode
+    return os.path.exists(os.path.join(os.path.expanduser('~'), 'Documents', 'PromptLibrary', 'lan_mode'))
+
+
 @app.before_request
 def _phone_gate():
     if _is_loopback(request.remote_addr):
+        return None
+    if (_lan_mode_on() and _is_private(request.remote_addr)
+            and not request.path.startswith('/api/phone/')):
         return None
     if (not _phone['enabled'] or not _is_private(request.remote_addr)
             or request.path.startswith('/api/phone/')):
