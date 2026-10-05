@@ -4705,7 +4705,9 @@
       </span>
         <span class="launcher-card-pro">PRO</span>
       </button>
-        </div>
+
+      <button class="launcher-card" data-open="openPlBarForgeWorkspace" data-premium="true"><span class="material-symbols-outlined launcher-card-icon">target</span><span class="launcher-card-text"><span class="launcher-card-title">Quality Bar Forge</span><span class="launcher-card-desc">Turn vague quality goals into concrete, inspectable references and winning criteria</span></span><span class="launcher-card-pro">PRO</span></button>
+      <button class="launcher-card" data-open="openPlRedTeamWorkspace" data-premium="true"><span class="material-symbols-outlined launcher-card-icon">security</span><span class="launcher-card-text"><span class="launcher-card-title">Prompt Red Team</span><span class="launcher-card-desc">Attack prompts with adversarial inputs, failure modes, conflicts and edge cases</span></span><span class="launcher-card-pro">PRO</span></button>        </div>
       </div>
       <div class="launcher-group" data-group="inspect">
         <div class="launcher-group-label">
@@ -5026,6 +5028,9 @@
 </div>
 <div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
 
+
+<div id="plxBarForgeWorkspace" class="plx-workspace" role="dialog" aria-modal="true"><header class="plx-header"><div><span class="plx-kicker">Measure</span><h2>Quality Bar Forge</h2><p>Give the prompt something real to beat.</p></div><button class="icon-btn" data-plx-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></header><main class="plx-grid plx-two"><section class="plx-panel plx-form-stack"><label>What are you building?<textarea id="plxBarGoal" class="plx-editor" placeholder="Describe the output and what genuinely excellent looks like..."></textarea></label><label>References<textarea id="plxBarRefs" class="plx-editor" placeholder="Competitors, screenshots, examples, benchmarks, tests..."></textarea></label><label>Non negotiables<textarea id="plxBarConstraints" class="plx-form-textarea" rows="4"></textarea></label><button class="btn btn-accent" id="plxBarRun">Forge the bar</button></section><section class="plx-panel"><div class="plx-panel-head"><strong>Quality bar</strong></div><pre id="plxBarOutput" class="plx-output">Your quality bar will appear here.</pre><div class="plx-save-row"><button class="btn btn-ghost" data-plx-copy="plxBarOutput">Copy</button><button class="btn btn-ghost" data-plx-save="plxBarOutput" data-title="Quality Bar">Save to Library</button></div></section></main></div>
+<div id="plxRedTeamWorkspace" class="plx-workspace" role="dialog" aria-modal="true"><header class="plx-header"><div><span class="plx-kicker">Attack</span><h2>Prompt Red Team</h2><p>Find the failure modes the happy path ignores.</p></div><button class="icon-btn" data-plx-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></header><main class="plx-grid plx-two"><section class="plx-panel"><textarea id="plxRedTeamInput" class="plx-editor" placeholder="Paste the prompt you want to break..."></textarea><div class="plx-actions"><button class="btn btn-accent" id="plxRedTeamRun">Red team it</button></div></section><section class="plx-panel"><pre id="plxRedTeamOutput" class="plx-output">Your attack report will appear here.</pre><div class="plx-save-row"><button class="btn btn-ghost" data-plx-copy="plxRedTeamOutput">Copy</button><button class="btn btn-ghost" data-plx-save="plxRedTeamOutput" data-title="Prompt Red Team Report">Save to Library</button></div></section></main></div>
 <!-- Prompt engineering workspaces added as an isolated suite -->
 <div id="plxSurgeonWorkspace" class="plx-workspace" role="dialog" aria-modal="true" aria-label="Prompt Surgeon">
   <header class="plx-header"><div><span class="plx-kicker">Inspect</span><h2>Prompt Surgeon</h2><p>Find the largest structural weakness, then repair it.</p></div><button class="icon-btn" data-plx-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></header>
