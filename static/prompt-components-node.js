@@ -162,7 +162,7 @@
     root.querySelectorAll("[data-delete-node]").forEach(b=>b.onclick=e=>{e.stopPropagation();deleteNodes([b.dataset.deleteNode])});
     root.querySelectorAll("[data-edit-node]").forEach(t=>t.addEventListener("input",()=>{const n=state.nodes.find(x=>x.id===t.dataset.editNode);if(n){n.text=t.value;markDirty(false);updateInspectorPreview()}}));
     root.querySelectorAll(".pln-handle").forEach(h=>h.addEventListener("pointerdown",e=>startConnect(e,h.dataset.node,h.dataset.side)));
-    root.querySelectorAll(".pln-edge").forEach(p=>p.addEventListener("pointerdown",e=>{e.stopPropagation();state.selected=e.shiftKey?[...new Set([...state.selected,"edge:"+p.dataset.edge])]:["edge:"+p.dataset.edge];render();}));
+    root.querySelectorAll(".pln-edge").forEach(p=>p.addEventListener("pointerdown",e=>{e.stopPropagation();state.selected=e.shiftKey?[...new Set([...state.selected,"edge:"+p.dataset.edge])]:["edge:"+p.dataset.edge];render();}));    root.querySelectorAll(".pln-edge-endpoint").forEach(p=>p.addEventListener("pointerdown",e=>startEdgeReconnect(e,p.dataset.edge,p.dataset.edgeEnd)));
     const title=inspector.querySelector("#plnTitle");if(title)title.oninput=()=>{const n=state.nodes.find(x=>x.id===state.selected[0]);if(n){n.label=title.value;markDirty(false);render()}};const text=inspector.querySelector("#plnText");if(text)text.oninput=()=>{const n=state.nodes.find(x=>x.id===state.selected[0]);if(n){n.text=text.value;markDirty(false);render()}};const del=inspector.querySelector("#plnDeleteSelected");if(del)del.onclick=()=>deleteNodes([...state.selected]);
   }
   function updateInspectorPreview(){const p=inspector.querySelector(".pln-preview");if(p)p.textContent=buildPrompt();}
@@ -202,6 +202,29 @@
     connect=null;
     window.removeEventListener("pointermove",moveConnect);
     render();
+  }
+  function startEdgeReconnect(e,id,side){
+    e.stopPropagation();e.preventDefault();
+    const edge=state.edges.find(x=>String(x.id)===String(id));if(!edge)return;
+    const nodeId=side==="source"?edge.source:edge.target,port=side==="source"?(edge.source_port||"right"):(edge.target_port||"left"),node=state.nodes.find(n=>n.id===nodeId);
+    if(!node)return;
+    connect={mode:"reconnect",edgeId:String(id),end:side,side:port,preview:{start:point(node,port),end:point(node,port)}};
+    root.classList.add("pln-connecting");
+    window.addEventListener("pointermove",moveConnect);window.addEventListener("pointerup",finishReconnect,{once:true});
+  }
+
+  function finishReconnect(e){
+    if(!connect)return;
+    const target=e.target.closest?.(".pln-handle");root.classList.remove("pln-connecting");
+    if(target){
+      const edge=state.edges.find(x=>String(x.id)===String(connect.edgeId));
+      const destId=target.dataset.node,destSide=target.dataset.side;
+      if(edge&&destId!==edge.source&&destId!==edge.target){
+        if(connect.end==="source"){if(!wouldCycle(destId,edge.target)){edge.source=destId;edge.source_port=destSide;markDirty();}else toast("That reconnection would create a cycle.");}
+        else if(!wouldCycle(edge.source,destId)){edge.target=destId;edge.target_port=destSide;markDirty();}else toast("That reconnection would create a cycle.");
+      }
+    }
+    connect=null;window.removeEventListener("pointermove",moveConnect);render();
   }
   function saveDebounced(){clearTimeout(saveTimer);saveTimer=setTimeout(save,500);}
   async function save(){
