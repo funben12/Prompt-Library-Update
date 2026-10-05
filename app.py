@@ -184,10 +184,10 @@ def _clear_account_data(path):
         tables = [r[0] for r in conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
         ).fetchall()]
-        keep = {'accounts', 'auth_sessions', 'device_grants', 'auth_rate_limits'}
+        # Account databases contain only account-owned application data.
+        # Authentication state always lives in the master database and must never
+        # be copied between accounts.
         for table in tables:
-            if table in keep:
-                continue
             if re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', table):
                 conn.execute('DELETE FROM "' + table + '"')
         try:
@@ -197,6 +197,15 @@ def _clear_account_data(path):
         conn.commit()
     finally:
         conn.close()
+
+def _ensure_account_database(account_id):
+    """Ensure an account has an isolated database with the current schema."""
+    path = _account_path(account_id)
+    if not os.path.exists(path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        sqlite3.connect(path, timeout=10).close()
+    _sync_account_schema(path)
+    return path
 
 def _create_account_database(account_id):
     target = _account_path(account_id)
@@ -4690,8 +4699,7 @@ def _account_context():
     g.account_id = row['account_id']
     g.account_name = row['name']
     g.account_avatar = row['avatar'] or 'person'
-    g.account_db_path = _account_path(row['account_id'])
-    _sync_account_schema(g.account_db_path)
+    g.account_db_path = _ensure_account_database(row['account_id'])
     return None
 
 
@@ -4920,8 +4928,7 @@ def auth_switch():
     account_id = str(data.get('account_id') or '')
     if not account_id or not _device_has_grant(account_id):
         return jsonify({'error': 'This account is not unlocked on this device.'}), 403
-    if not os.path.exists(_account_path(account_id)):
-        return jsonify({'error': 'Account data is unavailable.'}), 404
+    _ensure_account_database(account_id)
     return _auth_response(account_id)
 
 @app.route('/api/auth/logout', methods=['POST'])
