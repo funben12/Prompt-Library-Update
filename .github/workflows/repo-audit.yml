@@ -32,6 +32,25 @@ jobs:
           python -m pip install ruff
           ruff check . --select E9,F63,F7,F821 --output-format concise
 
+      - name: Check licence hashes for leaked labels
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          text = Path("app.py").read_text(encoding="utf-8")
+          block = text[text.index("_SALES_KEY_HASHES = {"):text.index("}
+PREMIUM_KEYS", text.index("_SALES_KEY_HASHES = {"))]
+          leaked = [
+              line for line in block.splitlines()
+              if re.search(r"[0-9a-f]{64}[^#\n]*#.+$", line)
+          ]
+          if leaked:
+              print("\n".join(leaked))
+              raise SystemExit("Inline licence key labels found beside shipped hashes.")
+          print("No inline plaintext licence labels found.")
+          PY
+
       - name: Compile every Python file
         run: |
           set -e
@@ -202,6 +221,30 @@ jobs:
 
               r = client.get("/api/auth/me")
               assert r.status_code == 200 and r.get_json().get("authenticated") is True
+
+              first_graph = client.post("/api/compositions/graph", json={"title": "First Account Graph"})
+              assert first_graph.status_code == 200, first_graph.status_code
+              first_id = first_graph.get_json()["id"]
+
+              r = client.post("/api/auth/register", json={
+                  "name": "Second User",
+                  "password": "SecondPassword123!"
+              })
+              assert r.status_code == 200, r.status_code
+
+              r = client.get("/api/compositions")
+              assert r.status_code == 200 and r.get_json() == []
+
+              r = client.post("/api/compositions/graph", json={"title": "Second Account Graph"})
+              assert r.status_code == 200, r.status_code
+
+              r = client.post("/api/auth/switch", json={"account_id": payload["account"]["id"]})
+              assert r.status_code == 200, r.status_code
+
+              r = client.get("/api/compositions")
+              assert r.status_code == 200, r.status_code
+              assert any(row["id"] == first_id for row in r.get_json())
+              assert all(row["title"] != "Second Account Graph" for row in r.get_json())
 
               r = client.post("/api/compositions/graph", json={"title": "Audit Graph"})
               assert r.status_code == 200, r.status_code
