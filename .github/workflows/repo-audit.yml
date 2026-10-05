@@ -1,0 +1,168 @@
+name: Repository Audit
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compile every Python file
+        run: |
+          set -e
+          find . -type f -name "*.py" -print0 | while IFS= read -r -d '' file; do
+            echo "Checking $file"
+            python -m py_compile "$file"
+          done
+
+      - name: Parse every JavaScript file
+        run: |
+          set -e
+          find . -type f -name "*.js" -not -path "./.git/*" -print0 | while IFS= read -r -d '' file; do
+            echo "Checking $file"
+            node --check "$file"
+          done
+
+      - name: Validate JSON files
+        run: |
+          set -e
+          find . -type f -name "*.json" -not -path "./.git/*" -print0 | while IFS= read -r -d '' file; do
+            echo "Checking $file"
+            python -m json.tool "$file" >/dev/null
+          done
+
+      - name: Check CSS structure and HTML asset references
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          errors = []
+
+          def balanced_css(text, path):
+              stack = []
+              quote = None
+              escaped = False
+              comment = False
+              i = 0
+              while i < len(text):
+                  ch = text[i]
+                  nx = text[i + 1] if i + 1 < len(text) else ""
+                  if comment:
+                      if ch == "*" and nx == "/":
+                          comment = False
+                          i += 2
+                          continue
+                      i += 1
+                      continue
+                  if quote:
+                      if escaped:
+                          escaped = False
+                      elif ch == "\\":
+                          escaped = True
+                      elif ch == quote:
+                          quote = None
+                      i += 1
+                      continue
+                  if ch == "/" and nx == "*":
+                      comment = True
+                      i += 2
+                      continue
+                  if ch in "'\"":
+                      quote = ch
+                  elif ch == "{":
+                      stack.append(ch)
+                  elif ch == "}":
+                      if not stack:
+                          errors.append(f"{path}: unmatched }}")
+                      else:
+                          stack.pop()
+                  i += 1
+              if comment:
+                  errors.append(f"{path}: unterminated CSS comment")
+              if quote:
+                  errors.append(f"{path}: unterminated CSS string")
+              if stack:
+                  errors.append(f"{path}: {len(stack)} unclosed CSS block(s)")
+
+          for path in Path(".").rglob("*.css"):
+              if ".git" in path.parts:
+                  continue
+              balanced_css(path.read_text(encoding="utf-8"), path)
+
+          for path in Path("static").rglob("*.html"):
+              if ".git" in path.parts:
+                  continue
+              text = path.read_text(encoding="utf-8")
+              for attr in ("src", "href"):
+                  for ref in re.findall(rf'\\b{attr}=["\']([^"\']+)["\']', text, re.I):
+                      if ref.startswith(("http://", "https://", "data:", "#", "javascript:", "mailto:")):
+                          continue
+                      ref = ref.split("?", 1)[0].split("#", 1)[0]
+                      if ref.startswith("/static/"):
+                          target = Path(ref.removeprefix("/"))
+                      elif ref.startswith("/"):
+                          continue
+                      else:
+                          target = path.parent / ref
+                      if not target.exists():
+                          errors.append(f"{path}: missing local asset {ref}")
+
+          if errors:
+              print("\n".join(errors))
+              sys.exit(1)
+
+          print("CSS structure and HTML asset references OK")
+          PY
+
+      - name: Import app and inspect Flask routes
+        run: |
+          python - <<'PY'
+          import importlib
+          from collections import defaultdict
+
+          app_module = importlib.import_module("app")
+          application = app_module.app
+
+          collisions = defaultdict(list)
+          for rule in application.url_map.iter_rules():
+              methods = tuple(sorted(m for m in rule.methods if m not in {"HEAD", "OPTIONS"}))
+              key = (rule.rule, methods)
+              collisions[key].append(rule.endpoint)
+
+          duplicates = {
+              key: endpoints for key, endpoints in collisions.items()
+              if len(endpoints) > 1
+          }
+
+          print(f"Imported app successfully, {len(list(application.url_map.iter_rules()))} Flask routes found.")
+
+          if duplicates:
+              for key, endpoints in duplicates.items():
+                  print(f"Duplicate route: {key} -> {endpoints}")
+              raise SystemExit(1)
+          PY
+
+      - name: Run repository prebuild checks
+        run: python prebuild_check.py
