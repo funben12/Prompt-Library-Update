@@ -210,6 +210,7 @@ def _create_account_database(account_id):
     return target
 
 def _sync_account_schema(path):
+    """Synchronise an account database with the current master schema."""
     if not os.path.exists(path):
         return
     source = _master_db()
@@ -234,7 +235,42 @@ def _sync_account_schema(path):
             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
         ).fetchall()
         for (table,) in source_tables:
-            if not re.match(r'^[A-Za-z_][A-Za-z0-9_]*
+            if not re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', table):
+                continue
+            source_columns = source.execute(
+                "PRAGMA table_info(\"" + table + "\")"
+            ).fetchall()
+            target_columns = {
+                row[1] for row in target.execute(
+                    "PRAGMA table_info(\"" + table + "\")"
+                ).fetchall()
+            }
+            for column in source_columns:
+                column_name = column[1]
+                if column_name in target_columns:
+                    continue
+                if not re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', column_name):
+                    continue
+                column_type = column[2] or ''
+                if column_type and not re.match(r'^[A-Za-z0-9_(), ]+$', column_type):
+                    column_type = ''
+                definition = '"' + column_name + '"'
+                if column_type:
+                    definition += ' ' + column_type
+                if column[3]:
+                    definition += ' NOT NULL'
+                if column[4] is not None:
+                    definition += ' DEFAULT ' + str(column[4])
+                try:
+                    target.execute(
+                        'ALTER TABLE "' + table + '" ADD COLUMN ' + definition
+                    )
+                except sqlite3.OperationalError:
+                    pass
+        target.commit()
+    finally:
+        source.close()
+        target.close()
 
 
 def get_setting(key):
