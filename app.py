@@ -1267,6 +1267,10 @@ def auth_delete():
             os.remove(path)
     except OSError:
         pass
+    # If this was the final account, scrub legacy application rows from the
+    # master database so a future first account cannot inherit deleted data.
+    if not _auth_accounts():
+        _clear_account_data(DATABASE)
     response = jsonify({'ok': True})
     response.delete_cookie(AUTH_COOKIE, path='/')
     return response
