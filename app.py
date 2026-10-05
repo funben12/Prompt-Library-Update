@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory, Response, g, make_response
+from flask import Flask, request, jsonify, send_from_directory, Response, g, make_response, has_app_context
 import sqlite3
 import re
 import hashlib
@@ -486,7 +486,7 @@ del _RAW_KEYS  # Don't keep plaintext in memory after startup
 def get_db():
     # Requests authenticated to an account use that account's isolated database.
     # Startup and public endpoints fall back to the master database.
-    path = getattr(g, 'account_db_path', None) or DATABASE
+    path = (getattr(g, 'account_db_path', None) if has_app_context() else None) or DATABASE
     conn = sqlite3.connect(path, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute('PRAGMA foreign_keys = ON')
