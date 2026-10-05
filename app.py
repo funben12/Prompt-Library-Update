@@ -4651,9 +4651,18 @@ def _require_current_password(data, account):
 @app.before_request
 def _account_context():
     path = request.path
+    public_auth_paths = {
+        '/api/auth/bootstrap',
+        '/api/auth/register',
+        '/api/auth/login',
+        '/api/auth/switch',
+        '/api/auth/logout',
+        '/api/auth/reset',
+    }
     if (
         path == '/' or path.startswith('/static/') or
-        path.startswith('/api/auth/') or path.startswith('/api/licence/') or
+        (path.startswith('/api/auth/') and path in public_auth_paths) or
+        path.startswith('/api/licence/') or
         path.startswith('/api/phone/')
     ):
         return None
