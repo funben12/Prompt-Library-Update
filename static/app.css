@@ -10657,6 +10657,3 @@
 
 .pfw-compare-select{min-width:180px;padding:7px 9px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-sunk);color:var(--ink);font:600 10px var(--ff-sans)}
 
-
-/* Accounts + device handoff */
-.pl-auth-locked #app { visibility: hidden; }

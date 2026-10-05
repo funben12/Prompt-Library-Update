@@ -41,19 +41,9 @@ POST /api/licence/validate
 
 A valid key unlocks Pro features for the current session.
 
-The user can then save the validated key to the current account through:
+The user can save the validated licence state through the existing local settings flow.
 
-```
-POST /api/settings/licence
-```
-
-At startup, the account's saved value is rechecked through:
-
-```
-POST /api/licence/check
-```
-
-This keeps licence state isolated with the signed-in account's application data.
+The application rechecks the local licence state at startup and exposes it through the existing licence status endpoint.
 
 ### Current status endpoint
 
@@ -63,8 +53,7 @@ The application also exposes:
 GET /api/licence/status
 ```
 
-This endpoint is retained for status display. The main UI uses the account-scoped
-settings flow above.
+This endpoint is retained for status display. The main UI uses the local settings flow above.
 
 ## Security notes
 

@@ -1,10 +1,38 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prompt Library Update, Build Progress</title>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prompt Components, Build Progress</title>
 <style>
-body{font:14px system-ui,sans-serif;margin:0;padding:32px;background:#f5f2e9;color:#1d1d1b}main{max-width:900px;margin:auto}section{background:white;border:1px solid #ddd6c8;border-radius:18px;padding:20px;margin:14px 0}h1{margin:0 0 6px}h2{font-size:16px}ul{line-height:1.7}.ok{color:#167d57}.warn{color:#a56a00}.fail{color:#b42318}.meter{height:10px;background:#e8e2d7;border-radius:99px;overflow:hidden}.meter i{display:block;height:100%;width:72%;background:#138f90}
-</style></head><body><main>
-<section><h1>Prompt Library, Build Progress</h1><p>Live implementation tracker for the multi account and Prompt Components graph upgrade.</p><div class="meter"><i></i></div></section>
-<section><h2>Built</h2><ul><li class="ok">Server side account records and per account SQLite stores</li><li class="ok">PBKDF2 HMAC SHA 256 password hashing with per account salts</li><li class="ok">HttpOnly SameSite session cookies, server side session records</li><li class="ok">Device trusted profile switching without exposing passwords to the client</li><li class="ok">Account creation, login, logout, profile editing, password change, recovery reset and deletion</li><li class="ok">Account scoped localStorage namespace to stop browser state leaking between profiles</li><li class="ok">Prompt graph persistence with nodes, edges, ports and relationships</li><li class="ok">New node canvas foundation, infinite pan and zoom, palette drag and drop, handles, branches, convergence, selection, duplication and undo/redo</li></ul></section>
-<section><h2>Testing</h2><ul><li class="warn">Repository has no configured GitHub workflow run for this commit, so automated CI did not execute.</li><li class="warn">The current environment does not expose the requested Ultracode or subagent runtime, so those roles cannot be invoked from this session.</li><li class="ok">Repository structure and route interactions were inspected directly during implementation.</li><li>Next checks: Python compile, JavaScript syntax, account swap test, graph persistence test, invalid connection test, reload restoration, connection reconnection.</li></ul></section>
-<section><h2>Current weaknesses</h2><ul><li>Group metadata is currently visual and needs a persistence pass.</li><li>Connection editing and marquee selection need a deeper interaction pass.</li><li>Password recovery is intentionally offline, using a one time recovery code because this desktop build has no email service.</li><li>Real world hosted multi device authentication would still need a TLS backed identity service rather than this local Flask identity store.</li></ul></section>
-</main></body></html>
+body{font:14px system-ui,sans-serif;margin:0;padding:32px;background:#f5f2e9;color:#1d1d1b}
+main{max-width:900px;margin:auto}
+section{background:white;border:1px solid #ddd6c8;border-radius:18px;padding:20px;margin:14px 0}
+h1{margin:0 0 6px}h2{font-size:16px}.meter{height:10px;background:#e8e2d7;border-radius:99px;overflow:hidden}.meter i{display:block;height:100%;width:58%;background:#138f90}
+ul{line-height:1.7}.ok{color:#167d57}.warn{color:#a56a00}.fail{color:#b42318}.meta{opacity:.65;font-size:12px}
+</style>
+</head>
+<body>
+<main>
+<section><h1>Prompt Components, Build Progress</h1><p>Live implementation tracker for the visual prompt construction workspace.</p><div class="meter"><i></i></div><p class="meta">Current phase: account system reverted, graph editor upgrade in progress.</p></section>
+<section><h2>Built</h2><ul>
+<li class="ok">Account profiles, authentication, switching, passwords and account memory removed from the application layer.</li>
+<li class="ok">Existing PromptLibrary.db path and core database access preserved, with no destructive migration.</li>
+<li class="ok">Prompt Components node canvas foundation retained.</li>
+<li class="ok">Persistent nodes, connections, branches, convergence, pan and zoom, duplication and undo/redo retained.</li>
+</ul></section>
+<section><h2>Testing</h2><ul>
+<li class="warn">Next: syntax and repository audit.</li>
+<li class="warn">Next: real browser interaction pass against the canvas.</li>
+<li class="warn">Next: graph persistence and database integrity pass.</li>
+<li class="warn">Next: connection editing, multi-selection, grouping and resize interaction pass.</li>
+</ul></section>
+<section><h2>Current weaknesses</h2><ul>
+<li>Canvas interaction is still below a mature node-editor quality bar.</li>
+<li>Connection creation needs stronger routing, reconnection and endpoint feedback.</li>
+<li>Selection, resizing and grouping need deeper interaction handling.</li>
+<li>Prompt compilation needs stronger handling for complex converging and branching graphs.</li>
+</ul></section>
+</main>
+</body>
+</html>
