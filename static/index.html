@@ -8,7 +8,7 @@
 
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/app.css?v=2b38a33b">
+<link rel="stylesheet" href="/static/app.css?v=20261005-plx">
 </head>
 <body>
 
@@ -4673,6 +4673,38 @@
       </span>
         <span class="launcher-card-pro">PRO</span>
       </button>
+      <button class="launcher-card" data-open="plxSurgeonWorkspace" data-premium="true">
+        <span class="material-symbols-outlined launcher-card-icon">medical_services</span>
+        <span class="launcher-card-text">
+        <span class="launcher-card-title">Prompt Surgeon</span>
+        <span class="launcher-card-desc">Diagnose weak prompts, expose structural gaps, and repair them without losing intent</span>
+      </span>
+        <span class="launcher-card-pro">PRO</span>
+      </button>
+      <button class="launcher-card" data-open="plxTeammateWorkspace" data-premium="true">
+        <span class="material-symbols-outlined launcher-card-icon">smart_toy</span>
+        <span class="launcher-card-text">
+        <span class="launcher-card-title">AI Teammate Studio</span>
+        <span class="launcher-card-desc">Design persistent AI teammates with missions, memory, tools, boundaries and quality loops</span>
+      </span>
+        <span class="launcher-card-pro">PRO</span>
+      </button>
+      <button class="launcher-card" data-open="plxWorkflowWorkspace" data-premium="true">
+        <span class="material-symbols-outlined launcher-card-icon">account_tree</span>
+        <span class="launcher-card-text">
+        <span class="launcher-card-title">Workflow Architect</span>
+        <span class="launcher-card-desc">Turn messy goals into inspectable, repeatable AI workflows with quality gates</span>
+      </span>
+        <span class="launcher-card-pro">PRO</span>
+      </button>
+      <button class="launcher-card" data-open="plxTestLabWorkspace" data-premium="true">
+        <span class="material-symbols-outlined launcher-card-icon">science</span>
+        <span class="launcher-card-text">
+        <span class="launcher-card-title">Prompt Test Lab</span>
+        <span class="launcher-card-desc">Build adversarial tests, score observable behaviour, and compare prompt variants blind</span>
+      </span>
+        <span class="launcher-card-pro">PRO</span>
+      </button>
         </div>
       </div>
       <div class="launcher-group" data-group="inspect">
@@ -4994,6 +5026,45 @@
 </div>
 <div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
 
+<!-- Prompt engineering workspaces added as an isolated suite -->
+<div id="plxSurgeonWorkspace" class="plx-workspace" role="dialog" aria-modal="true" aria-label="Prompt Surgeon">
+  <header class="plx-header"><div><span class="plx-kicker">Inspect</span><h2>Prompt Surgeon</h2><p>Find the largest structural weakness, then repair it.</p></div><button class="icon-btn" data-plx-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></header>
+  <main class="plx-grid plx-two">
+    <section class="plx-panel"><div class="plx-panel-head"><div><strong>Target prompt</strong><small>Load one from your library or paste it.</small></div><select id="plxSurgeonPicker" class="form-input"></select></div><textarea id="plxSurgeonInput" class="plx-editor" placeholder="Paste the prompt you want to diagnose..."></textarea><div class="plx-actions"><button class="btn btn-accent" id="plxSurgeonRun"><span class="material-symbols-outlined">healing</span> Diagnose + repair</button><button class="btn btn-ghost" data-plx-copy="plxSurgeonOutput">Copy report</button></div></section>
+    <section class="plx-panel"><div class="plx-panel-head"><div><strong>Clinical report</strong><small>Observable weaknesses, not vibes.</small></div></div><pre id="plxSurgeonOutput" class="plx-output">Your diagnosis will appear here.</pre><div class="plx-save-row"><button class="btn btn-ghost" data-plx-save="plxSurgeonOutput" data-title="Prompt Surgeon Report">Save report</button></div></section>
+  </main>
+</div>
+
+<div id="plxTeammateWorkspace" class="plx-workspace" role="dialog" aria-modal="true" aria-label="AI Teammate Studio">
+  <header class="plx-header"><div><span class="plx-kicker">Design</span><h2>AI Teammate Studio</h2><p>Build an AI partner around a mission, not a persona gimmick.</p></div><button class="icon-btn" data-plx-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></header>
+  <main class="plx-grid plx-teammate-grid">
+    <section class="plx-panel plx-form-stack">
+      <label>Mission<input id="plxTeamMission" class="form-input" placeholder="What should this teammate reliably accomplish?"></label>
+      <label>Role<textarea id="plxTeamRole" class="form-textarea" rows="3" placeholder="What kind of operator should it be?"></textarea></label>
+      <label>Tools / capabilities<textarea id="plxTeamTools" class="form-textarea" rows="3" placeholder="Prompt library, files, research, APIs..."></textarea></label>
+      <label>Boundaries<textarea id="plxTeamBoundaries" class="form-textarea" rows="3" placeholder="What must it never do?"></textarea></label>
+      <button class="btn btn-accent" id="plxTeammateRun"><span class="material-symbols-outlined">construction</span> Build teammate spec</button>
+    </section>
+    <section class="plx-panel"><div class="plx-panel-head"><div><strong>Teammate specification</strong><small>Designed for iteration, not just a system prompt dump.</small></div></div><pre id="plxTeammateOutput" class="plx-output">Your teammate specification will appear here.</pre><div class="plx-save-row"><button class="btn btn-ghost" data-plx-copy="plxTeammateOutput">Copy</button><button class="btn btn-ghost" data-plx-save="plxTeammateOutput" data-title="AI Teammate Specification">Save to Library</button></div></section>
+  </main>
+</div>
+
+<div id="plxWorkflowWorkspace" class="plx-workspace" role="dialog" aria-modal="true" aria-label="Workflow Architect">
+  <header class="plx-header"><div><span class="plx-kicker">Systems</span><h2>Workflow Architect</h2><p>Turn a goal into a workflow that can be built, judged and improved.</p></div><button class="icon-btn" data-plx-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></header>
+  <main class="plx-grid plx-two">
+    <section class="plx-panel plx-form-stack"><label>Goal<textarea id="plxFlowGoal" class="form-textarea" rows="5" placeholder="What outcome are you trying to reliably produce?"></textarea></label><label>Inputs<textarea id="plxFlowInputs" class="form-textarea" rows="4" placeholder="What information enters the workflow?"></textarea></label><label>Constraints<textarea id="plxFlowConstraints" class="form-textarea" rows="4" placeholder="Limits, policies, quality bars..."></textarea></label><button class="btn btn-accent" id="plxWorkflowRun"><span class="material-symbols-outlined">route</span> Architect workflow</button></section>
+    <section class="plx-panel"><div class="plx-panel-head"><div><strong>Workflow blueprint</strong><small>Each stage has a purpose and a gate.</small></div></div><pre id="plxWorkflowOutput" class="plx-output">Your workflow blueprint will appear here.</pre><div class="plx-save-row"><button class="btn btn-ghost" data-plx-copy="plxWorkflowOutput">Copy</button><button class="btn btn-ghost" data-plx-save="plxWorkflowOutput" data-title="Workflow Architecture">Save to Library</button></div></section>
+  </main>
+</div>
+
+<div id="plxTestLabWorkspace" class="plx-workspace" role="dialog" aria-modal="true" aria-label="Prompt Test Lab">
+  <header class="plx-header"><div><span class="plx-kicker">Evaluate</span><h2>Prompt Test Lab</h2><p>Test observable behaviour before trusting the prompt.</p></div><button class="icon-btn" data-plx-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></header>
+  <main class="plx-grid plx-two">
+    <section class="plx-panel"><div class="plx-panel-head"><div><strong>Test target</strong><small>Build a test plan against the real prompt.</small></div><select id="plxTestPicker" class="form-input"></select></div><textarea id="plxTestPrompt" class="plx-editor" placeholder="Paste the prompt to test..."></textarea><div class="plx-inline-controls"><label>Dimensions<select id="plxTestCount" class="form-input"><option value="6">6 core tests</option><option value="8">8 extended tests</option></select></label><button class="btn btn-accent" id="plxTestRun"><span class="material-symbols-outlined">science</span> Generate test suite</button></div></section>
+    <section class="plx-panel"><div class="plx-panel-head"><div><strong>Evaluation matrix</strong><small>Use the same inputs against every candidate.</small></div></div><pre id="plxTestOutput" class="plx-output">Your test suite will appear here.</pre><div class="plx-save-row"><button class="btn btn-ghost" data-plx-copy="plxTestOutput">Copy</button><button class="btn btn-ghost" data-plx-save="plxTestOutput" data-title="Prompt Test Plan">Save to Library</button></div></section>
+  </main>
+</div>
+
 <!-- Components library data (loaded before app.js) -->
 <script src="/static/components-data.js"></script>
 
@@ -5008,6 +5079,7 @@
   }
   if (typeof window.createFolderInline !== 'function') window.createFolderInline = function () {};
   if (typeof window.clearAllFilters    !== 'function') window.clearAllFilters    = function () {};
+  (function(){ var s=document.createElement("script"); s.src="/static/gauntlet-suite.js?v=20261005"; s.defer=true; document.head.appendChild(s); })();
 </script>
 
 </body>
