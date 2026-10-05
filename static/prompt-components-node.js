@@ -106,7 +106,7 @@
   function updateInspectorPreview(){const p=inspector.querySelector(".pln-preview");if(p)p.textContent=buildPrompt();}
   function moveNode(e){if(!drag)return;const p=screenToWorld(e.clientX,e.clientY),dx=p.x-drag.start.x,dy=p.y-drag.start.y;drag.originals.forEach((o,id)=>{const n=state.nodes.find(x=>x.id===id);if(n){n.x=o.x+dx;n.y=o.y+dy}});render();}
   function endNode(){drag=null;markDirty();}
-  function deleteNodes(ids){if(!ids.length)return;snapshot();const set=new Set(ids);state.nodes=state.nodes.filter(n=>!set.has(n.id));state.edges=state.edges.filter(e=>!set.has(e.source)&&!set.has(e.target));state.selected=[];markDirty();render();}
+  function deleteNodes(ids){if(!ids.length)return;snapshot();const set=new Set(ids);state.nodes=state.nodes.filter(n=>!set.has(n.id));state.edges=state.edges.filter(e=>!set.has(e.source)&&!set.has(e.target));state.groups=state.groups.map(g=>({...g,nodes:g.nodes.filter(id=>!set.has(id))})).filter(g=>g.nodes.length>=2);state.selected=[];markDirty();render();}
   function startConnect(e,id,side){e.stopPropagation();e.preventDefault();connect={source:id,side};root.classList.add("pln-connecting");document.addEventListener("pointerup",finishConnect,{once:true});}
   function finishConnect(e){root.classList.remove("pln-connecting");if(!connect)return;const target=e.target.closest(".pln-handle");if(target&&target.dataset.node!==connect.source){const source=state.nodes.find(n=>n.id===connect.source),t=state.nodes.find(n=>n.id===target.dataset.node);if(relationAllowed(source,t)){snapshot();state.edges.push({id:uid("e"),source:source.id,target:t.id,source_port:connect.side,target_port:target.dataset.side,relation:"sequence"});markDirty();render()}}connect=null;}
   function saveDebounced(){clearTimeout(saveTimer);saveTimer=setTimeout(save,500);}
@@ -119,11 +119,11 @@
   function markDirty(auto=true){state.dirty=true;if(auto)saveDebounced();}
   async function load(){
     let r=await api("/api/compositions/graph",{method:"POST",body:JSON.stringify({title:"Prompt Graph"})});
-    if(!r.ok)return;const d=await r.json();state.compositionId=d.id;await save();
+    if(!r.ok)return;const d=await r.json();state.compositionId=d.id;try{localStorage.setItem("promptlib.nodeCanvasComposition",String(d.id));}catch(_){ }await save();
   }
   async function openExisting(){
-    const r=await api("/api/compositions");if(!r.ok)return;const list=await r.json();const c=list?.[0];if(!c)return;
-    state.compositionId=c.id;const g=await api("/api/compositions/"+c.id+"/graph").then(x=>x.json()).catch(()=>null);if(!g)return;
+    const r=await api("/api/compositions");if(!r.ok)return;const list=await r.json();let preferred=null;try{preferred=localStorage.getItem("promptlib.nodeCanvasComposition");}catch(_){ }const c=(preferred&&list.find(x=>String(x.id)===String(preferred)))||list?.[0];if(!c)return;
+    state.compositionId=c.id;try{localStorage.setItem("promptlib.nodeCanvasComposition",String(c.id));}catch(_){ }const g=await api("/api/compositions/"+c.id+"/graph").then(x=>x.json()).catch(()=>null);if(!g)return;
     const ref=new Map(blocks().map(b=>[String(b.id||b.label),b]));
     state.nodes=(g.nodes||[]).map(row=>{const b=ref.get(String(row.block_ref));return {id:String(row.id),block_ref:row.block_ref,label:b?.label||row.block_ref,text:row.body_override??b?.text??"",x:+row.x||0,y:+row.y||0,z_index:+row.z_index||0,collapsed:!!row.collapsed,width:240,height:112}});
     state.edges=(g.edges||[]).map(e=>({id:String(e.id),source:String(e.source_block_id),target:String(e.target_block_id),source_port:e.source_port,target_port:e.target_port,relation:e.relation}));
