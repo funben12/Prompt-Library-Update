@@ -332,5 +332,11 @@
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init);
   else init();
 
+
+  window.openPlxSurgeonWorkspace=()=>openSuite("plxSurgeonWorkspace");
+  window.openPlxTeammateWorkspace=()=>openSuite("plxTeammateWorkspace");
+  window.openPlxWorkflowWorkspace=()=>openSuite("plxWorkflowWorkspace");
+  window.openPlxTestLabWorkspace=()=>openSuite("plxTestLabWorkspace");
+
   window.PLNewWorkspaceSuite={open:openSuite,close:closeSuite};
 })();
