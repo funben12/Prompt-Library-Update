@@ -82,6 +82,8 @@
     renderEdges();
     inspector.innerHTML=inspectorHtml();
     wireNodes();
+    ensureResizeHandles();
+    root.querySelectorAll(".pln-resize").forEach(h=>h.addEventListener("pointerdown",e=>startResize(e,h.dataset.resizeNode)));
     const prompt=buildPrompt();
     root.querySelector(".pln-status").textContent=state.nodes.length+" nodes · "+state.edges.length+" connections · "+prompt.split(/\s+/).filter(Boolean).length+" words";
     root.querySelector(".pln-zoom-label").textContent=Math.round(state.view.z*100)+"%";
@@ -90,6 +92,52 @@
     if(state.selected.length!==1||state.selected[0].startsWith("edge:"))return `<div class="pln-empty"><div><strong>Graph inspector</strong>Select a component to edit its role, text and relationships.</div></div>`;
     const n=state.nodes.find(x=>x.id===state.selected[0]);if(!n)return "";
     return `<div class="pln-inspector-body"><div class="pln-inspector-section"><div class="pln-inspector-label">Component</div><input id="plnTitle" value="${esc(n.label)}"><div style="height:8px"></div><textarea id="plnText">${esc(n.text)}</textarea></div><div class="pln-inspector-section"><div class="pln-inspector-label">Connections</div><div style="font-size:11px;color:var(--ink-3)">Incoming: ${state.edges.filter(e=>e.target===n.id).length}<br>Outgoing: ${state.edges.filter(e=>e.source===n.id).length}<br><br>Connect from any handle to another node. Multiple outputs create branches, multiple inputs create convergence.</div></div><div class="pln-inspector-section"><div class="pln-inspector-label">Generated prompt</div><div class="pln-preview">${esc(buildPrompt())}</div></div><div class="pln-auth-actions"><button class="pln-tool" id="plnDeleteSelected">Delete component</button></div></div>`;
+  }
+  function ensureResizeHandles(){
+    root.querySelectorAll(".pln-node").forEach(node=>{
+      if(!node.querySelector(".pln-resize")){const h=document.createElement("span");h.className="pln-resize";h.dataset.resizeNode=node.dataset.node;h.title="Resize";node.appendChild(h);}
+    });
+  }
+
+  function startResize(e,id){
+    e.stopPropagation();e.preventDefault();
+    const n=state.nodes.find(x=>x.id===id);if(!n)return;
+    snapshot();
+    const move=ev=>{const p=screenToWorld(ev.clientX,ev.clientY);n.width=Math.max(180,Math.min(720,snap(p.x-n.x)));n.height=Math.max(96,Math.min(720,snap(p.y-n.y)));render();};
+    const end=()=>{window.removeEventListener("pointermove",move);markDirty();};
+    window.addEventListener("pointermove",move);window.addEventListener("pointerup",end,{once:true});
+  }
+
+  function startMarquee(e){
+    const start=screenToWorld(e.clientX,e.clientY);marquee={start,current:start,add:e.shiftKey};
+    const move=ev=>{marquee.current=screenToWorld(ev.clientX,ev.clientY);renderMarquee();};
+    const end=()=>{
+      if(!marquee)return;
+      const a=marquee.start,b=marquee.current,x1=Math.min(a.x,b.x),x2=Math.max(a.x,b.x),y1=Math.min(a.y,b.y),y2=Math.max(a.y,b.y);
+      const ids=state.nodes.filter(n=>n.x<x2&&n.x+n.width>x1&&n.y<y2&&n.y+n.height>y1).map(n=>n.id);
+      state.selected=marquee.add?[...new Set([...state.selected,...ids])]:ids;
+      root.querySelector(".pln-marquee")?.remove();marquee=null;window.removeEventListener("pointermove",move);render();
+    };
+    window.addEventListener("pointermove",move);window.addEventListener("pointerup",end,{once:true});
+  }
+
+  function renderMarquee(){
+    if(!marquee)return;
+    const a=marquee.start,b=marquee.current,x=Math.min(a.x,b.x),y=Math.min(a.y,b.y),w=Math.abs(a.x-b.x),h=Math.abs(a.y-b.y);
+    const el=root.querySelector(".pln-marquee")||document.createElement("div");el.className="pln-marquee";
+    el.style.left=(state.view.x+x*state.view.z)+"px";el.style.top=(state.view.y+y*state.view.z)+"px";
+    el.style.width=(w*state.view.z)+"px";el.style.height=(h*state.view.z)+"px";
+    if(!el.parentNode)canvas.appendChild(el);
+  }
+
+  function alignSelection(axis){
+    const nodes=state.nodes.filter(n=>state.selected.includes(n.id));if(nodes.length<2)return;
+    snapshot();const value=nodes[0][axis];nodes.forEach(n=>n[axis]=snap(value));markDirty();render();
+  }
+
+  function distributeSelection(axis){
+    const nodes=state.nodes.filter(n=>state.selected.includes(n.id));if(nodes.length<3)return;
+    snapshot();nodes.sort((a,b)=>a[axis]-b[axis]);const min=nodes[0][axis],max=nodes[nodes.length-1][axis],step=(max-min)/(nodes.length-1);nodes.forEach((n,i)=>n[axis]=snap(min+step*i));markDirty();render();
   }
   function wireNodes(){
     root.querySelectorAll("[data-drag-node]").forEach(el=>el.addEventListener("pointerdown",e=>{
