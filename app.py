@@ -809,6 +809,21 @@ def init_db():
     c.execute('''CREATE INDEX IF NOT EXISTS idx_composition_blocks_cid
         ON composition_blocks (composition_id, position)''')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS composition_edges (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        composition_id   INTEGER NOT NULL,
+        source_block_id  INTEGER NOT NULL,
+        target_block_id  INTEGER NOT NULL,
+        source_port      TEXT NOT NULL DEFAULT 'right',
+        target_port      TEXT NOT NULL DEFAULT 'left',
+        relation         TEXT NOT NULL DEFAULT 'sequence',
+        FOREIGN KEY (composition_id) REFERENCES compositions(id) ON DELETE CASCADE,
+        FOREIGN KEY (source_block_id) REFERENCES composition_blocks(id) ON DELETE CASCADE,
+        FOREIGN KEY (target_block_id) REFERENCES composition_blocks(id) ON DELETE CASCADE
+    )''')
+    c.execute('''CREATE INDEX IF NOT EXISTS idx_composition_edges_cid
+        ON composition_edges (composition_id)''')
+
     # ── Seed taxonomy defaults (only if empty) ───────────────────────────────
     domain_count = c.execute('SELECT COUNT(*) FROM taxonomy_domains').fetchone()[0]
     if domain_count == 0:
@@ -831,6 +846,7 @@ def init_db():
 
     conn.commit()
     conn.close()
+    _ensure_auth_schema()
 
 
 def _json_body():
@@ -4680,3 +4696,487 @@ def _account_context():
 
 
 
+# ============================================================
+# ACCOUNTS, SERVER AUTHENTICATION AND ISOLATED STORES
+# ============================================================
+
+def _ensure_auth_schema():
+    conn = _master_db()
+    try:
+        conn.execute('''CREATE TABLE IF NOT EXISTS accounts (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+            avatar TEXT NOT NULL DEFAULT 'person',
+            password_salt TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            recovery_salt TEXT NOT NULL,
+            recovery_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            failed_attempts INTEGER NOT NULL DEFAULT 0,
+            locked_until TEXT
+        )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS auth_sessions (
+            token_hash TEXT PRIMARY KEY,
+            account_id TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE
+        )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS device_grants (
+            device_hash TEXT NOT NULL,
+            account_id TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            last_used TEXT NOT NULL,
+            PRIMARY KEY(device_hash, account_id),
+            FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE
+        )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS auth_rate_limits (
+            bucket TEXT PRIMARY KEY,
+            failures INTEGER NOT NULL DEFAULT 0,
+            window_started TEXT NOT NULL
+        )''')
+        conn.commit()
+    finally:
+        conn.close()
+
+def _auth_accounts():
+    conn = _master_db()
+    try:
+        return conn.execute(
+            'SELECT id, name, avatar, created_at FROM accounts ORDER BY name COLLATE NOCASE'
+        ).fetchall()
+    finally:
+        conn.close()
+
+def _account_row(account_id):
+    conn = _master_db()
+    try:
+        return conn.execute('SELECT * FROM accounts WHERE id=?', (account_id,)).fetchone()
+    finally:
+        conn.close()
+
+def _grant_device(account_id, device_token):
+    if not device_token:
+        return
+    conn = _master_db()
+    try:
+        conn.execute(
+            'INSERT INTO device_grants(device_hash,account_id,created_at,last_used) '
+            'VALUES(?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) '
+            'ON CONFLICT(device_hash,account_id) DO UPDATE SET last_used=CURRENT_TIMESTAMP',
+            (_token_hash(device_token), account_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+def _device_has_grant(account_id):
+    token = _device_token()
+    if not token:
+        return False
+    conn = _master_db()
+    try:
+        row = conn.execute(
+            'SELECT 1 FROM device_grants WHERE device_hash=? AND account_id=?',
+            (_token_hash(token), account_id)
+        ).fetchone()
+        if row:
+            conn.execute(
+                'UPDATE device_grants SET last_used=CURRENT_TIMESTAMP '
+                'WHERE device_hash=? AND account_id=?',
+                (_token_hash(token), account_id)
+            )
+            conn.commit()
+        return bool(row)
+    finally:
+        conn.close()
+
+def _auth_response(account_id, include_recovery=None):
+    token = _issue_session(account_id)
+    account = _account_row(account_id)
+    response = jsonify({
+        'ok': True,
+        'account': {
+            'id': account['id'],
+            'name': account['name'],
+            'avatar': account['avatar']
+        },
+        **({'recovery_code': include_recovery} if include_recovery else {})
+    })
+    _set_auth_cookie(response, token)
+    device = _device_token() or secrets.token_urlsafe(32)
+    _grant_device(account_id, device)
+    _set_device_cookie(response, device)
+    return response
+
+@app.route('/api/auth/bootstrap', methods=['GET'])
+def auth_bootstrap():
+    _ensure_auth_schema()
+    accounts = [
+        {'id': r['id'], 'name': r['name'], 'avatar': r['avatar']}
+        for r in _auth_accounts()
+    ]
+    current = None
+    if getattr(g, 'account_id', None):
+        current = {
+            'id': g.account_id,
+            'name': g.account_name,
+            'avatar': g.account_avatar
+        }
+    return jsonify({'accounts': accounts, 'current': current})
+
+@app.route('/api/auth/register', methods=['POST'])
+def auth_register():
+    _ensure_auth_schema()
+    data = request.get_json(silent=True) or {}
+    name = re.sub(r'\s+', ' ', str(data.get('name') or '').strip())[:48]
+    password = str(data.get('password') or '')
+    avatar = re.sub(r'[^A-Za-z0-9_ -]', '', str(data.get('avatar') or 'person'))[:32] or 'person'
+    if len(name) < 2:
+        return jsonify({'error': 'Choose an account name with at least 2 characters.'}), 400
+    if len(password) < 12 or len(password.encode('utf-8')) > 1024:
+        return jsonify({'error': 'Use a password between 12 and 1024 bytes.'}), 400
+    conn = _master_db()
+    try:
+        exists = conn.execute(
+            'SELECT 1 FROM accounts WHERE name=? COLLATE NOCASE', (name,)
+        ).fetchone()
+        if exists:
+            return jsonify({'error': 'That account name is already in use.'}), 409
+        account_id = secrets.token_hex(16)
+        psalt, phash = _password_record(password)
+        recovery_code = secrets.token_urlsafe(18)
+        rsalt, rhash = _password_record(recovery_code)
+        now = datetime.utcnow().isoformat()
+        conn.execute(
+            'INSERT INTO accounts(id,name,avatar,password_salt,password_hash,recovery_salt,recovery_hash,created_at,updated_at) '
+            'VALUES(?,?,?,?,?,?,?,?,?)',
+            (account_id, name, avatar, psalt, phash, rsalt, rhash, now, now)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    target = _create_account_database(account_id)
+    if len(_auth_accounts()) > 1:
+        templates = [r['id'] for r in _auth_accounts() if r['id'] != account_id]
+        if templates:
+            template_path = _account_path(templates[0])
+            if os.path.exists(template_path):
+                try:
+                    if os.path.exists(target):
+                        os.remove(target)
+                except OSError:
+                    pass
+                _backup_database(template_path, target)
+                _clear_account_data(target)
+    _sync_account_schema(target)
+    return _auth_response(account_id, recovery_code)
+
+@app.route('/api/auth/login', methods=['POST'])
+def auth_login():
+    _ensure_auth_schema()
+    data = request.get_json(silent=True) or {}
+    name = re.sub(r'\s+', ' ', str(data.get('name') or '').strip())[:48]
+    password = str(data.get('password') or '')
+    conn = _master_db()
+    try:
+        account = conn.execute(
+            'SELECT * FROM accounts WHERE name=? COLLATE NOCASE', (name,)
+        ).fetchone()
+        if not account:
+            return jsonify({'error': 'Invalid account name or password.'}), 401
+        if account['locked_until']:
+            try:
+                if datetime.fromisoformat(account['locked_until']) > datetime.utcnow():
+                    return jsonify({'error': 'Too many failed attempts. Try again later.'}), 429
+            except ValueError:
+                pass
+        if not _verify_password(password, account['password_salt'], account['password_hash']):
+            failures = int(account['failed_attempts'] or 0) + 1
+            lock = (
+                datetime.utcnow() + timedelta(minutes=min(15, 2 ** min(failures, 4)))
+            ).isoformat() if failures >= 5 else None
+            conn.execute(
+                'UPDATE accounts SET failed_attempts=?, locked_until=? WHERE id=?',
+                (failures, lock, account['id'])
+            )
+            conn.commit()
+            return jsonify({'error': 'Invalid account name or password.'}), 401
+        conn.execute(
+            'UPDATE accounts SET failed_attempts=0, locked_until=NULL, updated_at=? WHERE id=?',
+            (datetime.utcnow().isoformat(), account['id'])
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return _auth_response(account['id'])
+
+@app.route('/api/auth/switch', methods=['POST'])
+def auth_switch():
+    _ensure_auth_schema()
+    data = request.get_json(silent=True) or {}
+    account_id = str(data.get('account_id') or '')
+    if not account_id or not _device_has_grant(account_id):
+        return jsonify({'error': 'This account is not unlocked on this device.'}), 403
+    if not os.path.exists(_account_path(account_id)):
+        return jsonify({'error': 'Account data is unavailable.'}), 404
+    return _auth_response(account_id)
+
+@app.route('/api/auth/logout', methods=['POST'])
+def auth_logout():
+    token = request.cookies.get(AUTH_COOKIE)
+    if token:
+        conn = _master_db()
+        try:
+            conn.execute('DELETE FROM auth_sessions WHERE token_hash=?', (_token_hash(token),))
+            conn.commit()
+        finally:
+            conn.close()
+    response = jsonify({'ok': True})
+    response.delete_cookie(AUTH_COOKIE, path='/')
+    return response
+
+@app.route('/api/auth/me', methods=['GET'])
+def auth_me():
+    if not getattr(g, 'account_id', None):
+        return jsonify({'authenticated': False})
+    return jsonify({'authenticated': True, 'account': {
+        'id': g.account_id,
+        'name': g.account_name,
+        'avatar': g.account_avatar
+    }})
+
+@app.route('/api/auth/profile', methods=['PUT'])
+def auth_profile():
+    data = request.get_json(silent=True) or {}
+    name = re.sub(r'\s+', ' ', str(data.get('name') or '').strip())[:48]
+    avatar = re.sub(r'[^A-Za-z0-9_ -]', '', str(data.get('avatar') or 'person'))[:32] or 'person'
+    if len(name) < 2:
+        return jsonify({'error': 'Account name must be at least 2 characters.'}), 400
+    conn = _master_db()
+    try:
+        collision = conn.execute(
+            'SELECT 1 FROM accounts WHERE name=? COLLATE NOCASE AND id<>?',
+            (name, g.account_id)
+        ).fetchone()
+        if collision:
+            return jsonify({'error': 'That account name is already in use.'}), 409
+        conn.execute(
+            'UPDATE accounts SET name=?, avatar=?, updated_at=? WHERE id=?',
+            (name, avatar, datetime.utcnow().isoformat(), g.account_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'ok': True, 'account': {
+        'id': g.account_id, 'name': name, 'avatar': avatar
+    }})
+
+@app.route('/api/auth/password', methods=['PUT'])
+def auth_password():
+    data = request.get_json(silent=True) or {}
+    account = _account_row(g.account_id)
+    if not account or not _require_current_password(data, account):
+        return jsonify({'error': 'Current password is incorrect.'}), 401
+    password = str(data.get('new_password') or '')
+    if len(password) < 12 or len(password.encode('utf-8')) > 1024:
+        return jsonify({'error': 'Use a password between 12 and 1024 bytes.'}), 400
+    salt, hashed = _password_record(password)
+    conn = _master_db()
+    try:
+        conn.execute(
+            'UPDATE accounts SET password_salt=?,password_hash=?,updated_at=? WHERE id=?',
+            (salt, hashed, datetime.utcnow().isoformat(), g.account_id)
+        )
+        conn.execute('DELETE FROM auth_sessions WHERE account_id=?', (g.account_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    return _auth_response(g.account_id)
+
+@app.route('/api/auth/reset', methods=['POST'])
+def auth_reset():
+    _ensure_auth_schema()
+    data = request.get_json(silent=True) or {}
+    name = re.sub(r'\s+', ' ', str(data.get('name') or '').strip())[:48]
+    recovery = str(data.get('recovery_code') or '').strip()
+    password = str(data.get('new_password') or '')
+    conn = _master_db()
+    try:
+        account = conn.execute(
+            'SELECT * FROM accounts WHERE name=? COLLATE NOCASE', (name,)
+        ).fetchone()
+        if not account or not _verify_password(recovery, account['recovery_salt'], account['recovery_hash']):
+            return jsonify({'error': 'Invalid recovery details.'}), 401
+        if len(password) < 12 or len(password.encode('utf-8')) > 1024:
+            return jsonify({'error': 'Use a password between 12 and 1024 bytes.'}), 400
+        salt, hashed = _password_record(password)
+        new_recovery = secrets.token_urlsafe(18)
+        rsalt, rhash = _password_record(new_recovery)
+        conn.execute(
+            'UPDATE accounts SET password_salt=?,password_hash=?,recovery_salt=?,recovery_hash=?,updated_at=? WHERE id=?',
+            (salt, hashed, rsalt, rhash, datetime.utcnow().isoformat(), account['id'])
+        )
+        conn.execute('DELETE FROM auth_sessions WHERE account_id=?', (account['id'],))
+        conn.commit()
+    finally:
+        conn.close()
+    return _auth_response(account['id'], new_recovery)
+
+@app.route('/api/auth/delete', methods=['DELETE'])
+def auth_delete():
+    data = request.get_json(silent=True) or {}
+    account = _account_row(g.account_id)
+    if not account or not _require_current_password(data, account):
+        return jsonify({'error': 'Current password is incorrect.'}), 401
+    account_id = g.account_id
+    conn = _master_db()
+    try:
+        conn.execute('DELETE FROM accounts WHERE id=?', (account_id,))
+        conn.execute('DELETE FROM auth_sessions WHERE account_id=?', (account_id,))
+        conn.execute('DELETE FROM device_grants WHERE account_id=?', (account_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    path = _account_path(account_id)
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except OSError:
+        pass
+    response = jsonify({'ok': True})
+    response.delete_cookie(AUTH_COOKIE, path='/')
+    response.delete_cookie(DEVICE_COOKIE, path='/')
+    return response
+
+@app.route('/api/account/memory', methods=['GET', 'PUT'])
+def account_memory():
+    conn = get_db()
+    try:
+        conn.execute('''CREATE TABLE IF NOT EXISTS account_memory (
+            id INTEGER PRIMARY KEY CHECK(id=1),
+            value TEXT NOT NULL DEFAULT '{}',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+        if request.method == 'GET':
+            row = conn.execute('SELECT value FROM account_memory WHERE id=1').fetchone()
+            try:
+                value = json.loads(row['value']) if row else {}
+            except (TypeError, ValueError):
+                value = {}
+            return jsonify({'value': value})
+        value = request.get_json(silent=True).get('value', {}) if request.is_json else {}
+        if not isinstance(value, dict):
+            return jsonify({'error': 'Memory must be a JSON object.'}), 400
+        conn.execute(
+            'INSERT INTO account_memory(id,value,updated_at) VALUES(1,?,CURRENT_TIMESTAMP) '
+            'ON CONFLICT(id) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP',
+            (json.dumps(value),)
+        )
+        conn.commit()
+        return jsonify({'ok': True, 'value': value})
+    finally:
+        conn.close()
+
+# ============================================================
+# PROMPT COMPONENT GRAPH
+# ============================================================
+
+def _composition_owned(cid):
+    conn = get_db()
+    try:
+        return conn.execute('SELECT * FROM compositions WHERE id=?', (cid,)).fetchone()
+    finally:
+        conn.close()
+
+@app.route('/api/compositions/<int:cid>/graph', methods=['GET', 'PUT'])
+def composition_graph(cid):
+    composition = _composition_owned(cid)
+    if not composition:
+        return jsonify({'error': 'Composition not found'}), 404
+    conn = get_db()
+    try:
+        if request.method == 'GET':
+            nodes = [dict(r) for r in conn.execute(
+                'SELECT * FROM composition_blocks WHERE composition_id=? ORDER BY z_index, position',
+                (cid,)
+            ).fetchall()]
+            edges = [dict(r) for r in conn.execute(
+                'SELECT * FROM composition_edges WHERE composition_id=? ORDER BY id',
+                (cid,)
+            ).fetchall()]
+            return jsonify({
+                'composition': dict(composition),
+                'nodes': nodes,
+                'edges': edges
+            })
+        data = request.get_json(silent=True) or {}
+        nodes = data.get('nodes') or []
+        edges = data.get('edges') or []
+        view_state = data.get('view_state') or {}
+        conn.execute('DELETE FROM composition_edges WHERE composition_id=?', (cid,))
+        conn.execute('DELETE FROM composition_blocks WHERE composition_id=?', (cid,))
+        node_map = {}
+        for pos, node in enumerate(nodes):
+            cur = conn.execute(
+                '''INSERT INTO composition_blocks
+                   (composition_id,block_ref,position,x,y,z_index,collapsed,body_override)
+                   VALUES(?,?,?,?,?,?,?,?)''',
+                (
+                    cid,
+                    str(node.get('block_ref') or ''),
+                    pos,
+                    float(node.get('x') or 0),
+                    float(node.get('y') or 0),
+                    int(node.get('z_index') or pos),
+                    1 if node.get('collapsed') else 0,
+                    node.get('body_override')
+                )
+            )
+            node_map[str(node.get('id') or pos)] = cur.lastrowid
+        for edge in edges:
+            source = node_map.get(str(edge.get('source')))
+            target = node_map.get(str(edge.get('target')))
+            if not source or not target or source == target:
+                continue
+            conn.execute(
+                '''INSERT INTO composition_edges
+                   (composition_id,source_block_id,target_block_id,source_port,target_port,relation)
+                   VALUES(?,?,?,?,?,?)''',
+                (
+                    cid,
+                    source,
+                    target,
+                    edge.get('source_port') or 'right',
+                    edge.get('target_port') or 'left',
+                    edge.get('relation') or 'sequence'
+                )
+            )
+        conn.execute(
+            'UPDATE compositions SET view_state=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',
+            (json.dumps(view_state), cid)
+        )
+        conn.commit()
+        return jsonify({'ok': True})
+    finally:
+        conn.close()
+
+@app.route('/api/compositions/graph', methods=['POST'])
+def create_graph_composition():
+    data = request.get_json(silent=True) or {}
+    title = str(data.get('title') or 'Untitled composition').strip()[:160]
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            'INSERT INTO compositions(title,view_state,is_draft) VALUES(?,?,1)',
+            (title, json.dumps(data.get('view_state') or {}))
+        )
+        cid = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'id': cid, 'title': title})
+
+# End recovered account/graph routes.
