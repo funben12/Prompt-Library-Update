@@ -8,6 +8,7 @@
   const RAW_KEYS = new Set(["pl_accounts_v1", "pl_session_v1"]);
   const ACCOUNT_KEY = "pl_active_account_id";
   let activeId = null;
+  try { activeId = Storage.prototype.getItem.call(localStorage, ACCOUNT_KEY) || null; } catch (_) {}
   let booted = false;
 
   function api(url, options = {}) {
