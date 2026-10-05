@@ -319,6 +319,8 @@
     $("plxTeammateRun")?.addEventListener("click",runTeammate);
     $("plxWorkflowRun")?.addEventListener("click",runWorkflow);
     $("plxTestRun")?.addEventListener("click",runTests);
+    $("plxBarRun")?.addEventListener("click",runBarForge);
+    $("plxRedTeamRun")?.addEventListener("click",runRedTeam);
     $("plxSurgeonPicker") && mountPromptPicker("plxSurgeonPicker","plxSurgeonInput");
     $("plxTestPicker") && mountPromptPicker("plxTestPicker","plxTestPrompt");
   }
@@ -337,6 +339,26 @@
   window.openPlxTeammateWorkspace=()=>openSuite("plxTeammateWorkspace");
   window.openPlxWorkflowWorkspace=()=>openSuite("plxWorkflowWorkspace");
   window.openPlxTestLabWorkspace=()=>openSuite("plxTestLabWorkspace");
+
+
+  function runBarForge(){
+    const goal=$("plxBarGoal")?.value.trim(), refs=$("plxBarRefs")?.value.trim(), constraints=$("plxBarConstraints")?.value.trim();
+    if(!goal){setOutput("plxBarOutput","Describe the thing you want to build first.");return;}
+    const base=["QUALITY BAR FORGE","","GOAL",goal,"","REFERENCE MATERIAL",refs||"No reference supplied. Find a concrete exemplar or measurable benchmark before building.","","NON NEGOTIABLES",constraints||"None supplied.","","STOP CONDITION","Do not stop at subjective quality. The critic must inspect the real output, compare it against the chosen bar, state which is better, identify the largest gap, and loop until ours wins or the user stops the run."].join("\n");
+    setOutput("plxBarOutput",base+"\n\nAI FORGE\nRunning...");
+    callAI("You are a ruthless quality bar designer using the Gauntlet Loop method. Choose the strongest concrete, inspectable comparison or measurement. Avoid vague adjectives. Produce a concise bar, evidence to inspect, and a comparative stop condition.",base,2200).then(ai=>{if(ai)setOutput("plxBarOutput",base+"\n\nAI FORGE\n"+ai);});
+  }
+
+  function runRedTeam(){
+    const input=$("plxRedTeamInput")?.value.trim();
+    if(!input){setOutput("plxRedTeamOutput","Paste a prompt first.");return;}
+    const local=["RED TEAM CHECKLIST","","1. Ambiguity, find instructions with multiple valid interpretations.","2. Conflicts, find rules that collide under pressure.","3. Missing inputs, identify where the model may invent information.","4. Boundary pressure, test extreme, empty, oversized and malformed inputs.","5. Instruction priority, test accidental overrides.","6. Output drift, find ways to answer technically while missing the real goal.","7. Self grading, find places where success can be declared without evidence.","8. Regression risk, identify changes that could improve one case while damaging another.","","TARGET PROMPT",input].join("\n");
+    setOutput("plxRedTeamOutput",local+"\n\nAI ATTACK\nRunning...");
+    callAI("You are a hostile but fair prompt red team critic. Attack the supplied prompt with concrete adversarial scenarios. Prioritise confident failure modes. For each serious weakness, give a minimal fix and a test proving the fix works.",local,2500).then(ai=>{if(ai)setOutput("plxRedTeamOutput",local+"\n\nAI ATTACK\n"+ai);});
+  }
+
+  window.openPlBarForgeWorkspace=()=>openSuite("plxBarForgeWorkspace");
+  window.openPlRedTeamWorkspace=()=>openSuite("plxRedTeamWorkspace");
 
   window.PLNewWorkspaceSuite={open:openSuite,close:closeSuite};
 })();
