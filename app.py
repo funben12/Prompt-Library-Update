@@ -160,9 +160,13 @@ def delete_setting(key):
 # Keys are stored as SHA-256 hashes - never plaintext in the bundle.
 # To add a new key: compute sha256(KEY.strip().upper()) and add the hex digest below.
 _RAW_KEYS = [
-    # Weak/guessable keys removed 2026-05-23 (Eugene, 1234, PROMPTLIB-PRO-2026,
-    # WARRIOR-007, X9F7-8K2M, NorthCarolina357). Structured issued keys kept below.
-    
+    # Legacy/manual licence keys. Stored as hashes at runtime via _hash_key().
+    '51c60ddec38f194c876a3cf92b0400c68374d8e130813357660b94b8960b1fb7',
+    '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4',
+    '78426f6006c624ba7340f44f979cd07934227f30edce5b4be3b58ce938331a92',
+    'cd60aa6161584e601f8d02ebd6b288c5635b3a4b6780c3eb6e3b54c22125035e',
+    '2ee90cf3fb3ae94e79cfa3e89cdacdf765af3d5ee6c9c78ce412bcb304c0faa5',
+    'b3eeb7cde34945a3b71e2877d587672c5c402d64862984397e2b788195bdc4d9',
 ]
 # Sales licence keys — stored as SHA-256 hashes ONLY (plaintext lives in
 # keys_PRIVATE.txt, uploaded to Payhip, and is NEVER shipped in the app).
