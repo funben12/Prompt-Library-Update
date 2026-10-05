@@ -3861,6 +3861,93 @@
   </div>
 </div>
 
+
+<!-- ============================================================
+     WORKSPACE: Prompt IDE  [PRO]
+     A power-user prompt development environment built around the
+     Gauntlet Loop: run, inspect, critique, improve, verify.
+     ============================================================ -->
+<div id="promptIdeWorkspace" role="dialog" aria-modal="true" aria-label="Prompt IDE">
+  <div class="ws-header">
+    <div class="ws-header-left">
+      <span class="material-symbols-outlined ws-header-icon">terminal</span>
+      <div>
+        <h2 class="ws-title">Prompt IDE</h2>
+        <p class="ws-subtitle">Develop prompts like software, run them against evidence, then make the next change on purpose.</p>
+      </div>
+    </div>
+    <div class="ws-header-actions">
+      <select id="pidPromptPicker" class="pid-picker" aria-label="Prompt session"><option value="">New prompt session</option></select>
+      <button class="btn btn-ghost" id="pidNewBtn"><span class="material-symbols-outlined">add</span> New</button>
+      <button class="btn btn-ghost" id="pidSaveNewBtn"><span class="material-symbols-outlined">save_as</span> Save as new</button>
+      <button class="btn btn-accent" id="pidSaveBtn"><span class="material-symbols-outlined">save</span> Save</button>
+      <button class="icon-btn" id="pidCloseBtn" aria-label="Close Prompt IDE"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+  <div class="pid-toolbar">
+    <div class="pid-toolbar-title"><span class="material-symbols-outlined">route</span> Development loop</div>
+    <div class="pid-loop"><span>1 Edit</span><span>2 Run</span><span>3 Critique</span><span>4 Improve</span><span>5 Verify</span></div>
+    <div class="pid-round" id="pidRoundLabel">Ready</div>
+  </div>
+  <div class="ws-body pid-body">
+    <aside class="pid-left">
+      <div class="pid-panel-head"><span>Prompt</span><span class="pid-muted">source</span></div>
+      <input id="pidTitleInput" class="pid-title-input" type="text" placeholder="Prompt title">
+      <textarea id="pidDescInput" class="pid-desc-input" rows="2" placeholder="Short description"></textarea>
+      <textarea id="pidPromptEditor" class="pid-editor" spellcheck="false" placeholder="Write the prompt here..."></textarea>
+      <div class="pid-editor-footer"><span id="pidCharCount">0 chars</span><span id="pidTokenCount">~0</span></div>
+      <div class="pid-section">
+        <div class="pid-section-title">Quality bar</div>
+        <textarea id="pidQualityBar" class="pid-small-editor" rows="4" placeholder="What must this prompt beat? Name a real reference, output standard, or measurable requirement."></textarea>
+        <div class="pid-hint">A vague bar creates a vague finish line.</div>
+      </div>
+      <div class="pid-section">
+        <div class="pid-section-title">Test input</div>
+        <textarea id="pidTestInput" class="pid-small-editor" rows="5" placeholder="Give the prompt a realistic input to work on."></textarea>
+      </div>
+    </aside>
+    <main class="pid-centre">
+      <div class="pid-panel-head">
+        <span>Evidence</span>
+        <div class="pid-actions">
+          <button class="btn btn-sm btn-ghost" id="pidCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy</button>
+          <button class="btn btn-sm btn-accent" id="pidRunBtn"><span class="material-symbols-outlined">play_arrow</span> Run</button>
+        </div>
+      </div>
+      <div class="pid-output-label">MODEL OUTPUT</div>
+      <pre id="pidRunOutput" class="pid-output">Run the prompt to generate evidence here.</pre>
+      <div class="pid-critic-head">
+        <span>Independent critic</span>
+        <div class="pid-actions">
+          <button class="btn btn-sm btn-ghost" id="pidCritiqueBtn"><span class="material-symbols-outlined">fact_check</span> Critique</button>
+          <button class="btn btn-sm btn-accent" id="pidImproveBtn"><span class="material-symbols-outlined">auto_fix_high</span> Improve prompt</button>
+          <button class="btn btn-sm btn-primary" id="pidGauntletBtn"><span class="material-symbols-outlined">shield</span> Gauntlet round</button>
+        </div>
+      </div>
+      <pre id="pidCritiqueOutput" class="pid-critique">The critic has not inspected this prompt yet.</pre>
+    </main>
+    <aside class="pid-right">
+      <div class="pid-panel-head"><span>Inspector</span><span class="pid-quality-status">Early draft</span></div>
+      <div class="pid-quality-card">
+        <div class="pid-quality-row"><span>Prompt health</span><strong class="pid-quality-status">Early draft</strong></div>
+        <div class="pid-quality-track"><div id="pidQualityMeter" class="pid-quality-fill"></div></div>
+      </div>
+      <div class="pid-section">
+        <div class="pid-section-title">Variables <span class="pid-muted">detected live</span></div>
+        <div id="pidVariables" class="pid-vars"><span class="hint">No variables detected</span></div>
+      </div>
+      <div class="pid-section">
+        <div class="pid-section-title">Gauntlet principle</div>
+        <p class="pid-principle">Do not optimise for looking finished. Optimise for surviving a hostile comparison against the bar.</p>
+      </div>
+      <div class="pid-section">
+        <div class="pid-section-title">Run history</div>
+        <div id="pidHistory" class="pid-history"><div class="hint">No runs yet. Run the prompt to create evidence.</div></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
 <!-- ============================================================
      WORKSPACE: Eval Runner  [PRO]
      Regression suite for a library prompt: save test cases (input +
@@ -4282,6 +4369,92 @@
 </div>
 
 <!-- ============================================================
+     WORKSPACE: Prompt Forking
+     Branch, compare, evaluate and evolve prompts without losing lineage.
+     ============================================================ -->
+<div id="promptForkingWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Forking Workspace">
+  <header class="pfw-header">
+    <div class="pfw-brand">
+      <span class="material-symbols-outlined pfw-brand-icon">account_tree</span>
+      <div><span class="pfw-eyebrow">EXPERIMENT WORKSPACE</span><h2>Prompt Forking</h2><p>Explore what a prompt can become, without touching the original.</p></div>
+    </div>
+    <div class="pfw-header-actions">
+      <button class="btn btn-accent" id="pfwNewForkBtn"><span class="material-symbols-outlined">call_split</span> Fork branch</button>
+      <button class="icon-btn" id="pfwCloseBtn" aria-label="Close Prompt Forking Workspace"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </header>
+
+  <section id="pfwPicker" class="pfw-picker" hidden>
+    <div class="pfw-picker-hero"><span class="pfw-kicker">START AN EXPERIMENT</span><h3>Choose a prompt to evolve.</h3><p>The original stays intact. Every branch becomes an independent prompt with its own history.</p></div>
+    <div class="pfw-picker-search"><span class="material-symbols-outlined">search</span><input id="pfwPromptSearch" placeholder="Search your prompt library..." autocomplete="off"></div>
+    <div id="pfwPromptPicker" class="pfw-picker-list"></div>
+  </section>
+
+  <main id="pfwMain" class="pfw-main">
+    <aside class="pfw-sidebar">
+      <div class="pfw-sidebar-head"><div><span class="pfw-kicker">LINEAGE</span><strong>Prompt family</strong></div><span class="pfw-tree-count" id="pfwTreeCount"></span></div>
+      <div id="pfwTree" class="pfw-tree"></div>
+      <div class="pfw-sidebar-foot"><span class="material-symbols-outlined">info</span><span>Branches are real library prompts. History is preserved.</span></div>
+    </aside>
+
+    <section class="pfw-work">
+      <div class="pfw-toolbar">
+        <div class="pfw-mode-tabs">
+          <button class="pfw-mode active" data-pfw-mode="edit">Editor</button>
+          <button class="pfw-mode" data-pfw-mode="compare">Compare</button>
+          <button class="pfw-mode" data-pfw-mode="tests">Tests</button>
+          <button class="pfw-mode" data-pfw-mode="history">History</button>
+        </div>
+        <div class="pfw-actions">
+          <span id="pfwActiveScore" class="pfw-score-pill">Not evaluated</span>
+          <button class="btn btn-sm" id="pfwCompareBtn"><span class="material-symbols-outlined">compare</span> Compare</button>
+          <button class="btn btn-sm" id="pfwWinnerBtn"><span class="material-symbols-outlined">star</span> Mark winner</button>
+          <button class="btn btn-sm btn-primary" id="pfwSaveBtn">Save</button>
+        </div>
+      </div>
+
+      <section data-pfw-panel="edit" class="pfw-panel">
+        <div class="pfw-editor-head">
+          <div><span id="pfwStatusBadge" class="pfw-status-badge">Root</span><span id="pfwParentLabel" class="pfw-parent-label"></span></div>
+          <div class="pfw-secondary-actions"><button class="btn btn-sm" id="pfwArchiveBtn">Archive</button><button class="btn btn-sm btn-danger" id="pfwDeleteBtn">Delete</button></div>
+        </div>
+        <input id="pfwTitleInput" class="pfw-title-input" placeholder="Branch name">
+        <textarea id="pfwContentInput" class="pfw-content-input" spellcheck="false" placeholder="Edit the prompt..."></textarea>
+        <div class="pfw-diff-card"><div class="pfw-card-head"><span>Changes from parent</span><span class="pfw-muted">Live diff</span></div><div id="pfwMiniDiff" class="pfw-mini-diff"></div></div>
+      </section>
+
+      <section data-pfw-panel="compare" class="pfw-panel" hidden>
+        <div class="pfw-panel-head"><div><span class="pfw-kicker">A / B</span><h3>Compare branches</h3><p id="pfwCompareMeta">Run the same test against both branches.</p></div><div class="pfw-secondary-actions"><select class="pfw-compare-select" id="pfwCompareSelect" aria-label="Comparison branch"></select><button class="btn btn-sm btn-primary" id="pfwRunABBtn">Run blind A/B</button><button class="btn btn-sm" id="pfwMergeBtn">Merge into new branch</button></div></div>
+        <div class="pfw-compare-grid"><div><div class="pfw-compare-label">A, active branch</div><pre id="pfwCompareLeft" class="pfw-compare-box"></pre></div><div><div class="pfw-compare-label">B, comparison branch</div><pre id="pfwCompareRight" class="pfw-compare-box"></pre></div></div>
+        <div id="pfwAbResult" class="pfw-ab-result"></div>
+        <div class="pfw-compare-tip">The evaluator receives the same test and quality bar for both branches. Scores are stored locally with this experiment.</div>
+      </section>
+
+      <section data-pfw-panel="tests" class="pfw-panel" hidden>
+        <div class="pfw-panel-head"><div><span class="pfw-kicker">FIXED TEST SET</span><h3>Judge the prompt, not the conditions.</h3><p>Use the same inputs to expose regressions between branches.</p></div><button class="btn btn-sm btn-primary" id="pfwAddTestBtn"><span class="material-symbols-outlined">add</span> Add test</button></div>
+        <div id="pfwTestsList" class="pfw-tests"></div>
+        <div class="pfw-test-runbar"><span>Active branch: run its strongest test case against the configured AI judge.</span><button class="btn btn-accent" id="pfwRunTestBtn"><span class="material-symbols-outlined">science</span> Evaluate branch</button></div>
+      </section>
+
+      <section data-pfw-panel="history" class="pfw-panel" hidden>
+        <div class="pfw-panel-head"><div><span class="pfw-kicker">VERSION HISTORY</span><h3>Every edit leaves evidence.</h3><p>Restore an earlier saved revision without erasing the current state.</p></div></div>
+        <div id="pfwHistoryList" class="pfw-history"></div>
+      </section>
+    </section>
+
+    <aside class="pfw-inspector">
+      <div class="pfw-inspector-head"><span class="pfw-kicker">EXPERIMENT</span><strong>Branch intelligence</strong></div>
+      <div class="pfw-stat-grid">
+        <div><span>Branches</span><strong id="pfwBranchCount">0</strong></div>
+        <div><span>Winner</span><strong id="pfwWinnerLabel">None</strong></div>
+      </div>
+      <div class="pfw-inspector-section"><span class="pfw-section-title">Workflow</span><ol><li>Fork without touching the source.</li><li>Change one meaningful thing.</li><li>Run the same test.</li><li>Compare evidence.</li><li>Keep, merge or archive.</li></ol></div>
+      <div class="pfw-inspector-section"><span class="pfw-section-title">Controls</span><div class="pfw-control-list"><span><kbd>Ctrl</kbd><kbd>S</kbd> save</span><span><kbd>Esc</kbd> close</span></div></div>
+    </aside>
+  </main>
+</div>
+
+<!-- ============================================================
      WORKSPACE: Prompt Board
      Pin prompts into curated boards -- cross-cutting collections
      independent of folders and tags.
@@ -4481,6 +4654,22 @@
         <span class="launcher-card-text">
         <span class="launcher-card-title">Gauntlet Loop</span>
         <span class="launcher-card-desc">Generate a fan-out/loop/harsh-critic AAA build prompt from your inputs</span>
+      </span>
+        <span class="launcher-card-pro">PRO</span>
+      </button>
+      <button class="launcher-card" data-open="openPromptIdeWorkspace" data-premium="true">
+        <span class="material-symbols-outlined launcher-card-icon">terminal</span>
+        <span class="launcher-card-text">
+        <span class="launcher-card-title">Prompt IDE</span>
+        <span class="launcher-card-desc">Develop, run, critique and iterate prompts with a power-user workflow</span>
+      </span>
+        <span class="launcher-card-pro">PRO</span>
+      </button>
+      <button class="launcher-card" data-open="openPromptForkingWorkspace" data-premium="true">
+        <span class="material-symbols-outlined launcher-card-icon">account_tree</span>
+        <span class="launcher-card-text">
+        <span class="launcher-card-title">Prompt Forking</span>
+        <span class="launcher-card-desc">Branch, compare, evaluate and evolve prompts without losing lineage</span>
       </span>
         <span class="launcher-card-pro">PRO</span>
       </button>
@@ -4809,7 +4998,9 @@
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
-<script defer src="/static/app.js?v=4dc25a4a"></script>
+<script src="/static/qrcode.min.js"></script>
+<script defer src="/static/app.js?v=6045f561"></script>
+<script src="/static/accounts.js?v=accounts1"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

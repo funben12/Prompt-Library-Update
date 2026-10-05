@@ -4591,6 +4591,7 @@ Here are my prompts:
     function getWorkspaceCommands() {
         const table = [
             ['All Workspaces', 'grid_view', 'openWorkspacesLauncher', 'launcher tools browse grid'],
+            ['Prompt Forking Workspace', 'account_tree', 'openPromptForkingWorkspace', 'fork branch lineage version compare experiment evaluate prompt'],
             ['Prompt Generator', 'bolt', 'openGenWorkspace', 'generate create task describe ai'],
             ['Prompt from Example', 'content_paste_search', 'openExampleWorkspace', 'reverse engineer output example input infer'],
             ['Prompt Optimizer', 'rocket_launch', 'openOptimizerWorkspace', 'optimize improve score quality'],
@@ -4599,6 +4600,7 @@ Here are my prompts:
             ['Tone & Style Rewriter', 'tune', 'openToneWorkspace', 'tone style rewrite voice register formal casual friendly technical persuasive playful direct concise'],
             ['Prompt Translator', 'translate', 'openTranslateWorkspace', 'translate language spanish french german portuguese italian japanese chinese korean arabic hindi localize'],
             ['Gauntlet Loop', 'shield', 'openGauntletWorkspace', 'gauntlet stress test critic adversarial harsh review rounds pass fail refine'],
+            ['Prompt IDE', 'terminal', 'openPromptIdeWorkspace', 'prompt ide editor power user test critique gauntlet variables tokens run improve iterate'],
             ['Prompt Components', 'extension', 'openComponentsWorkspace', 'blocks drag drop builder frameworks'],
             ['Prompt Forge', 'construction', 'openForgeWorkspace', 'build structured framework rtf costar'],
             ['Prompt Lab', 'biotech', 'openLabWorkspace', 'ab test variants compare experiment'],
@@ -4903,6 +4905,7 @@ Here are my prompts:
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace', '#forkWorkstation',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
             '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace', '#gauntletWorkspace',
+            '#promptIdeWorkspace', '#promptForkingWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5026,7 +5029,7 @@ Here are my prompts:
                     return;
                 }
                 if (v === 'fork') {
-                    window.openForkWorkstation(state.detailId);
+                    window.openPromptForkingWorkspace(state.detailId);
                     return;
                 }
                 if (v === 'pulse') {
@@ -5095,6 +5098,14 @@ Here are my prompts:
                 }
                 if (v === 'gauntlet') {
                     window.openGauntletWorkspace();
+                    return;
+                }
+                if (v === 'promptide') {
+                    window.openPromptIdeWorkspace();
+                    return;
+                }
+                if (v === 'promptforking') {
+                    window.openPromptForkingWorkspace();
                     return;
                 }
                 const stringViews = ['library', 'favorites'];
@@ -5182,7 +5193,7 @@ Here are my prompts:
 
         $('#closeDetailPanel')?.addEventListener('click', closeDetailPanel);
         $('#panelFavBtn')?.addEventListener('click', () => state.detailId && toggleFav(state.detailId));
-        $('#panelForkBtn')?.addEventListener('click', () => state.detailId && window.openForkWorkstation(state.detailId));
+        $('#panelForkBtn')?.addEventListener('click', () => state.detailId && window.openPromptForkingWorkspace(state.detailId));
         $('#panelEditBtn')?.addEventListener('click', () => state.detailId && editPrompt(state.detailId));
         $('#panelDeleteBtn')?.addEventListener('click', () => state.detailId && deletePromptById(state.detailId));
         $('#panelDuplicateBtn')?.addEventListener('click', () => state.detailId && duplicatePrompt(state.detailId));
@@ -8230,7 +8241,7 @@ Must avoid: [Anything sensitive or previously declined]`
         if (!ws) return;
         ws.classList.remove('open');
         document.body.style.overflow = '';
-        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+        $$$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
 
     // Expose for modal side-panel + panel refresh compatibility
@@ -14503,6 +14514,40 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     /* ============================================================================
+       PROMPT FORKING WORKSPACE V2
+       First-class prompt branches, evaluation, lineage and experimentation.
+       ============================================================================ */
+    const _pfw = { rootId:null, activeId:null, compareId:null, nodes:new Map(), tests:[], results:{}, winnerId:null };
+    const _pfwKey = rootId => 'promptlib.pfw.v2.' + rootId;
+    function _pfwSaveLocal(){if(!_pfw.rootId)return;try{localStorage.setItem(_pfwKey(_pfw.rootId),JSON.stringify({tests:_pfw.tests,results:_pfw.results,winnerId:_pfw.winnerId}));}catch(e){}}
+    function _pfwLoadLocal(rootId){try{const d=JSON.parse(localStorage.getItem(_pfwKey(rootId))||'{}');_pfw.tests=Array.isArray(d.tests)?d.tests:[];_pfw.results=d.results&&typeof d.results==='object'?d.results:{};_pfw.winnerId=d.winnerId||null;}catch(e){_pfw.tests=[];_pfw.results={};_pfw.winnerId=null;}if(!_pfw.tests.length)_pfw.tests=[{id:'default-1',name:'Core task',input:'Use this test case to judge whether the prompt reliably produces the intended result.',expected:'The response should follow the prompt precisely, remain useful, and avoid inventing requirements.'}];_pfwSaveLocal();}
+    async function _pfwGetPrompt(id){const local=state.prompts.find(p=>Number(p.id)===Number(id));if(local)return local;const r=await fetch('/api/prompts/'+id);return r.ok?await r.json():null;}
+    async function _pfwLoadTree(rootId){_pfw.nodes.clear();const root=await _pfwGetPrompt(rootId);if(!root)return;const walk=async p=>{_pfw.nodes.set(Number(p.id),p);const r=await fetch('/api/prompts/'+p.id+'/forks');if(!r.ok)return;const d=await r.json();for(const child of(d.forks||[]))await walk(child);};await walk(root);}
+    function _pfwChildren(id){return[..._pfw.nodes.values()].filter(p=>Number(p.parent_id)===Number(id));}
+    function _pfwRenderTree(){const el=$('#pfwTree');if(!el)return;const root=_pfw.nodes.get(Number(_pfw.rootId));if(!root){el.innerHTML='<div class="pfw-empty">Select a prompt to begin an experiment.</div>';return;}const render=(p,depth)=>{const children=_pfwChildren(p.id),r=_pfw.results[p.id],score=r&&r.score!=null?r.score:null,winner=Number(_pfw.winnerId)===Number(p.id),active=Number(_pfw.activeId)===Number(p.id);let html='<div class="pfw-tree-node '+(active?'is-active ':'')+(winner?'is-winner ':'')+'" style="--pfw-depth:'+depth+'" data-pfw-node="'+p.id+'"><button class="pfw-node-main" type="button"><span class="pfw-node-dot"></span><span class="pfw-node-title">'+escapeHtml(p.title||'Untitled')+'</span><span class="pfw-node-kind '+(p.parent_id?'':'root')+'">'+(p.parent_id?'fork':'root')+'</span>'+(score==null?'':'<span class="pfw-node-score">'+score+'</span>')+(winner?'<span class="material-symbols-outlined pfw-winner-icon">star</span>':'')+'</button></div>';if(children.length)html+='<div class="pfw-tree-children">'+children.map(c=>render(c,depth+1)).join('')+'</div>';return html;};el.innerHTML=render(root,0);const tc=$('#pfwTreeCount'),bc=$('#pfwBranchCount'),wl=$('#pfwWinnerLabel');if(tc)tc.textContent=_pfw.nodes.size+' versions';if(bc)bc.textContent=_pfw.nodes.size;if(wl)wl.textContent=_pfw.winnerId&&_pfw.nodes.get(Number(_pfw.winnerId))?(_pfw.nodes.get(Number(_pfw.winnerId)).title||'Marked'):'None';el.querySelectorAll('[data-pfw-node]').forEach(n=>n.querySelector('.pfw-node-main').addEventListener('click',()=>_pfwSelect(Number(n.dataset.pfwNode))));}
+    function _pfwSetMode(mode){const ws=$('#promptForkingWorkspace');if(!ws)return;ws.querySelectorAll('[data-pfw-mode]').forEach(b=>b.classList.toggle('active',b.dataset.pfwMode===mode));ws.querySelectorAll('[data-pfw-panel]').forEach(p=>p.hidden=p.dataset.pfwPanel!==mode);if(mode==='compare')_pfwRenderCompare();if(mode==='tests')_pfwRenderTests();if(mode==='history')_pfwRenderHistory();}
+    function _pfwRenderActive(){const p=_pfw.nodes.get(Number(_pfw.activeId));if(!p)return;const t=$('#pfwTitleInput'),c=$('#pfwContentInput'),par=$('#pfwParentLabel'),badge=$('#pfwStatusBadge'),score=$('#pfwActiveScore');if(t)t.value=p.title||'';if(c)c.value=p.content||'';if(par){const pp=p.parent_id?_pfw.nodes.get(Number(p.parent_id)):null;par.textContent=pp?'Forked from '+(pp.title||'Untitled'):'Original prompt';}if(badge){badge.textContent=_pfw.winnerId==p.id?'Winner':p.status==='deprecated'?'Archived':p.parent_id?'Branch':'Root';badge.className='pfw-status-badge '+(_pfw.winnerId==p.id?'winner':p.status==='deprecated'?'archived':'');}if(score){const r=_pfw.results[p.id];score.textContent=r&&r.score!=null?r.score+'/100':'Not evaluated';}_pfwRenderDiff();}
+    function _pfwDiff(a,b){const aa=(a||'').split(/\r?\n/),bb=(b||'').split(/\r?\n/),out=[];let i=0,j=0;while(i<aa.length||j<bb.length){if(i<aa.length&&j<bb.length&&aa[i]===bb[j]){out.push({type:'same',text:aa[i++]});j++;}else if(i<aa.length&&(j>=bb.length||!bb.slice(j,Math.min(bb.length,j+4)).includes(aa[i])))out.push({type:'del',text:aa[i++]});else if(j<bb.length)out.push({type:'add',text:bb[j++]});}return out;}
+    function _pfwRenderDiff(){const el=$('#pfwMiniDiff'),p=_pfw.nodes.get(Number(_pfw.activeId));if(!el||!p)return;const parent=p.parent_id?_pfw.nodes.get(Number(p.parent_id)):null;if(!parent){el.innerHTML='<div class="pfw-diff-empty">This is the root. Create a fork to see changes.</div>';return;}el.innerHTML=_pfwDiff(parent.content,p.content).slice(0,180).map(x=>'<div class="pfw-diff-line '+x.type+'"><span>'+(x.type==='add'?'+':x.type==='del'?'−':' ')+'</span><code>'+escapeHtml(x.text||' ')+'</code></div>').join('');}
+    function _pfwRenderCompare(){const a=_pfw.nodes.get(Number(_pfw.activeId)),sel=$('#pfwCompareSelect'),l=$('#pfwCompareLeft'),r=$('#pfwCompareRight'),m=$('#pfwCompareMeta');if(sel){const others=[..._pfw.nodes.values()].filter(p=>Number(p.id)!==Number(_pfw.activeId));sel.innerHTML=others.map(p=>'<option value="'+p.id+'" '+(Number(p.id)===Number(_pfw.compareId)?'selected':'')+'>'+escapeHtml(p.title||'Untitled')+'</option>').join('');if(!_pfw.compareId&&others[0]){_pfw.compareId=Number(others[0].id);sel.value=String(_pfw.compareId);}}const b=_pfw.nodes.get(Number(_pfw.compareId));if(!l||!r)return;if(!b||!a){l.textContent=a?a.content:'';r.textContent='Create another branch to compare.';if(m)m.textContent='';return;}l.textContent=a.content||'';r.textContent=b.content||'';const ar=_pfw.results[a.id],br=_pfw.results[b.id];if(m)m.textContent='A '+(ar?.score??'not run')+' / 100  ·  B '+(br?.score??'not run')+' / 100';if(sel&&!sel.dataset.bound){sel.dataset.bound='1';sel.addEventListener('change',()=>{_pfw.compareId=Number(sel.value);_pfwRenderCompare();});}}
+    function _pfwRenderTests(){const list=$('#pfwTestsList');if(!list)return;list.innerHTML=_pfw.tests.map(t=>{const r=_pfw.results[_pfw.activeId+':'+t.id];return'<article class="pfw-test-card"><div class="pfw-test-head"><strong>'+escapeHtml(t.name)+'</strong><button class="pfw-icon-button" data-pfw-test-delete="'+t.id+'" aria-label="Delete test"><span class="material-symbols-outlined">delete</span></button></div><p><b>Input</b><br>'+escapeHtml(t.input)+'</p><p><b>Quality bar</b><br>'+escapeHtml(t.expected)+'</p><div class="pfw-test-result">'+(r?'<span class="pfw-result-score">'+r.score+'/100</span><span>'+escapeHtml(r.summary||'')+'</span>':'<span class="pfw-muted">Not run yet</span>')+'</div></article>';}).join('');list.querySelectorAll('[data-pfw-test-delete]').forEach(b=>b.addEventListener('click',()=>{_pfw.tests=_pfw.tests.filter(t=>t.id!==b.dataset.pfwTestDelete);_pfwSaveLocal();_pfwRenderTests();}));}
+    function _pfwRenderHistory(){const el=$('#pfwHistoryList'),p=_pfw.nodes.get(Number(_pfw.activeId));if(!el||!p)return;fetch('/api/prompts/'+p.id+'/versions').then(r=>r.json()).then(vs=>{el.innerHTML=(vs||[]).map(v=>'<button class="pfw-history-row" data-pfw-version="'+v.id+'"><span>'+escapeHtml(v.title||'Untitled')+'</span><time>'+escapeHtml(v.saved_at||'')+'</time></button>').join('')||'<div class="pfw-empty">No saved revisions yet.</div>';el.querySelectorAll('[data-pfw-version]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm('Restore this revision?'))return;const r=await fetch('/api/prompts/'+p.id+'/versions/'+b.dataset.pfwVersion+'/restore',{method:'POST'});if(r.ok){await loadPrompts();await _pfwLoadTree(_pfw.rootId);await _pfwSelect(p.id);toast('Revision restored','success');}}));}).catch(()=>{el.innerHTML='<div class="pfw-empty">Could not load revision history.</div>';});}
+    async function _pfwSelect(id){if(!_pfw.nodes.has(Number(id)))return;_pfw.activeId=Number(id);_pfwRenderTree();_pfwRenderActive();_pfwRenderCompare();_pfwRenderTests();_pfwSetMode('edit');}
+    async function _pfwCreateFork(){if(!_pfw.activeId)return;const p=_pfw.nodes.get(Number(_pfw.activeId));const r=await fetch('/api/prompts/'+p.id+'/fork',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:(p.title||'Prompt')+' · Fork'})});if(!r.ok){toast('Could not create fork','error');return;}const d=await r.json();await loadPrompts();await _pfwLoadTree(_pfw.rootId);await _pfwSelect(d.id);toast('New branch created','success');}
+    async function _pfwSave(){if(!_pfw.activeId)return;const p=_pfw.nodes.get(Number(_pfw.activeId)),title=$('#pfwTitleInput')?.value.trim(),content=$('#pfwContentInput')?.value||'';if(!title||!content.trim()){toast('A branch needs a title and prompt content','warning');return;}const payload={title,content,description:p.description||'',categories:p.categories||[],tags:p.tags||[],folder_id:p.folder_id||null,colour_label:p.colour_label||'',rating:p.rating||0,notes:p.notes||'',chain_ids:p.chain_ids||[],variable_meta:p.variable_meta||{},chat_turns:p.chat_turns||[],role_id:p.role_id||null,status:p.status||'draft',parent_id:p.parent_id||null,prompt_domain:p.prompt_domain||'',prompt_use_case:p.prompt_use_case||'',prompt_output_format:p.prompt_output_format||'',prompt_tone:p.prompt_tone||''};const r=await fetch('/api/prompts/'+p.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(!r.ok){toast('Save failed','error');return;}await loadPrompts();await _pfwLoadTree(_pfw.rootId);await _pfwSelect(p.id);toast('Branch saved','success');}
+    async function _pfwDelete(){const p=_pfw.nodes.get(Number(_pfw.activeId));if(!p||!confirm('Delete this branch? Its children remain independent prompts.'))return;const parent=p.parent_id;const r=await fetch('/api/prompts/'+p.id,{method:'DELETE'});if(!r.ok){toast('Could not delete branch','error');return;}await loadPrompts();await _pfwLoadTree(_pfw.rootId);if(_pfw.nodes.has(Number(parent)))await _pfwSelect(parent);else await _pfwSelect(_pfw.rootId);toast('Branch deleted','success');}
+    async function _pfwArchive(){const p=_pfw.nodes.get(Number(_pfw.activeId));if(!p)return;const next=p.status==='deprecated'?'draft':'deprecated';const r=await fetch('/api/prompts/'+p.id+'/status',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:next})});if(!r.ok){toast('Could not change branch status','error');return;}await loadPrompts();await _pfwLoadTree(_pfw.rootId);await _pfwSelect(p.id);}
+    function _pfwMarkWinner(){_pfw.winnerId=Number(_pfw.activeId);_pfwSaveLocal();_pfwRenderTree();_pfwRenderActive();toast('Winner marked','success');}
+    async function _pfwRunTest(){const p=_pfw.nodes.get(Number(_pfw.activeId)),t=_pfw.tests[0];if(!p||!t||typeof callAI!=='function'){toast('Add a test and configure AI first','warning');return;}try{const output=await callAI(p.content,t.input,1400);const judge='You are a rigorous prompt evaluator. Return strict JSON with score and summary. Score 0-100 for instruction following, usefulness, consistency, specificity and likely task success. Judge the OUTPUT, not the prompt itself.';const judgeInput='PROMPT:\n'+p.content+'\n\nTEST INPUT:\n'+t.input+'\n\nQUALITY BAR:\n'+t.expected+'\n\nOUTPUT:\n'+output;const raw=await callAI(judge,judgeInput,900),parsed=JSON.parse(String(raw).replace(/^\`\`\`json\s*/i,'').replace(/\`\`\`$/,'').trim()),score=Math.max(0,Math.min(100,Number(parsed.score)||0));_pfw.results[p.id]={score,summary:parsed.summary||'',output:String(output),at:Date.now()};_pfw.results[p.id+':'+t.id]={score,summary:parsed.summary||'',output:String(output),at:Date.now()};_pfwSaveLocal();_pfwRenderTree();_pfwRenderActive();_pfwRenderTests();toast('Evaluation complete: '+score+'/100','success');}catch(e){toast('Evaluation failed: '+e.message,'error');}}
+    async function _pfwRunAB(){const a=_pfw.nodes.get(Number(_pfw.activeId)),b=_pfw.nodes.get(Number(_pfw.compareId)),t=_pfw.tests[0];if(!a||!b||!t){toast('Select two branches and add a test first','warning');return;}if(typeof callAI!=='function'){toast('AI is not configured','warning');return;}try{const outA=await callAI(a.content,t.input,1400),outB=await callAI(b.content,t.input,1400);const judge='You are a blind A/B evaluator. Compare two outputs against the same test and quality bar. Do not favour A because it appears first. Return strict JSON with winner, scoreA, scoreB and reason.';const raw=await callAI(judge,'TEST INPUT:\n'+t.input+'\nQUALITY BAR:\n'+t.expected+'\n\nOUTPUT A:\n'+outA+'\n\nOUTPUT B:\n'+outB,1100);const parsed=JSON.parse(String(raw).replace(/^\`\`\`json\s*/i,'').replace(/\`\`\`$/,'').trim()),sa=Math.max(0,Math.min(100,Number(parsed.scoreA)||0)),sb=Math.max(0,Math.min(100,Number(parsed.scoreB)||0));_pfw.results[a.id]={score:sa,summary:'A/B result',output:String(outA),at:Date.now()};_pfw.results[b.id]={score:sb,summary:'A/B result',output:String(outB),at:Date.now()};_pfwSaveLocal();_pfwRenderTree();_pfwRenderCompare();$('#pfwAbResult').textContent='Winner: '+(String(parsed.winner).toUpperCase()==='B'?'B':'A')+' · A '+sa+' · B '+sb+' · '+(parsed.reason||'');}catch(e){toast('A/B evaluation failed: '+e.message,'error');}}
+    async function _pfwMerge(){const a=_pfw.nodes.get(Number(_pfw.activeId)),b=_pfw.nodes.get(Number(_pfw.compareId));if(!a||!b||!confirm('Create a new branch by merging these prompts with AI?'))return;if(typeof callAI!=='function'){toast('AI is not configured','warning');return;}try{const merged=await callAI('You merge prompt variants. Preserve the strongest concrete instructions from both, remove contradictions and duplication, and return only the complete merged prompt.','PROMPT A:\n'+a.content+'\n\nPROMPT B:\n'+b.content,1800);const r=await fetch('/api/prompts/'+a.id+'/fork',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:(a.title||'Prompt')+' · Merge'})});if(!r.ok)throw new Error('Could not create merge branch');const d=await r.json(),p=await _pfwGetPrompt(d.id);const save=await fetch('/api/prompts/'+d.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:p.title,content:String(merged).trim(),description:p.description||'',categories:p.categories||[],tags:p.tags||[],folder_id:p.folder_id||null,colour_label:p.colour_label||'',rating:p.rating||0,notes:'Merged from #'+a.id+' and #'+b.id,chain_ids:p.chain_ids||[],variable_meta:p.variable_meta||{},chat_turns:p.chat_turns||[],role_id:p.role_id||null,status:'draft',parent_id:a.id,prompt_domain:p.prompt_domain||'',prompt_use_case:p.prompt_use_case||'',prompt_output_format:p.prompt_output_format||'',prompt_tone:p.prompt_tone||''})});if(!save.ok)throw new Error('Could not save merged branch');await loadPrompts();await _pfwLoadTree(_pfw.rootId);await _pfwSelect(d.id);toast('Merged branch created','success');}catch(e){toast('Merge failed: '+e.message,'error');}}
+    function _pfwAddTest(){const name=prompt('Test name','New test case');if(!name)return;const input=prompt('Test input','');if(!input)return;const expected=prompt('Quality bar','The output should satisfy the intended task precisely.');_pfw.tests.push({id:'t-'+Date.now(),name,input,expected});_pfwSaveLocal();_pfwRenderTests();}
+    function _pfwClose(){$('#promptForkingWorkspace')?.classList.remove('open');document.body.style.overflow='';}
+    function _pfwRenderPicker(){const list=$('#pfwPromptPicker');if(!list)return;const q=($('#pfwPromptSearch')?.value||'').toLowerCase().trim();const items=state.prompts.filter(p=>!q||((p.title||'')+' '+(p.content||'')).toLowerCase().includes(q)).slice(0,80);list.innerHTML=items.map(p=>'<button type="button" class="pfw-picker-row" data-pfw-pick="'+p.id+'"><span class="material-symbols-outlined">description</span><span><b>'+escapeHtml(p.title||'Untitled')+'</b><small>'+escapeHtml((p.description||p.content||'').slice(0,100))+'</small></span></button>').join('')||'<div class="pfw-empty">No prompts found.</div>';list.querySelectorAll('[data-pfw-pick]').forEach(b=>b.addEventListener('click',()=>window.openPromptForkingWorkspace(Number(b.dataset.pfwPick))));}
+    window.openPromptForkingWorkspace=async function(promptId){if(!state.isPremium){showPremiumModal();return;}const ws=$('#promptForkingWorkspace');if(!ws)return;ws.classList.add('open');document.body.style.overflow='hidden';const id=Number(promptId||state.detailId||0);if(!id){_pfw.rootId=null;_pfw.activeId=null;_pfw.nodes.clear();$('#pfwPicker')?.removeAttribute('hidden');$('#pfwMain')?.setAttribute('hidden','');_pfwRenderPicker();return;}$('#pfwPicker')?.setAttribute('hidden','');$('#pfwMain')?.removeAttribute('hidden');_pfw.rootId=id;await _pfwLoadTree(id);_pfwLoadLocal(id);_pfw.activeId=id;_pfw.compareId=null;_pfwRenderTree();_pfwRenderActive();_pfwRenderTests();_pfwSetMode('edit');};
+    function initPromptForkingWorkspace(){const ws=$('#promptForkingWorkspace');if(!ws)return;$('#pfwCloseBtn')?.addEventListener('click',_pfwClose);$('#pfwNewForkBtn')?.addEventListener('click',_pfwCreateFork);$('#pfwSaveBtn')?.addEventListener('click',_pfwSave);$('#pfwDeleteBtn')?.addEventListener('click',_pfwDelete);$('#pfwArchiveBtn')?.addEventListener('click',_pfwArchive);$('#pfwWinnerBtn')?.addEventListener('click',_pfwMarkWinner);$('#pfwRunTestBtn')?.addEventListener('click',_pfwRunTest);$('#pfwRunABBtn')?.addEventListener('click',_pfwRunAB);$('#pfwMergeBtn')?.addEventListener('click',_pfwMerge);$('#pfwAddTestBtn')?.addEventListener('click',_pfwAddTest);$('#pfwCompareBtn')?.addEventListener('click',()=>{const ids=[..._pfw.nodes.keys()].filter(id=>id!==Number(_pfw.activeId));if(!ids.length)return;_pfw.compareId=_pfw.compareId&&ids.includes(Number(_pfw.compareId))?_pfw.compareId:ids[0];_pfwSetMode('compare');});ws.querySelectorAll('[data-pfw-mode]').forEach(b=>b.addEventListener('click',()=>_pfwSetMode(b.dataset.pfwMode)));$('#pfwPromptSearch')?.addEventListener('input',_pfwRenderPicker);$('#pfwTitleInput')?.addEventListener('input',_pfwRenderDiff);$('#pfwContentInput')?.addEventListener('input',_pfwRenderDiff);ws.addEventListener('keydown',e=>{if(e.key==='Escape')_pfwClose();});}
+
+    /* ============================================================================
        LIBRARY ORGANIZER (formerly Library Pulse)
        Health scan of the whole library — duplicates, missing metadata, stale and
        thin prompts — plus fix actions: delete/keep duplicates, bulk-delete or
@@ -17522,6 +17567,244 @@ Must avoid: [Anything sensitive or previously declined]`
         });
     }
 
+
+    /* ============================================================================
+       WORKSPACE: Prompt IDE
+       Power-user prompt development environment. The prompt is the source of truth.
+       The right rail handles execution, variables, quality signals and the Gauntlet.
+       ============================================================================ */
+    const _pidState = { promptId: null, prompt: null, running: false, round: 0, history: [] };
+
+    function _pidPromptText() { return ($('#pidPromptEditor')?.value || '').trim(); }
+    function _pidTestInput() { return ($('#pidTestInput')?.value || '').trim(); }
+    function _pidQualityBar() {
+        return ($('#pidQualityBar')?.value || '').trim() ||
+            'A best-in-class prompt for its task. It should outperform a normal expert-written prompt on clarity, control, specificity, reliability, and usefulness.';
+    }
+    function _pidRenderMeta() {
+        const text = _pidPromptText();
+        const vars = detectVariables(text || '');
+        const tokens = Math.max(0, Math.ceil(text.length / 4));
+        const varsEl = $('#pidVariables');
+        const statusEls = $$('.pid-quality-status');
+        if ($('#pidTokenCount')) $('#pidTokenCount').textContent = '~' + tokens.toLocaleString();
+        if ($('#pidCharCount')) $('#pidCharCount').textContent = text.length.toLocaleString() + ' chars';
+        if (varsEl) varsEl.innerHTML = vars.length
+            ? vars.map(v => '<span class="pid-var-chip">' + escapeHtml(v) + '</span>').join('')
+            : '<span class="hint">No variables detected</span>';
+        const signals = [
+            text.length >= 240,
+            vars.length > 0,
+            /\b(role|goal|task|context|constraint|output|format|criteria)\b/i.test(text),
+            text.includes('[[') || text.includes('{{'),
+            text.split(/\s+/).length >= 60
+        ];
+        const score = Math.round(signals.filter(Boolean).length / signals.length * 100);
+        if ($('#pidQualityMeter')) $('#pidQualityMeter').style.width = score + '%';
+        statusEls.forEach(el => el.textContent = score >= 80 ? 'Strong structure' : score >= 50 ? 'Needs refinement' : 'Early draft');
+    }
+    function _pidSetOutput(text, kind) {
+        const out = $('#pidRunOutput');
+        if (!out) return;
+        out.className = 'pid-output' + (kind ? ' pid-output-' + kind : '');
+        out.textContent = text || '';
+    }
+    function _pidRenderHistory() {
+        const el = $('#pidHistory');
+        if (!el) return;
+        if (!_pidState.history.length) {
+            el.innerHTML = '<div class="hint">No runs yet. Run the prompt to create evidence.</div>';
+            return;
+        }
+        el.innerHTML = _pidState.history.slice().reverse().map(h =>
+            '<div class="pid-history-row"><div><strong>Round ' + h.round + '</strong><span>' +
+            escapeHtml(h.verdict || 'RUN') + '</span></div><small>' +
+            escapeHtml(h.note || '') + '</small></div>'
+        ).join('');
+    }
+    function _pidPopulatePicker(selectedId) {
+        const sel = $('#pidPromptPicker');
+        if (!sel) return;
+        const current = selectedId != null ? String(selectedId) : sel.value;
+        sel.innerHTML = '<option value="">New prompt session</option>' +
+            state.prompts.slice().sort((a,b) => (a.title || '').localeCompare(b.title || ''))
+            .map(p => '<option value="' + p.id + '">' + escapeHtml(p.title || 'Untitled') + '</option>').join('');
+        if (current) sel.value = current;
+    }
+    function _pidLoadPrompt(promptId) {
+        const p = state.prompts.find(x => String(x.id) === String(promptId));
+        _pidState.promptId = p ? p.id : null;
+        _pidState.prompt = p || null;
+        _pidState.round = 0;
+        _pidState.history = [];
+        $('#pidTitleInput').value = p?.title || '';
+        $('#pidDescInput').value = p?.description || '';
+        $('#pidPromptEditor').value = p?.content || '';
+        $('#pidQualityBar').value = '';
+        $('#pidTestInput').value = '';
+        $('#pidRunOutput').textContent = 'Run the prompt to generate evidence here.';
+        $('#pidCritiqueOutput').textContent = 'The critic has not inspected this prompt yet.';
+        $('#pidRoundLabel').textContent = 'Ready';
+        _pidRenderMeta();
+        _pidRenderHistory();
+    }
+    window.openPromptIdeWorkspace = function(promptId) {
+        if (!state.isPremium) { showPremiumModal(); return; }
+        const ws = $('#promptIdeWorkspace');
+        if (!ws) return;
+        _pidPopulatePicker(promptId);
+        if (promptId) {
+            $('#pidPromptPicker').value = String(promptId);
+            _pidLoadPrompt(promptId);
+        } else if (!_pidState.promptId) {
+            _pidLoadPrompt('');
+        }
+        ws.classList.add('open');
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'promptide'));
+        setTimeout(() => $('#pidPromptEditor')?.focus(), 80);
+    };
+    function _pidClose() {
+        $('#promptIdeWorkspace')?.classList.remove('open');
+        $('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+    async function _pidRunPrompt() {
+        if (_pidState.running) return;
+        const prompt = _pidPromptText();
+        const input = _pidTestInput() || 'Complete the task exactly as instructed.';
+        if (!prompt) { toast('Write a prompt first', 'warning'); return; }
+        _pidState.running = true;
+        $('#pidRunBtn').disabled = true;
+        $('#pidRoundLabel').textContent = 'Running';
+        _pidSetOutput('Thinking...', 'loading');
+        try {
+            const response = await callAI(prompt, input, 1800);
+            _pidSetOutput(response || '(empty response)', '');
+            _pidState.history.push({ round: _pidState.round || 1, verdict: 'RUN', note: 'Prompt executed against the current test input.' });
+            _pidRenderHistory();
+            $('#pidRoundLabel').textContent = 'Run complete';
+        } catch (e) {
+            _pidSetOutput('Error: ' + e.message, 'error');
+            $('#pidRoundLabel').textContent = 'Run failed';
+            toast(e.message, 'error');
+        } finally {
+            _pidState.running = false;
+            $('#pidRunBtn').disabled = false;
+        }
+    }
+    async function _pidCritique() {
+        if (_pidState.running) return;
+        const prompt = _pidPromptText();
+        const output = $('#pidRunOutput')?.textContent?.trim() || '';
+        if (!prompt || !output || output === 'Run the prompt to generate evidence here.') {
+            toast('Run the prompt before asking for a critique', 'warning'); return;
+        }
+        _pidState.running = true;
+        $('#pidCritiqueBtn').disabled = true;
+        $('#pidCritiqueOutput').textContent = 'Critic inspecting...';
+        const criticSystem = 'You are the independent quality critic in a Gauntlet Loop. You have fresh context and no loyalty to the prompt author. Judge the actual prompt and its observed output against the quality bar below. Be ruthless, specific, and useful. Do not praise weak work. Identify the single most important gap first. End with exactly one verdict: PASS or FAIL.\n\nQUALITY BAR:\n' + _pidQualityBar();
+        const criticUser = 'PROMPT:\n' + prompt + '\n\nTEST INPUT:\n' + (_pidTestInput() || '(none)') + '\n\nACTUAL OUTPUT:\n' + output + '\n\nReturn:\n1. Verdict\n2. What failed or succeeded\n3. The highest impact change\n4. Any concrete wording that should change';
+        try {
+            const critique = await callAI(criticSystem, criticUser, 1400);
+            $('#pidCritiqueOutput').textContent = critique || '(empty critique)';
+            _pidState.history.push({ round: _pidState.round || 1, verdict: /PASS\b/i.test(critique) && !/FAIL\b/i.test(critique) ? 'PASS' : 'FAIL', note: 'Independent critic review.' });
+            _pidRenderHistory();
+        } catch (e) {
+            $('#pidCritiqueOutput').textContent = 'Error: ' + e.message;
+            toast(e.message, 'error');
+        } finally {
+            _pidState.running = false;
+            $('#pidCritiqueBtn').disabled = false;
+        }
+    }
+    async function _pidImprove() {
+        if (_pidState.running) return;
+        const prompt = _pidPromptText();
+        const critique = $('#pidCritiqueOutput')?.textContent?.trim() || '';
+        if (!prompt || !critique || critique.startsWith('The critic')) {
+            toast('Run a critique before improving', 'warning'); return;
+        }
+        _pidState.running = true;
+        $('#pidImproveBtn').disabled = true;
+        $('#pidRoundLabel').textContent = 'Improving';
+        const improveSystem = 'You are the builder in a Gauntlet Loop. Improve the prompt, not the output. Preserve the original intent. Fix the critic\'s highest-impact failures. Remove vague language, redundant instructions, accidental conflicts, and ornamental prompt padding. Return only the complete improved prompt, with no commentary. The quality bar is:\n\n' + _pidQualityBar();
+        const improveUser = 'CURRENT PROMPT:\n' + prompt + '\n\nCRITIC:\n' + critique;
+        try {
+            const improved = await callAI(improveSystem, improveUser, 2200);
+            if (!improved) throw new Error('The improver returned an empty prompt');
+            $('#pidPromptEditor').value = improved;
+            _pidState.round += 1;
+            _pidRenderMeta();
+            $('#pidRoundLabel').textContent = 'Improved, rerun to verify';
+            toast('Prompt improved', 'success');
+        } catch (e) {
+            toast(e.message, 'error');
+        } finally {
+            _pidState.running = false;
+            $('#pidImproveBtn').disabled = false;
+        }
+    }
+    async function _pidGauntlet() {
+        if (_pidState.running) return;
+        if (!_pidPromptText()) { toast('Write a prompt first', 'warning'); return; }
+        _pidState.round += 1;
+        $('#pidRoundLabel').textContent = 'Gauntlet round ' + _pidState.round;
+        await _pidRunPrompt();
+        await _pidCritique();
+        const critique = $('#pidCritiqueOutput')?.textContent || '';
+        if (/PASS\b/i.test(critique) && !/FAIL\b/i.test(critique)) {
+            toast('Gauntlet passed. Stop or continue manually.', 'success'); return;
+        }
+        await _pidImprove();
+        toast('Round complete. Rerun to verify the improvement.', 'info');
+    }
+    async function _pidSave(asNew) {
+        const title = ($('#pidTitleInput')?.value || '').trim() || 'Prompt IDE draft';
+        const description = ($('#pidDescInput')?.value || '').trim();
+        const content = _pidPromptText();
+        if (!content) { toast('Nothing to save', 'warning'); return; }
+        try {
+            const body = {
+                title: asNew || !_pidState.promptId ? title + (asNew ? ' (IDE Draft)' : '') : title,
+                description,
+                content,
+                categories: 'Prompt Engineering',
+                tags: 'prompt-ide'
+            };
+            let result;
+            if (asNew || !_pidState.promptId) result = await api('/prompts', { method: 'POST', body });
+            else result = await api('/prompts/' + _pidState.promptId, { method: 'PUT', body });
+            await loadPrompts();
+            await loadFilterOptions();
+            _pidState.promptId = result?.id || _pidState.promptId;
+            _pidState.prompt = state.prompts.find(p => p.id === _pidState.promptId) || null;
+            _pidPopulatePicker(_pidState.promptId);
+            toast(asNew ? 'Saved as new prompt' : 'Prompt saved', 'success');
+        } catch (e) {
+            toast('Could not save: ' + e.message, 'error');
+        }
+    }
+    function initPromptIdeWorkspace() {
+        const ws = $('#promptIdeWorkspace');
+        if (!ws) return;
+        $('#pidPromptPicker')?.addEventListener('change', e => _pidLoadPrompt(e.target.value));
+        $('#pidRunBtn')?.addEventListener('click', _pidRunPrompt);
+        $('#pidCritiqueBtn')?.addEventListener('click', _pidCritique);
+        $('#pidImproveBtn')?.addEventListener('click', _pidImprove);
+        $('#pidGauntletBtn')?.addEventListener('click', _pidGauntlet);
+        $('#pidSaveBtn')?.addEventListener('click', () => _pidSave(false));
+        $('#pidSaveNewBtn')?.addEventListener('click', () => _pidSave(true));
+        $('#pidCopyBtn')?.addEventListener('click', async () => {
+            if (await copyToClipboard(_pidPromptText())) toast('Prompt copied', 'success');
+        });
+        $('#pidNewBtn')?.addEventListener('click', () => _pidLoadPrompt(''));
+        $('#pidPromptEditor')?.addEventListener('input', _pidRenderMeta);
+        $('#pidQualityBar')?.addEventListener('input', _pidRenderMeta);
+        $('#pidCloseBtn')?.addEventListener('click', _pidClose);
+        ws.addEventListener('keydown', e => { if (e.key === 'Escape') _pidClose(); });
+        _pidRenderMeta();
+        _pidRenderHistory();
+    }
+
     /* ============================================================================
        WORKSPACE: Eval Runner
        data-view="eval" | openEvalWorkspace() | initEvalWorkspace()
@@ -19882,6 +20165,8 @@ Must avoid: [Anything sensitive or previously declined]`
         initToneWorkspace(); // tone & style rewriter workspace
         initTranslateWorkspace(); // prompt translator workspace
         initGauntletWorkspace(); // gauntlet loop workspace
+        initPromptIdeWorkspace(); // prompt IDE workspace
+        initPromptForkingWorkspace(); // prompt forking workspace
         initEvalWorkspace(); // eval runner workspace
         initCompareWorkspace(); // model compare workspace
         initDashboardWorkspace(); // dashboard
