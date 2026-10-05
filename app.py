@@ -19,7 +19,10 @@ def _hash_key(k):
     return hashlib.sha256(k.strip().upper().encode()).hexdigest()
 
 app = Flask(__name__)
-CORS(app)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Strict',
+)
 
 # PHONE SHARE -- LAN access for phone/tablet, off by default, token-gated
 import secrets, socket, ipaddress
