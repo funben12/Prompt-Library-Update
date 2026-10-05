@@ -201,51 +201,16 @@ jobs:
           with tempfile.TemporaryDirectory() as tmp:
               root = Path(tmp)
               app_module.DATABASE = str(root / "PromptLibrary.db")
-              app_module.ACCOUNT_DB_DIR = str(root / "accounts")
-              os.makedirs(app_module.ACCOUNT_DB_DIR, exist_ok=True)
 
               app_module.init_db()
               client = app_module.app.test_client()
 
-              r = client.get("/api/auth/bootstrap")
-              assert r.status_code == 200, r.status_code
-              assert (r.get_json() or {}).get("accounts") == []
-
-              r = client.post("/api/auth/register", json={
-                  "name": "Audit User",
-                  "password": "AuditPassword123!"
-              })
-              assert r.status_code == 200, r.status_code
-              payload = r.get_json() or {}
-              assert payload.get("account", {}).get("name") == "Audit User"
-              assert payload.get("recovery_code")
-
-              r = client.get("/api/auth/me")
-              assert r.status_code == 200 and r.get_json().get("authenticated") is True
-
-              first_graph = client.post("/api/compositions/graph", json={"title": "First Account Graph"})
-              assert first_graph.status_code == 200, first_graph.status_code
-              first_id = first_graph.get_json()["id"]
-
-              r = client.post("/api/auth/register", json={
-                  "name": "Second User",
-                  "password": "SecondPassword123!"
-              })
-              assert r.status_code == 200, r.status_code
-
-              r = client.get("/api/compositions")
-              assert r.status_code == 200 and r.get_json() == []
-
-              r = client.post("/api/compositions/graph", json={"title": "Second Account Graph"})
-              assert r.status_code == 200, r.status_code
-
-              r = client.post("/api/auth/switch", json={"account_id": payload["account"]["id"]})
-              assert r.status_code == 200, r.status_code
+              auth_routes = [rule.rule for rule in app_module.app.url_map.iter_rules()
+                             if rule.rule.startswith("/api/auth/")]
+              assert not auth_routes, auth_routes
 
               r = client.get("/api/compositions")
               assert r.status_code == 200, r.status_code
-              assert any(row["id"] == first_id for row in r.get_json())
-              assert all(row["title"] != "Second Account Graph" for row in r.get_json())
 
               r = client.post("/api/compositions/graph", json={"title": "Audit Graph"})
               assert r.status_code == 200, r.status_code
@@ -254,28 +219,33 @@ jobs:
               r = client.put(f"/api/compositions/{cid}/graph", json={
                   "nodes": [
                       {"id": "a", "block_ref": "A", "x": 0, "y": 0},
-                      {"id": "b", "block_ref": "B", "x": 300, "y": 0}
+                      {"id": "b", "block_ref": "B", "x": 300, "y": 0},
+                      {"id": "c", "block_ref": "C", "x": 600, "y": 180}
                   ],
-                  "edges": [{
-                      "id": "e1", "source": "a", "target": "b",
-                      "source_port": "right", "target_port": "left",
-                      "relation": "sequence"
-                  }],
-                  "view_state": {"x": 10, "y": 20, "z": 1}
+                  "edges": [
+                      {"id": "e1", "source": "a", "target": "b",
+                       "source_port": "right", "target_port": "left", "relation": "sequence"},
+                      {"id": "e2", "source": "a", "target": "c",
+                       "source_port": "bottom", "target_port": "top", "relation": "branch"}
+                  ],
+                  "view_state": {"x": 10, "y": 20, "z": 1, "groups": []}
               })
               assert r.status_code == 200, r.status_code
 
               r = client.get(f"/api/compositions/{cid}/graph")
               assert r.status_code == 200, r.status_code
               graph = r.get_json()
-              assert len(graph["nodes"]) == 2
-              assert len(graph["edges"]) == 1
+              assert len(graph["nodes"]) == 3
+              assert len(graph["edges"]) == 2
 
-              r = client.post("/api/auth/logout")
-              assert r.status_code == 200
-
-              r = client.get("/api/compositions")
-              assert r.status_code == 401, r.status_code
+              conn = app_module.get_db()
+              try:
+                  integrity = conn.execute("PRAGMA integrity_check").fetchone()[0]
+                  assert integrity == "ok", integrity
+                  assert conn.execute("SELECT COUNT(*) FROM compositions").fetchone()[0] == 1
+                  assert conn.execute("SELECT COUNT(*) FROM composition_edges").fetchone()[0] == 2
+              finally:
+                  conn.close()
 
               print("Runtime smoke test passed")
           PY

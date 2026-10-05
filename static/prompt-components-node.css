@@ -18,3 +18,16 @@
 @media(max-width:800px){.pln-shell{grid-template-columns:1fr}.pln-palette{display:none}}
 
 .pln-group-frame{position:absolute;border:1px dashed var(--accent);border-radius:18px;background:var(--accent-soft);pointer-events:none;box-sizing:border-box}.pln-group-frame span{position:absolute;top:-20px;left:6px;font:700 9px var(--font-mono,monospace);color:var(--accent);text-transform:uppercase;letter-spacing:.08em}
+.pln-resize{position:absolute;right:-2px;bottom:-2px;width:14px;height:14px;border-radius:4px 0 12px 0;background:linear-gradient(135deg,transparent 42%,var(--accent) 43%,var(--accent) 55%,transparent 56%);cursor:nwse-resize;opacity:.45;z-index:8}
+.pln-resize:hover{opacity:1}
+.pln-edge-endpoint{fill:var(--surface);stroke:var(--accent);stroke-width:2;vector-effect:non-scaling-stroke;opacity:0;pointer-events:all;cursor:crosshair}
+.pln-edge-endpoint.visible,.pln-edge:hover + .pln-edge-endpoint{opacity:1}
+.pln-connection-preview{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-dasharray:7 5;vector-effect:non-scaling-stroke;opacity:.9;pointer-events:none}
+.pln-handle.hot{box-shadow:0 0 0 5px var(--accent-soft),0 0 0 1px var(--accent);transform:scale(1.25)}
+.pln-marquee{position:absolute;border:1px solid var(--accent);background:var(--accent-soft);pointer-events:none;z-index:12;box-sizing:border-box}
+.pln-tool.active{background:var(--accent-soft);color:var(--accent)}
+.pln-canvas.drop-target{box-shadow:inset 0 0 0 2px var(--accent)}
+.pln-canvas.pln-connecting{cursor:crosshair}
+.pln-canvas.pln-dragging{cursor:grabbing}
+.pln-connection-meta{font:10px var(--font-mono,monospace);color:var(--ink-3);margin-top:7px}
+.pln-danger-btn{width:100%;padding:10px;border:1px solid var(--danger);border-radius:9px;background:var(--danger-soft);color:var(--danger);font-weight:800;cursor:pointer}
