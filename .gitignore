@@ -41,3 +41,4 @@ all_keys_to_load.txt
 /.playwright-mcp
 /docs/superpowers
 *.png
+static/accounts.js

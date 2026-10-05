@@ -167,7 +167,7 @@
       if (!name) return;
       const code = prompt("Recovery code");
       if (!code) return;
-      const password = prompt("New password, 12+ characters");
+      const password = prompt("New password, 8+ characters");
       if (!password) return;
       api("/api/auth/reset",{method:"POST",body:JSON.stringify({name,recovery_code:code,new_password:password})})
         .then(async r=>({ok:r.ok,data:await r.json()}))
