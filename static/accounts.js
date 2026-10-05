@@ -26,7 +26,7 @@
   }
 
   function scopedKey(key) {
-    if (RAW_KEYS.has(key) || String(key).startsWith("pl_auth_")) return key;
+    if (RAW_KEYS.has(key)) return key;
     return activeId ? "pl:" + activeId + ":" + key : "pl:anonymous:" + key;
   }
 
