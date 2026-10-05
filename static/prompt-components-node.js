@@ -66,7 +66,15 @@
   function renderEdges(){
     svg.innerHTML='<defs><marker id="plnArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--accent)"></path></marker></defs>';
     const map=new Map(state.nodes.map(n=>[n.id,n]));
-    state.edges.forEach(e=>{const a=map.get(e.source),b=map.get(e.target);if(!a||!b)return;const p1=point(a,e.source_port||"right"),p2=point(b,e.target_port||"left");const path=document.createElementNS("http://www.w3.org/2000/svg","path");path.setAttribute("d",pathFor(p1,p2));path.setAttribute("class","pln-edge "+(state.selected.includes("edge:"+e.id)?"selected":""));path.setAttribute("marker-end","url(#plnArrow)");path.dataset.edge=e.id;svg.appendChild(path);if(e.relation&&e.relation!=="sequence"){const t=document.createElementNS("http://www.w3.org/2000/svg","text");t.setAttribute("x",(p1.x+p2.x)/2);t.setAttribute("y",(p1.y+p2.y)/2-5);t.setAttribute("class","pln-edge-label");t.textContent=e.relation;svg.appendChild(t)}})
+    state.edges.forEach(e=>{
+      const a=map.get(e.source),b=map.get(e.target);if(!a||!b)return;
+      const sp=e.source_port||"right",tp=e.target_port||"left",p1=point(a,sp),p2=point(b,tp);
+      const path=document.createElementNS("http://www.w3.org/2000/svg","path");
+      path.setAttribute("d",pathFor(p1,p2));path.setAttribute("class","pln-edge "+(state.selected.includes("edge:"+e.id)?"selected":""));path.setAttribute("marker-end","url(#plnArrow)");path.dataset.edge=e.id;svg.appendChild(path);
+      ["source","target"].forEach(side=>{const p=side==="source"?p1:p2;const dot=document.createElementNS("http://www.w3.org/2000/svg","circle");dot.setAttribute("cx",p.x);dot.setAttribute("cy",p.y);dot.setAttribute("r","5");dot.setAttribute("class","pln-edge-endpoint "+(state.selected.includes("edge:"+e.id)?"visible":""));dot.dataset.edge=e.id;dot.dataset.edgeEnd=side;svg.appendChild(dot);});
+      if(e.relation&&e.relation!=="sequence"){const t=document.createElementNS("http://www.w3.org/2000/svg","text");t.setAttribute("x",(p1.x+p2.x)/2);t.setAttribute("y",(p1.y+p2.y)/2-5);t.setAttribute("class","pln-edge-label");t.textContent=e.relation;svg.appendChild(t);}
+    });
+    if(connect?.preview){const p1=connect.preview.start,p2=connect.preview.end||p1;const line=document.createElementNS("http://www.w3.org/2000/svg","path");line.setAttribute("d",pathFor(p1,p2,connect.side||"right","left"));line.setAttribute("class","pln-connection-preview");svg.appendChild(line);}
   }
   function render(){
     applyView();
@@ -85,13 +93,13 @@
     ensureResizeHandles();
     root.querySelectorAll(".pln-resize").forEach(h=>h.addEventListener("pointerdown",e=>startResize(e,h.dataset.resizeNode)));
     const prompt=buildPrompt();
-    root.querySelector(".pln-status").textContent=state.nodes.length+" nodes · "+state.edges.length+" connections · "+prompt.split(/\s+/).filter(Boolean).length+" words";
+    root.querySelector(".pln-status").textContent=state.nodes.length+" nodes · "+state.edges.length+" connections · "+prompt.text.split(/\s+/).filter(Boolean).length+" words"+(prompt.warnings.length?" · "+prompt.warnings.length+" warning(s)":"");
     root.querySelector(".pln-zoom-label").textContent=Math.round(state.view.z*100)+"%";
   }
   function inspectorHtml(){
     if(state.selected.length!==1||state.selected[0].startsWith("edge:"))return `<div class="pln-empty"><div><strong>Graph inspector</strong>Select a component to edit its role, text and relationships.</div></div>`;
     const n=state.nodes.find(x=>x.id===state.selected[0]);if(!n)return "";
-    return `<div class="pln-inspector-body"><div class="pln-inspector-section"><div class="pln-inspector-label">Component</div><input id="plnTitle" value="${esc(n.label)}"><div style="height:8px"></div><textarea id="plnText">${esc(n.text)}</textarea></div><div class="pln-inspector-section"><div class="pln-inspector-label">Connections</div><div style="font-size:11px;color:var(--ink-3)">Incoming: ${state.edges.filter(e=>e.target===n.id).length}<br>Outgoing: ${state.edges.filter(e=>e.source===n.id).length}<br><br>Connect from any handle to another node. Multiple outputs create branches, multiple inputs create convergence.</div></div><div class="pln-inspector-section"><div class="pln-inspector-label">Generated prompt</div><div class="pln-preview">${esc(buildPrompt())}</div></div><div class="pln-auth-actions"><button class="pln-tool" id="plnDeleteSelected">Delete component</button></div></div>`;
+    return `<div class="pln-inspector-body"><div class="pln-inspector-section"><div class="pln-inspector-label">Component</div><input id="plnTitle" value="${esc(n.label)}"><div style="height:8px"></div><textarea id="plnText">${esc(n.text)}</textarea></div><div class="pln-inspector-section"><div class="pln-inspector-label">Connections</div><div style="font-size:11px;color:var(--ink-3)">Incoming: ${state.edges.filter(e=>e.target===n.id).length}<br>Outgoing: ${state.edges.filter(e=>e.source===n.id).length}<br><br>Connect from any handle to another node. Multiple outputs create branches, multiple inputs create convergence.</div></div><div class="pln-inspector-section"><div class="pln-inspector-label">Generated prompt</div><div class="pln-preview">${esc(buildPrompt().text)}</div></div><div class="pln-auth-actions"><button class="pln-tool" id="plnDeleteSelected">Delete component</button></div></div>`;
   }
   function ensureResizeHandles(){
     root.querySelectorAll(".pln-node").forEach(node=>{
