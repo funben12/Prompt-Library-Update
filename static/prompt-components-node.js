@@ -57,7 +57,7 @@
     snapshot();const p=screenToWorld(x,y);state.nodes.push(nodeDef(b,p.x-120,p.y-55));state.selected=[state.nodes.at(-1).id];markDirty();render();
   }
   function nodeHtml(n){
-    return `<div class="pln-node ${state.selected.includes(n.id)?"selected":""}" data-node="${esc(n.id)}" style="left:${n.x}px;top:${n.y}px;width:${n.width||240}px;min-height:${n.height||112}px;z-index:${n.z_index||0}">
+    return `<div class="pln-node ${state.selected.includes(n.id)?"selected":""}" data-node="${esc(n.id)}" style="left:${n.x}px;top:${n.y}px;width:${n.width||260}px;height:${n.height||140}px;z-index:${n.z_index||0}">
       <span class="pln-handle left" data-side="left" data-node="${esc(n.id)}"></span><span class="pln-handle right" data-side="right" data-node="${esc(n.id)}"></span><span class="pln-handle top" data-side="top" data-node="${esc(n.id)}"></span><span class="pln-handle bottom" data-side="bottom" data-node="${esc(n.id)}"></span>
       <div class="pln-node-head" data-drag-node="${esc(n.id)}"><span class="pln-node-dot"></span><span class="pln-node-title">${esc(n.label)}</span><button class="pln-tool pln-node-menu" data-delete-node="${esc(n.id)}" title="Delete">×</button></div>
       <textarea class="pln-node-edit" data-edit-node="${esc(n.id)}">${esc(n.text)}</textarea>
