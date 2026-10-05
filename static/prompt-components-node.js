@@ -154,15 +154,47 @@
     root.querySelectorAll("[data-delete-node]").forEach(b=>b.onclick=e=>{e.stopPropagation();deleteNodes([b.dataset.deleteNode])});
     root.querySelectorAll("[data-edit-node]").forEach(t=>t.addEventListener("input",()=>{const n=state.nodes.find(x=>x.id===t.dataset.editNode);if(n){n.text=t.value;markDirty(false);updateInspectorPreview()}}));
     root.querySelectorAll(".pln-handle").forEach(h=>h.addEventListener("pointerdown",e=>startConnect(e,h.dataset.node,h.dataset.side)));
-    root.querySelectorAll(".pln-edge").forEach(p=>p.addEventListener("click",()=>{snapshot();state.edges=state.edges.filter(e=>String(e.id)!==String(p.dataset.edge));state.selected=[];markDirty();render()}));
+    root.querySelectorAll(".pln-edge").forEach(p=>p.addEventListener("pointerdown",e=>{e.stopPropagation();state.selected=e.shiftKey?[...new Set([...state.selected,"edge:"+p.dataset.edge])]:["edge:"+p.dataset.edge];render();}));
     const title=inspector.querySelector("#plnTitle");if(title)title.oninput=()=>{const n=state.nodes.find(x=>x.id===state.selected[0]);if(n){n.label=title.value;markDirty(false);render()}};const text=inspector.querySelector("#plnText");if(text)text.oninput=()=>{const n=state.nodes.find(x=>x.id===state.selected[0]);if(n){n.text=text.value;markDirty(false);render()}};const del=inspector.querySelector("#plnDeleteSelected");if(del)del.onclick=()=>deleteNodes([...state.selected]);
   }
   function updateInspectorPreview(){const p=inspector.querySelector(".pln-preview");if(p)p.textContent=buildPrompt();}
   function moveNode(e){if(!drag)return;const p=screenToWorld(e.clientX,e.clientY),dx=p.x-drag.start.x,dy=p.y-drag.start.y;drag.originals.forEach((o,id)=>{const n=state.nodes.find(x=>x.id===id);if(n){n.x=o.x+dx;n.y=o.y+dy}});render();}
   function endNode(){drag=null;markDirty();}
   function deleteNodes(ids){if(!ids.length)return;snapshot();const set=new Set(ids);state.nodes=state.nodes.filter(n=>!set.has(n.id));state.edges=state.edges.filter(e=>!set.has(e.source)&&!set.has(e.target));state.groups=state.groups.map(g=>({...g,nodes:g.nodes.filter(id=>!set.has(id))})).filter(g=>g.nodes.length>=2);state.selected=[];markDirty();render();}
-  function startConnect(e,id,side){e.stopPropagation();e.preventDefault();connect={source:id,side};root.classList.add("pln-connecting");document.addEventListener("pointerup",finishConnect,{once:true});}
-  function finishConnect(e){root.classList.remove("pln-connecting");if(!connect)return;const target=e.target.closest(".pln-handle");if(target&&target.dataset.node!==connect.source){const source=state.nodes.find(n=>n.id===connect.source),t=state.nodes.find(n=>n.id===target.dataset.node);if(relationAllowed(source,t)){snapshot();state.edges.push({id:uid("e"),source:source.id,target:t.id,source_port:connect.side,target_port:target.dataset.side,relation:"sequence"});markDirty();render()}}connect=null;}
+  function startConnect(e,id,side){
+    e.stopPropagation();e.preventDefault();
+    const node=state.nodes.find(n=>n.id===id);if(!node)return;
+    connect={source:id,side,preview:{start:point(node,side),end:point(node,side)}};
+    root.classList.add("pln-connecting");
+    window.addEventListener("pointermove",moveConnect);
+    window.addEventListener("pointerup",finishConnect,{once:true});
+  }
+
+  function moveConnect(e){
+    if(!connect)return;
+    connect.preview.end=screenToWorld(e.clientX,e.clientY);
+    root.querySelectorAll(".pln-handle.hot").forEach(h=>h.classList.remove("hot"));
+    const target=e.target.closest?.(".pln-handle");if(target)target.classList.add("hot");
+    renderEdges();
+  }
+
+  function finishConnect(e){
+    if(!connect)return;
+    const target=e.target.closest?.(".pln-handle");
+    root.querySelectorAll(".pln-handle.hot").forEach(h=>h.classList.remove("hot"));
+    root.classList.remove("pln-connecting");
+    if(target){
+      const source=state.nodes.find(n=>n.id===connect.source),dest=state.nodes.find(n=>n.id===target.dataset.node);
+      if(source&&dest&&relationAllowed(source,dest)){
+        snapshot();
+        const edge={id:uid("e"),source:source.id,target:dest.id,source_port:connect.side,target_port:target.dataset.side,relation:"sequence"};
+        state.edges.push(edge);state.selected=["edge:"+edge.id];markDirty();
+      }else if(source&&dest){toast(source.id===dest.id?"A component cannot connect to itself.":"That connection would create a cycle.");}
+    }
+    connect=null;
+    window.removeEventListener("pointermove",moveConnect);
+    render();
+  }
   function saveDebounced(){clearTimeout(saveTimer);saveTimer=setTimeout(save,500);}
   async function save(){
     if(!state.compositionId)return;
