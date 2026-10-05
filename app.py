@@ -188,7 +188,11 @@ def _clear_account_data(path):
         for table in tables:
             if table in keep:
                 continue
-            if re.match(r'^[A-Za-z_][A-Za-z0-9_]*
+            if re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', table):
+                conn.execute('DELETE FROM "' + table + '"')
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_setting(key):
