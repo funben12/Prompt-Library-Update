@@ -248,7 +248,15 @@ The strategic direction is a professional visual editor for prompt systems, with
 
 Do not replace this with a generic node editor, and do not damage the existing SQLite graph persistence while extending it.
 
-### Prompt Forge
+### Memory maintenance rule
+
+Substantial repository changes must update the relevant model-specific memory file automatically.
+
+GPT changes update GPT-MEMORY.md. Claude changes update MEMORY.md and any applicable Claude-specific notes. When a change establishes shared project truth, MEMORY.md must also be updated.
+
+Memory should describe the current resulting state and supersede stale instructions rather than accumulating contradictory history.
+
+## Prompt Forge
 
 The 2026-10-05 Prompt Forge workbench redesign and stylesheet cache refresh were reverted. The pre-redesign Prompt Forge layout is the current intended baseline. Do not reapply the reverted visual treatment unless explicitly requested.
 
