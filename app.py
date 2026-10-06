@@ -173,6 +173,8 @@ _RAW_KEYS = [
 # Generated 2026-05-23, batch of 15. To add more: generate keys, hash with
 # sha256(KEY.strip().upper()), append the digests below, rebuild.
 _SALES_KEY_HASHES = {
+    # CAT739K
+    '212645499f7c929859eaacd2cdffe9cb67b34f3b3d0136c45cdc41dc2f005f63',
     # PROMPTLIB-PRO-AND-001
     '9f728305141767db0715e209090e938ea7582aa5b0ecc25f8e392349124f980a',
     # Personal / manually-issued keys, hashed 2026-08-10.
