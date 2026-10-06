@@ -190,7 +190,7 @@ The Prompt Components workspace is no longer just a basic drag-and-drop node edi
 
 ### Prompt Forge
 
-Prompt Forge received a workbench-level UX redesign and stylesheet cache refresh. Treat its current layout and styling as the live direction. Do not revert it to the previous generic workspace layout.
+The 2026-10-05 Prompt Forge workbench redesign and stylesheet cache refresh were reverted because the new visual treatment was not preferred. The pre-redesign Prompt Forge layout is the current baseline. Do not reapply the reverted workbench styling or cache version unless explicitly requested.
 
 ### Workspace suite consolidation
 
