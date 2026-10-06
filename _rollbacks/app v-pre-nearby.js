@@ -28256,68 +28256,6 @@ Must avoid: [Anything sensitive or previously declined]`
             `</div>`;
     }
 
-    // Shared with the later IIFEs (phone share panel) that have no toast of their own
-    window.PL_toast = toast;
-
-    // NEARBY SHARE -- AirDrop style inbox: prompts sent from nearby devices arrive as an Accept or Decline card
-    (function initNearbyShare() {
-        const stack = document.createElement('div');
-        stack.className = 'nearby-stack';
-        stack.setAttribute('aria-live', 'polite');
-        document.body.appendChild(stack);
-        let busy = false;
-
-        function build(o) {
-            const p = o.prompt || {};
-            const el = document.createElement('div');
-            el.className = 'nearby-card';
-            el.dataset.id = o.id;
-            el.setAttribute('role', 'alertdialog');
-            el.innerHTML = '<div class="nearby-head"><span class="material-symbols-outlined">' + (o.fromType === 'desktop' ? 'computer' : 'smartphone') + '</span>' +
-                '<span><b>' + escapeHtml(o.fromName) + '</b> wants to send a prompt</span></div>' +
-                '<div class="nearby-title">' + escapeHtml(p.title || 'Untitled') + '</div>' +
-                '<div class="nearby-preview">' + escapeHtml((p.content || '').slice(0, 220)) + '</div>' +
-                '<div class="nearby-actions"><button class="btn" data-a="0" type="button">Decline</button>' +
-                '<button class="btn btn-primary" data-a="1" type="button">Accept</button></div>';
-            el.addEventListener('click', async e => {
-                const b = e.target.closest('[data-a]');
-                if (!b) return;
-                const accept = b.dataset.a === '1';
-                el.querySelectorAll('button').forEach(x => { x.disabled = true; });
-                try {
-                    const res = await fetch('/api/share/inbox/' + encodeURIComponent(o.id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accept }) });
-                    const d = await res.json();
-                    el.remove();
-                    if (!res.ok) { toast(d.error || 'Could not save the prompt', 'error'); return; }
-                    if (accept) { toast('Saved "' + (p.title || 'Untitled') + '" to Received'); loadAll(); }
-                } catch (err) {
-                    el.remove();
-                    toast('Could not save the prompt', 'error');
-                }
-            });
-            return el;
-        }
-
-        async function poll() {
-            if (busy || document.hidden) return;
-            busy = true;
-            try {
-                const res = await fetch('/api/share/inbox');
-                if (!res.ok) return;
-                const d = await res.json();
-                const ids = new Set(d.offers.map(o => o.id));
-                stack.querySelectorAll('.nearby-card').forEach(el => { if (!ids.has(el.dataset.id)) el.remove(); });
-                d.offers.forEach(o => { if (!stack.querySelector('[data-id="' + o.id + '"]')) stack.appendChild(build(o)); });
-            } catch (e) {
-                // Server busy or restarting; the next poll catches up
-            } finally {
-                busy = false;
-            }
-        }
-
-        setInterval(poll, 3000);
-        poll();
-    })();
 
 })();
 
@@ -28873,7 +28811,6 @@ Must avoid: [Anything sensitive or previously declined]`
         if (!btn) return;
         let overlay = null;
         const api = (path, method) => fetch('/api/phone/' + path, { method: method || 'GET' }).then(r => r.json());
-        const toast = (msg, kind) => { if (window.PL_toast) window.PL_toast(msg, kind); };
 
         function loadQrLib() {
             if (window.QRCode) return Promise.resolve(true);
@@ -28916,25 +28853,6 @@ Must avoid: [Anything sensitive or previously declined]`
             }
         }
 
-        async function renderNearby() {
-            const box = overlay.querySelector('.phs-nearby');
-            try {
-                const d = await fetch('/api/share/inbox').then(r => r.json());
-                box.innerHTML = '<div class="phs-sec">Nearby share</div>' +
-                    '<label class="phs-switch"><input type="checkbox" id="nbOn"> Receive prompts from nearby devices</label>' +
-                    '<label class="phs-field"><span>This computer is called</span><input class="form-input" id="nbName" maxlength="60"></label>' +
-                    '<p class="phs-note">Phones running Prompt Library on the same WiFi can send you prompts. Nothing is saved until you click Accept.</p>';
-                const on = box.querySelector('#nbOn'), name = box.querySelector('#nbName');
-                on.checked = !!d.receiving;
-                name.value = d.name || '';
-                const save = body => fetch('/api/share/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
-                on.onchange = async () => { const r = await save({ receiving: on.checked }); toast(r.receiving ? 'Receiving from nearby devices' : 'Nearby receiving is off'); };
-                name.onchange = async () => { if (name.value.trim()) { const r = await save({ name: name.value }); name.value = r.name; toast('Name saved'); } };
-            } catch (e) {
-                box.innerHTML = '';
-            }
-        }
-
         function close() { overlay.classList.remove('active'); }
 
         btn.addEventListener('click', async () => {
@@ -28944,14 +28862,13 @@ Must avoid: [Anything sensitive or previously declined]`
                 overlay.innerHTML = '<div class="modal-box-sm" role="dialog" aria-label="Continue on phone">' +
                     '<div class="modal-header"><h2>Continue on phone</h2>' +
                     '<button class="modal-close" type="button" aria-label="Close"><span class="material-symbols-outlined">close</span></button></div>' +
-                    '<div class="phs-body"></div><div class="phs-nearby"></div></div>';
+                    '<div class="phs-body"></div></div>';
                 document.body.appendChild(overlay);
                 overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
                 overlay.querySelector('.modal-close').onclick = close;
                 document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.classList.contains('active')) close(); });
             }
             overlay.classList.add('active');
-            renderNearby();
             try { render(await api('status')); }
             catch (e) { overlay.querySelector('.phs-body').textContent = 'Could not read network status.'; }
         });

@@ -248,6 +248,18 @@ The strategic direction is a professional visual editor for prompt systems, with
 
 Do not replace this with a generic node editor, and do not damage the existing SQLite graph persistence while extending it.
 
+### Nearby share (v0.2 of the Android companion, 2026-10-06)
+
+- `share_server.py` runs a second, tiny Flask app on fixed port **47800** (started in its own thread from `Main.py` after `init_db()`; failure there is logged and never stops the main app). It only serves `GET /share/hello`, `POST /share/offer`, `GET /share/offer/<id>`. Private network addresses only, 256KB body cap, offers expire after 180s, 10 offers a minute per IP, 20 pending max. It has no route to `/api` or the database.
+- Accepting is local only: `GET /api/share/inbox`, `POST /api/share/inbox/<id>` (`{accept}`), `POST /api/share/settings` (`{receiving, name}`) in `app.py`, all refused unless the request is loopback. Accepted prompts go into a `Received` folder (created on first use) with notes "Received from <device>".
+- Settings keys (existing `settings` table, no schema change): `device_id` (uuid hex, created on first boot), `device_name` (defaults to hostname), `share_receiving` ('1' default on).
+- `app.py` now has `_insert_prompt(conn, data)`; `create_prompt` and the share accept route both use it.
+- UI: incoming offers show as AirDrop style cards top right (`.nearby-stack` / `.nearby-card`, polled every 3s, code in the main IIFE). The receive switch and computer name live in the "Continue on phone" modal under NEARBY SHARE.
+- Scope gotcha: `static/app.js` has four top level IIFEs (main ends near line 28322). Later IIFEs (onboarding, viewer, phone share) cannot see `toast`, `escapeHtml` or `loadAll`; the main IIFE exposes `window.PL_toast`. The phone share panel's "Link copied" toast was silently broken by this until now.
+- `grep -c "<script" static/index.html` is **4**, not 3 (CLAUDE.md triage note is stale).
+- Desktop icon changed 2026-10-06 to the teal hardcover book with a prompt label (same art as the Android app): `icon.ico`, `static/icon.ico`, `app-icon.png`, plus `<link rel="icon">` in index.html. Old files in `_rollbacks/` as `icon v1.ico`, `static-icon v1.ico`, `app-icon v1.png`. The sidebar `logo-mark.png` is unchanged.
+- Phone side lives in `funben12/AI-App-Factory` `apps/app-003-prompt-library-mobile`. Phone to desktop only for now; desktop to phone is v0.3.
+
 ### Memory maintenance rule
 
 Substantial repository changes must update the relevant model-specific memory file automatically.
