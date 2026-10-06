@@ -216,3 +216,86 @@ Detect with: `Get-ChildItem -Force -File -Recurse | Where-Object { $_.Attributes
 
 ### Reference
 - PRD exists covering full free/premium feature inventory, DB schema, API endpoints, licensing architecture, competitive positioning
+---
+
+## Current State (2026-10-06) — supersedes older state notes where they conflict
+
+### Product architecture
+
+Prompt Library Pro is currently a local-first Windows desktop prompt engineering application. The account-management experiment has been completely reverted. The product should again be treated as having no user accounts, no authentication, no account switching, no account memory, no password layer, and no account-specific licence state.
+
+The SQLite database and Prompt Components graph core were deliberately preserved through the account-system reversion. Recent verification work focuses on database integrity and graph persistence rather than account functionality.
+
+### Prompt Components canvas upgrade
+
+The Prompt Components workspace has moved substantially beyond its earlier flat node editor baseline.
+
+Current interaction work includes:
+
+- Resizable component nodes, with stored resize state controlling rendered dimensions.
+- Marquee selection and alignment controls.
+- Improved selection and alignment feedback.
+- Live edge previews while creating connections.
+- Explicit connection endpoints.
+- Endpoint reconnection.
+- Connection inspector editing.
+- Preservation of text-input focus while editing connection data.
+- Continuous node dragging across canvas rerenders.
+- Canvas navigation polish and restored node sizing.
+- Improved graph prompt compilation for branches and convergence.
+
+The strategic direction is a professional visual editor for prompt systems, with interaction depth approaching tools such as Figma, tldraw, or React Flow, while remaining purpose-built for prompt construction and graph compilation.
+
+Do not replace this with a generic node editor, and do not damage the existing SQLite graph persistence while extending it.
+
+### Prompt Forge
+
+Prompt Forge received a substantial workbench layout redesign on 2026-10-05, followed by a stylesheet cache refresh. The redesigned workbench is now the intended live direction.
+
+### Workspace suite
+
+A broader prompt engineering suite was added and wired into the existing launcher convention. Redundant evaluation/workflow workspaces were subsequently removed.
+
+Current live specialised workspace IDs observed in static/index.html:
+
+fill, audit, diff, cost, pulse, xray, splice, generate, example, adapter, simplify, tone, translate, gauntlet, batch.
+
+Human-readable roles:
+
+- Quick Fill
+- Prompt Auditor
+- Diff Lens
+- Cost Lens
+- Library Organizer
+- Prompt X-Ray
+- Prompt Splicer
+- Prompt Generator
+- Prompt from Example
+- Model Adapter
+- Prompt Simplifier
+- Tone & Style Rewriter
+- Prompt Translator
+- Gauntlet Loop
+- Batch Runner
+
+The live files are authoritative. Older workspace descriptions in the historical changelog may describe experiments that were later removed.
+
+### Recent stability and cleanup
+
+October 5 work also included:
+
+- app.py syntax repair after corruption around database initialisation.
+- Removal of obsolete app - v1.py.
+- Reversion of the account-management layer.
+- Removal of account-lock styling and account-specific licence documentation.
+- Database and graph smoke-test refocus.
+- Fixes allowing remaining workspace dialogs to close.
+- Workspace-suite refresh after workspace removal.
+- Prompt Forge stylesheet cache refresh.
+- Restoration of an existing premium licence key through the normal licence mechanism.
+
+### Development direction
+
+The current product priority is coherent prompt-engineering tooling rather than accumulating workspaces. New features should earn their place by providing a distinct job, should reuse existing launcher and workspace conventions, and should not create duplicate functionality.
+
+Preserve the local-first architecture, SQLite data, graph persistence, existing licence system, and the established live-file workflow. Do not reintroduce the reverted account system unless explicitly requested.
