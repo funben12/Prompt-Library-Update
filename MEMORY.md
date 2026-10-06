@@ -250,7 +250,7 @@ Do not replace this with a generic node editor, and do not damage the existing S
 
 ### Prompt Forge
 
-Prompt Forge received a substantial workbench layout redesign on 2026-10-05, followed by a stylesheet cache refresh. The redesigned workbench is now the intended live direction.
+The 2026-10-05 Prompt Forge workbench redesign and stylesheet cache refresh were reverted. The pre-redesign Prompt Forge layout is the current intended baseline. Do not reapply the reverted visual treatment unless explicitly requested.
 
 ### Workspace suite
 
@@ -291,7 +291,7 @@ October 5 work also included:
 - Database and graph smoke-test refocus.
 - Fixes allowing remaining workspace dialogs to close.
 - Workspace-suite refresh after workspace removal.
-- Prompt Forge stylesheet cache refresh.
+- Prompt Forge redesign and stylesheet cache refresh were reverted after review.
 - Restoration of an existing premium licence key through the normal licence mechanism.
 
 ### Development direction
