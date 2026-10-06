@@ -1597,14 +1597,8 @@ def get_prompt(pid):
         return jsonify({'error': 'Not found'}), 404
     return jsonify(serialize_prompt(row))
 
-@app.route('/api/prompts', methods=['POST'])
-def create_prompt():
-    data = _prompt_payload(_json_body())
-    if not data['content'].strip():
-        return jsonify({'error': 'Prompt content is required'}), 400
-    conn = get_db()
-    try:
-        cur  = conn.execute('''
+def _insert_prompt(conn, data):
+    cur = conn.execute('''
             INSERT INTO prompts
                 (title, description, content, categories, tags, folder_id,
                  colour_label, rating, notes, chain_ids, variable_meta, chat_turns, role_id,
@@ -1620,11 +1614,130 @@ def create_prompt():
             data['prompt_domain'], data['prompt_use_case'],
             data['prompt_output_format'], data['prompt_tone'],
         ))
-        pid = cur.lastrowid
+    return cur.lastrowid
+
+@app.route('/api/prompts', methods=['POST'])
+def create_prompt():
+    data = _prompt_payload(_json_body())
+    if not data['content'].strip():
+        return jsonify({'error': 'Prompt content is required'}), 400
+    conn = get_db()
+    try:
+        pid = _insert_prompt(conn, data)
         conn.commit()
     finally:
         conn.close()
     return jsonify({'id': pid})
+
+
+# NEARBY SHARE -- local-only inbox for offers taken by share_server.py on port 47800
+import uuid
+import share_server
+
+
+def share_boot():
+    did = get_setting('device_id')
+    if not did:
+        did = uuid.uuid4().hex
+        set_setting('device_id', did)
+    name = get_setting('device_name') or socket.gethostname() or 'Desktop'
+    receiving = (get_setting('share_receiving') or '1') == '1'
+    share_server.configure(did, name, receiving)
+
+
+def _share_local_only():
+    if not _is_loopback(request.remote_addr):
+        return jsonify({'error': 'Only available on this computer'}), 403
+    return None
+
+
+@app.route('/api/share/inbox', methods=['GET'])
+def share_inbox():
+    return _share_local_only() or jsonify({
+        'offers': share_server.pending(),
+        'receiving': share_server._state['enabled'],
+        'name': share_server._state['name'],
+        'port': share_server.SHARE_PORT,
+    })
+
+
+@app.route('/api/share/inbox/<oid>', methods=['POST'])
+def share_resolve(oid):
+    denied = _share_local_only()
+    if denied:
+        return denied
+    accept = bool(_json_body().get('accept'))
+    offer = share_server.resolve(oid, accept)
+    if not offer:
+        return jsonify({'error': 'That offer has expired'}), 410
+    if not accept:
+        return jsonify({'ok': True})
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT id FROM folders WHERE name = 'Received'").fetchone()
+        fid = row['id'] if row else conn.execute("INSERT INTO folders (name) VALUES ('Received')").lastrowid
+        p = offer['prompt']
+        data = _prompt_payload({**p, 'folder_id': fid, 'notes': f"Received from {offer['fromName']}"})
+        pid = _insert_prompt(conn, data)
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'ok': True, 'id': pid, 'folder_id': fid})
+
+
+@app.route('/api/share/devices', methods=['GET'])
+def share_devices():
+    return _share_local_only() or jsonify(share_server.scan())
+
+
+@app.route('/api/share/send', methods=['POST'])
+def share_send():
+    denied = _share_local_only()
+    if denied:
+        return denied
+    body = _json_body()
+    conn = get_db()
+    try:
+        row = conn.execute('SELECT * FROM prompts WHERE id = ?', (body.get('prompt_id'),)).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return jsonify({'error': 'Prompt not found'}), 404
+    p = serialize_prompt(row)
+    try:
+        code, d = share_server.send(str(body.get('ip') or ''), {
+            'title': p['title'], 'description': p['description'], 'content': p['content'],
+            'categories': p['categories'], 'tags': p['tags'],
+        })
+    except Exception:
+        return jsonify({'error': 'Could not reach that device'}), 502
+    return jsonify(d), code
+
+
+@app.route('/api/share/send/<ip>/<oid>', methods=['GET'])
+def share_send_status(ip, oid):
+    denied = _share_local_only()
+    if denied:
+        return denied
+    try:
+        code, d = share_server.sent_status(ip, oid)
+    except Exception:
+        return jsonify({'status': 'unreachable'})
+    return jsonify(d), code
+
+
+@app.route('/api/share/settings', methods=['POST'])
+def share_settings():
+    denied = _share_local_only()
+    if denied:
+        return denied
+    body = _json_body()
+    if 'receiving' in body:
+        set_setting('share_receiving', '1' if body.get('receiving') else '0')
+    if (body.get('name') or '').strip():
+        set_setting('device_name', body['name'].strip()[:60])
+    share_boot()
+    return jsonify({'receiving': share_server._state['enabled'], 'name': share_server._state['name']})
 
 @app.route('/api/prompts/<int:pid>', methods=['PUT'])
 def update_prompt(pid):

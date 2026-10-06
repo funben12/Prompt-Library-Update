@@ -15,7 +15,8 @@ import traceback
 
 import webview
 
-from app import app, get_data_dir, init_db
+from app import app, get_data_dir, init_db, share_boot
+import share_server
 
 
 # ERROR LOGGING
@@ -89,6 +90,12 @@ def start_server(port):
     """Run the Flask app under Waitress (production-grade WSGI)."""
     try:
         init_db()
+        try:
+            share_boot()
+            threading.Thread(target=share_server.serve_forever, daemon=True).start()
+        except Exception:
+            # Nearby share is optional; the library still runs if port 47800 is taken
+            logging.error(traceback.format_exc())
         try:
             from waitress import serve
             serve(app, host=BIND_HOST, port=port, threads=8, _quiet=True)
