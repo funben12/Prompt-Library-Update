@@ -984,6 +984,9 @@
         <button class="icon-btn" onclick="window.PL_useFromCard(${p.id})" title="Copy to clipboard">
           <span class="material-symbols-outlined">content_copy</span>
         </button>
+        <button class="icon-btn" onclick="window.PL_sendNearby(${p.id})" title="Send to a nearby device">
+          <span class="material-symbols-outlined">send</span>
+        </button>
         <button class="icon-btn" onclick="window.PL_editPrompt(${p.id})" title="Edit">
           <span class="material-symbols-outlined">edit</span>
         </button>
@@ -28317,6 +28320,77 @@ Must avoid: [Anything sensitive or previously declined]`
 
         setInterval(poll, 3000);
         poll();
+
+        // Sending: scan the network, pick a device, wait for it to accept
+        let sendOverlay = null, sendRun = 0;
+        const getJson = (url, opts) => fetch(url, opts).then(async r => ({ ok: r.ok, d: await r.json().catch(() => ({})) }));
+        function sendClose() { if (sendOverlay) sendOverlay.classList.remove('active'); sendRun++; }
+        function sendDraw(st) {
+            const box = sendOverlay.querySelector('.nbs-body');
+            const rows = st.devices.map(d => {
+                const meta = st.status[d.ip] || (d.receiving ? (d.type === 'desktop' ? 'Computer' : 'Phone') + ' · <span class="nbs-mono">' + escapeHtml(d.ip) + '</span>' : 'Not receiving right now');
+                return '<button class="nbs-dev' + (st.sending === d.ip ? ' busy' : '') + '" type="button" data-ip="' + escapeHtml(d.ip) + '"' + (d.receiving && !st.sending ? '' : ' disabled') + '>' +
+                    '<span class="nbs-ic material-symbols-outlined">' + (d.type === 'desktop' ? 'computer' : 'smartphone') + '</span>' +
+                    '<span><span class="nbs-name">' + escapeHtml(d.name) + '</span><span class="nbs-meta">' + meta + '</span></span></button>';
+            }).join('');
+            box.innerHTML = '<p class="phs-note">Sending “' + escapeHtml(st.title) + '”. Nothing is saved on the other device until it is accepted.</p>' +
+                (st.scanning ? '<div class="nbs-scan"><i></i>Looking for nearby libraries on this network</div>' : '') +
+                rows +
+                (!st.scanning && !st.devices.length ? '<p class="phs-note">No libraries found. The other device needs Prompt Library open, on the same WiFi, with receiving turned on.</p>' : '') +
+                (st.scanning ? '' : '<div class="phs-actions"><button class="btn" type="button" data-rescan>Scan again</button></div>');
+        }
+        async function sendScan(st, run) {
+            Object.assign(st, { scanning: true, devices: [], status: {} });
+            sendDraw(st);
+            const r = await getJson('/api/share/devices').catch(() => ({ d: {} }));
+            if (run !== sendRun) return;
+            st.devices = (r.d && r.d.devices) || [];
+            st.scanning = false;
+            sendDraw(st);
+        }
+        async function sendTo(st, ip, run) {
+            const dev = st.devices.find(d => d.ip === ip);
+            st.sending = ip; st.status[ip] = 'Waiting for ' + escapeHtml(dev.name) + ' to accept'; sendDraw(st);
+            const r = await getJson('/api/share/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip, prompt_id: st.id }) }).catch(() => ({ ok: false, d: {} }));
+            if (!r.ok || !r.d.offerId) { st.sending = null; st.status[ip] = escapeHtml(r.d.error || 'Could not reach it. Try again.'); return sendDraw(st); }
+            const until = Date.now() + 190000;
+            while (Date.now() < until && run === sendRun) {
+                await new Promise(res => setTimeout(res, 1500));
+                const s2 = await getJson('/api/share/send/' + encodeURIComponent(ip) + '/' + encodeURIComponent(r.d.offerId)).catch(() => ({ d: {} }));
+                if (run !== sendRun) return;
+                if (s2.d.status === 'accepted') { sendClose(); toast('Sent to ' + dev.name); return; }
+                if (s2.d.status === 'declined') { st.sending = null; st.status[ip] = 'Declined'; return sendDraw(st); }
+                if (s2.d.status === 'expired') break;
+            }
+            if (run !== sendRun) return;
+            st.sending = null; st.status[ip] = 'No answer. Click to try again.'; sendDraw(st);
+        }
+        window.PL_sendNearby = function (id) {
+            const p = (state.prompts || []).find(x => x.id === id);
+            if (!p) return;
+            if (!sendOverlay) {
+                sendOverlay = document.createElement('div');
+                sendOverlay.className = 'modal-overlay';
+                sendOverlay.innerHTML = '<div class="modal-box-sm" role="dialog" aria-label="Send to a nearby device">' +
+                    '<div class="modal-header"><h2>Send to nearby</h2>' +
+                    '<button class="modal-close" type="button" aria-label="Close"><span class="material-symbols-outlined">close</span></button></div>' +
+                    '<div class="phs-body nbs-body"></div></div>';
+                document.body.appendChild(sendOverlay);
+                sendOverlay.addEventListener('click', e => { if (e.target === sendOverlay) sendClose(); });
+                sendOverlay.querySelector('.modal-close').onclick = sendClose;
+                document.addEventListener('keydown', e => { if (e.key === 'Escape' && sendOverlay.classList.contains('active')) sendClose(); });
+            }
+            const run = ++sendRun;
+            const st = { id, title: p.title || 'Untitled', devices: [], status: {}, scanning: true, sending: null };
+            sendOverlay.querySelector('.nbs-body').onclick = e => {
+                const b = e.target.closest('[data-ip], [data-rescan]');
+                if (!b || b.disabled) return;
+                if (b.hasAttribute('data-rescan')) return sendScan(st, run);
+                sendTo(st, b.dataset.ip, run);
+            };
+            sendOverlay.classList.add('active');
+            sendScan(st, run);
+        };
     })();
 
 })();

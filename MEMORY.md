@@ -258,7 +258,8 @@ Do not replace this with a generic node editor, and do not damage the existing S
 - Scope gotcha: `static/app.js` has four top level IIFEs (main ends near line 28322). Later IIFEs (onboarding, viewer, phone share) cannot see `toast`, `escapeHtml` or `loadAll`; the main IIFE exposes `window.PL_toast`. The phone share panel's "Link copied" toast was silently broken by this until now.
 - `grep -c "<script" static/index.html` is **4**, not 3 (CLAUDE.md triage note is stale).
 - Desktop icon changed 2026-10-06 to the teal hardcover book with a prompt label (same art as the Android app): `icon.ico`, `static/icon.ico`, `app-icon.png`, plus `<link rel="icon">` in index.html. Old icons backed up in `_rollbacks/` as `icon v1.ico` and `static-icon v1.ico`; the old `app-icon.png` is in git history only (`*.png` is gitignored). The in-app logos `static/logo-mark.png` (sidebar) and `static/logo.png` now use the same book, and `mac/app-icon.icns` (referenced by `mac/setup.py`, previously missing) is generated from it.
-- Phone side lives in `funben12/AI-App-Factory` `apps/app-003-prompt-library-mobile`. Phone to desktop only for now; desktop to phone is v0.3.
+- Sending (v0.3): each prompt card has a paper plane button (`window.PL_sendNearby(id)`) that opens "Send to nearby". `GET /api/share/devices` scans this computer's /24 on port 47800 (64 threads, 0.8s timeout, about 4s, excludes its own device ID); `POST /api/share/send {ip, prompt_id}` offers the prompt; `GET /api/share/send/<ip>/<offerId>` reports pending, accepted, declined or expired. Sending uses `urllib` only and refuses non-private addresses. Works to phones (app open) and to other desktops (laptop to laptop).
+- Phone side lives in `funben12/AI-App-Factory` `apps/app-003-prompt-library-mobile` (v0.3: sends and receives; it only receives while the app is on screen).
 
 ### Memory maintenance rule
 

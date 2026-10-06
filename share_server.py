@@ -146,6 +146,77 @@ def resolve(oid, accept):
         return o
 
 
+# ---- sending: desktop to phone, desktop to desktop ----
+import json
+import urllib.error
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+
+
+def _lan_ip():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.connect(('10.255.255.255', 1))
+        return sock.getsockname()[0]
+    except OSError:
+        return None
+    finally:
+        sock.close()
+
+
+def _call(ip, path, body=None, timeout=4.0):
+    if not _private(ip) or not ipaddress.ip_address(ip).version == 4:
+        raise ValueError('Not a local address')
+    url = f'http://{ip}:{SHARE_PORT}{path}'
+    data = json.dumps(body).encode('utf-8') if body is not None else None
+    req = urllib.request.Request(url, data=data, method='POST' if data else 'GET',
+                                 headers={'Content-Type': 'application/json'})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status, json.loads(r.read(512 * 1024) or b'{}')
+    except urllib.error.HTTPError as e:
+        try:
+            return e.code, json.loads(e.read(64 * 1024) or b'{}')
+        except ValueError:
+            return e.code, {}
+
+
+def scan():
+    """Find other Prompt Libraries on this /24, excluding this one."""
+    me = _lan_ip()
+    if not me:
+        return {'devices': [], 'ip': None}
+    base = me.rsplit('.', 1)[0] + '.'
+
+    def probe(i):
+        ip = base + str(i)
+        if ip == me:
+            return None
+        try:
+            code, d = _call(ip, '/share/hello', timeout=0.8)
+        except Exception:
+            return None
+        if code == 200 and d.get('app') == 'prompt-library' and d.get('deviceId') != _state['device_id']:
+            return {'ip': ip, 'name': d.get('name') or ip, 'type': d.get('type') or 'desktop',
+                    'receiving': d.get('receiving') is not False}
+        return None
+
+    with ThreadPoolExecutor(max_workers=64) as pool:
+        found = [d for d in pool.map(probe, range(1, 255)) if d]
+    return {'devices': sorted(found, key=lambda d: d['name'].lower()), 'ip': me}
+
+
+def send(ip, prompt):
+    return _call(ip, '/share/offer', {
+        'fromId': _state['device_id'], 'fromName': _state['name'] or socket.gethostname(),
+        'fromType': 'desktop', 'prompt': prompt,
+    }, timeout=5.0)
+
+
+def sent_status(ip, oid):
+    return _call(ip, '/share/offer/' + urllib.request.quote(oid, safe=''), timeout=4.0)
+
+
 def serve_forever():
     try:
         _serve()

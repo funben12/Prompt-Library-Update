@@ -10604,6 +10604,18 @@
 .nearby-title { font-family: var(--ff-display); font-size: var(--fs-md, 1.1rem); color: var(--ink); line-height: 1.25; }
 .nearby-preview { font-size: var(--fs-sm); color: var(--ink-3); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
 .nearby-actions { display: flex; gap: var(--sp-2); justify-content: flex-end; margin-top: var(--sp-1); }
+.nbs-scan { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--ink-3); padding: var(--sp-2) 0; }
+.nbs-scan i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: nbsPulse 1.2s ease-in-out infinite; }
+.nbs-dev { display: flex; align-items: center; gap: var(--sp-3); width: 100%; text-align: left; padding: var(--sp-2); border-radius: var(--r-md); background: none; border: 0; color: var(--ink); cursor: pointer; }
+.nbs-dev:hover:not([disabled]) { background: var(--surface-2, var(--surface)); }
+.nbs-dev[disabled] { opacity: .55; cursor: default; }
+.nbs-dev.busy[disabled] { opacity: 1; }
+.nbs-ic { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); color: var(--ink-2); font-size: 22px; flex: none; }
+.nbs-dev.busy .nbs-ic { border-color: var(--accent); color: var(--accent); animation: nbsPulse 1.4s ease-in-out infinite; }
+.nbs-name { display: block; font-size: var(--fs-base); }
+.nbs-meta { display: block; font-size: var(--fs-sm); color: var(--ink-3); }
+.nbs-mono { font-family: var(--ff-mono); }
+@keyframes nbsPulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
 @keyframes nearbyIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .nearby-card { animation: none; } }
 

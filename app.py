@@ -1685,6 +1685,47 @@ def share_resolve(oid):
     return jsonify({'ok': True, 'id': pid, 'folder_id': fid})
 
 
+@app.route('/api/share/devices', methods=['GET'])
+def share_devices():
+    return _share_local_only() or jsonify(share_server.scan())
+
+
+@app.route('/api/share/send', methods=['POST'])
+def share_send():
+    denied = _share_local_only()
+    if denied:
+        return denied
+    body = _json_body()
+    conn = get_db()
+    try:
+        row = conn.execute('SELECT * FROM prompts WHERE id = ?', (body.get('prompt_id'),)).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return jsonify({'error': 'Prompt not found'}), 404
+    p = serialize_prompt(row)
+    try:
+        code, d = share_server.send(str(body.get('ip') or ''), {
+            'title': p['title'], 'description': p['description'], 'content': p['content'],
+            'categories': p['categories'], 'tags': p['tags'],
+        })
+    except Exception:
+        return jsonify({'error': 'Could not reach that device'}), 502
+    return jsonify(d), code
+
+
+@app.route('/api/share/send/<ip>/<oid>', methods=['GET'])
+def share_send_status(ip, oid):
+    denied = _share_local_only()
+    if denied:
+        return denied
+    try:
+        code, d = share_server.sent_status(ip, oid)
+    except Exception:
+        return jsonify({'status': 'unreachable'})
+    return jsonify(d), code
+
+
 @app.route('/api/share/settings', methods=['POST'])
 def share_settings():
     denied = _share_local_only()
