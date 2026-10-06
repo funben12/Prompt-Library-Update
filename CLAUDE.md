@@ -157,3 +157,76 @@ in `_shared/shared.css` -- grep both before concluding something isn't styled.
 2. `node --check static/app.js` -> JS syntax error
 3. `python3 -m py_compile app.py` -> Flask startup error
 4. Check render calls inside async loaders are wrapped in try/catch
+---
+
+## Current implementation state, 2026-10-06
+
+This section supersedes older state descriptions where they conflict.
+
+### October 5, 2026 architectural direction
+
+- The application remains a local-first Windows desktop app with Flask, PyWebView, SQLite, vanilla JS, no cloud requirement, and no account system.
+- The attempted account management layer was fully reverted. Do not reintroduce account profiles, authentication, account switching, account memory, passwords, account-specific licence state, or account-lock UI unless explicitly requested.
+- The existing SQLite database and Prompt Components graph core were preserved while the account layer was removed.
+- Recent smoke testing was refocused on database integrity and Prompt Components graph persistence, rather than account auditing.
+- Licence validation remains a separate premium system. Do not conflate licence validation with the removed account system.
+
+### Prompt Components is now a serious node canvas
+
+The Prompt Components workspace is no longer just a basic drag-and-drop node editor. Recent work upgraded the canvas interaction model substantially:
+
+- Component nodes can be resized, with resize state controlling rendered dimensions.
+- Marquee/multi-selection and alignment controls were added.
+- Canvas selection and alignment feedback was improved.
+- Connection creation has live edge previews and selection feedback.
+- Edge endpoints are explicit and can be reconnected.
+- Connection inspector editing was added.
+- Text input focus is preserved while editing connection data.
+- Continuous node dragging works across canvas rerenders.
+- Canvas navigation and restored node sizing were polished.
+- Graph prompt compilation was improved for branches and convergence.
+- Existing graph/database persistence must remain intact when changing this workspace.
+- The target UX direction is closer to a professional visual editor, not a generic node demo. Think Figma, tldraw, or React Flow quality in interaction depth, while retaining the product's prompt-specific purpose.
+
+### Prompt Forge
+
+Prompt Forge received a workbench-level UX redesign and stylesheet cache refresh. Treat its current layout and styling as the live direction. Do not revert it to the previous generic workspace layout.
+
+### Workspace suite consolidation
+
+The October 5 work added and wired a broader prompt-engineering tool suite, then removed redundant evaluation/workflow tools after review. The current live suite must be treated as the source of truth in the live static files and launcher, not older changelog entries or abandoned workspace experiments.
+
+Current live specialised workspace IDs include:
+
+- fill, Quick Fill
+- audit, Prompt Auditor
+- diff, Diff Lens
+- cost, Cost Lens
+- pulse, Library Organizer
+- xray, Prompt X-Ray
+- splice, Prompt Splicer
+- generate, Prompt Generator
+- example, Prompt from Example
+- adapter, Model Adapter
+- simplify, Prompt Simplifier
+- tone, Tone & Style Rewriter
+- translate, Prompt Translator
+- gauntlet, Gauntlet Loop
+- batch, Batch Runner
+
+Do not assume every workspace ever mentioned in the changelog still exists. Always verify the live files before modifying workspace architecture.
+
+### Recent stability work
+
+Recent fixes also include:
+
+- repaired app.py syntax after database-initialisation corruption
+- removed obsolete app - v1.py
+- fixed remaining workspace dialogs so they can close correctly
+- refreshed workspace launcher state after workspace removal
+- preserved the existing Prompt Components graph/database core during account-system removal
+- restored an existing premium licence key through the normal licence system
+
+### Working principle
+
+For future changes, prefer surgical upgrades to the live architecture over adding parallel systems. Preserve the SQLite schema and existing graph data unless a schema change is explicitly approved. Before adding a workspace, first check whether an existing workspace already covers the same job.
