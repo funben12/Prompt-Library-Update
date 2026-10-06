@@ -27,6 +27,16 @@ When working on Prompt Library Pro:
 9. When a substantial change is made, update GPT-MEMORY.md and, where the information is shared project truth, update MEMORY.md as well.
 10. Keep Claude-specific and GPT-specific notes clearly separated. Shared product facts belong in MEMORY.md.
 
+## Memory update requirement
+
+After every substantial repository change, GPT must update GPT-MEMORY.md in the same change sequence.
+
+A change is substantial when it changes functionality, architecture, UX, workspace behaviour, persistence, licensing, project direction, important bugs, or another decision that would materially affect future development.
+
+For shared project facts, also update MEMORY.md. Do not wait for a separate request.
+
+The memory update must describe the resulting state, not merely the intention. Keep it concise and remove or supersede stale guidance when necessary.
+
 ## Current Prompt Forge baseline
 
 The Prompt Forge workbench redesign from 2026-10-05 was reverted. The pre-redesign layout is the current baseline.
