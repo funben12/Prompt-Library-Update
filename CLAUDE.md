@@ -188,7 +188,17 @@ The Prompt Components workspace is no longer just a basic drag-and-drop node edi
 - Existing graph/database persistence must remain intact when changing this workspace.
 - The target UX direction is closer to a professional visual editor, not a generic node demo. Think Figma, tldraw, or React Flow quality in interaction depth, while retaining the product's prompt-specific purpose.
 
-### Prompt Forge
+### Memory update requirement
+
+After every substantial repository change, Claude must update MEMORY.md in the same change sequence.
+
+A change is substantial when it changes functionality, architecture, UX, workspace behaviour, persistence, licensing, project direction, important bugs, or another decision that would materially affect future development.
+
+If a change contains Claude-specific working context, also update the appropriate Claude-specific notes. Do not wait for a separate request.
+
+The memory update must describe the resulting state, not merely the intention. Keep it concise and supersede stale guidance when necessary.
+
+## Prompt Forge
 
 The 2026-10-05 Prompt Forge workbench redesign and stylesheet cache refresh were reverted because the new visual treatment was not preferred. The pre-redesign Prompt Forge layout is the current baseline. Do not reapply the reverted workbench styling or cache version unless explicitly requested.
 
