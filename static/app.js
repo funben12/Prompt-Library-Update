@@ -28336,8 +28336,10 @@ Must avoid: [Anything sensitive or previously declined]`
             box.innerHTML = '<p class="phs-note">Sending “' + escapeHtml(st.title) + '”. Nothing is saved on the other device until it is accepted.</p>' +
                 (st.scanning ? '<div class="nbs-scan"><i></i>Looking for nearby libraries on this network</div>' : '') +
                 rows +
-                (!st.scanning && !st.devices.length ? '<p class="phs-note">No libraries found. The other device needs Prompt Library open, on the same WiFi, with receiving turned on.</p>' : '') +
-                (st.scanning ? '' : '<div class="phs-actions"><button class="btn" type="button" data-rescan>Scan again</button></div>');
+                (!st.scanning && !st.devices.length ? '<p class="phs-note">No libraries found' + (st.networks && st.networks.length ? ' on ' + escapeHtml(st.networks.join(', ')) : '') + '. On a phone, keep Prompt Library open on screen; it stops listening when locked. Or add it by the address shown in its Send sheet.</p>' : '') +
+                (st.scanning ? '' : '<form class="nbs-manual"><input class="form-input" name="ip" inputmode="decimal" autocomplete="off" placeholder="Add by address, like 192.168.1.23" value="' + escapeHtml(st.manual || '') + '"><button class="btn" type="submit">Add</button></form>' +
+                    (st.manualError ? '<p class="phs-note nbs-err">' + escapeHtml(st.manualError) + '</p>' : '') +
+                    '<div class="phs-actions"><button class="btn" type="button" data-rescan>Scan again</button></div>');
         }
         async function sendScan(st, run) {
             Object.assign(st, { scanning: true, devices: [], status: {} });
@@ -28345,7 +28347,17 @@ Must avoid: [Anything sensitive or previously declined]`
             const r = await getJson('/api/share/devices').catch(() => ({ d: {} }));
             if (run !== sendRun) return;
             st.devices = (r.d && r.d.devices) || [];
+            st.networks = (r.d && r.d.networks) || [];
             st.scanning = false;
+            sendDraw(st);
+        }
+        async function sendAdd(st, ip, run) {
+            st.manual = ip; st.manualError = '';
+            const r = await getJson('/api/share/devices?ip=' + encodeURIComponent(ip)).catch(() => ({ d: {} }));
+            if (run !== sendRun) return;
+            const d = (r.d.devices || [])[0];
+            if (d) { st.devices = st.devices.filter(x => x.ip !== d.ip).concat(d); st.manual = ''; }
+            else st.manualError = r.d.error || 'Nothing answered at that address.';
             sendDraw(st);
         }
         async function sendTo(st, ip, run) {
@@ -28382,6 +28394,11 @@ Must avoid: [Anything sensitive or previously declined]`
             }
             const run = ++sendRun;
             const st = { id, title: p.title || 'Untitled', devices: [], status: {}, scanning: true, sending: null };
+            sendOverlay.querySelector('.nbs-body').onsubmit = e => {
+                e.preventDefault();
+                const ip = (e.target.elements.ip.value || '').trim();
+                if (ip) sendAdd(st, ip, run);
+            };
             sendOverlay.querySelector('.nbs-body').onclick = e => {
                 const b = e.target.closest('[data-ip], [data-rescan]');
                 if (!b || b.disabled) return;
