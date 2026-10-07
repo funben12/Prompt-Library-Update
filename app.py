@@ -1576,6 +1576,12 @@ def _deleted_everywhere_ids():
         return []
 
 
+def _record_deleted_everywhere(new_ids):
+    merged = sorted(set(_deleted_everywhere_ids()) | set(int(i) for i in new_ids))[-5000:]
+    set_setting('sync_deleted_ids', json.dumps(merged))
+    return merged
+
+
 @app.route('/api/sync/deleted', methods=['GET'])
 def sync_deleted_get():
     """Prompt numbers deleted on purpose from a phone or tablet ("delete everywhere"), so other devices can remove them too."""
@@ -1586,9 +1592,7 @@ def sync_deleted_get():
 def sync_deleted_post():
     data = _json_body()
     new = [int(i) for i in (data.get('ids') or []) if isinstance(i, (int, str)) and str(i).lstrip('-').isdigit()]
-    merged = sorted(set(_deleted_everywhere_ids()) | set(new))[-5000:]
-    set_setting('sync_deleted_ids', json.dumps(merged))
-    return jsonify({'ids': merged})
+    return jsonify({'ids': _record_deleted_everywhere(new)})
 
 
 @app.route('/api/prompts/stamp', methods=['GET'])
@@ -1733,6 +1737,9 @@ def delete_prompt(pid):
     conn.execute('DELETE FROM prompts WHERE id=?', (pid,))
     conn.commit()
     conn.close()
+    # "Delete everywhere": remember it, so phones and tablets remove their copy at their next sync.
+    if row is not None and request.args.get('everywhere') == '1':
+        _record_deleted_everywhere([pid])
     return jsonify({'success': True})
 
 @app.route('/api/prompts/bulk', methods=['PATCH'])
@@ -1791,16 +1798,20 @@ def bulk_delete_prompts():
     ids = [pid for pid in ids if pid not in locked]
     conn = get_db()
     success, failed = 0, 0
+    deleted_ids = []
     try:
         for pid in ids:
             cur = conn.execute('DELETE FROM prompts WHERE id=?', (pid,))
             if cur.rowcount:
                 success += 1
+                deleted_ids.append(pid)
             else:
                 failed += 1
         conn.commit()
     finally:
         conn.close()
+    if deleted_ids and data.get('everywhere'):
+        _record_deleted_everywhere(deleted_ids)
     return jsonify({'success': success, 'failed': failed, 'skipped_locked': skipped_locked})
 
 @app.route('/api/prompts/<int:pid>/fork', methods=['POST'])

@@ -871,11 +871,12 @@
     async function bulkDelete() {
         if (!_bulkSelection.size) return;
         const count = _bulkSelection.size;
-        if (!confirm('Delete ' + count + ' prompt' + (count !== 1 ? 's' : '') + '? This cannot be undone.')) return;
+        const scope = await askDeleteScope(count);
+        if (!scope) return;
         try {
             const result = await api('/prompts/bulk', {
                 method: 'DELETE',
-                body: { ids: Array.from(_bulkSelection) }
+                body: { ids: Array.from(_bulkSelection), everywhere: scope === 'everywhere' }
             });
             if (result.failed > 0) toast(result.success + ' deleted, ' + result.failed + ' failed', 'warning');
             else toast(result.success + ' prompt' + (result.success !== 1 ? 's' : '') + ' deleted', 'success');
@@ -2657,6 +2658,39 @@
         }
     }
 
+    // Asks where a delete should apply. Resolves 'here' (this Mac only), 'everywhere' (also iPhone and iPad) or null (cancelled).
+    function askDeleteScope(count, label) {
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.setAttribute('role', 'dialog');
+            overlay.setAttribute('aria-modal', 'true');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);padding:16px;';
+            const card = document.createElement('div');
+            card.style.cssText = 'background:var(--surface,#fff);color:var(--ink,#111);border:1px solid var(--line,#ddd);border-radius:14px;max-width:460px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:12px;font-family:inherit;';
+            const title = document.createElement('h3');
+            title.style.cssText = 'margin:0;font-size:18px;';
+            title.textContent = count === 1 ? (label ? 'Delete "' + label + '"?' : 'Delete this prompt?') : 'Delete ' + count + ' prompts?';
+            const note = document.createElement('p');
+            note.style.cssText = 'margin:0;font-size:13.5px;line-height:1.55;color:var(--ink-2,#444);';
+            note.textContent = 'This cannot be undone. "This Mac only" leaves the copy on your iPhone and iPad. "Everywhere" also removes it from them at their next sync. Prompts locked in Version Lock are never deleted.';
+            const mk = (text, style) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.style.cssText = 'width:100%;justify-content:center;' + (style || ''); b.textContent = text; return b; };
+            const here = mk('Delete on this Mac only');
+            const everywhere = mk('Delete everywhere (Mac, iPhone and iPad)', 'background:#c0392b;color:#fff;border-color:#c0392b;');
+            const cancel = mk('Cancel', 'font-weight:600;');
+            const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); finish(null); } };
+            const finish = (v) => { document.removeEventListener('keydown', onKey, true); overlay.remove(); resolve(v); };
+            here.addEventListener('click', () => finish('here'));
+            everywhere.addEventListener('click', () => finish('everywhere'));
+            cancel.addEventListener('click', () => finish(null));
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(null); });
+            document.addEventListener('keydown', onKey, true);
+            [title, note, here, everywhere, cancel].forEach(el => card.appendChild(el));
+            overlay.appendChild(card);
+            document.body.appendChild(overlay);
+            cancel.focus();
+        });
+    }
+
     async function deletePromptById(id) {
         if (state.librarySource && state.librarySource.type === 'vault') {
             const p = state.prompts.find(x => x.id === id);
@@ -2674,9 +2708,10 @@
             }
             return;
         }
-        if (!confirm('Delete this prompt? This cannot be undone.')) return;
+        const scope = await askDeleteScope(1, (state.prompts.find(x => x.id === id) || {}).title);
+        if (!scope) return;
         try {
-            await api(`/prompts/${id}`, {
+            await api(`/prompts/${id}` + (scope === 'everywhere' ? '?everywhere=1' : ''), {
                 method: 'DELETE'
             });
             if (state.detailId === id) closeDetailPanel();
@@ -15076,9 +15111,10 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     async function _pulseDeletePrompt(p) {
-        if (!confirm('Delete "' + (p.title || 'Untitled') + '"? This can\'t be undone.')) return;
+        const scope = await askDeleteScope(1, p.title || 'Untitled');
+        if (!scope) return;
         try {
-            await api(`/prompts/${p.id}`, { method: 'DELETE' });
+            await api(`/prompts/${p.id}` + (scope === 'everywhere' ? '?everywhere=1' : ''), { method: 'DELETE' });
             _pulseData.list = _pulseData.list.filter(x => x.id !== p.id);
             _pulseResolved++;
             toast('Deleted', 'success');
@@ -15089,9 +15125,10 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     async function _pulseDropDuplicate(deleteId) {
-        if (!confirm("Delete the other prompt in this pair? This can't be undone.")) return;
+        const scope = await askDeleteScope(1, ((_pulseData.list || []).find(x => x.id === deleteId) || {}).title || 'the other prompt');
+        if (!scope) return;
         try {
-            await api(`/prompts/${deleteId}`, { method: 'DELETE' });
+            await api(`/prompts/${deleteId}` + (scope === 'everywhere' ? '?everywhere=1' : ''), { method: 'DELETE' });
             _pulseData.list = _pulseData.list.filter(x => x.id !== deleteId);
             _pulseResolved++;
             toast('Duplicate removed', 'success');
@@ -16091,9 +16128,10 @@ Must avoid: [Anything sensitive or previously declined]`
                 case 'delete-prompt': {
                     const p = _pmbState.prompts.find(x => x.id === promptId);
                     if (!p) return;
-                    if (!confirm('Delete "' + (p.title || 'this prompt') + '"? This cannot be undone.')) return;
+                    const scope = await askDeleteScope(1, p.title || 'this prompt');
+                    if (!scope) return;
                     try {
-                        await api('/prompts/' + promptId, { method: 'DELETE' });
+                        await api('/prompts/' + promptId + (scope === 'everywhere' ? '?everywhere=1' : ''), { method: 'DELETE' });
                         toast('Prompt deleted', 'success');
                         _pmbCloseModal();
                         await _pmbLoadAll();
