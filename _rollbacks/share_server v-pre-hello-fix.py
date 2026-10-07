@@ -234,9 +234,6 @@ def _hello_path():
 def probe(ip, timeout=0.8):
     try:
         code, d = _call(ip, _hello_path(), timeout=timeout)
-        # phone builds up to 0.7.0 match the path exactly and 404 on the query string; retry plain
-        if code == 404:
-            code, d = _call(ip, '/share/hello', timeout=timeout)
     except Exception:
         return None
     if code == 200 and d.get('app') == 'prompt-library' and d.get('deviceId') != _state['device_id']:
