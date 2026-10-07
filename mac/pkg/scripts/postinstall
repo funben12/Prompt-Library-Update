@@ -1,0 +1,5 @@
+#!/bin/bash
+# Strip any download quarantine flag so the installed app opens normally.
+APP="/Applications/Prompt Library Pro.app"
+[ -d "$APP" ] && /usr/bin/xattr -dr com.apple.quarantine "$APP" 2>/dev/null
+exit 0

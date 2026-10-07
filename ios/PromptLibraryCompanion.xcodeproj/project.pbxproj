@@ -157,7 +157,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K6MQCGVKZA;
 				GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = PromptLibraryCompanion/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Prompt Library";
+				INFOPLIST_KEY_CFBundleDisplayName = "Mac Link";
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connects to Prompt Library Pro running on your Mac.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -182,7 +182,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K6MQCGVKZA;
 				GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = PromptLibraryCompanion/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Prompt Library";
+				INFOPLIST_KEY_CFBundleDisplayName = "Mac Link";
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connects to Prompt Library Pro running on your Mac.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
