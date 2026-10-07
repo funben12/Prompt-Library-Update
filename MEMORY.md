@@ -274,6 +274,14 @@ Memory should describe the current resulting state and supersede stale instructi
 
 The 2026-10-05 Prompt Forge workbench redesign and stylesheet cache refresh were reverted. The pre-redesign Prompt Forge layout is the current intended baseline. Do not reapply the reverted visual treatment unless explicitly requested.
 
+### Prompt Forge frameworks and custom frameworks (2026-10-07)
+
+- All framework definitions now live in `static/forge-frameworks.js` (`window.PL_FORGE_FRAMEWORKS`, 354 entries, each with `title` = the dropdown label). `app.js` builds `FORGE_FRAMEWORKS` from it (about 5,800 lines left app.js). The phone app ships a copy of the same file.
+- Before this, 225 of the 354 dropdown options had no definition and silently did nothing. Every option now has fields; a Playwright check walks all 354 and confirms each renders and assembles.
+- Loaded by its own `<script>` tag after components-data.js, so `grep -c "<script" static/index.html` is now 5. `mac/setup.py` lists the file.
+- Custom frameworks: "+ New" beside the dropdown (or "+ New framework…" in it) opens an editor; typing an acronym makes one part per letter. Saved via `GET/POST /api/settings/forge-frameworks` into the settings key `forge_custom_frameworks` (JSON list, max 50, 12 parts each; no schema change). Shown first under "My frameworks" as keys `my_<id>`; Edit appears only for those. Same JSON shape as the phone's `forgeFrameworks`.
+- Modal is built in JS, inserted before `#toastContainer`, z-index above the Forge workspace. `.btn` overrides `[hidden]`, so hidden buttons need an explicit `[hidden]{display:none}` rule.
+
 ### Workspace suite
 
 A broader prompt engineering suite was added and wired into the existing launcher convention. Redundant evaluation/workflow workspaces were subsequently removed.

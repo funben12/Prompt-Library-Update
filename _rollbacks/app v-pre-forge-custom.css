@@ -10726,12 +10726,3 @@ body.plx-workspace-open{overflow:hidden}
   .plx-panel{min-height:360px}
   .plx-editor,.plx-output{min-height:220px}
 }
-
-/* Prompt Forge: custom framework editor */
-#forgeFwModal { z-index: calc(var(--z-modal) + 10); }
-#forgeFwNewBtn, #forgeFwEditBtn { margin-left: var(--sp-2); }
-.ffw-note { font-size: 12px; color: var(--ink-3, var(--text-muted)); margin: 0 0 var(--sp-2); }
-.ffw-rows { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-2); }
-.ffw-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto; gap: var(--sp-2); align-items: center; }
-.ffw-remove { margin-right: auto; color: var(--danger, oklch(55% 0.18 25)); }
-#forgeFwDelete[hidden], #forgeFwEditBtn[hidden] { display: none; }
