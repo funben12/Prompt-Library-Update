@@ -539,6 +539,33 @@
         }
     }
 
+    // Picks up prompts changed elsewhere (for example synced from the phone) without restarting the app.
+    function initAutoRefresh() {
+        let last = null;
+        let busy = false;
+        const check = async () => {
+            if (busy || document.hidden) return;
+            if (state.librarySource && state.librarySource.type === 'vault') return;
+            busy = true;
+            try {
+                const now = JSON.stringify(await api('/prompts/stamp'));
+                if (last !== null && now !== last) {
+                    await loadPrompts();
+                    if (typeof loadFilterOptions === 'function') await loadFilterOptions();
+                }
+                last = now;
+            } catch (e) {
+                // the server may be busy or restarting; try again next time
+            } finally {
+                busy = false;
+            }
+        };
+        check();
+        setInterval(check, 20000);
+        window.addEventListener('focus', check);
+        document.addEventListener('visibilitychange', check);
+    }
+
     async function loadFolders() {
         try {
             state.folders = await api('/folders');
@@ -20371,6 +20398,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initVersionWorkspace(); // version timeline workspace
         initModalSidePanels(); // prompt modal side panels
         initOnboarding(); // spotlight tour auto-launch on first run
+        initAutoRefresh(); // reload the list when it changes elsewhere (phone sync)
         initPromptViewer();
         initTagManager(); // tag manager modal (sidebar tags header)
         // Fire licence check and data load in parallel -- prompts render immediately,

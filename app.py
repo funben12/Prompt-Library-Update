@@ -1568,6 +1568,17 @@ def get_prompts():
     conn.close()
     return jsonify([serialize_prompt(r) for r in rows])
 
+@app.route('/api/prompts/stamp', methods=['GET'])
+def prompts_stamp():
+    """A tiny fingerprint of the library, so open windows can tell when something changed elsewhere (phone sync)."""
+    conn = get_db()
+    try:
+        row = conn.execute('SELECT COUNT(*), COALESCE(MAX(id),0), COALESCE(MAX(updated_at),\'\'), COALESCE(SUM(is_favorite),0) FROM prompts').fetchone()
+    finally:
+        conn.close()
+    return jsonify({'count': row[0], 'last_id': row[1], 'last_updated': row[2], 'favourites': row[3]})
+
+
 @app.route('/api/prompts/filters', methods=['GET'])
 def get_filter_options():
     conn = get_db()
