@@ -10615,6 +10615,9 @@
 .nbs-name { display: block; font-size: var(--fs-base); }
 .nbs-meta { display: block; font-size: var(--fs-sm); color: var(--ink-3); }
 .nbs-mono { font-family: var(--ff-mono); }
+.nbs-manual { display: flex; gap: var(--sp-2); }
+.nbs-manual .form-input { flex: 1; min-width: 0; font-family: var(--ff-mono); }
+.nbs-err { color: var(--danger, var(--ink-3)); }
 @keyframes nbsPulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
 @keyframes nearbyIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .nearby-card { animation: none; } }

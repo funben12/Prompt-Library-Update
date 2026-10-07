@@ -1687,7 +1687,16 @@ def share_resolve(oid):
 
 @app.route('/api/share/devices', methods=['GET'])
 def share_devices():
-    return _share_local_only() or jsonify(share_server.scan())
+    denied = _share_local_only()
+    if denied:
+        return denied
+    ip = (request.args.get('ip') or '').strip()
+    if ip:
+        if not share_server._private(ip):
+            return jsonify({'devices': [], 'error': 'Use the address shown on the phone, like 192.168.1.23'})
+        d = share_server.probe(ip, timeout=2.5)
+        return jsonify({'devices': [d] if d else [], 'error': None if d else 'Nothing answered at ' + ip + '. Keep Prompt Library open on that device.'})
+    return jsonify(share_server.scan())
 
 
 @app.route('/api/share/send', methods=['POST'])
