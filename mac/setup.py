@@ -13,6 +13,7 @@ DATA_FILES = [
         'static/app.css',
         'static/app.js',
         'static/components-data.js',
+        'static/forge-frameworks.js',
         'static/index.html',
     ]),
 ]

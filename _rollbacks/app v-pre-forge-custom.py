@@ -3476,48 +3476,6 @@ def _role_payload(data):
     }
 
 # ── AI Config settings (stored in local DB settings table) ───────────────────
-# Prompt Forge custom frameworks: a JSON list in the settings table, no schema change
-def _clean_forge_frameworks(items):
-    clean, seen = [], set()
-    for f in items[:50]:
-        if not isinstance(f, dict):
-            continue
-        name = str(f.get('name') or '').strip()[:40]
-        fid = re.sub(r'[^a-z0-9]', '', str(f.get('id') or name).lower())[:40]
-        fields = []
-        for x in (f.get('fields') or [])[:12]:
-            if not isinstance(x, dict):
-                continue
-            label = str(x.get('label') or '').strip()[:40]
-            if label:
-                fields.append({'label': label, 'hint': str(x.get('hint') or '').strip()[:120],
-                               'placeholder': str(x.get('placeholder') or '').strip()[:300]})
-        if name and fid and fields and fid not in seen:
-            seen.add(fid)
-            clean.append({'id': fid, 'name': name, 'description': str(f.get('description') or '').strip()[:160],
-                          'fields': fields})
-    return clean
-
-
-@app.route('/api/settings/forge-frameworks', methods=['GET'])
-def get_forge_frameworks():
-    try:
-        data = json.loads(get_setting('forge_custom_frameworks') or '[]')
-    except ValueError:
-        data = []
-    return jsonify(_clean_forge_frameworks(data if isinstance(data, list) else []))
-
-
-@app.route('/api/settings/forge-frameworks', methods=['POST'])
-def set_forge_frameworks():
-    items = _json_body().get('frameworks')
-    if not isinstance(items, list):
-        return jsonify({'error': 'frameworks must be a list'}), 400
-    clean = _clean_forge_frameworks(items)
-    set_setting('forge_custom_frameworks', json.dumps(clean))
-    return jsonify(clean)
-
-
 @app.route('/api/settings/ai-config', methods=['GET'])
 def get_ai_config():
     """Return stored provider (key is never returned for security)."""
