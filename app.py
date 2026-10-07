@@ -1568,6 +1568,29 @@ def get_prompts():
     conn.close()
     return jsonify([serialize_prompt(r) for r in rows])
 
+def _deleted_everywhere_ids():
+    try:
+        data = json.loads(get_setting('sync_deleted_ids') or '[]')
+        return [int(i) for i in data if isinstance(i, (int, str)) and str(i).lstrip('-').isdigit()]
+    except (TypeError, ValueError):
+        return []
+
+
+@app.route('/api/sync/deleted', methods=['GET'])
+def sync_deleted_get():
+    """Prompt numbers deleted on purpose from a phone or tablet ("delete everywhere"), so other devices can remove them too."""
+    return jsonify({'ids': _deleted_everywhere_ids()})
+
+
+@app.route('/api/sync/deleted', methods=['POST'])
+def sync_deleted_post():
+    data = _json_body()
+    new = [int(i) for i in (data.get('ids') or []) if isinstance(i, (int, str)) and str(i).lstrip('-').isdigit()]
+    merged = sorted(set(_deleted_everywhere_ids()) | set(new))[-5000:]
+    set_setting('sync_deleted_ids', json.dumps(merged))
+    return jsonify({'ids': merged})
+
+
 @app.route('/api/prompts/stamp', methods=['GET'])
 def prompts_stamp():
     """A tiny fingerprint of the library, so open windows can tell when something changed elsewhere (phone sync)."""
