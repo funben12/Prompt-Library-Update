@@ -539,6 +539,33 @@
         }
     }
 
+    // Picks up prompts changed elsewhere (for example synced from the phone) without restarting the app.
+    function initAutoRefresh() {
+        let last = null;
+        let busy = false;
+        const check = async () => {
+            if (busy || document.hidden) return;
+            if (state.librarySource && state.librarySource.type === 'vault') return;
+            busy = true;
+            try {
+                const now = JSON.stringify(await api('/prompts/stamp'));
+                if (last !== null && now !== last) {
+                    await loadPrompts();
+                    if (typeof loadFilterOptions === 'function') await loadFilterOptions();
+                }
+                last = now;
+            } catch (e) {
+                // the server may be busy or restarting; try again next time
+            } finally {
+                busy = false;
+            }
+        };
+        check();
+        setInterval(check, 20000);
+        window.addEventListener('focus', check);
+        document.addEventListener('visibilitychange', check);
+    }
+
     async function loadFolders() {
         try {
             state.folders = await api('/folders');
@@ -844,11 +871,12 @@
     async function bulkDelete() {
         if (!_bulkSelection.size) return;
         const count = _bulkSelection.size;
-        if (!confirm('Delete ' + count + ' prompt' + (count !== 1 ? 's' : '') + '? This cannot be undone.')) return;
+        const scope = await askDeleteScope(count);
+        if (!scope) return;
         try {
             const result = await api('/prompts/bulk', {
                 method: 'DELETE',
-                body: { ids: Array.from(_bulkSelection) }
+                body: { ids: Array.from(_bulkSelection), everywhere: scope === 'everywhere' }
             });
             if (result.failed > 0) toast(result.success + ' deleted, ' + result.failed + ' failed', 'warning');
             else toast(result.success + ' prompt' + (result.success !== 1 ? 's' : '') + ' deleted', 'success');
@@ -2630,6 +2658,39 @@
         }
     }
 
+    // Asks where a delete should apply. Resolves 'here' (this Mac only), 'everywhere' (also iPhone and iPad) or null (cancelled).
+    function askDeleteScope(count, label) {
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.setAttribute('role', 'dialog');
+            overlay.setAttribute('aria-modal', 'true');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);padding:16px;';
+            const card = document.createElement('div');
+            card.style.cssText = 'background:var(--surface,#fff);color:var(--ink,#111);border:1px solid var(--line,#ddd);border-radius:14px;max-width:460px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:12px;font-family:inherit;';
+            const title = document.createElement('h3');
+            title.style.cssText = 'margin:0;font-size:18px;';
+            title.textContent = count === 1 ? (label ? 'Delete "' + label + '"?' : 'Delete this prompt?') : 'Delete ' + count + ' prompts?';
+            const note = document.createElement('p');
+            note.style.cssText = 'margin:0;font-size:13.5px;line-height:1.55;color:var(--ink-2,#444);';
+            note.textContent = 'This cannot be undone. "This Mac only" leaves the copy on your iPhone and iPad. "Everywhere" also removes it from them at their next sync. Prompts locked in Version Lock are never deleted.';
+            const mk = (text, style) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.style.cssText = 'width:100%;justify-content:center;' + (style || ''); b.textContent = text; return b; };
+            const here = mk('Delete on this Mac only');
+            const everywhere = mk('Delete everywhere (Mac, iPhone and iPad)', 'background:#c0392b;color:#fff;border-color:#c0392b;');
+            const cancel = mk('Cancel', 'font-weight:600;');
+            const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); finish(null); } };
+            const finish = (v) => { document.removeEventListener('keydown', onKey, true); overlay.remove(); resolve(v); };
+            here.addEventListener('click', () => finish('here'));
+            everywhere.addEventListener('click', () => finish('everywhere'));
+            cancel.addEventListener('click', () => finish(null));
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(null); });
+            document.addEventListener('keydown', onKey, true);
+            [title, note, here, everywhere, cancel].forEach(el => card.appendChild(el));
+            overlay.appendChild(card);
+            document.body.appendChild(overlay);
+            cancel.focus();
+        });
+    }
+
     async function deletePromptById(id) {
         if (state.librarySource && state.librarySource.type === 'vault') {
             const p = state.prompts.find(x => x.id === id);
@@ -2647,9 +2708,10 @@
             }
             return;
         }
-        if (!confirm('Delete this prompt? This cannot be undone.')) return;
+        const scope = await askDeleteScope(1, (state.prompts.find(x => x.id === id) || {}).title);
+        if (!scope) return;
         try {
-            await api(`/prompts/${id}`, {
+            await api(`/prompts/${id}` + (scope === 'everywhere' ? '?everywhere=1' : ''), {
                 method: 'DELETE'
             });
             if (state.detailId === id) closeDetailPanel();
@@ -5157,6 +5219,128 @@ Here are my prompts:
 
         $('#closePromptModal')?.addEventListener('click', closePromptModal);
         $('#autoTagBtn')?.addEventListener('click', runAutoTag);
+        // Optimize inside the editor: AI rewrites the prompt, the user accepts to replace the editor text.
+        (function initEditorOptimize() {
+            const btn = $('#optimizeFromEditorBtn');
+            const panel = $('#optInPanel');
+            if (!btn || !panel) return;
+            const area = () => $('#promptContent');
+            let busy = false;
+            let prevText = null;
+
+            const setApplied = (applied) => {
+                $('#optInText').hidden = applied;
+                $('#optInActions').hidden = applied;
+                $('#optInChanges').hidden = applied || !$('#optInChanges').textContent;
+                $('#optInApplied').hidden = !applied;
+            };
+            const closePanel = () => {
+                panel.hidden = true;
+                prevText = null;
+            };
+            const parse = (raw) => {
+                const text = String(raw || '').trim();
+                let prompt = text, changes = '', score = null;
+                const iP = text.indexOf('<<<PROMPT>>>'), iC = text.indexOf('<<<CHANGES>>>'), iS = text.indexOf('<<<SCORE>>>');
+                if (iP !== -1) {
+                    const after = [iC, iS].filter(i => i > iP).sort((a, b) => a - b);
+                    prompt = text.slice(iP + 12, after.length ? after[0] : text.length).trim();
+                    if (iC !== -1) changes = text.slice(iC + 13, iS > iC ? iS : text.length).trim();
+                    if (iS !== -1) {
+                        const sm = text.slice(iS + 11).match(/\d{1,3}/);
+                        if (sm) score = Math.min(100, parseInt(sm[0], 10));
+                    }
+                } else {
+                    prompt = text.replace(/\n*SCORE:\s*\d{1,3}.*$/is, '').trim();
+                }
+                prompt = prompt.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/, '').trim();
+                return { prompt, changes, score };
+            };
+
+            const run = async () => {
+                if (busy) return;
+                const text = area()?.value?.trim();
+                if (!text) {
+                    toast('Add your prompt content first', 'warning');
+                    return;
+                }
+                busy = true;
+                const label = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;animation:spin 1s linear infinite">progress_activity</span> Optimizing...';
+                try {
+                    const FORMAT = ' Reply in exactly this format:\n<<<PROMPT>>>\n(the rewritten prompt only)\n<<<CHANGES>>>\n(3-6 short lines, each starting with "- ", saying what you improved)\n<<<SCORE>>>\n(one whole number from 1 to 100 for the rewritten prompt)';
+                    const KEEP = ' Keep the original intent and keep every placeholder exactly as written ([[name]], {{name}}, ((name))). Do not invent facts, names or numbers the original does not give. Keep the same language. No markdown headings or code fences inside the rewritten prompt.';
+                    const strength = $('#optInStrength')?.value === 'light' ? 'light' : 'thorough';
+                    const focus = $('#optInFocus')?.value?.trim() || '';
+                    const sys = strength === 'light'
+                        ? 'You are an expert prompt engineer. Polish the prompt you are given: fix ambiguity, tighten wording and remove filler, but keep its structure and length close to the original.' + KEEP + FORMAT
+                        : 'You are a senior prompt engineer. Substantially improve the prompt you are given; do not just polish the wording. Restructure it so a model can follow it exactly: state the role and context, the task, the rules and constraints, edge cases and how to handle them, the audience and tone where relevant, and the exact output format. Replace vague words with concrete ones, resolve ambiguity, and use short labelled sections or numbered steps when they help. If something important is missing that only the user can decide, add a short line using a [[placeholder]] instead of guessing.' + KEEP + FORMAT;
+                    const usr = 'Rewrite this prompt:\n\n' + text + (focus ? '\n\nFocus on: ' + focus : '');
+                    const raw = await callAI(sys, usr, 3500);
+                    if (!String(raw || '').trim()) throw new Error('The AI sent back an empty reply. Try again, or pick a different model in API settings.');
+                    const out = parse(raw);
+                    if (!out.prompt) throw new Error('The AI reply had no rewritten prompt. Try again.');
+                    $('#optInText').value = out.prompt;
+                    const ch = $('#optInChanges');
+                    ch.textContent = out.changes;
+                    const sc = $('#optInScore');
+                    sc.textContent = out.score != null ? 'Score ' + out.score : '';
+                    sc.hidden = out.score == null;
+                    setApplied(false);
+                    panel.hidden = false;
+                    panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                } catch (err) {
+                    if (err.message && err.message.includes('No API key')) toast('Add an API key in Settings first (⚙ bottom left)', 'error');
+                    else toast('Optimize failed: ' + err.message, 'error');
+                } finally {
+                    busy = false;
+                    btn.disabled = false;
+                    btn.innerHTML = label;
+                }
+            };
+
+            btn.addEventListener('click', run);
+            $('#optInRetryBtn')?.addEventListener('click', run);
+            $('#optInDiscardBtn')?.addEventListener('click', closePanel);
+            $('#optInCloseBtn')?.addEventListener('click', closePanel);
+            $('#optInApplyBtn')?.addEventListener('click', () => {
+                const next = $('#optInText')?.value?.trim();
+                const el = area();
+                if (!next || !el) return;
+                prevText = el.value;
+                el.value = next;
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                setApplied(true);
+                toast('Prompt replaced with the optimized version', 'success');
+            });
+            $('#optInUndoBtn')?.addEventListener('click', () => {
+                const el = area();
+                if (prevText == null || !el) return;
+                el.value = prevText;
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                prevText = null;
+                setApplied(false);
+                toast('Restored your previous prompt', 'info');
+            });
+            $('#optInOpenBtn')?.addEventListener('click', () => {
+                window.openOptimizerWorkspace();
+                const input = $('#optPromptInput');
+                if (input) input.value = area()?.value?.trim() || '';
+                _optState.currentOutput = '';
+                _optState.lastKind = null;
+                const out = $('#optOutput');
+                if (out) out.innerHTML = '';
+                const acts = $('#optOutputActions');
+                if (acts) acts.style.display = 'none';
+                _optFromEditor = true;
+                _optSyncSource();
+            });
+            // Start clean whenever the editor closes.
+            const modal = $('#promptModal');
+            if (modal) new MutationObserver(() => { if (!modal.classList.contains('active')) closePanel(); })
+                .observe(modal, { attributes: true, attributeFilter: ['class'] });
+        })();
         $('#tagSearchInput')?.addEventListener('input', e => {
             _tagSearchQ = e.target.value;
             renderSidebarFilters();
@@ -6493,6 +6677,12 @@ Here are my prompts:
                     api('/settings/ai-providers').catch(() => [])
                 ]);
                 (customProviders || []).forEach(cp => _addProviderTab(cp.slug, cp.label));
+                try {
+                    const cfg = await api('/settings/ai-config');
+                    if (cfg && cfg.provider && !localStorage.getItem('pl_ai_provider')) {
+                        localStorage.setItem('pl_ai_provider', cfg.provider);
+                    }
+                } catch (e) { /* keep local choice */ }
                 const presetSlugs = $$('.config-provider-tab').map(t => t.dataset.provider);
                 for (const p of presetSlugs) {
                     const local = localStorage.getItem(`pl_api_key_${p}`) || '';
@@ -6630,6 +6820,7 @@ Here are my prompts:
                 if (key) {
                     localStorage.setItem(`pl_api_key_${provider}`, key);
                     localStorage.setItem('pl_ai_provider', provider);
+                    api('/settings/ai-config', { method: 'POST', body: { provider } }).catch(() => {});
                     api('/settings/ai-keys', {
                         method: 'POST',
                         body: {
@@ -6666,8 +6857,9 @@ Here are my prompts:
 
         // Close when clicking outside
         document.addEventListener('click', e => {
-            if (!panel.contains(e.target) && e.target !== toggleBtn) {
+            if (!panel.contains(e.target) && !toggleBtn.contains(e.target)) {
                 panel.classList.remove('open');
+                toggleBtn.classList.remove('active');
             }
         });
     }
@@ -13134,7 +13326,54 @@ Must avoid: [Anything sensitive or previously declined]`
         setTimeout(() => $('#optPromptInput')?.focus(), 80);
     };
 
+    // True while the Optimizer was opened from the prompt editor ("Open in Optimizer").
+    let _optFromEditor = false;
+
+    function _optSyncSource() {
+        const show = _optFromEditor ? '' : 'none';
+        const r = $('#optReplaceBtn'), rs = $('#optReplaceSaveBtn'), lbl = $('#optSaveLabel');
+        if (r) r.style.display = show;
+        if (rs) rs.style.display = show;
+        if (lbl) lbl.textContent = _optFromEditor ? 'Save as new' : 'Save';
+    }
+
+    // Pull just the rewritten prompt out of the Optimizer's answer (it also lists improvements).
+    function _optExtractPrompt(text) {
+        let t = String(text || '');
+        const a = t.search(/OPTIMI[SZ]ED PROMPT/i);
+        if (a !== -1) t = t.slice(a).replace(/^OPTIMI[SZ]ED PROMPT\**\s*[:\u2014-]*\s*/i, '');
+        const b = t.search(/\n\s*[*#]*\s*(?:\d+\.\s*)?[*#]*\s*(?:KEY IMPROVEMENTS|WHY THESE WORK)/i);
+        if (b !== -1) t = t.slice(0, b);
+        return t.replace(/^["\u201c]+|["\u201d]+$/g, '').trim();
+    }
+
+    // Send the optimized prompt back into the open editor; optionally save it right away.
+    function _optApplyToEditor(save) {
+        if (_optState.lastKind !== 'optimize' || !_optState.currentOutput) {
+            toast('Run Optimize first (Analyze results cannot replace a prompt)', 'warning');
+            return;
+        }
+        const modal = $('#promptModal');
+        const el = $('#promptContent');
+        if (!modal || !modal.classList.contains('active') || !el) {
+            toast('The editor is closed. Use Save as new instead.', 'warning');
+            return;
+        }
+        const next = _optExtractPrompt(_optState.currentOutput);
+        if (!next) {
+            toast('Could not find the optimized prompt in the result', 'error');
+            return;
+        }
+        el.value = next;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        closeOptimizerWorkspace();
+        if (save) $('#promptForm')?.requestSubmit();
+        else toast('Prompt replaced in the editor. Click Save changes to keep it.', 'success');
+    }
+
     function closeOptimizerWorkspace() {
+        _optFromEditor = false;
+        _optSyncSource();
         $('#optimizerWorkspace')?.classList.remove('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
@@ -13158,6 +13397,7 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     function _optAddHistory(type, prompt, output, score) {
+        _optState.lastKind = type;
         _optState.history.unshift({
             id: Date.now(),
             type,
@@ -13206,6 +13446,7 @@ Must avoid: [Anything sensitive or previously declined]`
             out.textContent = item.output;
         }
         _optState.currentOutput = item.output;
+        _optState.lastKind = item.type;
         const actions = $('#optOutputActions');
         if (actions) actions.style.display = 'flex';
     }
@@ -13406,6 +13647,8 @@ Must avoid: [Anything sensitive or previously declined]`
             }
         });
 
+        $('#optReplaceBtn')?.addEventListener('click', () => _optApplyToEditor(false));
+        $('#optReplaceSaveBtn')?.addEventListener('click', () => _optApplyToEditor(true));
         $('#closeOptimizerBtn')?.addEventListener('click', closeOptimizerWorkspace);
         ws.addEventListener('keydown', e => {
             if (e.key === 'Escape') closeOptimizerWorkspace();
@@ -14868,9 +15111,10 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     async function _pulseDeletePrompt(p) {
-        if (!confirm('Delete "' + (p.title || 'Untitled') + '"? This can\'t be undone.')) return;
+        const scope = await askDeleteScope(1, p.title || 'Untitled');
+        if (!scope) return;
         try {
-            await api(`/prompts/${p.id}`, { method: 'DELETE' });
+            await api(`/prompts/${p.id}` + (scope === 'everywhere' ? '?everywhere=1' : ''), { method: 'DELETE' });
             _pulseData.list = _pulseData.list.filter(x => x.id !== p.id);
             _pulseResolved++;
             toast('Deleted', 'success');
@@ -14881,9 +15125,10 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     async function _pulseDropDuplicate(deleteId) {
-        if (!confirm("Delete the other prompt in this pair? This can't be undone.")) return;
+        const scope = await askDeleteScope(1, ((_pulseData.list || []).find(x => x.id === deleteId) || {}).title || 'the other prompt');
+        if (!scope) return;
         try {
-            await api(`/prompts/${deleteId}`, { method: 'DELETE' });
+            await api(`/prompts/${deleteId}` + (scope === 'everywhere' ? '?everywhere=1' : ''), { method: 'DELETE' });
             _pulseData.list = _pulseData.list.filter(x => x.id !== deleteId);
             _pulseResolved++;
             toast('Duplicate removed', 'success');
@@ -15883,9 +16128,10 @@ Must avoid: [Anything sensitive or previously declined]`
                 case 'delete-prompt': {
                     const p = _pmbState.prompts.find(x => x.id === promptId);
                     if (!p) return;
-                    if (!confirm('Delete "' + (p.title || 'this prompt') + '"? This cannot be undone.')) return;
+                    const scope = await askDeleteScope(1, p.title || 'this prompt');
+                    if (!scope) return;
                     try {
-                        await api('/prompts/' + promptId, { method: 'DELETE' });
+                        await api('/prompts/' + promptId + (scope === 'everywhere' ? '?everywhere=1' : ''), { method: 'DELETE' });
                         toast('Prompt deleted', 'success');
                         _pmbCloseModal();
                         await _pmbLoadAll();
@@ -20190,6 +20436,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initVersionWorkspace(); // version timeline workspace
         initModalSidePanels(); // prompt modal side panels
         initOnboarding(); // spotlight tour auto-launch on first run
+        initAutoRefresh(); // reload the list when it changes elsewhere (phone sync)
         initPromptViewer();
         initTagManager(); // tag manager modal (sidebar tags header)
         // Fire licence check and data load in parallel -- prompts render immediately,
@@ -20581,8 +20828,11 @@ Must avoid: [Anything sensitive or previously declined]`
                     max_tokens: maxTokens
                 }),
             });
-            const data = await res.json();
-            if (data.error) throw new Error(data.error.message);
+            const raw = await res.text();
+            if (!raw.trim()) throw new Error('OpenRouter sent an empty reply (HTTP ' + res.status + '). Try again.');
+            let data;
+            try { data = JSON.parse(raw); } catch (e) { throw new Error('OpenRouter sent an unreadable reply (HTTP ' + res.status + '). Try again.'); }
+            if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
             return (data.choices?.[0]?.message?.content || '').trim();
 
         } else if (provider === 'cohere') {
@@ -27937,11 +28187,11 @@ Must avoid: [Anything sensitive or previously declined]`
                 '\n\nEXISTING FOLDERS (pick 1 if relevant, else null):\n' + (existingFolders.length ? existingFolders.join(', ') : 'none') +
                 '\n\nRespond with ONLY this JSON (no extra text):\n{"categories":["..."],"tags":["..."],"folder":"...or null"}';
 
-            const response = await callAI(sys, usr, 300);
+            const response = await callAI(sys, usr, 1500);
+            if (!String(response || '').trim()) throw new Error('The AI sent back an empty reply. Try again, or pick a different model in API settings.');
 
-            // Parse — strip any accidental markdown fencing
-            const clean = response.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/, '').trim();
-            const result = JSON.parse(clean);
+            // Tolerates code fences, preamble text and trailing commas
+            const result = _aiExtractJson(response);
 
             // Apply categories — only values that exist in our list
             if (Array.isArray(result.categories) && result.categories.length) {
@@ -28263,7 +28513,7 @@ Must avoid: [Anything sensitive or previously declined]`
 
 /* ============================================================================
    ONBOARDING SPOTLIGHT TOUR
-   13 steps. localStorage key: promptlib.tourDone
+   19 steps (intro, 17 numbered steps, outro). localStorage key: promptlib.tourDone
    Auto-launches on first run. Replay via #tourBtn.
    window.PL_startOnboarding, window.PL_skipOnboarding,
    window.PL_onboardNext, window.PL_onboardBack
@@ -28276,96 +28526,139 @@ Must avoid: [Anything sensitive or previously declined]`
 
     const STEPS = [{
             eyebrow: 'Welcome',
-            title: 'Your prompts. <em>Your machine.</em>',
-            desc: 'Prompt Library Pro is a fully offline workspace for the prompts you actually use. No cloud. No subscriptions. No one else has access to your data.',
+            title: 'Welcome to your <em>prompt library</em>',
+            desc: 'A prompt is the instruction you give an AI such as ChatGPT or Claude. This app saves your best ones so you never have to rewrite them. Everything stays on your own computer. This short tour shows you the basics.',
             icon: 'auto_awesome',
             target: null
         },
         {
-            eyebrow: 'Step 1 of 12',
-            title: 'Your <em>library</em>',
-            desc: 'Every prompt you save lives here. Search, filter by folder, tag, or category. The list updates instantly as you type.',
+            title: 'This is your <em>library</em>',
+            desc: 'Every prompt you save shows up here as a card. Type in the search box to find one by any word. Click a card to open it.',
             icon: 'library_books',
             target: '#promptsContainer'
         },
         {
-            eyebrow: 'Step 2 of 12',
-            title: 'Save your first <em>prompt</em>',
-            desc: 'Click the + button or press Ctrl+N. Give it a title, paste your prompt, and save. It\'s searchable and ready to copy in one click from that moment on.',
+            title: 'Save your <em>first prompt</em>',
+            desc: 'Click the New prompt button (or press Ctrl+N). Type a title, paste your prompt, then press Save. It is now stored and easy to find.',
             icon: 'edit_note',
             target: '#newPromptBtn'
         },
         {
-            eyebrow: 'Step 3 of 12',
-            title: 'Dynamic <em>variables</em>',
-            desc: 'Wrap any word in double brackets — [[client]], [[topic]], [[tone]] — and it becomes a fillable field. When you copy, a form lets you fill it in seconds.',
+            title: 'Fill-in-the-blank <em>variables</em>',
+            desc: 'Put a word in double square brackets, like [[client]] or [[topic]]. It becomes a blank you fill in each time you use the prompt, so one prompt can work for many situations.',
             icon: 'data_object',
             target: '#promptsContainer'
         },
         {
-            eyebrow: 'Step 4 of 12',
-            title: 'Organise with <em>folders</em>',
-            desc: 'Create folders to group prompts by project, client, or workflow. Drag-and-drop or assign in the editor. Use the folder filter in the sidebar to narrow the list.',
-            icon: 'folder_open',
-            target: '.nav-section-label[data-toggle="folders"]'
-        },
-        {
-            eyebrow: 'Step 5 of 12',
-            title: 'Tags and <em>categories</em>',
-            desc: 'Add tags for flexible cross-folder search. Assign a category (Writing, Research, Product…) for quick chip-filter access at the top of the library.',
-            icon: 'label',
-            target: '.nav-section-label[data-toggle="categories"]'
-        },
-        {
-            eyebrow: 'Step 6 of 12',
-            title: 'Build <em>AI agents</em>',
-            desc: 'This is the Agents workspace. Define full role profiles — identity, voice, knowledge base, skills — and copy them as structured text, XML, or prose into any AI tool.',
-            icon: 'smart_toy',
-            open: 'roles',
-            target: null
-        },
-        {
-            eyebrow: 'Step 7 of 12',
-            title: 'Power <em>workspaces</em>',
-            desc: 'This is Prompt Forge — a structured prompt builder. The workspace nav also gives you Lab, Context Bank, Prompt Components and more. Each is a dedicated tool built around your saved prompts.',
-            icon: 'workspaces',
-            open: 'forge',
-            target: null
-        },
-        {
-            eyebrow: 'Step 8 of 12',
-            title: 'The <em>detail panel</em>',
-            desc: 'Click any prompt to open the right panel. Fill variables, view version history, add notes and ratings, run a chain, or copy in any format — all without leaving the library.',
+            title: 'Open a prompt to <em>use it</em>',
+            desc: 'Click any prompt and this panel slides in. Fill in the blanks, copy the finished text, rate it, add notes, or look at older versions. Then paste it into your AI tool.',
             icon: 'side_navigation',
             openDetail: true,
             target: '#detailPanel'
         },
         {
-            eyebrow: 'Step 9 of 12',
+            title: 'Keep things tidy with <em>folders</em>',
+            desc: 'Make a folder for each project or client and put related prompts inside. Click a folder in the sidebar to see only those prompts.',
+            icon: 'folder_open',
+            target: '.nav-section-label[data-toggle="folders"]'
+        },
+        {
+            title: 'Tags and <em>categories</em>',
+            desc: 'Tags and categories are labels you add to a prompt, such as Writing or Research. They help you find prompts across folders. Click one in the sidebar to filter the library.',
+            icon: 'label',
+            target: '.nav-section-label[data-toggle="categories"]'
+        },
+        {
+            title: 'Add <em>AI help</em> (optional)',
+            desc: 'Features like Auto-tag and Optimize use an AI service. Click API settings, pick a provider (OpenAI, Anthropic, OpenRouter and others), and paste your own API key. The key stays on this computer. You can skip this if you do not want AI features.',
+            icon: 'key',
+            target: '#configToggleBtn'
+        },
+        {
+            title: '<em>Optimize</em> a prompt with AI',
+            desc: 'When you edit a prompt, click Optimize. The AI rewrites it to be clearer and more complete. Press Replace prompt to accept it, or Discard to keep yours. Not happy? Type a note like "make it stricter" in the Focus box and press Try again.',
+            icon: 'speed',
+            target: null
+        },
+        {
+            title: 'Power <em>workspaces</em>',
+            desc: 'Workspaces are extra tools built around your prompts, for building, testing, comparing and improving them. This one is Prompt Forge, which guides you step by step. Find the rest under Workspaces in the sidebar. Many need a Pro licence.',
+            icon: 'workspaces',
+            open: 'forge',
+            target: null
+        },
+        {
+            title: 'Build <em>AI agents</em>',
+            desc: 'An agent is a reusable personality for an AI, such as "a patient writing coach". Describe who it is and how it talks, then copy it into any AI tool.',
+            icon: 'smart_toy',
+            open: 'roles',
+            target: null
+        },
+        {
             title: 'Context <em>Bank</em>',
-            desc: 'This is the Context Bank. Save reusable context blocks — company info, persona, style guide — and inject them into any prompt with one click. No more retyping the same background text.',
+            desc: 'Save background text you use again and again, like company info or your writing style, and add it to any prompt with one click. No more retyping the same details.',
             icon: 'database',
             open: 'contextBank',
             target: null
         },
         {
-            eyebrow: 'Step 10 of 12',
+            title: '<em>Back up</em> your library',
+            desc: 'Take a snapshot of your whole library in one click, and restore it later if something goes wrong. Make one before big changes. You find this under Workspaces, in the Protect group.',
+            icon: 'restore',
+            open: 'backup',
+            target: null
+        },
+        {
             title: 'Import and <em>Export</em>',
-            desc: 'Share your library as a .plp pack, export individual prompts as Markdown or CSV, or import a colleague\'s pack. Everything travels as a single file.',
+            desc: 'Share your library as a single .plp file, export prompts as Markdown or CSV, or import a pack from a friend or colleague.',
             icon: 'import_export',
             target: '#exportBtn'
         },
         {
-            eyebrow: 'Step 11 of 12',
+            title: 'Use it on your <em>phone or tablet</em>',
+            desc: 'You can open this same library on your phone or iPad. Nothing is copied: the phone shows the library that lives on this computer, so the computer must stay on with this app open.',
+            list: [
+                '<strong>At home, on the same Wi-Fi:</strong> click Continue on phone, turn on phone access, then scan the QR code with your phone camera.',
+                '<strong>Away from home:</strong> use Tailscale, a free app that links your own devices privately. The next step shows how.'
+            ],
+            icon: 'devices',
+            target: '#phoneShareBtn'
+        },
+        {
+            title: 'Connect from anywhere with <em>Tailscale</em>',
+            desc: 'Tailscale lets your phone reach this computer from any network. Only your own devices can use the connection.',
+            list: [
+                'Install <strong>Tailscale</strong> (tailscale.com/download) on this computer and on your phone, and sign in to both with the same account.',
+                'Open Tailscale on this computer and find its address. It looks like <strong>100.x.x.x</strong>.',
+                'In this app, click <strong>Continue on phone</strong>, turn on phone access, and copy the link.',
+                'On your phone, switch Tailscale on and open that link in the browser. Replace the numbers at the start of the link with your Tailscale address, and keep the rest.'
+            ],
+            ordered: true,
+            icon: 'vpn_lock',
+            target: '#phoneShareBtn'
+        },
+        {
+            title: 'Turn it into a <em>companion app</em>',
+            desc: 'Once the library opens on your phone, add it to your Home Screen so it opens like a normal app.',
+            list: [
+                '<strong>iPhone or iPad:</strong> in Safari, tap the Share button, then Add to Home Screen.',
+                '<strong>Android:</strong> in Chrome, tap the menu (three dots), then Add to Home screen.',
+                'The link changes each time phone access is turned on. If it stops working, copy a fresh link here.',
+                'Turn phone access off when you do not need it.'
+            ],
+            icon: 'install_mobile',
+            target: null
+        },
+        {
             title: 'Pro <em>features</em>',
-            desc: 'Unlock version history, analytics, chat-format export, and power workspaces like Prompt Components with a Pro licence. Your data stays local either way.',
+            desc: 'A Pro licence unlocks version history, analytics, chat-format export, AI tools like Optimize and Auto-tag, and the power workspaces. Your data stays on your computer either way.',
             icon: 'workspace_premium',
             target: '#licenceBtn'
         },
         {
             eyebrow: 'You\'re set',
             title: 'The library is <em>yours</em>',
-            desc: 'That\'s the full tour. Build your library one prompt at a time. Replay this tour anytime via the "App tour" button in the sidebar footer.',
+            desc: 'That is the whole tour. Add prompts one at a time and your library will grow. You can replay this tour any time with the App tour button at the bottom of the sidebar.',
             icon: 'check_circle',
             target: null
         }
@@ -28410,9 +28703,10 @@ Must avoid: [Anything sensitive or previously declined]`
     const OPEN_FNS = {
         roles: 'openRolesWorkspace',
         forge: 'openForgeWorkspace',
-        contextBank: 'openContextBankWorkspace'
+        contextBank: 'openContextBankWorkspace',
+        backup: 'openBackupWorkspace'
     };
-    const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
+    const WS_SELECTORS = ['#backupWorkspace', '#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
         '#playgroundWorkspace', '#chainWorkspace',
         '#contextBankWorkspace', '#componentsWorkspace', '#optimizerWorkspace',
         '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace', '#gauntletWorkspace'
@@ -28517,9 +28811,16 @@ Must avoid: [Anything sensitive or previously declined]`
         const skipBtn = _el('obSkipBtn');
 
         if (icon) icon.textContent = s.icon;
-        if (eyebrow) eyebrow.textContent = s.eyebrow;
+        if (eyebrow) eyebrow.textContent = s.eyebrow || ('Step ' + step + ' of ' + (TOTAL - 2));
         if (title) title.innerHTML = s.title;
         if (desc) desc.textContent = s.desc;
+        const listEl = _el('obList');
+        if (listEl) {
+            const hasList = !!(s.list && s.list.length);
+            listEl.innerHTML = hasList ? s.list.map(t => '<li>' + t + '</li>').join('') : '';
+            listEl.hidden = !hasList;
+            listEl.classList.toggle('ob-bullets', !s.ordered);
+        }
         if (fill) fill.style.width = ((step + 1) / TOTAL * 100).toFixed(1) + '%';
         if (nextBtn) nextBtn.textContent = step === TOTAL - 1 ? 'Get started' : 'Next';
         if (skipBtn) skipBtn.style.display = step === TOTAL - 1 ? 'none' : '';
@@ -28535,6 +28836,7 @@ Must avoid: [Anything sensitive or previously declined]`
         // Position card away from spotlight target if needed
         const card = _el('onboardingCard');
         if (card) {
+            card.classList.toggle('ob-wide', !!(s.list && s.list.length));
             card.style.bottom = '40px';
             card.style.right = '40px';
             card.style.top = '';

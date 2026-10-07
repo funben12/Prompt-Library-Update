@@ -16,7 +16,7 @@ import vault_scanner
 def _hash_key(k):
     return hashlib.sha256(k.strip().upper().encode()).hexdigest()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=None)  # /static served by send_static below
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Strict',
@@ -41,7 +41,8 @@ def _is_private(addr):
         ip = ipaddress.ip_address((addr or '').split('%')[0])
         if getattr(ip, 'ipv4_mapped', None):
             ip = ip.ipv4_mapped
-        return ip.is_private
+        # Tailscale addresses (CGNAT range) count as private
+        return ip.is_private or (ip.version == 4 and ip in ipaddress.ip_network('100.64.0.0/10'))
     except ValueError:
         return False
 
@@ -58,9 +59,17 @@ def _lan_ip():
         s.close()
 
 
+def _lan_mode_on():
+    # Tokenless private-network access, opt-in via the file ~/Documents/PromptLibrary/lan_mode
+    return os.path.exists(os.path.join(os.path.expanduser('~'), 'Documents', 'PromptLibrary', 'lan_mode'))
+
+
 @app.before_request
 def _phone_gate():
     if _is_loopback(request.remote_addr):
+        return None
+    if (_lan_mode_on() and _is_private(request.remote_addr)
+            and not request.path.startswith('/api/phone/')):
         return None
     if (not _phone['enabled'] or not _is_private(request.remote_addr)
             or request.path.startswith('/api/phone/')):
@@ -173,6 +182,8 @@ _RAW_KEYS = [
 # Generated 2026-05-23, batch of 15. To add more: generate keys, hash with
 # sha256(KEY.strip().upper()), append the digests below, rebuild.
 _SALES_KEY_HASHES = {
+    # PROMPTLIB-PRO-AND-001
+    '9f728305141767db0715e209090e938ea7582aa5b0ecc25f8e392349124f980a',
     # Personal / manually-issued keys, hashed 2026-08-10.
     # Plaintext for these lives in keys_PRIVATE.txt only.
     'e32d32c75e8eb45147ec866ea074855dd8f593213f70a0cd48927aa320b978dd',
@@ -1557,6 +1568,44 @@ def get_prompts():
     conn.close()
     return jsonify([serialize_prompt(r) for r in rows])
 
+def _deleted_everywhere_ids():
+    try:
+        data = json.loads(get_setting('sync_deleted_ids') or '[]')
+        return [int(i) for i in data if isinstance(i, (int, str)) and str(i).lstrip('-').isdigit()]
+    except (TypeError, ValueError):
+        return []
+
+
+def _record_deleted_everywhere(new_ids):
+    merged = sorted(set(_deleted_everywhere_ids()) | set(int(i) for i in new_ids))[-5000:]
+    set_setting('sync_deleted_ids', json.dumps(merged))
+    return merged
+
+
+@app.route('/api/sync/deleted', methods=['GET'])
+def sync_deleted_get():
+    """Prompt numbers deleted on purpose from a phone or tablet ("delete everywhere"), so other devices can remove them too."""
+    return jsonify({'ids': _deleted_everywhere_ids()})
+
+
+@app.route('/api/sync/deleted', methods=['POST'])
+def sync_deleted_post():
+    data = _json_body()
+    new = [int(i) for i in (data.get('ids') or []) if isinstance(i, (int, str)) and str(i).lstrip('-').isdigit()]
+    return jsonify({'ids': _record_deleted_everywhere(new)})
+
+
+@app.route('/api/prompts/stamp', methods=['GET'])
+def prompts_stamp():
+    """A tiny fingerprint of the library, so open windows can tell when something changed elsewhere (phone sync)."""
+    conn = get_db()
+    try:
+        row = conn.execute('SELECT COUNT(*), COALESCE(MAX(id),0), COALESCE(MAX(updated_at),\'\'), COALESCE(SUM(is_favorite),0) FROM prompts').fetchone()
+    finally:
+        conn.close()
+    return jsonify({'count': row[0], 'last_id': row[1], 'last_updated': row[2], 'favourites': row[3]})
+
+
 @app.route('/api/prompts/filters', methods=['GET'])
 def get_filter_options():
     conn = get_db()
@@ -1688,6 +1737,9 @@ def delete_prompt(pid):
     conn.execute('DELETE FROM prompts WHERE id=?', (pid,))
     conn.commit()
     conn.close()
+    # "Delete everywhere": remember it, so phones and tablets remove their copy at their next sync.
+    if row is not None and request.args.get('everywhere') == '1':
+        _record_deleted_everywhere([pid])
     return jsonify({'success': True})
 
 @app.route('/api/prompts/bulk', methods=['PATCH'])
@@ -1746,16 +1798,20 @@ def bulk_delete_prompts():
     ids = [pid for pid in ids if pid not in locked]
     conn = get_db()
     success, failed = 0, 0
+    deleted_ids = []
     try:
         for pid in ids:
             cur = conn.execute('DELETE FROM prompts WHERE id=?', (pid,))
             if cur.rowcount:
                 success += 1
+                deleted_ids.append(pid)
             else:
                 failed += 1
         conn.commit()
     finally:
         conn.close()
+    if deleted_ids and data.get('everywhere'):
+        _record_deleted_everywhere(deleted_ids)
     return jsonify({'success': success, 'failed': failed, 'skipped_locked': skipped_locked})
 
 @app.route('/api/prompts/<int:pid>/fork', methods=['POST'])

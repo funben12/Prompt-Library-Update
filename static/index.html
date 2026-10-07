@@ -8,7 +8,7 @@
 
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/app.css?v=20261005-forgeux">
+<link rel="stylesheet" href="/static/app.css?v=b14e5f7d-forgeux">
 </head>
 <body>
 
@@ -1132,6 +1132,9 @@
             <button type="button" class="btn btn-ghost btn-sm" id="insertVaultTemplateBtn" hidden>
               <span class="material-symbols-outlined" style="font-size:14px;">description</span> Use template
             </button>
+            <button type="button" class="btn btn-ghost btn-sm premium-locked" data-premium="true" id="optimizeFromEditorBtn" title="Optimize this prompt — Pro feature">
+              <span class="material-symbols-outlined" style="font-size:14px;">speed</span> Optimize
+            </button>
           </div>
           <div class="prompt-block">
             <!-- Sub-tabs: System Prompt / Conversation -->
@@ -1157,6 +1160,32 @@
               <div class="editor-grid-2">
                 <textarea id="promptContent" placeholder="Enter your system prompt here... Use [[variable]], {{variable}}, or ((variable)) for placeholders." required></textarea>
                 <div id="editorPreview"><span class="hint">Live preview...</span></div>
+              </div>
+              <div class="optin-panel" id="optInPanel" hidden>
+                <div class="optin-head">
+                  <span class="optin-title"><span class="material-symbols-outlined" style="font-size:15px;">speed</span> Optimized version</span>
+                  <span class="optin-score" id="optInScore" hidden></span>
+                </div>
+                <div class="optin-controls">
+                  <input type="text" id="optInFocus" class="form-input optin-focus" maxlength="200" placeholder="Focus (optional): e.g. make it stricter, add an output format" aria-label="Optimize focus">
+                  <select id="optInStrength" class="form-input optin-strength" aria-label="Optimize strength">
+                    <option value="thorough">Thorough</option>
+                    <option value="light">Light</option>
+                  </select>
+                </div>
+                <textarea id="optInText" class="optin-text" rows="8" spellcheck="false" aria-label="Optimized prompt"></textarea>
+                <div class="optin-changes" id="optInChanges" hidden></div>
+                <div class="optin-actions" id="optInActions">
+                  <button type="button" class="btn btn-accent btn-sm" id="optInApplyBtn">Replace prompt</button>
+                  <button type="button" class="btn btn-ghost btn-sm" id="optInRetryBtn">Try again</button>
+                  <button type="button" class="btn btn-ghost btn-sm" id="optInOpenBtn">Open in Optimizer</button>
+                  <button type="button" class="btn btn-ghost btn-sm" id="optInDiscardBtn">Discard</button>
+                </div>
+                <div class="optin-applied" id="optInApplied" hidden>
+                  <span>Prompt replaced with the optimized version.</span>
+                  <button type="button" class="btn btn-ghost btn-sm" id="optInUndoBtn">Undo</button>
+                  <button type="button" class="btn btn-ghost btn-sm" id="optInCloseBtn">Close</button>
+                </div>
               </div>
             </div>
 
@@ -2602,7 +2631,9 @@
       </div>
     </div>
     <div class="ws-header-actions">
-      <button class="btn btn-accent" id="optSaveBtn"><span class="material-symbols-outlined">save</span> Save</button>
+      <button class="btn btn-accent" id="optReplaceSaveBtn" style="display:none;" title="Put the optimized prompt into the editor and save"><span class="material-symbols-outlined">task_alt</span> Replace &amp; save</button>
+      <button class="btn btn-ghost" id="optReplaceBtn" style="display:none;" title="Put the optimized prompt into the editor without saving yet"><span class="material-symbols-outlined">swap_horiz</span> Replace in editor</button>
+      <button class="btn btn-accent" id="optSaveBtn"><span class="material-symbols-outlined">save</span> <span id="optSaveLabel">Save</span></button>
       <button class="icon-btn" id="closeOptimizerBtn" aria-label="Close Optimizer"><span class="material-symbols-outlined">close</span></button>
     </div>
   </div>
@@ -3956,56 +3987,6 @@
      to pass. Backend: /api/eval-cases/<pid>, /api/eval-runs/<pid>.
      data-view="eval"
      ============================================================ -->
-<div id="evalWorkspace" role="dialog" aria-modal="true" aria-label="Eval Runner">
-  <div class="ws-header">
-    <div class="ws-header-left">
-      <span class="material-symbols-outlined ws-header-icon">playlist_add_check</span>
-      <div>
-        <h2 class="ws-title">Eval Runner</h2>
-        <p class="ws-subtitle">Save test cases for a prompt, run them, track pass/fail across edits.</p>
-      </div>
-    </div>
-    <div class="ws-header-actions">
-      <button class="icon-btn" id="closeEvalBtn" aria-label="Close Eval Runner"><span class="material-symbols-outlined">close</span></button>
-    </div>
-  </div>
-  <div class="ws-body evr-body">
-    <div class="evr-left">
-      <div class="opt-section-label">Prompt</div>
-      <select id="evPicker" class="forge-input qf-picker"><option value="">Load from library…</option></select>
-
-      <div class="opt-section-label" style="margin-top:var(--sp-4);">Test Cases</div>
-      <div class="evr-case-list" id="evCaseList"><p class="hint">Pick a prompt above to manage its test cases.</p></div>
-
-      <div class="evr-case-form" id="evCaseForm" hidden>
-        <label class="forge-label" for="evCaseInput">Input</label>
-        <textarea id="evCaseInput" class="forge-input" rows="3" placeholder="What gets fed into the prompt as the user message…"></textarea>
-        <label class="forge-label" for="evCaseExpected">Expected outcome</label>
-        <textarea id="evCaseExpected" class="forge-input" rows="3" placeholder="Plain-English description of what a passing output looks like…"></textarea>
-        <div class="opt-actions">
-          <button class="btn btn-ghost" id="evCaseCancelBtn">Cancel</button>
-          <button class="btn btn-accent" id="evCaseSaveBtn">Save Test Case</button>
-        </div>
-      </div>
-
-      <button class="btn btn-ghost" id="evAddCaseBtn" style="margin-top:var(--sp-2);"><span class="material-symbols-outlined">add</span> Add test case</button>
-
-      <button class="btn btn-accent" id="evRunAllBtn" style="margin-top:var(--sp-4);display:none;"><span class="material-symbols-outlined">play_arrow</span> Run All</button>
-      <p class="hint" id="evRunHint" hidden>Add at least one test case to run the suite.</p>
-    </div>
-    <div class="evr-right">
-      <div class="opt-section-label">Live Run</div>
-      <div class="evr-status-list" id="evLiveResults"><p class="hint">Pick a prompt and run its test cases to see live results here.</p></div>
-
-      <div class="evr-history-header">
-        <div class="opt-section-label" style="margin:0;">Run History</div>
-        <button class="btn btn-ghost btn-xs" id="evClearHistoryBtn" style="display:none;"><span class="material-symbols-outlined">delete_sweep</span> Clear history</button>
-      </div>
-      <div class="evr-history-list" id="evHistoryList"></div>
-    </div>
-  </div>
-</div>
-
 
 <!-- ============================================================
      WORKSPACE: Model Compare  [PRO]
@@ -4689,24 +4670,6 @@
       </span>
         <span class="launcher-card-pro">PRO</span>
       </button>
-      <button class="launcher-card" data-open="openPlxWorkflowWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">account_tree</span>
-        <span class="launcher-card-text">
-        <span class="launcher-card-title">Workflow Architect</span>
-        <span class="launcher-card-desc">Turn messy goals into inspectable, repeatable AI workflows with quality gates</span>
-      </span>
-        <span class="launcher-card-pro">PRO</span>
-      </button>
-      <button class="launcher-card" data-open="openPlxTestLabWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">science</span>
-        <span class="launcher-card-text">
-        <span class="launcher-card-title">Prompt Test Lab</span>
-        <span class="launcher-card-desc">Build adversarial tests, score observable behaviour, and compare prompt variants blind</span>
-      </span>
-        <span class="launcher-card-pro">PRO</span>
-      </button>
-
-      <button class="launcher-card" data-open="openPlBarForgeWorkspace" data-premium="true"><span class="material-symbols-outlined launcher-card-icon">target</span><span class="launcher-card-text"><span class="launcher-card-title">Quality Bar Forge</span><span class="launcher-card-desc">Turn vague quality goals into concrete, inspectable references and winning criteria</span></span><span class="launcher-card-pro">PRO</span></button>
       <button class="launcher-card" data-open="openPlRedTeamWorkspace" data-premium="true"><span class="material-symbols-outlined launcher-card-icon">security</span><span class="launcher-card-text"><span class="launcher-card-title">Prompt Red Team</span><span class="launcher-card-desc">Attack prompts with adversarial inputs, failure modes, conflicts and edge cases</span></span><span class="launcher-card-pro">PRO</span></button>        </div>
       </div>
       <div class="launcher-group" data-group="inspect">
@@ -4752,14 +4715,6 @@
         <span class="launcher-card-text">
         <span class="launcher-card-title">Library Organizer</span>
         <span class="launcher-card-desc">Find and fix duplicates, stale and untagged prompts</span>
-      </span>
-        <span class="launcher-card-pro">PRO</span>
-      </button>
-      <button class="launcher-card" data-open="openEvalWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">playlist_add_check</span>
-        <span class="launcher-card-text">
-        <span class="launcher-card-title">Eval Runner</span>
-        <span class="launcher-card-desc">Save test cases for a prompt, run them, track pass/fail across edits.</span>
       </span>
         <span class="launcher-card-pro">PRO</span>
       </button>
@@ -5019,6 +4974,7 @@
     <div id="obEyebrow"></div>
     <div id="obTitle"></div>
     <p id="obDesc"></p>
+    <ol id="obList" hidden></ol>
     <div id="obDots"></div>
     <div id="obActions">
       <button class="btn btn-ghost" id="obSkipBtn" onclick="window.PL_skipOnboarding()">Skip tour</button>
@@ -5029,7 +4985,7 @@
 <div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
 
 
-<div id="plxBarForgeWorkspace" class="plx-workspace" role="dialog" aria-modal="true"><header class="plx-header"><div><span class="plx-kicker">Measure</span><h2>Quality Bar Forge</h2><p>Give the prompt something real to beat.</p></div><button class="icon-btn" data-plx-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></header><main class="plx-grid plx-two"><section class="plx-panel plx-form-stack"><label>What are you building?<textarea id="plxBarGoal" class="plx-editor" placeholder="Describe the output and what genuinely excellent looks like..."></textarea></label><label>References<textarea id="plxBarRefs" class="plx-editor" placeholder="Competitors, screenshots, examples, benchmarks, tests..."></textarea></label><label>Non negotiables<textarea id="plxBarConstraints" class="plx-form-textarea" rows="4"></textarea></label><button class="btn btn-accent" id="plxBarRun">Forge the bar</button></section><section class="plx-panel"><div class="plx-panel-head"><strong>Quality bar</strong></div><pre id="plxBarOutput" class="plx-output">Your quality bar will appear here.</pre><div class="plx-save-row"><button class="btn btn-ghost" data-plx-copy="plxBarOutput">Copy</button><button class="btn btn-ghost" data-plx-save="plxBarOutput" data-title="Quality Bar">Save to Library</button></div></section></main></div>
+
 <div id="plxRedTeamWorkspace" class="plx-workspace" role="dialog" aria-modal="true"><header class="plx-header"><div><span class="plx-kicker">Attack</span><h2>Prompt Red Team</h2><p>Find the failure modes the happy path ignores.</p></div><button class="icon-btn" data-plx-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></header><main class="plx-grid plx-two"><section class="plx-panel"><textarea id="plxRedTeamInput" class="plx-editor" placeholder="Paste the prompt you want to break..."></textarea><div class="plx-actions"><button class="btn btn-accent" id="plxRedTeamRun">Red team it</button></div></section><section class="plx-panel"><pre id="plxRedTeamOutput" class="plx-output">Your attack report will appear here.</pre><div class="plx-save-row"><button class="btn btn-ghost" data-plx-copy="plxRedTeamOutput">Copy</button><button class="btn btn-ghost" data-plx-save="plxRedTeamOutput" data-title="Prompt Red Team Report">Save to Library</button></div></section></main></div>
 <!-- Prompt engineering workspaces added as an isolated suite -->
 <div id="plxSurgeonWorkspace" class="plx-workspace" role="dialog" aria-modal="true" aria-label="Prompt Surgeon">
@@ -5054,28 +5010,14 @@
   </main>
 </div>
 
-<div id="plxWorkflowWorkspace" class="plx-workspace" role="dialog" aria-modal="true" aria-label="Workflow Architect">
-  <header class="plx-header"><div><span class="plx-kicker">Systems</span><h2>Workflow Architect</h2><p>Turn a goal into a workflow that can be built, judged and improved.</p></div><button class="icon-btn" data-plx-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></header>
-  <main class="plx-grid plx-two">
-    <section class="plx-panel plx-form-stack"><label>Goal<textarea id="plxFlowGoal" class="form-textarea" rows="5" placeholder="What outcome are you trying to reliably produce?"></textarea></label><label>Inputs<textarea id="plxFlowInputs" class="form-textarea" rows="4" placeholder="What information enters the workflow?"></textarea></label><label>Constraints<textarea id="plxFlowConstraints" class="form-textarea" rows="4" placeholder="Limits, policies, quality bars..."></textarea></label><button class="btn btn-accent" id="plxWorkflowRun"><span class="material-symbols-outlined">route</span> Architect workflow</button></section>
-    <section class="plx-panel"><div class="plx-panel-head"><div><strong>Workflow blueprint</strong><small>Each stage has a purpose and a gate.</small></div></div><pre id="plxWorkflowOutput" class="plx-output">Your workflow blueprint will appear here.</pre><div class="plx-save-row"><button class="btn btn-ghost" data-plx-copy="plxWorkflowOutput">Copy</button><button class="btn btn-ghost" data-plx-save="plxWorkflowOutput" data-title="Workflow Architecture">Save to Library</button></div></section>
-  </main>
-</div>
 
-<div id="plxTestLabWorkspace" class="plx-workspace" role="dialog" aria-modal="true" aria-label="Prompt Test Lab">
-  <header class="plx-header"><div><span class="plx-kicker">Evaluate</span><h2>Prompt Test Lab</h2><p>Test observable behaviour before trusting the prompt.</p></div><button class="icon-btn" data-plx-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></header>
-  <main class="plx-grid plx-two">
-    <section class="plx-panel"><div class="plx-panel-head"><div><strong>Test target</strong><small>Build a test plan against the real prompt.</small></div><select id="plxTestPicker" class="form-input"></select></div><textarea id="plxTestPrompt" class="plx-editor" placeholder="Paste the prompt to test..."></textarea><div class="plx-inline-controls"><label>Dimensions<select id="plxTestCount" class="form-input"><option value="6">6 core tests</option><option value="8">8 extended tests</option></select></label><button class="btn btn-accent" id="plxTestRun"><span class="material-symbols-outlined">science</span> Generate test suite</button></div></section>
-    <section class="plx-panel"><div class="plx-panel-head"><div><strong>Evaluation matrix</strong><small>Use the same inputs against every candidate.</small></div></div><pre id="plxTestOutput" class="plx-output">Your test suite will appear here.</pre><div class="plx-save-row"><button class="btn btn-ghost" data-plx-copy="plxTestOutput">Copy</button><button class="btn btn-ghost" data-plx-save="plxTestOutput" data-title="Prompt Test Plan">Save to Library</button></div></section>
-  </main>
-</div>
 
 <!-- Components library data (loaded before app.js) -->
 <script src="/static/components-data.js"></script>
 
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
-<script defer src="/static/app.js?v=6045f561"></script>
+<script defer src="/static/app.js?v=b58d03fc"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>
@@ -5084,7 +5026,7 @@
   }
   if (typeof window.createFolderInline !== 'function') window.createFolderInline = function () {};
   if (typeof window.clearAllFilters    !== 'function') window.clearAllFilters    = function () {};
-  (function(){ var s=document.createElement("script"); s.src="/static/gauntlet-suite.js?v=20261005"; s.defer=true; document.head.appendChild(s); })();
+  (function(){ var s=document.createElement("script"); s.src="/static/gauntlet-suite.js?v=20261005b"; s.defer=true; document.head.appendChild(s); })();
 </script>
 
 </body>

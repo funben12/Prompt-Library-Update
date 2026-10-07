@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="1">
+    <title>Prompt Library Pro</title>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <conclusion file="conclusion.html" mime-type="text/html"/>
+    <options customize="never" require-scripts="false" hostArchitectures="arm64,x86_64"/>
+    <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
+    <choices-outline>
+        <line choice="default"/>
+    </choices-outline>
+    <choice id="default" title="Prompt Library Pro">
+        <pkg-ref id="com.eugenephillips.promptlibrarypro.pkg"/>
+    </choice>
+    <pkg-ref id="com.eugenephillips.promptlibrarypro.pkg" version="VERSION_PLACEHOLDER" onConclusion="none">PromptLibraryPro-component.pkg</pkg-ref>
+</installer-gui-script>

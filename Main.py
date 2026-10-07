@@ -67,7 +67,7 @@ class Api:
 
 HOST = '127.0.0.1'
 BIND_HOST = '0.0.0.0'  # LAN reachable; app.py gate blocks non-local unless Phone Share is on
-PORT = 5000
+PORT = 5757  # fixed so the webview origin (and its localStorage) is stable; 5000 is taken by AirPlay on macOS
 
 _server_crashed = threading.Event()
 
