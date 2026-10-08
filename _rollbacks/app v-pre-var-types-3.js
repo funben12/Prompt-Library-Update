@@ -156,11 +156,15 @@
     }
 
     function replaceVariables(content, varMap) {
-        // Single pass so inserted text (Library Prompt, Clipboard) is never re-expanded
-        return String(content == null ? '' : content).replace(/\[\[(.+?)\]\]|\{\{(.+?)\}\}|\(\((.+?)\)\)/g, (m, x, y, z) => {
-            const k = (x || y || z).trim();
-            return Object.prototype.hasOwnProperty.call(varMap, k) ? varMap[k] : m;
-        });
+        let out = content;
+        for (const [name, value] of Object.entries(varMap)) {
+            const ev = escapeRegex(name);
+            out = out
+                .replace(new RegExp(`\\[\\[${ev}\\]\\]`, 'g'), value)
+                .replace(new RegExp(`\\{\\{${ev}\\}\\}`, 'g'), value)
+                .replace(new RegExp(`\\(\\(${ev}\\)\\)`, 'g'), value);
+        }
+        return out;
     }
 
     /* Fetch a prompt's assigned role (if any) and prepend its persona to the text.
@@ -1681,9 +1685,7 @@
             today: 'today',
             title: 'title',
             hashtags: 'tag',
-            list: 'format_list_bulleted',
-            clipboard: 'content_paste',
-            libraryprompt: 'library_books'
+            list: 'format_list_bulleted'
         };
 
         wrap.innerHTML = visible.map(v => {
@@ -1892,15 +1894,6 @@
         <input type="date" class="var-dr-to" value="${escapeAttr(drB || '')}" oninput="window._PL_syncDateRange(this)" />
         <input type="hidden" class="var-input var-dr-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
-            } else if (type === 'clipboard') {
-                input = `<div class="var-clip"><textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="Paste text here" rows="3" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>
-        <button type="button" class="btn btn-sm" onclick="window._PL_pasteClip(this)"><span class="material-symbols-outlined" style="font-size:14px;">content_paste</span> Paste from clipboard</button></div>`;
-            } else if (type === 'libraryprompt') {
-                const libs = (state.prompts || []).filter(x => x && x.id !== state.detailId);
-                input = `<div class="var-lib"><select class="var-lib-select" onchange="window._PL_pickLibPrompt(this)">
-        <option value="">Choose a prompt...</option>
-        ${libs.map(x => `<option value="${escapeAttr(x.id)}">${escapeHtml(x.title || 'Untitled')}</option>`).join('')}
-      </select><input type="hidden" class="var-input var-lib-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" /></div>`;
             } else if (type === 'title') {
                 input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="the quick brown fox" value="${escapeAttr(def)}" />`;
             } else if (type === 'hashtags') {
@@ -1910,7 +1903,7 @@
             } else {
                 input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter value…" value="${escapeAttr(def)}" />`;
             }
-            return `<details class="var-field" data-varfield="${escapeAttr(v)}" data-wrap="${escapeAttr(m.wrap || '')}" open>
+            return `<details class="var-field" data-varfield="${escapeAttr(v)}" open>
       <summary class="var-field-label">
         <span class="material-symbols-outlined var-field-icon">${icon}</span>
         <span class="var-field-name">${escapeHtml(v)}</span>
@@ -1994,7 +1987,7 @@
         previewBox.innerHTML = preview;
     }
 
-    function _readVarRaw(inp) {
+    function _readVarControlValue(inp) {
         if (!inp) return '';
         if (inp.matches('select[multiple]')) {
             return Array.from(inp.selectedOptions || []).map(o => o.value.trim()).filter(Boolean).join(', ');
@@ -2008,32 +2001,6 @@
         const vtype = inp.closest('.var-field')?.querySelector('.var-field-type')?.textContent.trim();
         return _PL_formatVar(vtype, (inp.value || '').trim());
     }
-
-    function _readVarControlValue(inp) {
-        const val = _readVarRaw(inp);
-        const card = inp && inp.closest('.var-field');
-        return card ? _PL_wrapVar(card.dataset.wrap, card.dataset.varfield, val) : val;
-    }
-    function _PL_wrapVar(wrap, name, v) {
-        if (!v || !wrap) return v;
-        if (wrap === 'quotes') return '"' + v + '"';
-        if (wrap === 'codefence') return '```\n' + v + '\n```';
-        if (wrap === 'xml') { const t = String(name || 'value').toLowerCase().replace(/\W+/g, '_').replace(/^_+|_+$/g, '') || 'value'; return `<${t}>\n${v}\n</${t}>`; }
-        return v;
-    }
-    window._PL_pasteClip = async function(btn) {
-        const ta = btn.parentElement.querySelector('textarea');
-        try {
-            ta.value = await navigator.clipboard.readText();
-            ta.dispatchEvent(new Event('input', { bubbles: true }));
-        } catch (e) { toast('Clipboard blocked. Paste with Ctrl+V instead.', 'warning'); ta.focus(); }
-    };
-    window._PL_pickLibPrompt = function(sel) {
-        const hidden = sel.parentElement.querySelector('.var-lib-hidden');
-        const p = (state.prompts || []).find(x => String(x.id) === sel.value);
-        hidden.value = p ? (p.content || '') : '';
-        hidden.dispatchEvent(new Event('input', { bubbles: true }));
-    };
 
     // Per-type output formatting applied when a value is written into the prompt
     function _PL_formatVar(type, v) {
@@ -3305,7 +3272,6 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
             <option value="daterange"  ${type === 'daterange'  ? 'selected' : ''}>Date Range</option>
             <option value="today"      ${type === 'today'      ? 'selected' : ''}>Today (auto date)</option>
-            <option value="clipboard"  ${type === 'clipboard'  ? 'selected' : ''}>Clipboard (paste)</option>
             </optgroup>
             <optgroup label="Choice">
             <option value="dropdown"    ${type === 'dropdown'    ? 'selected' : ''}>Dropdown</option>
@@ -3328,19 +3294,9 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="matrix"      ${type === 'matrix'      ? 'selected' : ''}>Matrix / Likert Grid</option>
             <option value="emojipicker" ${type === 'emojipicker' ? 'selected' : ''}>Emoji Picker</option>
             <option value="stepper"     ${type === 'stepper'     ? 'selected' : ''}>Stepper (+/-)</option>
-            <option value="libraryprompt" ${type === 'libraryprompt' ? 'selected' : ''}>Library Prompt (insert)</option>
             </optgroup>
           </select>
           <input type="text" data-field="default" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
-        </div>
-        <div class="var-wrap-row" style="display:flex;gap:8px;align-items:center;margin-top:4px;">
-          <span style="font-size:11px;color:var(--ink-3);">Output wrap:</span>
-          <select data-field="wrap" style="font-size:12px;padding:4px 8px;">
-            <option value=""${!m.wrap ? ' selected' : ''}>None</option>
-            <option value="quotes"${m.wrap === 'quotes' ? ' selected' : ''}>Quotes</option>
-            <option value="codefence"${m.wrap === 'codefence' ? ' selected' : ''}>Code fence</option>
-            <option value="xml"${m.wrap === 'xml' ? ' selected' : ''}>XML tag</option>
-          </select>
         </div>
         <div class="paragraph-size" style="display: ${type === 'paragraph' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
           <span style="font-size: 11px; color: var(--ink-3);">Size:</span>
@@ -3397,8 +3353,6 @@ STYLE/THEME: [[reserved for future use]]`;
             };
             if (type === 'paragraph' && sizeEl) entry.size = sizeEl.value;
             if (type === 'togglegroup' && multiEl) entry.multi = multiEl.checked;
-            const wrapEl = row.querySelector('[data-field="wrap"]');
-            if (wrapEl && wrapEl.value) entry.wrap = wrapEl.value;
             meta[v] = entry;
         });
         return meta;
