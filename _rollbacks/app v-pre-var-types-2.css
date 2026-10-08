@@ -10735,24 +10735,3 @@ body.plx-workspace-open{overflow:hidden}
 .ffw-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto; gap: var(--sp-2); align-items: center; }
 .ffw-remove { margin-right: auto; color: var(--danger, oklch(55% 0.18 25)); }
 #forgeFwDelete[hidden], #forgeFwEditBtn[hidden] { display: none; }
-
-  /* ---- Variable types: Segmented / Stepper / Percentage / Date Range ---- */
-  .var-seg { display: inline-flex; flex-wrap: nowrap; gap: 0; border: 1px solid var(--line); border-radius: var(--r-md, 8px); overflow: hidden; }
-  .var-seg-btn { padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink-2); background: var(--surface); border-right: 1px solid var(--line); user-select: none; }
-  .var-seg-btn:last-of-type { border-right: 0; }
-  .var-seg-btn.active { background: var(--accent); color: var(--on-accent, #fff); }
-  .var-stepper { display: inline-flex; align-items: center; gap: 6px; }
-  .var-stepper button { width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 18px; line-height: 1; cursor: pointer; }
-  .var-stepper button:hover { background: var(--surface-2); }
-  .var-stepper input { width: 80px; text-align: center; font-family: var(--ff-mono); }
-  .var-pct { display: flex; align-items: center; gap: 6px; }
-  .var-pct input { flex: 1; }
-  .var-pct span { font-weight: 600; color: var(--ink-2); }
-  .var-daterange { display: flex; align-items: center; gap: 8px; }
-  .var-daterange input[type="date"] { flex: 1; min-width: 0; padding: 8px 12px; background: var(--surface-sunk); border: 1px solid var(--line); border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--ink); }
-  .var-daterange input[type="date"]:focus { border-color: var(--accent); box-shadow: var(--ring); outline: none; }
-  .var-daterange > span { color: var(--ink-3); font-size: 12px; }
-
-  /* ---- Variable types: Clipboard / Library Prompt ---- */
-  .var-clip { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-  .var-lib-select { width: 100%; padding: 8px 12px; background: var(--surface-sunk); border: 1px solid var(--line); border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--ink); }

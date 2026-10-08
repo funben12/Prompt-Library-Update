@@ -1717,7 +1717,6 @@ def share_send():
         code, d = share_server.send(str(body.get('ip') or ''), {
             'title': p['title'], 'description': p['description'], 'content': p['content'],
             'categories': p['categories'], 'tags': p['tags'],
-            'variable_meta': p.get('variable_meta') or {},
         })
     except Exception:
         return jsonify({'error': 'Could not reach that device'}), 502
