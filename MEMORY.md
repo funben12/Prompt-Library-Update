@@ -334,3 +334,11 @@ Preserve the local-first architecture, SQLite data, graph persistence, existing 
 ### Gauntlet Loop prompt (2026-10-08)
 
 The Gauntlet Loop workspace now generates the Gauntlet meta-prompt (goal, inspectable quality bar, Matt Shumer Claude of Duty style short agent prompt, builder and critic fan-out, blind A/B critique, live progress page, subagents and ultracode). Inputs are two textareas: Goal (required, `#gauntBuiltInput`) and References (optional, `#gauntRefsInput`). The old three-input AAA template and the language field were removed. Still client-side string templating, no AI call, no schema change. Backups: `_rollbacks/app v-pre-gauntlet-meta.js`, `_rollbacks/index v-pre-gauntlet-meta.html`.
+
+### Variable types expansion (2026-10-08)
+
+- Desktop fill sheet gained 8 types: Segmented, Stepper, Percentage, Date Range, Today, Title Case, Hashtags, List. Total is now 44. No schema change, `variable_meta` stays freeform JSON.
+- Output formatting per type happens in `_readVarControlValue` via `_PL_formatVar` (title case, `#` hashtags, `- ` bullets, `%`, `a to b` dates). The input keeps the raw value, the preview and copy use the formatted one.
+- Mobile companion (AI-App-Factory `apps/app-003-prompt-library-mobile`) now keeps `variable_meta` on import as `varMeta` and renders the right control per type through a new `vartypes.js`, with the same 8 new types. Types are set on desktop only, nearby share does not carry them yet (needs `MainActivity.java` offer JSON and `share_server.py` changes).
+- Backups: `_rollbacks/app v-pre-var-types-2.js` and `.css`. Cache hashes refreshed with `update_hash.py`.
+- Next up (stage 2, not started): per-variable output wrapping (quotes, code fence, bullets), Clipboard and Library prompt smart types, mobile type picker in the editor.

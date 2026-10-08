@@ -1677,15 +1677,7 @@
             rankedlist: 'reorder',
             iconpicker: 'category',
             matrix: 'grid_on',
-            emojipicker: 'mood',
-            segmented: 'view_column',
-            stepper: 'exposure',
-            percentage: 'percent',
-            daterange: 'date_range',
-            today: 'today',
-            title: 'title',
-            hashtags: 'tag',
-            list: 'format_list_bulleted'
+            emojipicker: 'mood'
         };
 
         wrap.innerHTML = visible.map(v => {
@@ -1871,35 +1863,6 @@
         ${EMOJI_CHOICES.map(em => `<span class="var-emoji-choice${def===em?' active':''}" data-value="${em}" onclick="window._PL_selectEmoji(this)">${em}</span>`).join('')}
         <input type="hidden" class="var-input var-emoji-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
-            } else if (type === 'segmented' && opts.length) {
-                input = `<div class="var-toggle-group var-seg" data-var="${escapeAttr(v)}">
-        ${opts.map(o => `<span class="var-toggle-btn var-seg-btn${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</span>`).join('')}
-        <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
-      </div>`;
-            } else if (type === 'stepper') {
-                input = `<div class="var-stepper">
-        <button type="button" onclick="window._PL_step(this,-1)" aria-label="Decrease">&minus;</button>
-        <input type="number" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def || '0')}" />
-        <button type="button" onclick="window._PL_step(this,1)" aria-label="Increase">+</button>
-      </div>`;
-            } else if (type === 'percentage') {
-                input = `<div class="var-pct"><input type="number" class="var-input" data-var="${escapeAttr(v)}" placeholder="0" value="${escapeAttr(def)}" /><span>%</span></div>`;
-            } else if (type === 'today') {
-                input = `<input type="date" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def || _PL_todayISO())}" />`;
-            } else if (type === 'daterange') {
-                const [drA, drB] = def ? def.split('|') : ['', ''];
-                input = `<div class="var-daterange">
-        <input type="date" class="var-dr-from" value="${escapeAttr(drA || '')}" oninput="window._PL_syncDateRange(this)" />
-        <span>to</span>
-        <input type="date" class="var-dr-to" value="${escapeAttr(drB || '')}" oninput="window._PL_syncDateRange(this)" />
-        <input type="hidden" class="var-input var-dr-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
-      </div>`;
-            } else if (type === 'title') {
-                input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="the quick brown fox" value="${escapeAttr(def)}" />`;
-            } else if (type === 'hashtags') {
-                input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="travel, food, uk" value="${escapeAttr(def)}" />`;
-            } else if (type === 'list') {
-                input = `<textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="One item per line" rows="4" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>`;
             } else {
                 input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter value…" value="${escapeAttr(def)}" />`;
             }
@@ -1998,36 +1961,8 @@
             return inp.checked ? 'Yes' : 'No';
         }
         if (inp.type === 'checkbox') return inp.checked ? 'Yes' : 'No';
-        const vtype = inp.closest('.var-field')?.querySelector('.var-field-type')?.textContent.trim();
-        return _PL_formatVar(vtype, (inp.value || '').trim());
+        return (inp.value || '').trim();
     }
-
-    // Per-type output formatting applied when a value is written into the prompt
-    function _PL_formatVar(type, v) {
-        if (!v) return v;
-        if (type === 'title') return v.toLowerCase().replace(/(^|[\s\-(])([a-z\u00c0-\u024f])/g, (m, a, b) => a + b.toUpperCase());
-        if (type === 'hashtags') return v.split(/[\s,]+/).filter(Boolean).map(t => '#' + t.replace(/^#+/, '').replace(/\W+/g, '')).filter(t => t.length > 1).join(' ');
-        if (type === 'list') return v.split('\n').map(x => x.trim()).filter(Boolean).map(x => '- ' + x.replace(/^[-*\u2022]\s*/, '')).join('\n');
-        if (type === 'percentage') return /^-?\d+(\.\d+)?$/.test(v) ? v + '%' : v;
-        if (type === 'daterange') return v.replace('|', ' to ');
-        return v;
-    }
-    function _PL_todayISO() {
-        const d = new Date(), p = n => String(n).padStart(2, '0');
-        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-    }
-    window._PL_step = function(btn, dir) {
-        const inp = btn.parentElement.querySelector('input');
-        inp.value = String(Math.round(((parseFloat(inp.value) || 0) + dir) * 1000) / 1000);
-        inp.dispatchEvent(new Event('input', { bubbles: true }));
-    };
-    window._PL_syncDateRange = function(el) {
-        const wrap = el.closest('.var-daterange');
-        const a = wrap.querySelector('.var-dr-from').value, b = wrap.querySelector('.var-dr-to').value;
-        const hidden = wrap.querySelector('.var-dr-hidden');
-        hidden.value = (a || b) ? a + '|' + b : '';
-        hidden.dispatchEvent(new Event('input', { bubbles: true }));
-    };
 
     /* ---- Variable type interaction helpers (Tags / Toggle Group / Star Rating / Checklist / Range) ---- */
     window._PL_addTagKey = function(evt, input) {
@@ -3212,7 +3147,7 @@ STYLE/THEME: [[reserved for future use]]`;
             list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
             return;
         }
-        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix'];
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'checkbox', 'togglegroup', 'rankedlist', 'matrix'];
         const meta = existing || collectVarMeta();
         list.innerHTML = vars.map((v, index) => {
             const m = meta[v] || {};
@@ -3247,9 +3182,6 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="paragraph" ${type === 'paragraph' ? 'selected' : ''}>Paragraph</option>
             <option value="code"      ${type === 'code'      ? 'selected' : ''}>Code</option>
             <option value="password"  ${type === 'password'  ? 'selected' : ''}>Password</option>
-            <option value="title"     ${type === 'title'     ? 'selected' : ''}>Title Case</option>
-            <option value="hashtags"  ${type === 'hashtags'  ? 'selected' : ''}>Hashtags</option>
-            <option value="list"      ${type === 'list'      ? 'selected' : ''}>List (bullets)</option>
             </optgroup>
             <optgroup label="Contact">
             <option value="email"     ${type === 'email'     ? 'selected' : ''}>Email</option>
@@ -3269,16 +3201,12 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="timezone"   ${type === 'timezone'   ? 'selected' : ''}>Timezone</option>
             <option value="language"   ${type === 'language'   ? 'selected' : ''}>Language</option>
             <option value="json"       ${type === 'json'       ? 'selected' : ''}>JSON</option>
-            <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
-            <option value="daterange"  ${type === 'daterange'  ? 'selected' : ''}>Date Range</option>
-            <option value="today"      ${type === 'today'      ? 'selected' : ''}>Today (auto date)</option>
             </optgroup>
             <optgroup label="Choice">
             <option value="dropdown"    ${type === 'dropdown'    ? 'selected' : ''}>Dropdown</option>
             <option value="multiselect" ${type === 'multiselect' ? 'selected' : ''}>Multi-select</option>
             <option value="radio"       ${type === 'radio'       ? 'selected' : ''}>Radio Buttons</option>
             <option value="choicechips" ${type === 'choicechips' ? 'selected' : ''}>Choice Chips</option>
-            <option value="segmented"   ${type === 'segmented'   ? 'selected' : ''}>Segmented Control</option>
             <option value="boolean"     ${type === 'boolean'     ? 'selected' : ''}>Yes / No Toggle</option>
             <option value="checkbox"    ${type === 'checkbox'    ? 'selected' : ''}>Checkbox List</option>
             <option value="tags"        ${type === 'tags'        ? 'selected' : ''}>Tags</option>
@@ -3293,7 +3221,6 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="iconpicker"  ${type === 'iconpicker'  ? 'selected' : ''}>Icon Picker</option>
             <option value="matrix"      ${type === 'matrix'      ? 'selected' : ''}>Matrix / Likert Grid</option>
             <option value="emojipicker" ${type === 'emojipicker' ? 'selected' : ''}>Emoji Picker</option>
-            <option value="stepper"     ${type === 'stepper'     ? 'selected' : ''}>Stepper (+/-)</option>
             </optgroup>
           </select>
           <input type="text" data-field="default" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
@@ -3321,7 +3248,7 @@ STYLE/THEME: [[reserved for future use]]`;
         }).join('');
     }
     window.PL_onVarTypeChange = function(sel) {
-        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix'];
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'checkbox', 'togglegroup', 'rankedlist', 'matrix'];
         const row = sel.closest('.var-meta-row');
         const opts = row.querySelector('.dropdown-options');
         const sizeRow = row.querySelector('.paragraph-size');
