@@ -9,7 +9,7 @@
 
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/app.css?v=0c075e2c-plx">
+<link rel="stylesheet" href="/static/app.css?v=06df1ce6-plx">
 </head>
 <body>
 
@@ -3831,7 +3831,7 @@
       <span class="material-symbols-outlined ws-header-icon">shield</span>
       <div>
         <h2 class="ws-title">Gauntlet Loop</h2>
-        <p class="ws-subtitle">Turn a goal into a builder and critic Gauntlet Loop prompt.</p>
+        <p class="ws-subtitle">Build a fan-out / loop / harsh-critic AAA build prompt from a few inputs.</p>
       </div>
     </div>
     <div class="ws-header-actions">
@@ -3839,18 +3839,21 @@
     </div>
   </div>
   <div class="ws-body pfe-body">
-    <div class="opt-section-label">Goal <span class="hint" style="text-transform:none;font-weight:400;">(required)</span></div>
-    <textarea id="gauntBuiltInput" class="forge-input" rows="3" placeholder="e.g. a browser game that looks and feels like a AAA shooter, a landing page that beats Stripe's..."></textarea>
+    <div class="opt-section-label">What do you want built? <span class="hint" style="text-transform:none;font-weight:400;">(required)</span></div>
+    <input id="gauntBuiltInput" type="text" class="forge-input" placeholder="e.g. a task management dashboard, a landing page, a Chrome extension...">
 
-    <div class="opt-section-label" style="margin-top:var(--sp-3);">References or quality bars <span class="hint" style="text-transform:none;font-weight:400;">(optional)</span></div>
-    <textarea id="gauntRefsInput" class="forge-input" rows="3" placeholder="Screenshots, URLs, benchmarks, a competitor to beat. Leave blank and the agent proposes a bar."></textarea>
+    <div class="opt-section-label" style="margin-top:var(--sp-3);">Specifics to nail at AAA quality</div>
+    <input id="gauntSpecificsInput" type="text" class="forge-input" placeholder="e.g. typography, spacing, micro-interactions, accessibility...">
+
+    <div class="opt-section-label" style="margin-top:var(--sp-3);">Language / stack</div>
+    <input id="gauntLangInput" type="text" class="forge-input" placeholder="e.g. React + TypeScript, Python, Swift...">
 
     <div class="opt-actions" style="margin-top:var(--sp-2);">
       <button class="btn btn-accent" id="gauntRunBtn"><span class="material-symbols-outlined">shield</span> Generate Gauntlet Prompt</button>
     </div>
 
     <div class="opt-section-label" style="margin-top:var(--sp-4);">Generated Prompt</div>
-    <div class="opt-output" id="gauntOutput"><span class="hint">Add your goal and click <strong>Generate Gauntlet Prompt</strong>. The ready-to-run prompt appears here.</span></div>
+    <div class="opt-output" id="gauntOutput"><span class="hint">Fill in the fields above and click <strong>Generate Gauntlet Prompt</strong> — the ready-to-run prompt appears here.</span></div>
 
     <div class="opt-actions" id="gauntOutputActions" style="display:none;margin-top:var(--sp-2);">
       <button class="btn btn-ghost" id="gauntCopyBtn"><span class="material-symbols-outlined">content_copy</span> Copy</button>
@@ -4984,7 +4987,7 @@
 
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
-<script defer src="/static/app.js?v=8dc0ef33"></script>
+<script defer src="/static/app.js?v=a8b634e7"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

@@ -17464,8 +17464,8 @@ Must avoid: [Anything sensitive or previously declined]`
     /* ============================================================================
        WORKSPACE: Gauntlet Loop
        data-view="gauntlet" | openGauntletWorkspace() | initGauntletWorkspace()
-       Generates the Gauntlet Loop meta-prompt (goal, bar, builder/critic
-       fan-out, live progress page) from two plain inputs (goal, references) --
+       Generates a fan-out / /loop / harsh-critic "build this to AAA quality"
+       prompt from three plain inputs (what to build, specifics, language) --
        pure client-side string templating, no AI call, no schema changes.
        ============================================================================ */
 
@@ -17473,17 +17473,14 @@ Must avoid: [Anything sensitive or previously declined]`
         lastOutput: ''
     };
 
-    function _gauntTemplate(goal, refs) {
-        const g = goal || '[GOAL]';
-        const r = refs || '[OPTIONAL REFERENCES]';
-        return 'I want to run a Gauntlet Loop for this goal:\n\n' + g + '\n\n' +
-            'Possible references or quality bars:\n\n' + r + '\n\n' +
-            'Choose the strongest concrete bar that an agent can actually inspect and compare its work against. If I have not supplied one, propose a useful comp or measurement that plays the same role for this task that real Call of Duty screenshots played for Matt Shumer\'s Claude of Duty game (read the prompt: https://github.com/mshumer/Claude-of-Duty/blob/main/prompt.md). Explain the bar in one sentence.\n\n' +
-            'Then write a short prompt for Claude Code or Codex in the style of Matt\'s prompt (minimal is better here, we want the agent to decide the specifics!).\n\n' +
-            'Give the lead agent the goal and the bar, but let it choose the approach. Tell it to divide the goal into the smallest pieces that can be improved and judged independently. For each important piece, it should fan out a builder and a separate critic with fresh context.\n\n' +
-            'Each critic must inspect the real output, compare it directly with the bar, using a blind A/B comparison when possible, identify the biggest remaining gap, and send it back for another round. Keep looping until our output wins or I stop the run.\n\n' +
-            'Have the lead agent maintain a simple live progress page that shows the work evolving over time.\n\n' +
-            'Have it use subagents and ultracode. Do not prescribe the architecture, exact decomposition, or a fixed number of rounds. Keep the final prompt short, just like Matt\'s.';
+    function _gauntTemplate(built, specifics, lang) {
+        const b = built || '[DESCRIBE_WHAT_YOU_WANT_BUILT]';
+        const s = specifics || '[NAME_SOME_SPECIFICS]';
+        const l = lang || '[NAME_CODE_LANGUAGE]';
+        return 'I want you to build a ' + b + ' to an extremley high level. \n\n' +
+            'It should be utterly perfect from a technical perspective, visually beautiful from a UI design perspective with every single thing done at AAA quality from ' + s + ' to anything you could think of.\n\n' +
+            'Fan out sub-agents and have sub-agents tackle each one individually so that the ' + b + ' is utterly perfect. You should /loop on each item and have a separate sub-agent check it visually to ensure it looks triple A. That separate sub-agent should be a really harsh critic, and if it doesn\'t look triple A, it should keep going.\n\n' +
+            'Don\'t stop until each sub-agent is utterly wowed with the quality when compared with the high end, world class version this needs to be. Do this in ' + l + ' /loop until it\'s utterly perfect. Fan out sub-agents and ultracode.';
     }
 
     window.openGauntletWorkspace = function() {
@@ -17504,13 +17501,14 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     function _gauntRun() {
-        const goal = $('#gauntBuiltInput')?.value?.trim();
-        if (!goal) {
-            toast('Describe your goal first', 'warning');
+        const built = $('#gauntBuiltInput')?.value?.trim();
+        if (!built) {
+            toast('Describe what you want built first', 'warning');
             return;
         }
-        const refs = $('#gauntRefsInput')?.value?.trim();
-        const generated = _gauntTemplate(goal, refs);
+        const specifics = $('#gauntSpecificsInput')?.value?.trim();
+        const lang = $('#gauntLangInput')?.value?.trim();
+        const generated = _gauntTemplate(built, specifics, lang);
 
         _gauntState.lastOutput = generated;
         const out = $('#gauntOutput');

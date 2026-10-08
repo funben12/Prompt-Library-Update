@@ -330,3 +330,7 @@ October 5 work also included:
 The current product priority is coherent prompt-engineering tooling rather than accumulating workspaces. New features should earn their place by providing a distinct job, should reuse existing launcher and workspace conventions, and should not create duplicate functionality.
 
 Preserve the local-first architecture, SQLite data, graph persistence, existing licence system, and the established live-file workflow. Do not reintroduce the reverted account system unless explicitly requested.
+
+### Gauntlet Loop prompt (2026-10-08)
+
+The Gauntlet Loop workspace now generates the Gauntlet meta-prompt (goal, inspectable quality bar, Matt Shumer Claude of Duty style short agent prompt, builder and critic fan-out, blind A/B critique, live progress page, subagents and ultracode). Inputs are two textareas: Goal (required, `#gauntBuiltInput`) and References (optional, `#gauntRefsInput`). The old three-input AAA template and the language field were removed. Still client-side string templating, no AI call, no schema change. Backups: `_rollbacks/app v-pre-gauntlet-meta.js`, `_rollbacks/index v-pre-gauntlet-meta.html`.
