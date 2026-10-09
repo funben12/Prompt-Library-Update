@@ -85,12 +85,10 @@ def _meta(v):
             'type': _text(m.get('type'), 30) or 'text',
             'default': _text(m.get('default'), 500),
             'visible': m.get('visible') is not False,
-            'options': [_text(o, 160) for o in opts[:50] if _text(o, 160)] if isinstance(opts, list) else [],
+            'options': [_text(o, 100) for o in opts[:50] if _text(o, 100)] if isinstance(opts, list) else [],
         }
         if m.get('multi'):
             entry['multi'] = True
-        if isinstance(m.get('faces'), int) and 2 <= m['faces'] <= 100:
-            entry['faces'] = m['faces']
         if m.get('wrap') in ('quotes', 'codefence', 'xml'):
             entry['wrap'] = m['wrap']
         if m.get('size') in ('short', 'medium', 'tall'):

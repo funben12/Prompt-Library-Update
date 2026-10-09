@@ -1605,33 +1605,41 @@
     // Migrates old single-value checkbox (Yes/No) meta to the new Checkbox List (options-based) shape.
     // Old shape:  { type: 'checkbox', default: 'true' | 'Yes' | 'No' }  -- no options array
     // New shape:  { type: 'checkbox', default: 'Yes', options: ['Yes','No'] }
-    // Variable types kept after the 2026-10-09 trim. Old saved types map to the nearest kept one or fall back to text.
-    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'boolean', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
-    const _PL_LEGACY_TYPE_MAP = { radio: 'choicechips', segmented: 'choicechips', yesno: 'choicechips', multiselect: 'checkbox', togglegroup: 'checkbox' };
-    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
-    const _PL_RANDOM_TYPES = ['diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
-    function _PL_normMeta(m) {
-        const out = Object.assign({}, m);
-        const t = m.type || 'text';
-        out.type = _PL_KEPT_TYPES.includes(t) ? t : (_PL_LEGACY_TYPE_MAP[t] || 'text');
-        if (t === 'yesno' && !(m.options && m.options.length)) out.options = ['Yes', 'No', 'Maybe'];
-        return out;
-    }
-    // Option lines may carry a description: "Title | description" (used by Choice Cards)
-    function _PL_splitOpt(o) {
-        const raw = String(o), i = raw.indexOf('|');
-        return i < 0 ? { t: raw.trim(), d: '' } : { t: raw.slice(0, i).trim(), d: raw.slice(i + 1).trim() };
-    }
+    // Star Rating (type: 'rating') needs no migration -- same numeric 1-5 value, only the widget changed.
+    // Built-in option sets for preset choice types. Custom options in the editor override them.
+    const _PL_VAR_PRESETS = {
+        tone: ['Professional', 'Friendly', 'Casual', 'Formal', 'Persuasive', 'Playful', 'Empathetic', 'Authoritative', 'Witty', 'Direct'],
+        outputformat: ['Paragraphs', 'Bullet points', 'Numbered list', 'Table', 'Step by step', 'Q and A', 'Outline', 'JSON', 'Markdown', 'Email'],
+        length: ['One line', 'Short', 'Medium', 'Long', 'In depth'],
+        audience: ['Beginner', 'Intermediate', 'Expert', 'Executive', 'Student', 'Child', 'General public', 'Customer', 'Developer'],
+        priority: ['Low', 'Medium', 'High', 'Urgent'],
+        sentiment: ['Positive', 'Neutral', 'Negative', 'Mixed'],
+        agreement: ['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree'],
+        frequency: ['Never', 'Rarely', 'Sometimes', 'Often', 'Always'],
+        importance: ['Not important', 'Nice to have', 'Important', 'Very important', 'Critical'],
+        difficulty: ['Easy', 'Medium', 'Hard', 'Expert']
+    };
     const _PL_CARD_DEFAULT = ['Idea A', 'Idea B', 'Idea C', 'Idea D', 'Idea E'];
     const _PL_STEP_DEFAULT = ['Low', 'Medium', 'High'];
-    const _PL_MIX_DEFAULT = ['Idea A:50', 'Idea B:30', 'Idea C:20'];
+    // Random types: dice roll, weighted mix, coin flip, random pick, random number
     const _PL_RANDOM_DEFAULTS = {
+        diceroll: ['1', '2', '3', '4', '5', '6'],
+        weightedmix: ['Idea A:5', 'Idea B:3', 'Idea C:2'],
+        coinflip: ['Heads', 'Tails'],
         randompick: ['Option A', 'Option B', 'Option C'],
         randomnumber: ['1', '100']
     };
-    const _PL_RANDOM_LABELS = { randompick: 'Pick at random', randomnumber: 'Generate number' };
+    const _PL_RANDOM_LABELS = { diceroll: 'Roll dice', weightedmix: 'Pick weighted option', coinflip: 'Flip coin', randompick: 'Pick at random', randomnumber: 'Generate number' };
     function _PL_randomValue(kind, options) {
         const list = options.length ? options : _PL_RANDOM_DEFAULTS[kind];
+        if (kind === 'weightedmix') {
+            const weighted = list.map(raw => {
+                const match = String(raw).match(/^(.*?)(?:\s*[:=]\s*(\d+(?:\.\d+)?))$/);
+                return { label: match ? match[1].trim() : String(raw), weight: match ? Math.max(0, Number(match[2])) : 1 };
+            }).filter(x => x.label && x.weight > 0);
+            let n = Math.random() * weighted.reduce((sum, x) => sum + x.weight, 0);
+            return (weighted.find(x => (n -= x.weight) < 0) || weighted[weighted.length - 1] || { label: '' }).label;
+        }
         if (kind === 'randomnumber') {
             let lo = parseInt(list[0], 10), hi = parseInt(list[1], 10);
             if (isNaN(lo)) lo = 1;
@@ -1641,38 +1649,7 @@
         }
         return list[Math.floor(Math.random() * list.length)] || '';
     }
-    // Dice: faces come from the options box (words or numbers), else 1..faces
-    function _PL_diceValues(m) {
-        if (m.options && m.options.length) return m.options.map(o => String(o).trim()).filter(Boolean);
-        const n = Math.max(2, Math.min(100, parseInt(m.faces, 10) || 6));
-        return Array.from({ length: n }, (_, i) => String(i + 1));
-    }
-    const _DIE_ROT = [[0, 0], [0, -90], [-90, 0], [90, 0], [0, 90], [0, 180]];
-    const _DIE_PIPS = [[4], [0, 8], [0, 4, 8], [0, 2, 6, 8], [0, 2, 4, 6, 8], [0, 2, 3, 5, 6, 8]];
-    function _PL_dieHTML(vals, pips) {
-        return [0, 1, 2, 3, 4, 5].map(slot => {
-            const inner = pips
-                ? `<span class="var-die-pips">${[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => `<i${_DIE_PIPS[slot].includes(i) ? ' class="on"' : ''}></i>`).join('')}</span>`
-                : `<span class="var-die-word">${escapeHtml(vals[slot % vals.length])}</span>`;
-            return `<div class="var-die-face var-die-f${slot}">${inner}</div>`;
-        }).join('');
-    }
-    // Weighted mix: options are "Name:weight", weights are rescaled to whole percentages that total 100
-    function _PL_mixParse(opts) {
-        const raw = (opts && opts.length ? opts : _PL_MIX_DEFAULT).map(o => {
-            const m = String(o).match(/^(.*?)(?:\s*[:=]\s*(\d+(?:\.\d+)?))$/);
-            return { l: (m ? m[1] : String(o)).trim(), w: m ? Number(m[2]) : 1 };
-        }).filter(x => x.l);
-        let ws = raw.map(x => x.w), total = ws.reduce((a, b) => a + b, 0);
-        if (!total) { ws = raw.map(() => 1); total = raw.length || 1; }
-        const exact = ws.map(w => w * 100 / total), flo = exact.map(Math.floor);
-        let rem = 100 - flo.reduce((a, b) => a + b, 0);
-        exact.map((e, i) => [i, e - flo[i]]).sort((a, b) => b[1] - a[1]).forEach(([i]) => { if (rem > 0) { flo[i]++; rem--; } });
-        return raw.map((x, i) => ({ l: x.l, w: flo[i] }));
-    }
-    function _PL_mixText(rows) {
-        return rows.filter(r => r.w > 0).map(r => `${r.l} ${r.w}%`).join(', ');
-    }
+    const _PL_SCALE_DEFAULT = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
 
     function _migrateLegacyVarMeta(meta) {
         const out = {};
@@ -1710,91 +1687,116 @@
             text: 'abc',
             paragraph: 'subject',
             code: 'code',
-            list: 'format_list_bulleted',
-            language: 'translate',
-            dropdown: 'arrow_drop_down',
-            choicechips: 'apps',
-            choicecards: 'view_agenda',
-            checkbox: 'checklist',
-            combobox: 'edit_note',
-            boolean: 'toggle_on',
-            stepslider: 'tune',
+            password: 'lock',
+            email: 'email',
+            url: 'link',
+            phone: 'phone',
             number: 'tag',
-            percentage: 'percent',
-            slider: 'linear_scale',
-            rangeslider: 'linear_scale',
             date: 'event',
-            daterange: 'date_range',
+            time: 'schedule',
+            currency: 'payments',
+            duration: 'timer',
+            timezone: 'public',
+            language: 'translate',
+            datetime: 'event_available',
+            month: 'calendar_view_month',
+            week: 'date_range',
+            dropdown: 'arrow_drop_down',
+            multiselect: 'select_check_box',
+            radio: 'radio_button_checked',
+            choicechips: 'apps',
+            combobox: 'edit_note',
+            carddeck: 'style',
+            cardcarousel: 'view_carousel',
+            stepslider: 'tune',
+            agreement: 'thumbs_up_down',
+            frequency: 'repeat',
+            importance: 'priority_high',
+            difficulty: 'signal_cellular_alt',
             diceroll: 'casino',
             weightedmix: 'balance',
-            carddeck: 'style',
+            coinflip: 'toll',
             randompick: 'shuffle',
             randomnumber: 'pin',
+            scale: 'format_list_numbered',
+            tone: 'record_voice_over',
+            outputformat: 'dashboard',
+            length: 'straighten',
+            audience: 'groups',
+            priority: 'flag',
+            sentiment: 'sentiment_satisfied',
+            boolean: 'toggle_on',
+            checkbox: 'checklist',
+            tags: 'sell',
+            togglegroup: 'toggle_on',
+            range: 'stacked_line_chart',
+            slider: 'linear_scale',
+            rating: 'star',
+            rangeslider: 'linear_scale',
+            rankedlist: 'reorder',
+            matrix: 'grid_on',
+            emojipicker: 'mood',
+            segmented: 'view_column',
+            stepper: 'exposure',
+            percentage: 'percent',
+            daterange: 'date_range',
+            today: 'today',
+            title: 'title',
+            hashtags: 'tag',
+            list: 'format_list_bulleted',
         };
 
         wrap.innerHTML = visible.map((v, index) => {
-            const m = _PL_normMeta(meta[v] || {});
-            const type = m.type;
+            const m = meta[v] || {};
+            const type = m.type || 'text';
             const def = m.default || '';
             const opts = m.options || [];
-            const optTitles = opts.map(o => _PL_splitOpt(o).t);
             const icon = typeIcon[type] || 'abc';
             let input = '';
-            if (type === 'choicechips' || type === 'choicecards') {
-                const isMulti = !!m.multi;
-                const activeVals = isMulti ? (def ? def.split(',').map(x => x.trim()) : []) : [def];
-                if (!opts.length) {
-                    input = `<p style="font-size:12px;color:var(--ink-3);">Add options in the variable editor.</p>`;
-                } else if (type === 'choicecards') {
-                    input = `<div class="var-toggle-group var-choice-cards" data-var="${escapeAttr(v)}" data-multi="${isMulti ? '1' : '0'}">
-        ${opts.map(o => { const p = _PL_splitOpt(o); return `<button type="button" class="var-toggle-btn var-card-opt${activeVals.includes(p.t) ? ' active' : ''}" data-value="${escapeAttr(p.t)}" onclick="window._PL_selectToggle(this)"><span class="var-card-mark material-symbols-outlined">check</span><span class="var-card-title">${escapeHtml(p.t)}</span>${p.d ? `<span class="var-card-desc">${escapeHtml(p.d)}</span>` : ''}</button>`; }).join('')}
+            if (type === 'dropdown' && opts.length) {
+                input = `<select class="var-select" data-var="${escapeAttr(v)}">
+        <option value="">Select...</option>
+        ${opts.map(o => `<option value="${escapeAttr(o)}"${def===o?' selected':''}>${escapeHtml(o)}</option>`).join('')}
+      </select>`;
+            } else if (type === 'multiselect' && opts.length) {
+                const selected = def ? def.split(',').map(s => s.trim()) : [];
+                input = `<select class="var-select" data-var="${escapeAttr(v)}" multiple size="${Math.min(Math.max(opts.length, 3), 6)}">
+        ${opts.map(o => `<option value="${escapeAttr(o)}"${selected.includes(o)?' selected':''}>${escapeHtml(o)}</option>`).join('')}
+      </select>`;
+            } else if (type === 'radio' && opts.length) {
+                input = `<div class="var-radio-group" data-var="${escapeAttr(v)}">
+        ${opts.map((o, i) => `<label class="var-choice-line">
+          <input type="radio" class="var-radio-item" name="var-radio-${escapeAttr(v)}" value="${escapeAttr(o)}" ${def===o || (!def && i===0) ? 'checked' : ''} />
+          <span>${escapeHtml(o)}</span>
+        </label>`).join('')}
+        <input type="hidden" class="var-input var-radio-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def || opts[0] || '')}" />
+      </div>`;
+            } else if ((type === 'choicechips' || type === 'choicecards' || type === 'yesno') && (opts.length || type === 'yesno')) {
+                const choiceOpts = type === 'yesno' ? (opts.length ? opts : ['Yes', 'No', 'Maybe']) : opts;
+                input = `<div class="var-toggle-group ${type === 'choicecards' ? 'var-choice-cards' : ''}" data-var="${escapeAttr(v)}">
+        ${choiceOpts.map(o => `<button type="button" class="chip var-toggle-btn${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</button>`).join('')}
         <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
-                } else {
-                    input = `<div class="var-toggle-group var-choice-chips" data-var="${escapeAttr(v)}" data-multi="${isMulti ? '1' : '0'}">
-        ${optTitles.map(o => `<button type="button" class="chip var-toggle-btn${activeVals.includes(o) ? ' active' : ''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</button>`).join('')}
-        <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
-      </div>`;
-                }
             } else if (type === 'carddeck') {
-                const deckOpts = opts.length ? optTitles : _PL_CARD_DEFAULT;
-                input = `<div class="var-deck${def ? ' drawn' : ''}" data-deck-options="${escapeAttr(JSON.stringify(deckOpts))}">
+                const deckOpts = opts.length ? opts : _PL_CARD_DEFAULT;
+                input = `<div class="var-deck" data-deck-options="${escapeAttr(JSON.stringify(deckOpts))}">
         <div class="var-deck-table">
-          <div class="var-deck-pile" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
-          <div class="var-deck-slot"><div class="var-deck-card"><div class="var-deck-back"></div><div class="var-deck-front" data-deck-face>${escapeHtml(def)}</div></div></div>
+          <div class="var-deck-pile" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div class="var-deck-card${def ? ' dealt' : ''}" data-deck-face>${def ? escapeHtml(def) : 'Draw a card'}</div>
         </div>
         <div class="var-deck-actions"><button type="button" class="btn btn-sm" onclick="window._PL_drawCard(this)">Shuffle and draw</button><span class="var-deck-left" data-deck-left>${deckOpts.length} cards in the deck</span></div>
         <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
-            } else if (type === 'diceroll') {
-                const diceVals = _PL_diceValues(m);
-                const dicePips = !(opts.length) && diceVals.length === 6;
-                input = `<div class="var-dice" data-dice-vals="${escapeAttr(JSON.stringify(diceVals))}" data-dice-pips="${dicePips ? '1' : '0'}">
-        <div class="var-dice-scene"><div class="var-die">${_PL_dieHTML(diceVals, dicePips)}</div></div>
-        <div class="var-dice-side">
-          <div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
-          <button type="button" class="btn btn-sm" onclick="window._PL_rollDice(this)">Roll dice</button>
+            } else if (type === 'cardcarousel') {
+                const carOpts = opts.length ? opts : _PL_CARD_DEFAULT;
+                input = `<div class="var-carousel">
+        <button type="button" class="var-carousel-nav" onclick="window._PL_carouselNav(this,-1)" aria-label="Previous cards">&lsaquo;</button>
+        <div class="var-toggle-group var-carousel-track" data-var="${escapeAttr(v)}">
+          ${carOpts.map(o => `<button type="button" class="var-toggle-btn var-carousel-card${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</button>`).join('')}
+          <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
         </div>
-        <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+        <button type="button" class="var-carousel-nav" onclick="window._PL_carouselNav(this,1)" aria-label="Next cards">&rsaquo;</button>
       </div>`;
-            } else if (type === 'weightedmix') {
-                const mixRows = _PL_mixParse(opts);
-                input = `<div class="var-mix" data-var-mix="1">
-        ${mixRows.map((r, i) => `<div class="var-mix-row"><span class="var-mix-name">${escapeHtml(r.l)}</span><input type="range" class="var-mix-range" min="0" max="100" step="1" value="${r.w}" oninput="window._PL_mixSlide(this)" aria-label="${escapeAttr(r.l)} weight" /><span class="var-mix-pct">${r.w}%</span></div>`).join('')}
-        <div class="var-mix-bar" aria-hidden="true">${mixRows.map((r, i) => `<span style="flex-grow:${r.w};--i:${i}" title="${escapeAttr(r.l)}"></span>`).join('')}</div>
-        <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" data-mix-labels="${escapeAttr(JSON.stringify(mixRows.map(r => r.l)))}" value="${escapeAttr(_PL_mixText(mixRows))}" />
-      </div>`;
-            } else if (_PL_RANDOM_DEFAULTS[type]) {
-                const rollOpts = opts.length ? optTitles : _PL_RANDOM_DEFAULTS[type];
-                input = `<div class="var-random-block"><div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
-        <button type="button" class="btn btn-sm" data-roll-kind="${type}" data-roll-options="${escapeAttr(JSON.stringify(rollOpts))}" onclick="window._PL_rollChoice(this)">${_PL_RANDOM_LABELS[type]}</button>
-        <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
-      </div>`;
-            } else if (type === 'dropdown' && opts.length) {
-                input = `<select class="var-select" data-var="${escapeAttr(v)}">
-        <option value="">Select...</option>
-        ${optTitles.map(o => `<option value="${escapeAttr(o)}"${def===o?' selected':''}>${escapeHtml(o)}</option>`).join('')}
-      </select>`;
             } else if (type === 'stepslider') {
                 const stepOpts = opts.length >= 2 ? opts : _PL_STEP_DEFAULT;
                 const stepIdx = stepOpts.indexOf(def);
@@ -1802,6 +1804,18 @@
         <div class="var-step-labels">${stepOpts.map((o, i) => `<button type="button" class="var-step-label${i===stepIdx?' active':''}" data-idx="${i}" onclick="window._PL_stepPick(this)">${escapeHtml(o)}</button>`).join('')}</div>
         <input type="range" class="var-step-range" min="0" max="${stepOpts.length - 1}" step="1" value="${stepIdx < 0 ? 0 : stepIdx}" oninput="window._PL_stepSlide(this)" />
         <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
+            } else if (_PL_RANDOM_DEFAULTS[type]) {
+                const rollOpts = opts.length ? opts : _PL_RANDOM_DEFAULTS[type];
+                input = `<div class="var-random-block"><div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
+        <button type="button" class="btn btn-sm" data-roll-kind="${type}" data-roll-options="${escapeAttr(JSON.stringify(rollOpts))}" onclick="window._PL_rollChoice(this)">${_PL_RANDOM_LABELS[type]}</button>
+        <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
+            } else if (_PL_VAR_PRESETS[type] || type === 'scale') {
+                const presetOpts = opts.length ? opts : (type === 'scale' ? _PL_SCALE_DEFAULT : _PL_VAR_PRESETS[type]);
+                input = `<div class="var-toggle-group${type === 'scale' ? ' var-scale' : ''}" data-var="${escapeAttr(v)}">
+        ${presetOpts.map(o => `<button type="button" class="chip var-toggle-btn${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</button>`).join('')}
+        <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
             } else if (type === 'combobox') {
                 input = `<input type="text" class="var-input" list="var-combo-${index}" data-var="${escapeAttr(v)}" placeholder="Pick or type…" value="${escapeAttr(def)}" autocomplete="off" />
@@ -1817,16 +1831,58 @@
                 input = `<input type="number" class="var-input" data-var="${escapeAttr(v)}" placeholder="Number" value="${escapeAttr(def)}" />`;
             } else if (type === 'date') {
                 input = `<input type="date" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
+            } else if (type === 'datetime') {
+                input = `<input type="datetime-local" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
+            } else if (type === 'month') {
+                input = `<input type="month" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
+            } else if (type === 'week') {
+                input = `<input type="week" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
+            } else if (type === 'time') {
+                input = `<input type="time" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
+            } else if (type === 'email') {
+                input = `<input type="email" class="var-input" data-var="${escapeAttr(v)}" placeholder="email@example.com" value="${escapeAttr(def)}" />`;
+            } else if (type === 'url') {
+                input = `<input type="url" class="var-input" data-var="${escapeAttr(v)}" placeholder="https://..." value="${escapeAttr(def)}" />`;
+            } else if (type === 'phone') {
+                input = `<input type="tel" class="var-input" data-var="${escapeAttr(v)}" placeholder="+1 555 000 0000" value="${escapeAttr(def)}" />`;
+            } else if (type === 'password') {
+                input = `<input type="password" class="var-input" data-var="${escapeAttr(v)}" placeholder="Password" value="${escapeAttr(def)}" />`;
             } else if (type === 'paragraph') {
                 const pRows = m.size === 'short' ? 3 : (m.size === 'tall' ? 10 : 6);
                 input = `<textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter paragraph…" rows="${pRows}" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>`;
             } else if (type === 'code') {
                 input = `<textarea class="var-input var-code" data-var="${escapeAttr(v)}" placeholder="Enter code…" rows="4" style="width:100%;resize:vertical;font-family:monospace;font-size:12px;">${escapeHtml(def)}</textarea>`;
+            } else if (type === 'currency') {
+                input = `<div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:13px;color:var(--ink-2);font-weight:600;">$</span>
+        <input type="number" step="0.01" class="var-input" data-var="${escapeAttr(v)}" placeholder="0.00" value="${escapeAttr(def)}" style="flex:1;" />
+      </div>`;
+            } else if (type === 'duration') {
+                input = `<input type="text" class="var-input" list="var-duration-list" data-var="${escapeAttr(v)}" placeholder="e.g. 30 minutes, 2h 15m" value="${escapeAttr(def)}" />
+      <datalist id="var-duration-list">
+        <option value="15 minutes"></option><option value="30 minutes"></option>
+        <option value="1 hour"></option><option value="2 hours"></option>
+        <option value="1 day"></option><option value="1 week"></option>
+      </datalist>`;
+            } else if (type === 'timezone') {
+                input = `<input type="text" class="var-input" list="var-timezone-list" data-var="${escapeAttr(v)}" placeholder="e.g. UTC, EST, PST" value="${escapeAttr(def)}" />
+      <datalist id="var-timezone-list">
+        ${['UTC','GMT','EST','CST','MST','PST','CET','EET','IST','JST','KST','AEST','ACST','AWST','NZST','BRT','ART','SAST','WAT','MSK','GST','SGT','HKT','ChST','AKST','HST'].map(z => `<option value="${z}"></option>`).join('')}
+      </datalist>`;
             } else if (type === 'language') {
                 input = `<input type="text" class="var-input" list="var-language-list" data-var="${escapeAttr(v)}" placeholder="e.g. English, Spanish" value="${escapeAttr(def)}" />
       <datalist id="var-language-list">
         ${['English','Spanish','French','German','Italian','Portuguese','Dutch','Russian','Mandarin Chinese','Japanese','Korean','Arabic','Hindi','Bengali','Turkish','Vietnamese','Polish','Ukrainian','Swedish','Greek','Hebrew','Thai','Indonesian','Tagalog','Swahili'].map(l => `<option value="${l}"></option>`).join('')}
       </datalist>`;
+            } else if (type === 'tags') {
+                const tagList = def ? def.split(',').map(s => s.trim()).filter(Boolean) : [];
+                input = `<div class="var-tags-field" data-var="${escapeAttr(v)}">
+        <div class="var-tags-chips">
+          ${tagList.map(t => `<span class="chip active var-tag-chip">${escapeHtml(t)}<span class="material-symbols-outlined" style="font-size:13px;cursor:pointer;" onclick="window._PL_removeTag(this)">close</span></span>`).join('')}
+        </div>
+        <input type="text" class="var-input var-tags-input" placeholder="Type a tag and press Enter…" onkeydown="window._PL_addTagKey(event, this)" />
+        <input type="hidden" class="var-input var-tags-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
             } else if (type === 'checkbox' && opts.length) {
                 const checkedList = def ? def.split(',').map(s => s.trim()) : [];
                 input = `<div class="var-checklist" data-var="${escapeAttr(v)}">
@@ -1838,11 +1894,34 @@
       </div>`;
             } else if (type === 'checkbox') {
                 input = `<p style="font-size:12px;color:var(--ink-3);">Add options in the variable editor to use this checklist.</p>`;
+            } else if (type === 'togglegroup' && opts.length) {
+                const isMulti = !!m.multi;
+                const activeVals = isMulti ? (def ? def.split(',').map(s => s.trim()) : []) : [def];
+                input = `<div class="var-toggle-group" data-var="${escapeAttr(v)}" data-multi="${isMulti ? '1' : '0'}">
+        ${opts.map(o => `<span class="chip var-toggle-btn${activeVals.includes(o)?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</span>`).join('')}
+        <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
+            } else if (type === 'togglegroup') {
+                input = `<p style="font-size:12px;color:var(--ink-3);">Add options in the variable editor to use this toggle group.</p>`;
+            } else if (type === 'range') {
+                const [rMin, rMax] = def ? def.split(',').map(s => s.trim()) : ['', ''];
+                input = `<div style="display:flex;align-items:center;gap:8px;">
+        <input type="number" class="var-input var-range-min" data-var="${escapeAttr(v)}" placeholder="Min" value="${escapeAttr(rMin || '')}" style="flex:1;" />
+        <span style="color:var(--ink-3);font-size:12px;">to</span>
+        <input type="number" class="var-input var-range-max" data-var="${escapeAttr(v)}" placeholder="Max" value="${escapeAttr(rMax || '')}" style="flex:1;" />
+        <input type="hidden" class="var-input var-range-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
             } else if (type === 'slider') {
                 const sliderDef = def || '50';
                 input = `<div style="display:flex;align-items:center;gap:10px;">
         <input type="range" class="var-input" data-var="${escapeAttr(v)}" min="0" max="100" value="${escapeAttr(sliderDef)}" style="flex:1;" oninput="this.nextElementSibling.textContent=this.value" />
         <span style="min-width:28px;text-align:right;font-size:13px;font-weight:600;color:var(--ink-1);">${escapeHtml(sliderDef)}</span>
+      </div>`;
+            } else if (type === 'rating') {
+                const ratingVal = parseInt(def, 10) || 0;
+                input = `<div class="var-star-rating" data-var="${escapeAttr(v)}">
+        ${[1,2,3,4,5].map(n => `<span class="material-symbols-outlined var-star${n<=ratingVal?' filled':''}" data-value="${n}" onclick="window._PL_selectStar(this)" style="cursor:pointer;font-size:22px;color:${n<=ratingVal?'var(--accent)':'var(--ink-3)'};">${n<=ratingVal?'star':'star_outline'}</span>`).join('')}
+        <input type="hidden" class="var-input var-star-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
             } else if (type === 'rangeslider') {
                 const [rsMinRaw, rsMaxRaw] = def ? def.split(',').map(s => s.trim()) : ['25', '75'];
@@ -1855,8 +1934,50 @@
         <div class="var-rangeslider-labels"><span class="var-rangeslider-min-label">${escapeHtml(rsMin)}</span><span class="var-rangeslider-max-label">${escapeHtml(rsMax)}</span></div>
         <input type="hidden" class="var-input var-rangeslider-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(rsMin)}, ${escapeAttr(rsMax)}" />
       </div>`;
+            } else if (type === 'rankedlist' && opts.length) {
+                const order = def ? def.split(',').map(s => s.trim()).filter(o => opts.includes(o)) : [];
+                const finalOrder = order.length ? order.concat(opts.filter(o => !order.includes(o))) : opts;
+                input = `<div class="var-ranked-list" data-var="${escapeAttr(v)}">
+        ${finalOrder.map((o, i) => `<div class="var-ranked-item" draggable="true" data-value="${escapeAttr(o)}" ondragstart="window._PL_rankDragStart(event)" ondragover="window._PL_rankDragOver(event)" ondrop="window._PL_rankDrop(event)"><span class="var-ranked-num">${i + 1}</span><span class="material-symbols-outlined var-ranked-handle">drag_indicator</span><span class="var-ranked-label">${escapeHtml(o)}</span></div>`).join('')}
+        <input type="hidden" class="var-input var-ranked-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(finalOrder.join(', '))}" />
+      </div>`;
+            } else if (type === 'rankedlist') {
+                input = `<p style="font-size:12px;color:var(--ink-3);">Add options in the variable editor to rank them.</p>`;
+            } else if (type === 'matrix' && opts.length) {
+                const MATRIX_COLS = ['Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree'];
+                let matrixVal = {};
+                try { matrixVal = def ? JSON.parse(def) : {}; } catch (e) { matrixVal = {}; }
+                input = `<div class="var-matrix" data-var="${escapeAttr(v)}">
+        <div class="var-matrix-header"><span></span>${MATRIX_COLS.map(c => `<span class="var-matrix-col-label">${escapeHtml(c)}</span>`).join('')}</div>
+        ${opts.map(row => `<div class="var-matrix-row" data-row="${escapeAttr(row)}">
+          <span class="var-matrix-row-label">${escapeHtml(row)}</span>
+          ${MATRIX_COLS.map((c, ci) => `<span class="var-matrix-cell${matrixVal[row]===ci?' active':''}" data-col="${ci}" onclick="window._PL_selectMatrixCell(this)"></span>`).join('')}
+        </div>`).join('')}
+        <input type="hidden" class="var-input var-matrix-hidden" data-var="${escapeAttr(v)}" value="${def ? escapeAttr(JSON.stringify(matrixVal)) : ''}" />
+      </div>`;
+            } else if (type === 'matrix') {
+                input = `<p style="font-size:12px;color:var(--ink-3);">Add row items (options) in the variable editor to build the grid.</p>`;
+            } else if (type === 'emojipicker') {
+                const EMOJI_CHOICES = ['😀','😊','😎','🤔','😅','🥳','😴','🔥','✨','💡','🚀','⭐','❤️','👍','👎','🎯','📈','📉','⚡','🌟','🎉','🙌','💬','📝','✅','❌','⏰','🌈'];
+                input = `<div class="var-emoji-picker" data-var="${escapeAttr(v)}">
+        ${EMOJI_CHOICES.map(em => `<span class="var-emoji-choice${def===em?' active':''}" data-value="${em}" onclick="window._PL_selectEmoji(this)">${em}</span>`).join('')}
+        <input type="hidden" class="var-input var-emoji-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
+            } else if (type === 'segmented' && opts.length) {
+                input = `<div class="var-toggle-group var-seg" data-var="${escapeAttr(v)}">
+        ${opts.map(o => `<span class="var-toggle-btn var-seg-btn${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</span>`).join('')}
+        <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
+            } else if (type === 'stepper') {
+                input = `<div class="var-stepper">
+        <button type="button" onclick="window._PL_step(this,-1)" aria-label="Decrease">&minus;</button>
+        <input type="number" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def || '0')}" />
+        <button type="button" onclick="window._PL_step(this,1)" aria-label="Increase">+</button>
+      </div>`;
             } else if (type === 'percentage') {
                 input = `<div class="var-pct"><input type="number" class="var-input" data-var="${escapeAttr(v)}" placeholder="0" value="${escapeAttr(def)}" /><span>%</span></div>`;
+            } else if (type === 'today') {
+                input = `<input type="date" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def || _PL_todayISO())}" />`;
             } else if (type === 'daterange') {
                 const [drA, drB] = def ? def.split('|') : ['', ''];
                 input = `<div class="var-daterange">
@@ -1865,6 +1986,10 @@
         <input type="date" class="var-dr-to" value="${escapeAttr(drB || '')}" oninput="window._PL_syncDateRange(this)" />
         <input type="hidden" class="var-input var-dr-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
+            } else if (type === 'title') {
+                input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="the quick brown fox" value="${escapeAttr(def)}" />`;
+            } else if (type === 'hashtags') {
+                input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="travel, food, uk" value="${escapeAttr(def)}" />`;
             } else if (type === 'list') {
                 input = `<textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="One item per line" rows="4" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>`;
             } else {
@@ -1883,10 +2008,19 @@
         }).join('');
 
         // Wire live preview listeners now that the DOM nodes exist
-        $$('#variableFields .var-input, #variableFields .var-select, #variableFields .var-checkbox').forEach(inp => {
+        $$('#variableFields .var-input, #variableFields .var-select, #variableFields .var-checkbox, #variableFields .var-radio-item').forEach(inp => {
             inp.addEventListener('input', _updateVarLivePreview);
             inp.addEventListener('change', _updateVarLivePreview);
         });
+        $$('#variableFields .var-radio-item').forEach(inp => {
+            inp.addEventListener('change', () => {
+                const group = inp.closest('.var-radio-group');
+                const hidden = group?.querySelector('.var-radio-hidden');
+                if (hidden) hidden.value = inp.value;
+                _updateVarLivePreview();
+            });
+        });
+
         // Seed preview with defaults and update filled states
         _updateVarLivePreview();
     }
@@ -1975,11 +2109,22 @@
     // Per-type output formatting applied when a value is written into the prompt
     function _PL_formatVar(type, v) {
         if (!v) return v;
+        if (type === 'title') return v.toLowerCase().replace(/(^|[\s\-(])([a-z\u00c0-\u024f])/g, (m, a, b) => a + b.toUpperCase());
+        if (type === 'hashtags') return v.split(/[\s,]+/).filter(Boolean).map(t => '#' + t.replace(/^#+/, '').replace(/\W+/g, '')).filter(t => t.length > 1).join(' ');
         if (type === 'list') return v.split('\n').map(x => x.trim()).filter(Boolean).map(x => '- ' + x.replace(/^[-*\u2022]\s*/, '')).join('\n');
         if (type === 'percentage') return /^-?\d+(\.\d+)?$/.test(v) ? v + '%' : v;
         if (type === 'daterange') return v.replace('|', ' to ');
         return v;
     }
+    function _PL_todayISO() {
+        const d = new Date(), p = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    }
+    window._PL_step = function(btn, dir) {
+        const inp = btn.parentElement.querySelector('input');
+        inp.value = String(Math.round(((parseFloat(inp.value) || 0) + dir) * 1000) / 1000);
+        inp.dispatchEvent(new Event('input', { bubbles: true }));
+    };
     window._PL_syncDateRange = function(el) {
         const wrap = el.closest('.var-daterange');
         const a = wrap.querySelector('.var-dr-from').value, b = wrap.querySelector('.var-dr-to').value;
@@ -1988,7 +2133,42 @@
         hidden.dispatchEvent(new Event('input', { bubbles: true }));
     };
 
-    /* ---- Variable type interaction helpers (Toggle Group / Checklist / Range Slider / Dice / Mix / Deck) ---- */
+    /* ---- Variable type interaction helpers (Tags / Toggle Group / Star Rating / Checklist / Range) ---- */
+    window._PL_addTagKey = function(evt, input) {
+        if (evt.key !== 'Enter') return;
+        evt.preventDefault();
+        const val = input.value.trim();
+        if (!val) return;
+        const field = input.closest('.var-tags-field');
+        const hidden = field.querySelector('.var-tags-hidden');
+        const current = hidden.value ? hidden.value.split(',').map(s => s.trim()).filter(Boolean) : [];
+        if (!current.includes(val)) current.push(val);
+        hidden.value = current.join(', ');
+        input.value = '';
+        const chipsWrap = field.querySelector('.var-tags-chips');
+        const chip = document.createElement('span');
+        chip.className = 'chip active var-tag-chip';
+        chip.innerHTML = escapeHtml(val) + '<span class="material-symbols-outlined" style="font-size:13px;cursor:pointer;" onclick="window._PL_removeTag(this)">close</span>';
+        chipsWrap.appendChild(chip);
+        hidden.dispatchEvent(new Event('input', {
+            bubbles: true
+        }));
+    };
+
+    window._PL_removeTag = function(closeIcon) {
+        const chip = closeIcon.closest('.var-tag-chip');
+        const field = chip.closest('.var-tags-field');
+        const hidden = field.querySelector('.var-tags-hidden');
+        const removedText = chip.textContent.trim();
+        const current = hidden.value ? hidden.value.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const next = current.filter(t => t !== removedText);
+        hidden.value = next.join(', ');
+        chip.remove();
+        hidden.dispatchEvent(new Event('input', {
+            bubbles: true
+        }));
+    };
+
     window._PL_selectToggle = function(btn) {
         const group = btn.closest('.var-toggle-group');
         const hidden = group.querySelector('.var-toggle-hidden');
@@ -2007,124 +2187,40 @@
     };
 
     window._PL_rollChoice = function(btn) {
-        const wrap = btn.closest('.var-random-block');
-        if (!wrap || wrap._busy) return;
         let options = [];
         try { options = JSON.parse(btn.dataset.rollOptions || '[]'); } catch (_) {}
-        const kind = btn.dataset.rollKind;
-        const picked = _PL_randomValue(kind, options);
-        const hidden = wrap.querySelector('input.var-input'), result = wrap.querySelector('[data-roll-result]');
-        const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-        const finish = () => {
-            wrap._busy = false; btn.disabled = false;
-            if (result) { result.classList.remove('ticking'); result.textContent = picked || 'No valid options'; }
-            if (hidden) { hidden.value = picked; hidden.dispatchEvent(new Event('input', { bubbles: true })); }
-        };
-        if (reduce) return finish();
-        wrap._busy = true; btn.disabled = true;
-        if (result) result.classList.add('ticking');
-        let n = 0;
-        const t = setInterval(() => {
-            if (result) result.textContent = _PL_randomValue(kind, options);
-            if (++n >= 10) { clearInterval(t); finish(); }
-        }, 55);
-    };
-
-    window._PL_rollDice = function(btn) {
-        const block = btn.closest('.var-dice');
-        if (!block || block._busy) return;
-        let vals = [];
-        try { vals = JSON.parse(block.dataset.diceVals || '[]'); } catch (_) {}
-        if (!vals.length) return;
-        const die = block.querySelector('.var-die'), out = block.querySelector('[data-roll-result]'), hidden = block.querySelector('input.var-input');
-        const pips = block.dataset.dicePips === '1';
-        const result = vals[Math.floor(Math.random() * vals.length)];
-        let slot;
-        if (pips) {
-            slot = parseInt(result, 10) - 1;
-        } else {
-            slot = Math.floor(Math.random() * 6);
-            die.querySelectorAll('.var-die-word').forEach((w, i) => {
-                w.textContent = i === slot ? result : vals[Math.floor(Math.random() * vals.length)];
-                w.classList.toggle('long', w.textContent.length > 7);
-            });
-        }
-        const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-        block._tx = (block._tx || 0) + 2 + Math.floor(Math.random() * 2);
-        block._ty = (block._ty || 0) + 2 + Math.floor(Math.random() * 2);
-        const [bx, by] = _DIE_ROT[slot];
-        const finish = () => {
-            block._busy = false; btn.disabled = false;
-            block.classList.remove('rolling');
-            out.textContent = result;
-            hidden.value = result;
-            hidden.dispatchEvent(new Event('input', { bubbles: true }));
-        };
-        die.style.transition = reduce ? 'none' : 'transform 1.4s cubic-bezier(.15,.7,.2,1)';
-        die.style.transform = `rotateX(${bx + 360 * block._tx}deg) rotateY(${by + 360 * block._ty}deg)`;
-        if (reduce) return finish();
-        block._busy = true; btn.disabled = true;
-        block.classList.add('rolling');
-        out.textContent = '';
-        setTimeout(finish, 1450);
-    };
-
-    window._PL_mixSlide = function(el) {
-        const wrap = el.closest('.var-mix');
-        const ranges = Array.from(wrap.querySelectorAll('.var-mix-range'));
-        const i = ranges.indexOf(el), vals = ranges.map(r => Number(r.value));
-        const x = vals[i], R = 100 - x, next = vals.slice();
-        const idx = ranges.map((_, j) => j).filter(j => j !== i);
-        if (!idx.length) { next[i] = 100; }
-        else {
-            const T = idx.reduce((a, j) => a + vals[j], 0);
-            const raw = idx.map(j => T > 0 ? vals[j] * R / T : R / idx.length);
-            const flo = raw.map(Math.floor);
-            let rem = R - flo.reduce((a, b) => a + b, 0);
-            raw.map((r, k) => [k, r - Math.floor(r)]).sort((a, b) => b[1] - a[1]).forEach(([k]) => { if (rem > 0) { flo[k]++; rem--; } });
-            idx.forEach((j, k) => { next[j] = flo[k]; });
-            next[i] = x;
-        }
-        const pcts = wrap.querySelectorAll('.var-mix-pct'), segs = wrap.querySelectorAll('.var-mix-bar span');
-        ranges.forEach((r, j) => { r.value = next[j]; pcts[j].textContent = next[j] + '%'; segs[j].style.flexGrow = next[j]; });
-        const hidden = wrap.querySelector('input.var-input');
-        let labels = [];
-        try { labels = JSON.parse(hidden.dataset.mixLabels || '[]'); } catch (_) {}
-        hidden.value = _PL_mixText(labels.map((l, j) => ({ l, w: next[j] })));
-        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+        const picked = _PL_randomValue(btn.dataset.rollKind, options);
+        const wrap = btn.closest('.var-random-block'), hidden = wrap && wrap.querySelector('input.var-input');
+        const result = wrap && wrap.querySelector('[data-roll-result]');
+        if (hidden) { hidden.value = picked; hidden.dispatchEvent(new Event('input', { bubbles: true })); }
+        if (result) result.textContent = picked || 'No valid options';
     };
 
     window._PL_drawCard = function(btn) {
         const deck = btn.closest('.var-deck');
-        if (!deck || deck._busy) return;
         let all = [];
         try { all = JSON.parse(deck.dataset.deckOptions || '[]'); } catch (_) {}
         if (!all.length) return;
         if (!deck._left || !deck._left.length) deck._left = all.slice();
         const face = deck.querySelector('[data-deck-face]'), hidden = deck.querySelector('input.var-input'), count = deck.querySelector('[data-deck-left]');
         const pick = deck._left.splice(Math.floor(Math.random() * deck._left.length), 1)[0];
-        const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-        const done = () => {
-            deck._busy = false; btn.disabled = false;
-            deck.classList.remove('shuffling', 'dealing');
-            deck.classList.add('drawn');
-            if (count) count.textContent = deck._left.length ? `${deck._left.length} card${deck._left.length === 1 ? '' : 's'} left in the deck` : 'Deck empty, the next draw reshuffles';
-        };
-        const setValue = () => {
-            face.textContent = pick;
-            hidden.value = pick;
-            hidden.dispatchEvent(new Event('input', { bubbles: true }));
-        };
-        if (reduce) { setValue(); return done(); }
-        deck._busy = true; btn.disabled = true;
-        deck.classList.remove('drawn', 'dealing');
         deck.classList.add('shuffling');
+        btn.disabled = true;
+        face.classList.remove('dealt');
         setTimeout(() => {
             deck.classList.remove('shuffling');
-            setValue();
-            deck.classList.add('dealing');
-            setTimeout(done, 700);
-        }, 950);
+            btn.disabled = false;
+            face.textContent = pick;
+            face.classList.add('dealt');
+            hidden.value = pick;
+            hidden.dispatchEvent(new Event('input', { bubbles: true }));
+            if (count) count.textContent = deck._left.length ? `${deck._left.length} card${deck._left.length === 1 ? '' : 's'} left in the deck` : 'Deck empty, the next draw reshuffles';
+        }, 450);
+    };
+
+    window._PL_carouselNav = function(btn, dir) {
+        const track = btn.parentElement.querySelector('.var-carousel-track');
+        if (track) track.scrollBy({ left: dir * Math.max(120, track.clientWidth * 0.8), behavior: 'smooth' });
     };
 
     function _PL_stepSet(wrap, idx) {
@@ -2142,6 +2238,75 @@
         _PL_stepSet(wrap, parseInt(btn.dataset.idx, 10));
     };
 
+    window._PL_selectStar = function(star) {
+        const wrap = star.closest('.var-star-rating');
+        const val = parseInt(star.dataset.value, 10);
+        const hidden = wrap.querySelector('.var-star-hidden');
+        hidden.value = String(val);
+        wrap.querySelectorAll('.var-star').forEach(s => {
+            const n = parseInt(s.dataset.value, 10);
+            const filled = n <= val;
+            s.textContent = filled ? 'star' : 'star_outline';
+            s.classList.toggle('filled', filled);
+            s.style.color = filled ? 'var(--accent)' : 'var(--ink-3)';
+        });
+        hidden.dispatchEvent(new Event('input', {
+            bubbles: true
+        }));
+    };
+
+    window._PL_selectEmoji = function(el) {
+        const wrap = el.closest('.var-emoji-picker');
+        wrap.querySelectorAll('.var-emoji-choice').forEach(i => i.classList.remove('active'));
+        el.classList.add('active');
+        const hidden = wrap.querySelector('.var-emoji-hidden');
+        hidden.value = el.dataset.value;
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    window._PL_selectMatrixCell = function(el) {
+        const wrap = el.closest('.var-matrix');
+        const row = el.closest('.var-matrix-row');
+        const rowKey = row.dataset.row;
+        const col = parseInt(el.dataset.col, 10);
+        row.querySelectorAll('.var-matrix-cell').forEach(c => c.classList.remove('active'));
+        el.classList.add('active');
+        const hidden = wrap.querySelector('.var-matrix-hidden');
+        let val = {};
+        try { val = hidden.value ? JSON.parse(hidden.value) : {}; } catch (e) { val = {}; }
+        val[rowKey] = col;
+        hidden.value = JSON.stringify(val);
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    let _rankDragEl = null;
+    window._PL_rankDragStart = function(evt) {
+        _rankDragEl = evt.target.closest('.var-ranked-item');
+        evt.dataTransfer.effectAllowed = 'move';
+    };
+    window._PL_rankDragOver = function(evt) {
+        evt.preventDefault();
+    };
+    window._PL_rankDrop = function(evt) {
+        evt.preventDefault();
+        const target = evt.target.closest('.var-ranked-item');
+        if (!target || !_rankDragEl || target === _rankDragEl) return;
+        const list = target.closest('.var-ranked-list');
+        if (_rankDragEl.closest('.var-ranked-list') !== list) return;
+        const items = Array.from(list.querySelectorAll('.var-ranked-item'));
+        const dragIdx = items.indexOf(_rankDragEl);
+        const dropIdx = items.indexOf(target);
+        if (dragIdx < dropIdx) target.after(_rankDragEl);
+        else target.before(_rankDragEl);
+        list.querySelectorAll('.var-ranked-item').forEach((el, i) => {
+            el.querySelector('.var-ranked-num').textContent = i + 1;
+        });
+        const hidden = list.querySelector('.var-ranked-hidden');
+        hidden.value = Array.from(list.querySelectorAll('.var-ranked-item')).map(el => el.dataset.value).join(', ');
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+        _rankDragEl = null;
+    };
+
     // Checklist (multi-option checkbox) and Range fields sync their hidden input via delegated listeners
     document.addEventListener('change', function(evt) {
         const checklistItem = evt.target.closest('.var-checklist-item');
@@ -2153,6 +2318,15 @@
             hidden.dispatchEvent(new Event('input', {
                 bubbles: true
             }));
+        }
+    });
+    document.addEventListener('input', function(evt) {
+        if (evt.target.classList && (evt.target.classList.contains('var-range-min') || evt.target.classList.contains('var-range-max'))) {
+            const container = evt.target.parentElement;
+            const minEl = container.querySelector('.var-range-min');
+            const maxEl = container.querySelector('.var-range-max');
+            const hidden = container.querySelector('.var-range-hidden');
+            hidden.value = (minEl.value || '') + ', ' + (maxEl.value || '');
         }
     });
     document.addEventListener('input', function(evt) {
@@ -3185,15 +3359,16 @@ STYLE/THEME: [[reserved for future use]]`;
             list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
             return;
         }
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'choicecards', 'yesno', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix', 'combobox', 'scale', 'diceroll', 'weightedmix', 'coinflip', 'randompick', 'randomnumber', 'carddeck', 'cardcarousel', 'stepslider', 'agreement', 'frequency', 'importance', 'difficulty', 'tone', 'outputformat', 'length', 'audience', 'priority', 'sentiment'];
         const meta = existing || collectVarMeta();
         list.innerHTML = vars.map((v, index) => {
-            const m = _PL_normMeta(meta[v] || {});
-            const type = m.type;
+            const m = meta[v] || {};
+            const type = m.type || 'text';
             const def = m.default || '';
             const size = m.size || 'medium';
             const visible = m.visible !== false;
-            const opts = (m.options || []).join(type === 'choicecards' ? '\n' : ', ');
-            const needsOptions = _PL_OPTION_TYPES.includes(type);
+            const opts = (m.options || []).join(', ');
+            const needsOptions = OPTIONS_TYPES.includes(type);
             return `
       <details class="var-meta-row" data-var="${escapeAttr(v)}" ${index === 0 ? 'open' : ''}>
         <summary class="var-meta-summary">
@@ -3215,40 +3390,83 @@ STYLE/THEME: [[reserved for future use]]`;
         <div class="var-meta-fields">
           <select data-field="type" onchange="window.PL_onVarTypeChange(this)">
             <optgroup label="Text">
-            <option value="text" ${type === 'text' ? 'selected' : ''}>Text</option>
+            <option value="text"      ${type === 'text'      ? 'selected' : ''}>Text</option>
             <option value="paragraph" ${type === 'paragraph' ? 'selected' : ''}>Paragraph</option>
-            <option value="code" ${type === 'code' ? 'selected' : ''}>Code</option>
-            <option value="list" ${type === 'list' ? 'selected' : ''}>List (bullets)</option>
-            <option value="language" ${type === 'language' ? 'selected' : ''}>Language</option>
+            <option value="code"      ${type === 'code'      ? 'selected' : ''}>Code</option>
+            <option value="password"  ${type === 'password'  ? 'selected' : ''}>Password</option>
+            <option value="title"     ${type === 'title'     ? 'selected' : ''}>Title Case</option>
+            <option value="hashtags"  ${type === 'hashtags'  ? 'selected' : ''}>Hashtags</option>
+            <option value="list"      ${type === 'list'      ? 'selected' : ''}>List (bullets)</option>
+            </optgroup>
+            <optgroup label="Contact">
+            <option value="email"     ${type === 'email'     ? 'selected' : ''}>Email</option>
+            <option value="url"       ${type === 'url'       ? 'selected' : ''}>URL</option>
+            <option value="phone"     ${type === 'phone'     ? 'selected' : ''}>Phone</option>
+            </optgroup>
+            <optgroup label="Input">
+            <option value="number"     ${type === 'number'     ? 'selected' : ''}>Number</option>
+            <option value="date"       ${type === 'date'       ? 'selected' : ''}>Date</option>
+            <option value="datetime"   ${type === 'datetime'   ? 'selected' : ''}>Date & Time</option>
+            <option value="month"      ${type === 'month'      ? 'selected' : ''}>Month</option>
+            <option value="week"       ${type === 'week'       ? 'selected' : ''}>Week</option>
+            <option value="time"       ${type === 'time'       ? 'selected' : ''}>Time</option>
+            <option value="currency"   ${type === 'currency'   ? 'selected' : ''}>Currency</option>
+            <option value="duration"   ${type === 'duration'   ? 'selected' : ''}>Duration</option>
+            <option value="timezone"   ${type === 'timezone'   ? 'selected' : ''}>Timezone</option>
+            <option value="language"   ${type === 'language'   ? 'selected' : ''}>Language</option>
+            <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
+            <option value="daterange"  ${type === 'daterange'  ? 'selected' : ''}>Date Range</option>
+            <option value="today"      ${type === 'today'      ? 'selected' : ''}>Today (auto date)</option>
             </optgroup>
             <optgroup label="Choice">
-            <option value="dropdown" ${type === 'dropdown' ? 'selected' : ''}>Dropdown</option>
-            <option value="choicechips" ${type === 'choicechips' ? 'selected' : ''}>Choice Chips (compact)</option>
-            <option value="choicecards" ${type === 'choicecards' ? 'selected' : ''}>Choice Cards (title and description)</option>
-            <option value="checkbox" ${type === 'checkbox' ? 'selected' : ''}>Checkbox List</option>
-            <option value="combobox" ${type === 'combobox' ? 'selected' : ''}>Combo Box (pick or type)</option>
-            <option value="boolean" ${type === 'boolean' ? 'selected' : ''}>Yes / No Toggle</option>
-            <option value="stepslider" ${type === 'stepslider' ? 'selected' : ''}>Step Slider</option>
+            <option value="dropdown"    ${type === 'dropdown'    ? 'selected' : ''}>Dropdown</option>
+            <option value="multiselect" ${type === 'multiselect' ? 'selected' : ''}>Multi-select</option>
+            <option value="radio"       ${type === 'radio'       ? 'selected' : ''}>Radio Buttons</option>
+            <option value="choicechips" ${type === 'choicechips' ? 'selected' : ''}>Choice Chips</option>
+            <option value="choicecards" ${type === 'choicecards' ? 'selected' : ''}>Choice Cards</option>
+            <option value="yesno"       ${type === 'yesno'       ? 'selected' : ''}>Yes / No / Maybe</option>
+            <option value="segmented"   ${type === 'segmented'   ? 'selected' : ''}>Segmented Control</option>
+            <option value="combobox"    ${type === 'combobox'    ? 'selected' : ''}>Combo Box (pick or type)</option>
+            <option value="scale"       ${type === 'scale'       ? 'selected' : ''}>Number Scale (1 to 10)</option>
+            <option value="cardcarousel" ${type === 'cardcarousel' ? 'selected' : ''}>Card Carousel</option>
+            <option value="stepslider"  ${type === 'stepslider'  ? 'selected' : ''}>Step Slider</option>
+            <option value="boolean"     ${type === 'boolean'     ? 'selected' : ''}>Yes / No Toggle</option>
+            <option value="checkbox"    ${type === 'checkbox'    ? 'selected' : ''}>Checkbox List</option>
+            <option value="tags"        ${type === 'tags'        ? 'selected' : ''}>Tags</option>
+            <option value="togglegroup" ${type === 'togglegroup' ? 'selected' : ''}>Toggle Group</option>
+            <option value="range"       ${type === 'range'       ? 'selected' : ''}>Range</option>
             </optgroup>
-            <optgroup label="Number">
-            <option value="number" ${type === 'number' ? 'selected' : ''}>Number</option>
-            <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
-            <option value="slider" ${type === 'slider' ? 'selected' : ''}>Slider</option>
+            <optgroup label="Advanced">
+            <option value="slider"      ${type === 'slider'      ? 'selected' : ''}>Slider</option>
+            <option value="rating"      ${type === 'rating'      ? 'selected' : ''}>Star Rating</option>
             <option value="rangeslider" ${type === 'rangeslider' ? 'selected' : ''}>Range Slider (min-max)</option>
-            </optgroup>
-            <optgroup label="Date">
-            <option value="date" ${type === 'date' ? 'selected' : ''}>Date</option>
-            <option value="daterange" ${type === 'daterange' ? 'selected' : ''}>Date Range</option>
+            <option value="rankedlist"  ${type === 'rankedlist'  ? 'selected' : ''}>Ranked List</option>
+            <option value="matrix"      ${type === 'matrix'      ? 'selected' : ''}>Matrix / Likert Grid</option>
+            <option value="emojipicker" ${type === 'emojipicker' ? 'selected' : ''}>Emoji Picker</option>
+            <option value="stepper"     ${type === 'stepper'     ? 'selected' : ''}>Stepper (+/-)</option>
             </optgroup>
             <optgroup label="Random">
-            <option value="diceroll" ${type === 'diceroll' ? 'selected' : ''}>Dice Roll (rolling die)</option>
-            <option value="weightedmix" ${type === 'weightedmix' ? 'selected' : ''}>Weighted Mix (percentage sliders)</option>
-            <option value="carddeck" ${type === 'carddeck' ? 'selected' : ''}>Card Deck (shuffle and draw)</option>
-            <option value="randompick" ${type === 'randompick' ? 'selected' : ''}>Random Pick</option>
+            <option value="diceroll"     ${type === 'diceroll'     ? 'selected' : ''}>Dice Roll</option>
+            <option value="weightedmix"  ${type === 'weightedmix'  ? 'selected' : ''}>Weighted Mix</option>
+            <option value="coinflip"     ${type === 'coinflip'     ? 'selected' : ''}>Coin Flip</option>
+            <option value="randompick"   ${type === 'randompick'   ? 'selected' : ''}>Random Pick</option>
             <option value="randomnumber" ${type === 'randomnumber' ? 'selected' : ''}>Random Number</option>
+            <option value="carddeck"     ${type === 'carddeck'     ? 'selected' : ''}>Card Deck (shuffle and draw)</option>
+            </optgroup>
+            <optgroup label="Presets">
+            <option value="tone"         ${type === 'tone'         ? 'selected' : ''}>Tone</option>
+            <option value="outputformat" ${type === 'outputformat' ? 'selected' : ''}>Output Format</option>
+            <option value="length"       ${type === 'length'       ? 'selected' : ''}>Length</option>
+            <option value="audience"     ${type === 'audience'     ? 'selected' : ''}>Audience</option>
+            <option value="priority"     ${type === 'priority'     ? 'selected' : ''}>Priority</option>
+            <option value="sentiment"    ${type === 'sentiment'    ? 'selected' : ''}>Sentiment</option>
+            <option value="agreement"    ${type === 'agreement'    ? 'selected' : ''}>Agreement</option>
+            <option value="frequency"    ${type === 'frequency'    ? 'selected' : ''}>Frequency</option>
+            <option value="importance"   ${type === 'importance'   ? 'selected' : ''}>Importance</option>
+            <option value="difficulty"   ${type === 'difficulty'   ? 'selected' : ''}>Difficulty</option>
             </optgroup>
           </select>
-          <input type="text" data-field="default" class="var-default-field" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
+          <input type="text" data-field="default" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
         </div>
         <div class="var-wrap-row" style="display:flex;gap:8px;align-items:center;margin-top:4px;">
           <span style="font-size:11px;color:var(--ink-3);">Output wrap:</span>
@@ -3267,53 +3485,31 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="tall"   ${size === 'tall'   ? 'selected' : ''}>Tall (10 rows)</option>
           </select>
         </div>
-        <div class="choice-multi" style="display: ${type === 'choicechips' || type === 'choicecards' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
+        <div class="togglegroup-multi" style="display: ${type === 'togglegroup' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);cursor:pointer;">
             <input type="checkbox" data-field="multi" ${m.multi ? 'checked' : ''} />
             Allow multiple selections
           </label>
         </div>
-        <div class="dice-faces" style="display: ${type === 'diceroll' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
-          <span style="font-size: 11px; color: var(--ink-3);">Sides:</span>
-          <input type="number" data-field="faces" min="2" max="100" value="${escapeAttr(m.faces || 6)}" style="width: 72px; font-size: 12px; padding: 4px 8px;" />
-          <span style="font-size: 11px; color: var(--ink-3);">or type your own faces below</span>
-        </div>
         <div class="dropdown-options" style="display: ${needsOptions ? 'block' : 'none'};">
-          <textarea data-field="options" placeholder="${_PL_optPlaceholder(type)}" rows="2"
+          <textarea data-field="options" placeholder="${type === 'weightedmix' ? 'Option:weight, Option:weight' : type === 'diceroll' ? 'Dice faces, comma-separated' : type === 'randomnumber' ? 'Min, Max (whole numbers)' : type === 'carddeck' || type === 'cardcarousel' ? 'Card names, comma-separated (blank gives five sample cards)' : type === 'stepslider' ? 'Steps in order, comma-separated (at least 2)' : type === 'coinflip' ? 'Two sides, comma-separated (default Heads, Tails)' : ['tone','outputformat','length','audience','priority','sentiment','agreement','frequency','importance','difficulty','scale'].includes(type) ? 'Leave blank for the built-in options, or type your own' : 'Comma-separated options'}" rows="2"
                     style="width: 100%; padding: 6px 10px; font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; color: var(--ink); margin-top: 4px;">${escapeHtml(opts)}</textarea>
         </div>
         </div>
       </details>`;
         }).join('');
-        list.querySelectorAll('.var-meta-row').forEach(r => _PL_applyVarTypeUI(r, r.querySelector('[data-field="type"]').value));
-    }
-    function _PL_optPlaceholder(type) {
-        return ({
-            weightedmix: 'Name:percentage, one per line or comma separated (blank gives three sample options)',
-            diceroll: 'Custom faces, words or numbers, comma separated (blank uses the sides above)',
-            randomnumber: 'Min, Max (whole numbers)',
-            carddeck: 'Card names, comma separated (blank gives five sample cards)',
-            randompick: 'Options, comma separated',
-            stepslider: 'Steps in order, comma separated (at least 2)',
-            choicecards: 'One card per line: Title | short description'
-        })[type] || 'Comma separated options';
-    }
-    function _PL_applyVarTypeUI(row, type) {
-        const show = (sel, on, disp) => { const el = row.querySelector(sel); if (el) el.style.display = on ? (disp || 'flex') : 'none'; };
-        const isRandom = _PL_RANDOM_TYPES.includes(type);
-        show('.dropdown-options', _PL_OPTION_TYPES.includes(type), 'block');
-        show('.paragraph-size', type === 'paragraph');
-        show('.choice-multi', type === 'choicechips' || type === 'choicecards');
-        show('.dice-faces', type === 'diceroll');
-        show('.var-wrap-row', !isRandom);
-        show('[data-field="default"]', !isRandom, 'block');
-        const ta = row.querySelector('[data-field="options"]');
-        if (ta) ta.placeholder = _PL_optPlaceholder(type);
-        const pill = row.querySelector('.var-meta-type-pill');
-        if (pill) pill.textContent = type;
     }
     window.PL_onVarTypeChange = function(sel) {
-        _PL_applyVarTypeUI(sel.closest('.var-meta-row'), sel.value);
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'choicecards', 'yesno', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix', 'combobox', 'scale', 'diceroll', 'weightedmix', 'coinflip', 'randompick', 'randomnumber', 'carddeck', 'cardcarousel', 'stepslider', 'agreement', 'frequency', 'importance', 'difficulty', 'tone', 'outputformat', 'length', 'audience', 'priority', 'sentiment'];
+        const row = sel.closest('.var-meta-row');
+        const opts = row.querySelector('.dropdown-options');
+        const sizeRow = row.querySelector('.paragraph-size');
+        const multiRow = row.querySelector('.togglegroup-multi');
+        const pill = row.querySelector('.var-meta-type-pill');
+        if (opts) opts.style.display = OPTIONS_TYPES.includes(sel.value) ? 'block' : 'none';
+        if (sizeRow) sizeRow.style.display = sel.value === 'paragraph' ? 'flex' : 'none';
+        if (multiRow) multiRow.style.display = sel.value === 'togglegroup' ? 'flex' : 'none';
+        if (pill) pill.textContent = sel.value;
     };
 
     function collectVarMeta() {
@@ -3324,26 +3520,20 @@ STYLE/THEME: [[reserved for future use]]`;
             const def = row.querySelector('[data-field="default"]')?.value || '';
             const visible = row.querySelector('[data-field="visible"]')?.checked !== false;
             const optsEl = row.querySelector('[data-field="options"]');
-            const optRaw = optsEl?.value || '';
-            const options = optRaw ? optRaw.split(/\n/.test(optRaw) || (type === 'choicecards' && optRaw.includes('|')) ? '\n' : ',').map(o => o.trim()).filter(Boolean) : [];
+            const options = optsEl?.value ?
+                optsEl.value.split(',').map(o => o.trim()).filter(Boolean) : [];
             const sizeEl = row.querySelector('[data-field="size"]');
             const multiEl = row.querySelector('[data-field="multi"]');
-            const isRandom = _PL_RANDOM_TYPES.includes(type);
             const entry = {
                 type,
-                default: isRandom ? '' : def,
+                default: def,
                 visible,
                 options
             };
             if (type === 'paragraph' && sizeEl) entry.size = sizeEl.value;
-            if ((type === 'choicechips' || type === 'choicecards') && multiEl && multiEl.checked) entry.multi = true;
-            const facesEl = row.querySelector('[data-field="faces"]');
-            if (type === 'diceroll' && facesEl) {
-                const n = parseInt(facesEl.value, 10);
-                if (n >= 2 && n <= 100 && n !== 6) entry.faces = n;
-            }
+            if (type === 'togglegroup' && multiEl) entry.multi = multiEl.checked;
             const wrapEl = row.querySelector('[data-field="wrap"]');
-            if (wrapEl && wrapEl.value && !isRandom) entry.wrap = wrapEl.value;
+            if (wrapEl && wrapEl.value) entry.wrap = wrapEl.value;
             meta[v] = entry;
         });
         return meta;
