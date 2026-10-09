@@ -1606,23 +1606,10 @@
     // Old shape:  { type: 'checkbox', default: 'true' | 'Yes' | 'No' }  -- no options array
     // New shape:  { type: 'checkbox', default: 'Yes', options: ['Yes','No'] }
     // Star Rating (type: 'rating') needs no migration -- same numeric 1-5 value, only the widget changed.
-    // Retired types fall back to the nearest live type and merged date types become a mode, so saved prompts keep working.
-    const _LEGACY_VAR_TYPES = {
-        code: { type: 'paragraph' }, password: { type: 'text' }, rankedlist: { type: 'checkbox' },
-        rating: { type: 'stepper' }, matrix: { type: 'dropdown' }, emojipicker: { type: 'text' },
-        datetime: { type: 'date', mode: 'datetime' }, time: { type: 'date', mode: 'time' },
-        month: { type: 'period', mode: 'month' }, week: { type: 'period', mode: 'week' },
-        today: { type: 'reldate' }
-    };
     function _migrateLegacyVarMeta(meta) {
         const out = {};
         for (const v in meta) {
-            let m = meta[v] || {};
-            const legacy = _LEGACY_VAR_TYPES[m.type];
-            if (legacy) {
-                m = { ...m, ...legacy };
-                if (m.type === 'reldate' && !m.default) m.default = 'today';
-            }
+            const m = meta[v] || {};
             if (m.type === 'checkbox' && (!m.options || !m.options.length)) {
                 const wasChecked = m.default === 'true' || m.default === 'Yes';
                 out[v] = {
@@ -1654,24 +1641,22 @@
         const typeIcon = {
             text: 'abc',
             paragraph: 'subject',
+            code: 'code',
+            password: 'lock',
             email: 'email',
             url: 'link',
             phone: 'phone',
             number: 'tag',
             date: 'event',
+            time: 'schedule',
             color: 'palette',
             currency: 'payments',
             duration: 'timer',
             timezone: 'public',
             language: 'translate',
-            period: 'calendar_view_month',
-            reldate: 'update',
-            recurring: 'event_repeat',
-            xypad: 'control_camera',
-            dial: 'data_usage',
-            dice: 'casino',
-            mix: 'donut_small',
-            persona: 'person',
+            datetime: 'event_available',
+            month: 'calendar_view_month',
+            week: 'date_range',
             json: 'data_object',
             dropdown: 'arrow_drop_down',
             multiselect: 'select_check_box',
@@ -1683,12 +1668,17 @@
             togglegroup: 'toggle_on',
             range: 'stacked_line_chart',
             slider: 'linear_scale',
+            rating: 'star',
             rangeslider: 'linear_scale',
+            rankedlist: 'reorder',
             iconpicker: 'category',
+            matrix: 'grid_on',
+            emojipicker: 'mood',
             segmented: 'view_column',
             stepper: 'exposure',
             percentage: 'percent',
             daterange: 'date_range',
+            today: 'today',
             title: 'title',
             hashtags: 'tag',
             list: 'format_list_bulleted',
@@ -1714,7 +1704,7 @@
         ${opts.map(o => `<option value="${escapeAttr(o)}"${selected.includes(o)?' selected':''}>${escapeHtml(o)}</option>`).join('')}
       </select>`;
             } else if (type === 'radio' && opts.length) {
-                input = `<div class="var-radio-group var-cards" data-var="${escapeAttr(v)}">
+                input = `<div class="var-radio-group" data-var="${escapeAttr(v)}">
         ${opts.map((o, i) => `<label class="var-choice-line">
           <input type="radio" class="var-radio-item" name="var-radio-${escapeAttr(v)}" value="${escapeAttr(o)}" ${def===o || (!def && i===0) ? 'checked' : ''} />
           <span>${escapeHtml(o)}</span>
@@ -1722,7 +1712,7 @@
         <input type="hidden" class="var-input var-radio-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def || opts[0] || '')}" />
       </div>`;
             } else if (type === 'choicechips' && opts.length) {
-                input = `<div class="var-toggle-group var-chips" data-var="${escapeAttr(v)}">
+                input = `<div class="var-toggle-group" data-var="${escapeAttr(v)}">
         ${opts.map(o => `<span class="chip var-toggle-btn${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</span>`).join('')}
         <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
@@ -1736,21 +1726,30 @@
             } else if (type === 'number') {
                 input = `<input type="number" class="var-input" data-var="${escapeAttr(v)}" placeholder="Number" value="${escapeAttr(def)}" />`;
             } else if (type === 'date') {
-                const dKind = m.mode === 'time' ? 'time' : (m.mode === 'datetime' ? 'datetime-local' : 'date');
-                input = `<input type="${dKind}" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
-            } else if (type === 'period') {
-                input = `<input type="${m.mode === 'week' ? 'week' : 'month'}" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
+                input = `<input type="date" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
+            } else if (type === 'datetime') {
+                input = `<input type="datetime-local" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
+            } else if (type === 'month') {
+                input = `<input type="month" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
+            } else if (type === 'week') {
+                input = `<input type="week" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
+            } else if (type === 'time') {
+                input = `<input type="time" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />`;
             } else if (type === 'email') {
                 input = `<input type="email" class="var-input" data-var="${escapeAttr(v)}" placeholder="email@example.com" value="${escapeAttr(def)}" />`;
             } else if (type === 'url') {
                 input = `<input type="url" class="var-input" data-var="${escapeAttr(v)}" placeholder="https://..." value="${escapeAttr(def)}" />`;
             } else if (type === 'phone') {
                 input = `<input type="tel" class="var-input" data-var="${escapeAttr(v)}" placeholder="+1 555 000 0000" value="${escapeAttr(def)}" />`;
+            } else if (type === 'password') {
+                input = `<input type="password" class="var-input" data-var="${escapeAttr(v)}" placeholder="Password" value="${escapeAttr(def)}" />`;
             } else if (type === 'color') {
                 input = `<input type="color" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def) || '#000000'}" style="width:48px;height:32px;padding:2px;cursor:pointer;" />`;
             } else if (type === 'paragraph') {
                 const pRows = m.size === 'short' ? 3 : (m.size === 'tall' ? 10 : 6);
                 input = `<textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter paragraph…" rows="${pRows}" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>`;
+            } else if (type === 'code') {
+                input = `<textarea class="var-input var-code" data-var="${escapeAttr(v)}" placeholder="Enter code…" rows="4" style="width:100%;resize:vertical;font-family:monospace;font-size:12px;">${escapeHtml(def)}</textarea>`;
             } else if (type === 'json') {
                 input = `<textarea class="var-input var-code" data-var="${escapeAttr(v)}" placeholder='{"key": "value"}' rows="6" style="width:100%;resize:vertical;font-family:monospace;font-size:12px;">${escapeHtml(def)}</textarea>`;
             } else if (type === 'currency') {
@@ -1787,9 +1786,9 @@
             } else if (type === 'checkbox' && opts.length) {
                 const checkedList = def ? def.split(',').map(s => s.trim()) : [];
                 input = `<div class="var-checklist" data-var="${escapeAttr(v)}">
-        ${opts.map((o, i) => `<label class="var-check-row">
-          <input type="checkbox" class="var-checklist-item" value="${escapeAttr(o)}" ${checkedList.includes(o) ? 'checked' : ''} />
-          <span>${escapeHtml(o)}</span>
+        ${opts.map((o, i) => `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:4px;">
+          <input type="checkbox" class="var-checklist-item" value="${escapeAttr(o)}" ${checkedList.includes(o) ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;" />
+          <span style="font-size:13px;color:var(--ink-2);">${escapeHtml(o)}</span>
         </label>`).join('')}
         <input type="hidden" class="var-input var-checklist-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
@@ -1798,8 +1797,8 @@
             } else if (type === 'togglegroup' && opts.length) {
                 const isMulti = !!m.multi;
                 const activeVals = isMulti ? (def ? def.split(',').map(s => s.trim()) : []) : [def];
-                input = `<div class="var-toggle-group var-tgl" data-var="${escapeAttr(v)}" data-multi="${isMulti ? '1' : '0'}">
-        ${opts.map(o => `<span class="var-toggle-btn var-tgl-btn${activeVals.includes(o)?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</span>`).join('')}
+                input = `<div class="var-toggle-group" data-var="${escapeAttr(v)}" data-multi="${isMulti ? '1' : '0'}">
+        ${opts.map(o => `<span class="chip var-toggle-btn${activeVals.includes(o)?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</span>`).join('')}
         <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
             } else if (type === 'togglegroup') {
@@ -1818,6 +1817,12 @@
         <input type="range" class="var-input" data-var="${escapeAttr(v)}" min="0" max="100" value="${escapeAttr(sliderDef)}" style="flex:1;" oninput="this.nextElementSibling.textContent=this.value" />
         <span style="min-width:28px;text-align:right;font-size:13px;font-weight:600;color:var(--ink-1);">${escapeHtml(sliderDef)}</span>
       </div>`;
+            } else if (type === 'rating') {
+                const ratingVal = parseInt(def, 10) || 0;
+                input = `<div class="var-star-rating" data-var="${escapeAttr(v)}">
+        ${[1,2,3,4,5].map(n => `<span class="material-symbols-outlined var-star${n<=ratingVal?' filled':''}" data-value="${n}" onclick="window._PL_selectStar(this)" style="cursor:pointer;font-size:22px;color:${n<=ratingVal?'var(--accent)':'var(--ink-3)'};">${n<=ratingVal?'star':'star_outline'}</span>`).join('')}
+        <input type="hidden" class="var-input var-star-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
             } else if (type === 'rangeslider') {
                 const [rsMinRaw, rsMaxRaw] = def ? def.split(',').map(s => s.trim()) : ['25', '75'];
                 const rsMin = rsMinRaw || '25', rsMax = rsMaxRaw || '75';
@@ -1829,11 +1834,40 @@
         <div class="var-rangeslider-labels"><span class="var-rangeslider-min-label">${escapeHtml(rsMin)}</span><span class="var-rangeslider-max-label">${escapeHtml(rsMax)}</span></div>
         <input type="hidden" class="var-input var-rangeslider-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(rsMin)}, ${escapeAttr(rsMax)}" />
       </div>`;
+            } else if (type === 'rankedlist' && opts.length) {
+                const order = def ? def.split(',').map(s => s.trim()).filter(o => opts.includes(o)) : [];
+                const finalOrder = order.length ? order.concat(opts.filter(o => !order.includes(o))) : opts;
+                input = `<div class="var-ranked-list" data-var="${escapeAttr(v)}">
+        ${finalOrder.map((o, i) => `<div class="var-ranked-item" draggable="true" data-value="${escapeAttr(o)}" ondragstart="window._PL_rankDragStart(event)" ondragover="window._PL_rankDragOver(event)" ondrop="window._PL_rankDrop(event)"><span class="var-ranked-num">${i + 1}</span><span class="material-symbols-outlined var-ranked-handle">drag_indicator</span><span class="var-ranked-label">${escapeHtml(o)}</span></div>`).join('')}
+        <input type="hidden" class="var-input var-ranked-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(finalOrder.join(', '))}" />
+      </div>`;
+            } else if (type === 'rankedlist') {
+                input = `<p style="font-size:12px;color:var(--ink-3);">Add options in the variable editor to rank them.</p>`;
             } else if (type === 'iconpicker') {
                 const ICON_CHOICES = ['rocket_launch','lightbulb','target','flag','star','bolt','favorite','psychology','trending_up','build','auto_awesome','emoji_objects','shield','diamond','local_fire_department','eco'];
                 input = `<div class="var-icon-picker" data-var="${escapeAttr(v)}">
         ${ICON_CHOICES.map(ic => `<span class="material-symbols-outlined var-icon-choice${def===ic?' active':''}" data-value="${ic}" onclick="window._PL_selectIcon(this)">${ic}</span>`).join('')}
         <input type="hidden" class="var-input var-icon-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
+            } else if (type === 'matrix' && opts.length) {
+                const MATRIX_COLS = ['Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree'];
+                let matrixVal = {};
+                try { matrixVal = def ? JSON.parse(def) : {}; } catch (e) { matrixVal = {}; }
+                input = `<div class="var-matrix" data-var="${escapeAttr(v)}">
+        <div class="var-matrix-header"><span></span>${MATRIX_COLS.map(c => `<span class="var-matrix-col-label">${escapeHtml(c)}</span>`).join('')}</div>
+        ${opts.map(row => `<div class="var-matrix-row" data-row="${escapeAttr(row)}">
+          <span class="var-matrix-row-label">${escapeHtml(row)}</span>
+          ${MATRIX_COLS.map((c, ci) => `<span class="var-matrix-cell${matrixVal[row]===ci?' active':''}" data-col="${ci}" onclick="window._PL_selectMatrixCell(this)"></span>`).join('')}
+        </div>`).join('')}
+        <input type="hidden" class="var-input var-matrix-hidden" data-var="${escapeAttr(v)}" value="${def ? escapeAttr(JSON.stringify(matrixVal)) : ''}" />
+      </div>`;
+            } else if (type === 'matrix') {
+                input = `<p style="font-size:12px;color:var(--ink-3);">Add row items (options) in the variable editor to build the grid.</p>`;
+            } else if (type === 'emojipicker') {
+                const EMOJI_CHOICES = ['😀','😊','😎','🤔','😅','🥳','😴','🔥','✨','💡','🚀','⭐','❤️','👍','👎','🎯','📈','📉','⚡','🌟','🎉','🙌','💬','📝','✅','❌','⏰','🌈'];
+                input = `<div class="var-emoji-picker" data-var="${escapeAttr(v)}">
+        ${EMOJI_CHOICES.map(em => `<span class="var-emoji-choice${def===em?' active':''}" data-value="${em}" onclick="window._PL_selectEmoji(this)">${em}</span>`).join('')}
+        <input type="hidden" class="var-input var-emoji-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
             } else if (type === 'segmented' && opts.length) {
                 input = `<div class="var-toggle-group var-seg" data-var="${escapeAttr(v)}">
@@ -1848,74 +1882,8 @@
       </div>`;
             } else if (type === 'percentage') {
                 input = `<div class="var-pct"><input type="number" class="var-input" data-var="${escapeAttr(v)}" placeholder="0" value="${escapeAttr(def)}" /><span>%</span></div>`;
-            } else if (type === 'reldate') {
-                const rdChips = ['Today', 'Tomorrow', 'Next Friday', 'In 2 weeks', '1st of next month', 'End of month'];
-                input = `<div class="var-reldate" data-fmt="${escapeAttr(m.mode || 'long')}">
-        <input type="text" class="var-reldate-expr" list="var-reldate-list" placeholder="e.g. in 3 days, next Friday" value="${escapeAttr(def || 'today')}" oninput="window._PL_reldateSync(this)" />
-        <div class="var-reldate-chips">${rdChips.map(c => `<button type="button" class="chip" onclick="window._PL_reldatePick(this)">${escapeHtml(c)}</button>`).join('')}</div>
-        <div class="var-reldate-out"><span class="material-symbols-outlined">event</span><span class="var-reldate-text"></span></div>
-        <input type="hidden" class="var-input var-reldate-hidden" data-var="${escapeAttr(v)}" value="" />
-      </div>`;
-            } else if (type === 'recurring') {
-                const [rcOrd, rcDow] = (def && def.includes('|')) ? def.split('|') : ['1', 'day'];
-                const rcOrds = [['every', 'Every'], ['1', '1st'], ['2', '2nd'], ['3', '3rd'], ['4', '4th'], ['last', 'Last']];
-                const rcDays = [['day', 'day of the month'], ['1', 'Monday'], ['2', 'Tuesday'], ['3', 'Wednesday'], ['4', 'Thursday'], ['5', 'Friday'], ['6', 'Saturday'], ['0', 'Sunday']];
-                input = `<div class="var-recur" data-fmt="${escapeAttr(m.mode || 'both')}">
-        <select class="var-recur-ord" onchange="window._PL_recurSync(this)">${rcOrds.map(([k, l]) => `<option value="${k}"${k === rcOrd ? ' selected' : ''}>${l}</option>`).join('')}</select>
-        <select class="var-recur-dow" onchange="window._PL_recurSync(this)">${rcDays.map(([k, l]) => `<option value="${k}"${k === rcDow ? ' selected' : ''}>${l}</option>`).join('')}</select>
-        <div class="var-reldate-out"><span class="material-symbols-outlined">event_repeat</span><span class="var-reldate-text"></span></div>
-        <input type="hidden" class="var-input var-recur-hidden" data-var="${escapeAttr(v)}" value="" />
-      </div>`;
-            } else if (type === 'xypad') {
-                const xl = opts[0] || 'X', yl = opts[1] || 'Y';
-                const [dx, dy] = (def && def.includes(',') ? def.split(',') : ['50', '50']).map(n => Math.min(100, Math.max(0, parseInt(n, 10) || 0)));
-                input = `<div class="var-xy" data-xl="${escapeAttr(xl)}" data-yl="${escapeAttr(yl)}">
-        <div class="var-xy-grid">
-          <span class="var-xy-ylabel">${escapeHtml(yl)}</span>
-          <div class="var-xy-pad" tabindex="0" data-x="${dx}" data-y="${dy}" onpointerdown="window._PL_xyDown(event,this)" onkeydown="window._PL_xyKey(event,this)"><span class="var-xy-dot"></span></div>
-          <span class="var-xy-xlabel">${escapeHtml(xl)}</span>
-        </div>
-        <div class="var-xy-read"></div>
-        <input type="hidden" class="var-input var-xy-hidden" data-var="${escapeAttr(v)}" value="" />
-      </div>`;
-            } else if (type === 'dial') {
-                const dN = Math.min(36, Math.max(2, parseInt(m.notches, 10) || 8));
-                const dR = Math.min(6, Math.max(1, parseInt(m.rotations, 10) || 1));
-                const dP = Math.min(dN * dR, Math.max(1, parseInt(def, 10) || 1));
-                const ticks = Array.from({ length: dN }, (_, i) => `<i style="transform:rotate(${(i / dN * 360).toFixed(2)}deg)"></i>`).join('');
-                input = `<div class="var-dial" data-n="${dN}" data-r="${dR}" data-pos="${dP - 1}">
-        <div class="var-dial-knob" tabindex="0" onpointerdown="window._PL_dialDown(event,this)" onkeydown="window._PL_dialKey(event,this)">
-          <div class="var-dial-ticks">${ticks}</div><div class="var-dial-cap"><b></b></div>
-        </div>
-        <div class="var-dial-side">
-          <div class="var-dial-read"></div>
-          <div class="var-dial-btns"><button type="button" onclick="window._PL_dialStep(this,-1)" aria-label="Down">&minus;</button><button type="button" onclick="window._PL_dialStep(this,1)" aria-label="Up">+</button></div>
-        </div>
-        <input type="hidden" class="var-input var-dial-hidden" data-var="${escapeAttr(v)}" value="" />
-      </div>`;
-            } else if (type === 'dice' && opts.length) {
-                input = `<div class="var-dice" data-opts="${escapeAttr(JSON.stringify(opts))}">
-        <button type="button" class="btn btn-sm var-dice-btn" onclick="window._PL_diceRoll(this)"><span class="material-symbols-outlined">casino</span> <span class="var-dice-label">Roll</span></button>
-        <div class="var-dice-face">${escapeHtml(def || '')}</div>
-        <input type="hidden" class="var-input var-dice-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
-      </div>`;
-            } else if (type === 'dice') {
-                input = `<p style="font-size:12px;color:var(--ink-3);">Add options in the variable editor to roll between them.</p>`;
-            } else if (type === 'mix' && opts.length) {
-                const share = Math.floor(100 / opts.length);
-                const vals = opts.map((o, i) => i === 0 ? 100 - share * (opts.length - 1) : share);
-                input = `<div class="var-mix">
-        ${opts.map((o, i) => `<div class="var-mix-row"><span class="var-mix-name">${escapeHtml(o)}</span><input type="range" min="0" max="100" value="${vals[i]}" data-name="${escapeAttr(o)}" oninput="window._PL_mixSet(this)" /><span class="var-mix-pct">${vals[i]}%</span></div>`).join('')}
-        <input type="hidden" class="var-input var-mix-hidden" data-var="${escapeAttr(v)}" value="" />
-      </div>`;
-            } else if (type === 'mix') {
-                input = `<p style="font-size:12px;color:var(--ink-3);">Add options in the variable editor to split 100% between them.</p>`;
-            } else if (type === 'persona') {
-                input = `<div class="var-persona" data-default="${escapeAttr(def)}">
-        <select class="var-lib-select" onchange="window._PL_pickPersona(this)"><option value="">Loading personas...</option></select>
-        <div class="var-persona-preview"></div>
-        <input type="hidden" class="var-input var-persona-hidden" data-var="${escapeAttr(v)}" value="" />
-      </div>`;
+            } else if (type === 'today') {
+                input = `<input type="date" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def || _PL_todayISO())}" />`;
             } else if (type === 'daterange') {
                 const [drA, drB] = def ? def.split('|') : ['', ''];
                 input = `<div class="var-daterange">
@@ -1967,15 +1935,6 @@
                 _updateVarLivePreview();
             });
         });
-
-        // Seed the computed widgets (dates, pads, dials, dice, mix, personas) before the first preview
-        $$('#variableFields .var-reldate-expr').forEach(el => window._PL_reldateSync(el, true));
-        $$('#variableFields .var-recur-ord').forEach(el => window._PL_recurSync(el, true));
-        $$('#variableFields .var-xy-pad').forEach(el => _PL_xyPaint(el, true));
-        $$('#variableFields .var-dial').forEach(el => _PL_dialPaint(el, true));
-        $$('#variableFields .var-dice').forEach(el => { if (!el.querySelector('.var-dice-hidden').value) window._PL_diceRoll(el.querySelector('.var-dice-btn'), true); });
-        $$('#variableFields .var-mix').forEach(el => _PL_mixWrite(el, true));
-        $$('#variableFields .var-persona').forEach(_PL_personaLoad);
 
         // Seed preview with defaults and update filled states
         _updateVarLivePreview();
@@ -2156,6 +2115,23 @@
         }));
     };
 
+    window._PL_selectStar = function(star) {
+        const wrap = star.closest('.var-star-rating');
+        const val = parseInt(star.dataset.value, 10);
+        const hidden = wrap.querySelector('.var-star-hidden');
+        hidden.value = String(val);
+        wrap.querySelectorAll('.var-star').forEach(s => {
+            const n = parseInt(s.dataset.value, 10);
+            const filled = n <= val;
+            s.textContent = filled ? 'star' : 'star_outline';
+            s.classList.toggle('filled', filled);
+            s.style.color = filled ? 'var(--accent)' : 'var(--ink-3)';
+        });
+        hidden.dispatchEvent(new Event('input', {
+            bubbles: true
+        }));
+    };
+
     window._PL_selectIcon = function(el) {
         const wrap = el.closest('.var-icon-picker');
         wrap.querySelectorAll('.var-icon-choice').forEach(i => i.classList.remove('active'));
@@ -2165,283 +2141,56 @@
         hidden.dispatchEvent(new Event('input', { bubbles: true }));
     };
 
-    /* ---- Variable types: Relative Date / Recurring Date / XY Pad / Dial / Dice / Mix / Persona ---- */
-    const _PL_DOW = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    function _PL_emit(hidden, val, silent) {
-        hidden.value = val;
-        if (!silent) hidden.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    function _PL_fmtDate(d, fmt) {
-        if (fmt === 'iso') return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        if (fmt === 'short') return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-        return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    }
-    // Turns plain phrases ("in 3 days", "next Friday", "end of next month") into a Date, or null when not understood
-    function _PL_parseRelDate(str, base) {
-        const s = String(str || '').toLowerCase().trim().replace(/\s+/g, ' ').replace(/^the /, '');
-        if (!s) return null;
-        const t = new Date(base.getFullYear(), base.getMonth(), base.getDate());
-        const days = n => { const x = new Date(t); x.setDate(x.getDate() + n); return x; };
-        const months = n => {
-            const x = new Date(t.getFullYear(), t.getMonth() + n, 1);
-            x.setDate(Math.min(t.getDate(), new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate()));
-            return x;
-        };
-        const shift = { next: 1, last: -1, this: 0 };
-        let m;
-        if (/^(today|now)$/.test(s)) return t;
-        if (s === 'tomorrow') return days(1);
-        if (s === 'yesterday') return days(-1);
-        if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/))) return new Date(+m[1], +m[2] - 1, +m[3]);
-        const NUM = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
-        if ((m = s.match(/^(?:in )?(\d+|a|an|one|two|three|four|five|six|seven|eight|nine|ten) (day|week|month|year)s?( ago| from now)?$/))) {
-            let n = NUM[m[1]] || parseInt(m[1], 10);
-            if (m[3] === ' ago') n = -n;
-            if (m[2] === 'day') return days(n);
-            if (m[2] === 'week') return days(7 * n);
-            return months(m[2] === 'month' ? n : 12 * n);
-        }
-        if ((m = s.match(/^(next|last|this) (week|month|year)$/))) {
-            const k = shift[m[1]];
-            return m[2] === 'week' ? days(7 * k) : months(m[2] === 'month' ? k : 12 * k);
-        }
-        if ((m = s.match(/^(?:(next|last|this) )?([a-z]{3,9})$/))) {
-            const di = _PL_DOW.findIndex(n => n.startsWith(m[2]));
-            if (di >= 0) {
-                const fwd = (di - t.getDay() + 7) % 7;
-                if (m[1] === 'next') return days(fwd || 7);
-                if (m[1] === 'last') return days(-(((t.getDay() - di + 7) % 7) || 7));
-                return days(fwd);
-            }
-        }
-        if ((m = s.match(/^(start|beginning|end|first day|last day|1st|first) of (?:the )?(?:(this|next|last) )?(week|month|year)$/))) {
-            const k = shift[m[2]] || 0, end = /^(end|last day)$/.test(m[1]);
-            if (m[3] === 'month') {
-                const first = new Date(t.getFullYear(), t.getMonth() + k, 1);
-                return end ? new Date(first.getFullYear(), first.getMonth() + 1, 0) : first;
-            }
-            if (m[3] === 'year') {
-                const y = t.getFullYear() + k;
-                return end ? new Date(y, 11, 31) : new Date(y, 0, 1);
-            }
-            const mon = days(7 * k - ((t.getDay() + 6) % 7));
-            return end ? new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6) : mon;
-        }
-        if ((m = s.match(/^(\d{1,2})(?:st|nd|rd|th) of (?:(this|next|last) )?month$/))) {
-            const first = new Date(t.getFullYear(), t.getMonth() + (shift[m[2]] || 0), 1);
-            const last = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
-            return new Date(first.getFullYear(), first.getMonth(), Math.min(+m[1], last));
-        }
-        return null;
-    }
-    window._PL_reldateSync = function(el, silent) {
-        const root = el.closest('.var-reldate');
-        const d = _PL_parseRelDate(el.value, new Date());
-        const text = d ? _PL_fmtDate(d, root.dataset.fmt) : '';
-        root.classList.toggle('is-bad', !d && !!el.value.trim());
-        root.querySelector('.var-reldate-text').textContent = d ? text : (el.value.trim() ? 'Not understood, try "in 3 days" or "next Friday"' : 'Type a phrase or pick one');
-        _PL_emit(root.querySelector('.var-reldate-hidden'), text, silent);
+    window._PL_selectEmoji = function(el) {
+        const wrap = el.closest('.var-emoji-picker');
+        wrap.querySelectorAll('.var-emoji-choice').forEach(i => i.classList.remove('active'));
+        el.classList.add('active');
+        const hidden = wrap.querySelector('.var-emoji-hidden');
+        hidden.value = el.dataset.value;
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
     };
-    window._PL_reldatePick = function(btn) {
-        const input = btn.closest('.var-reldate').querySelector('.var-reldate-expr');
-        input.value = btn.textContent.trim();
-        window._PL_reldateSync(input);
+
+    window._PL_selectMatrixCell = function(el) {
+        const wrap = el.closest('.var-matrix');
+        const row = el.closest('.var-matrix-row');
+        const rowKey = row.dataset.row;
+        const col = parseInt(el.dataset.col, 10);
+        row.querySelectorAll('.var-matrix-cell').forEach(c => c.classList.remove('active'));
+        el.classList.add('active');
+        const hidden = wrap.querySelector('.var-matrix-hidden');
+        let val = {};
+        try { val = hidden.value ? JSON.parse(hidden.value) : {}; } catch (e) { val = {}; }
+        val[rowKey] = col;
+        hidden.value = JSON.stringify(val);
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
     };
-    // Recurring rule: ordinal ("every", 1st to 4th, last) plus a weekday or day of the month
-    function _PL_recurMatch(d, ord, dow) {
-        const dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-        if (dow === 'day') {
-            if (ord === 'every') return true;
-            return ord === 'last' ? d.getDate() === dim : d.getDate() === +ord;
-        }
-        if (d.getDay() !== +dow) return false;
-        if (ord === 'every') return true;
-        return ord === 'last' ? d.getDate() + 7 > dim : Math.ceil(d.getDate() / 7) === +ord;
-    }
-    function _PL_recurPhrase(ord, dow) {
-        const nth = { 1: '1st', 2: '2nd', 3: '3rd', 4: '4th' };
-        const day = dow === 'day' ? '' : _PL_DOW[+dow].replace(/^./, c => c.toUpperCase());
-        if (ord === 'every') return dow === 'day' ? 'Every day' : 'Every ' + day;
-        return dow === 'day'
-            ? (ord === 'last' ? 'The last day of every month' : `The ${nth[ord]} of every month`)
-            : `The ${ord === 'last' ? 'last' : nth[ord]} ${day} of every month`;
-    }
-    window._PL_recurSync = function(el, silent) {
-        const root = el.closest('.var-recur');
-        const ord = root.querySelector('.var-recur-ord').value, dow = root.querySelector('.var-recur-dow').value;
-        const now = new Date(), base = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        let next = null;
-        for (let i = 0; i < 400 && !next; i++) {
-            const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
-            if (_PL_recurMatch(d, ord, dow)) next = d;
-        }
-        const phrase = _PL_recurPhrase(ord, dow), nextTxt = next ? _PL_fmtDate(next, 'long') : '';
-        const mode = root.dataset.fmt;
-        const out = mode === 'phrase' ? phrase : (mode === 'next' ? nextTxt : `${phrase} (next: ${nextTxt})`);
-        root.querySelector('.var-reldate-text').textContent = out;
-        _PL_emit(root.querySelector('.var-recur-hidden'), out, silent);
+
+    let _rankDragEl = null;
+    window._PL_rankDragStart = function(evt) {
+        _rankDragEl = evt.target.closest('.var-ranked-item');
+        evt.dataTransfer.effectAllowed = 'move';
     };
-    // XY pad: drag a dot, both axes run 0 to 100
-    function _PL_xyPaint(pad, silent) {
-        const root = pad.closest('.var-xy'), x = +pad.dataset.x, y = +pad.dataset.y;
-        const dot = pad.querySelector('.var-xy-dot');
-        dot.style.left = x + '%';
-        dot.style.top = (100 - y) + '%';
-        root.querySelector('.var-xy-read').textContent = `${root.dataset.xl} ${x}  /  ${root.dataset.yl} ${y}`;
-        _PL_emit(root.querySelector('.var-xy-hidden'), `${root.dataset.xl}: ${x}, ${root.dataset.yl}: ${y}`, silent);
-    }
-    window._PL_xyDown = function(evt, pad) {
-        pad.setPointerCapture(evt.pointerId);
-        const move = ev => {
-            const r = pad.getBoundingClientRect();
-            const c = n => Math.min(100, Math.max(0, Math.round(n)));
-            pad.dataset.x = c((ev.clientX - r.left) / r.width * 100);
-            pad.dataset.y = c(100 - (ev.clientY - r.top) / r.height * 100);
-            _PL_xyPaint(pad);
-        };
-        const up = () => {
-            pad.removeEventListener('pointermove', move);
-            pad.removeEventListener('pointerup', up);
-            pad.removeEventListener('pointercancel', up);
-        };
-        pad.addEventListener('pointermove', move);
-        pad.addEventListener('pointerup', up);
-        pad.addEventListener('pointercancel', up);
-        move(evt);
-    };
-    window._PL_xyKey = function(evt, pad) {
-        const step = evt.shiftKey ? 10 : 5, k = evt.key;
-        const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] }[k];
-        if (!d) return;
+    window._PL_rankDragOver = function(evt) {
         evt.preventDefault();
-        pad.dataset.x = Math.min(100, Math.max(0, +pad.dataset.x + d[0]));
-        pad.dataset.y = Math.min(100, Math.max(0, +pad.dataset.y + d[1]));
-        _PL_xyPaint(pad);
     };
-    // Dial: n notches per turn, r turns, so n * r positions; value is the 1-based position
-    function _PL_dialShow(dial, pos, silent) {
-        const n = +dial.dataset.n, r = +dial.dataset.r, total = n * r;
-        const p = Math.round(pos);
-        dial.querySelector('.var-dial-cap').style.transform = `rotate(${(pos % n) / n * 360}deg)`;
-        dial.querySelector('.var-dial-read').innerHTML = `<b>${p + 1}</b> of ${total}` + (r > 1 ? `<span>Turn ${Math.floor(p / n) + 1} of ${r}</span>` : '');
-        const hidden = dial.querySelector('.var-dial-hidden');
-        if (hidden.value !== String(p + 1)) _PL_emit(hidden, String(p + 1), silent);
-    }
-    function _PL_dialPaint(dial, silent) {
-        const total = +dial.dataset.n * +dial.dataset.r;
-        const pos = Math.min(total - 1, Math.max(0, Math.round(parseFloat(dial.dataset.pos) || 0)));
-        dial.dataset.pos = pos;
-        _PL_dialShow(dial, pos, silent);
-    }
-    window._PL_dialDown = function(evt, knob) {
-        const dial = knob.closest('.var-dial'), n = +dial.dataset.n, total = n * +dial.dataset.r;
-        const rect = knob.getBoundingClientRect(), cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
-        const angle = ev => (Math.atan2(ev.clientX - cx, -(ev.clientY - cy)) * 180 / Math.PI + 360) % 360;
-        let last = angle(evt), pos = parseFloat(dial.dataset.pos) || 0;
-        knob.setPointerCapture(evt.pointerId);
-        knob.classList.add('is-turning');
-        const move = ev => {
-            const a = angle(ev);
-            let delta = a - last;
-            if (delta > 180) delta -= 360;
-            if (delta < -180) delta += 360;
-            last = a;
-            pos = Math.min(total - 1, Math.max(0, pos + delta / 360 * n));
-            _PL_dialShow(dial, pos);
-        };
-        const up = () => {
-            knob.removeEventListener('pointermove', move);
-            knob.removeEventListener('pointerup', up);
-            knob.removeEventListener('pointercancel', up);
-            knob.classList.remove('is-turning');
-            dial.dataset.pos = Math.round(pos);
-            _PL_dialPaint(dial);
-        };
-        knob.addEventListener('pointermove', move);
-        knob.addEventListener('pointerup', up);
-        knob.addEventListener('pointercancel', up);
-    };
-    window._PL_dialStep = function(btn, dir) {
-        const dial = btn.closest('.var-dial');
-        dial.dataset.pos = (parseFloat(dial.dataset.pos) || 0) + dir;
-        _PL_dialPaint(dial);
-    };
-    window._PL_dialKey = function(evt, knob) {
-        const dir = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[evt.key];
-        if (!dir) return;
+    window._PL_rankDrop = function(evt) {
         evt.preventDefault();
-        const dial = knob.closest('.var-dial');
-        dial.dataset.pos = (parseFloat(dial.dataset.pos) || 0) + dir;
-        _PL_dialPaint(dial);
-    };
-    // Dice: random pick from the options, roll again any time
-    window._PL_diceRoll = function(btn, silent) {
-        const root = btn.closest('.var-dice'), face = root.querySelector('.var-dice-face');
-        const opts = JSON.parse(root.dataset.opts || '[]');
-        if (!opts.length) return;
-        const hidden = root.querySelector('.var-dice-hidden');
-        const pick = () => opts[Math.floor(Math.random() * opts.length)];
-        root.querySelector('.var-dice-label').textContent = 'Roll again';
-        if (silent) {
-            const first = pick();
-            face.textContent = first;
-            _PL_emit(hidden, first, true);
-            return;
-        }
-        if (root.dataset.rolling) return;
-        root.dataset.rolling = '1';
-        let ticks = 0;
-        const timer = setInterval(() => {
-            face.textContent = pick();
-            if (++ticks >= 8) {
-                clearInterval(timer);
-                delete root.dataset.rolling;
-                _PL_emit(hidden, face.textContent);
-            }
-        }, 55);
-    };
-    // Weighted mix: one slider per option, the rest rebalance so the total stays 100
-    function _PL_mixWrite(root, silent) {
-        const rs = Array.from(root.querySelectorAll('input[type="range"]'));
-        rs.forEach(r => { r.parentElement.querySelector('.var-mix-pct').textContent = r.value + '%'; });
-        _PL_emit(root.querySelector('.var-mix-hidden'), rs.filter(r => +r.value > 0).map(r => `${r.dataset.name} ${r.value}%`).join(', '), silent);
-    }
-    window._PL_mixSet = function(range) {
-        const root = range.closest('.var-mix');
-        const others = Array.from(root.querySelectorAll('input[type="range"]')).filter(r => r !== range);
-        const rest = 100 - (+range.value), otherSum = others.reduce((a, r) => a + (+r.value), 0);
-        const raw = others.map(r => otherSum > 0 ? (+r.value) / otherSum * rest : rest / others.length);
-        const vals = raw.map(Math.floor);
-        let spare = rest - vals.reduce((a, b) => a + b, 0);
-        raw.map((x, i) => [x - Math.floor(x), i]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (spare > 0) { vals[i]++; spare--; } });
-        others.forEach((r, i) => { r.value = vals[i]; });
-        _PL_mixWrite(root);
-    };
-    // Persona picker: lists the Roles library and inserts the chosen persona text
-    let _plRoles = [];
-    async function _PL_personaLoad(root) {
-        const sel = root.querySelector('select');
-        try {
-            const res = await fetch('/api/roles');
-            const data = await res.json();
-            _plRoles = Array.isArray(data) ? data : (data.roles || []);
-        } catch (e) { _plRoles = []; }
-        sel.innerHTML = _plRoles.length
-            ? '<option value="">Choose a persona...</option>' + _plRoles.map(r => `<option value="${escapeAttr(r.id)}">${escapeHtml(((r.icon || '') + ' ' + r.name).trim())}</option>`).join('')
-            : '<option value="">No roles yet, create one in Agents</option>';
-        const want = (root.dataset.default || '').toLowerCase();
-        const hit = want && _plRoles.find(r => String(r.name || '').toLowerCase() === want);
-        if (hit) {
-            sel.value = String(hit.id);
-            window._PL_pickPersona(sel);
-        }
-    }
-    window._PL_pickPersona = function(sel) {
-        const root = sel.closest('.var-persona');
-        const role = _plRoles.find(r => String(r.id) === sel.value);
-        const text = role ? (role.persona || role.name || '') : '';
-        root.querySelector('.var-persona-preview').textContent = text.length > 180 ? text.slice(0, 180) + '...' : text;
-        _PL_emit(root.querySelector('.var-persona-hidden'), text);
+        const target = evt.target.closest('.var-ranked-item');
+        if (!target || !_rankDragEl || target === _rankDragEl) return;
+        const list = target.closest('.var-ranked-list');
+        if (_rankDragEl.closest('.var-ranked-list') !== list) return;
+        const items = Array.from(list.querySelectorAll('.var-ranked-item'));
+        const dragIdx = items.indexOf(_rankDragEl);
+        const dropIdx = items.indexOf(target);
+        if (dragIdx < dropIdx) target.after(_rankDragEl);
+        else target.before(_rankDragEl);
+        list.querySelectorAll('.var-ranked-item').forEach((el, i) => {
+            el.querySelector('.var-ranked-num').textContent = i + 1;
+        });
+        const hidden = list.querySelector('.var-ranked-hidden');
+        hidden.value = Array.from(list.querySelectorAll('.var-ranked-item')).map(el => el.dataset.value).join(', ');
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+        _rankDragEl = null;
     };
 
     // Checklist (multi-option checkbox) and Range fields sync their hidden input via delegated listeners
@@ -3488,18 +3237,6 @@ STYLE/THEME: [[reserved for future use]]`;
     /* ============================================================================
        VARIABLE META EDITOR
        ============================================================================ */
-    const VAR_OPTION_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'segmented', 'checkbox', 'togglegroup', 'xypad', 'dice', 'mix'];
-    const VAR_MODES = {
-        date: [['date', 'Date only'], ['time', 'Time only'], ['datetime', 'Date and time']],
-        period: [['month', 'Month'], ['week', 'Week']],
-        reldate: [['long', 'Friday 9 October 2026'], ['short', '9 Oct 2026'], ['iso', '2026-10-09']],
-        recurring: [['both', 'Rule and next date'], ['phrase', 'Rule only'], ['next', 'Next date only']]
-    };
-    const VAR_OPTION_HINTS = {
-        xypad: 'Two axis names, comma separated (e.g. Formal, Creative)',
-        dice: 'Comma-separated options to roll between',
-        mix: 'Comma-separated parts to split 100% between'
-    };
     function renderVarMetaList(existing) {
         const content = $('#promptContent').value || '';
         const vars = detectVariables(content);
@@ -3508,8 +3245,8 @@ STYLE/THEME: [[reserved for future use]]`;
             list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
             return;
         }
-        const OPTIONS_TYPES = VAR_OPTION_TYPES;
-        const meta = _migrateLegacyVarMeta(existing || collectVarMeta());
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix'];
+        const meta = existing || collectVarMeta();
         list.innerHTML = vars.map((v, index) => {
             const m = meta[v] || {};
             const type = m.type || 'text';
@@ -3541,6 +3278,8 @@ STYLE/THEME: [[reserved for future use]]`;
             <optgroup label="Text">
             <option value="text"      ${type === 'text'      ? 'selected' : ''}>Text</option>
             <option value="paragraph" ${type === 'paragraph' ? 'selected' : ''}>Paragraph</option>
+            <option value="code"      ${type === 'code'      ? 'selected' : ''}>Code</option>
+            <option value="password"  ${type === 'password'  ? 'selected' : ''}>Password</option>
             <option value="title"     ${type === 'title'     ? 'selected' : ''}>Title Case</option>
             <option value="hashtags"  ${type === 'hashtags'  ? 'selected' : ''}>Hashtags</option>
             <option value="list"      ${type === 'list'      ? 'selected' : ''}>List (bullets)</option>
@@ -3550,49 +3289,46 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="url"       ${type === 'url'       ? 'selected' : ''}>URL</option>
             <option value="phone"     ${type === 'phone'     ? 'selected' : ''}>Phone</option>
             </optgroup>
-            <optgroup label="Dates">
-            <option value="date"       ${type === 'date'       ? 'selected' : ''}>Date / Time</option>
-            <option value="period"     ${type === 'period'     ? 'selected' : ''}>Month / Week</option>
-            <option value="daterange"  ${type === 'daterange'  ? 'selected' : ''}>Date Range</option>
-            <option value="duration"   ${type === 'duration'   ? 'selected' : ''}>Duration</option>
-            <option value="reldate"    ${type === 'reldate'    ? 'selected' : ''}>Relative Date</option>
-            <option value="recurring"  ${type === 'recurring'  ? 'selected' : ''}>Recurring Date</option>
-            </optgroup>
             <optgroup label="Input">
             <option value="number"     ${type === 'number'     ? 'selected' : ''}>Number</option>
-            <option value="stepper"    ${type === 'stepper'    ? 'selected' : ''}>Stepper (+/-)</option>
-            <option value="currency"   ${type === 'currency'   ? 'selected' : ''}>Currency</option>
-            <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
+            <option value="date"       ${type === 'date'       ? 'selected' : ''}>Date</option>
+            <option value="datetime"   ${type === 'datetime'   ? 'selected' : ''}>Date & Time</option>
+            <option value="month"      ${type === 'month'      ? 'selected' : ''}>Month</option>
+            <option value="week"       ${type === 'week'       ? 'selected' : ''}>Week</option>
+            <option value="time"       ${type === 'time'       ? 'selected' : ''}>Time</option>
             <option value="color"      ${type === 'color'      ? 'selected' : ''}>Color</option>
+            <option value="currency"   ${type === 'currency'   ? 'selected' : ''}>Currency</option>
+            <option value="duration"   ${type === 'duration'   ? 'selected' : ''}>Duration</option>
             <option value="timezone"   ${type === 'timezone'   ? 'selected' : ''}>Timezone</option>
             <option value="language"   ${type === 'language'   ? 'selected' : ''}>Language</option>
             <option value="json"       ${type === 'json'       ? 'selected' : ''}>JSON</option>
+            <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
+            <option value="daterange"  ${type === 'daterange'  ? 'selected' : ''}>Date Range</option>
+            <option value="today"      ${type === 'today'      ? 'selected' : ''}>Today (auto date)</option>
             <option value="clipboard"  ${type === 'clipboard'  ? 'selected' : ''}>Clipboard (paste)</option>
             </optgroup>
             <optgroup label="Choice">
             <option value="dropdown"    ${type === 'dropdown'    ? 'selected' : ''}>Dropdown</option>
             <option value="multiselect" ${type === 'multiselect' ? 'selected' : ''}>Multi-select</option>
-            <option value="radio"       ${type === 'radio'       ? 'selected' : ''}>Radio Cards</option>
+            <option value="radio"       ${type === 'radio'       ? 'selected' : ''}>Radio Buttons</option>
             <option value="choicechips" ${type === 'choicechips' ? 'selected' : ''}>Choice Chips</option>
             <option value="segmented"   ${type === 'segmented'   ? 'selected' : ''}>Segmented Control</option>
-            <option value="togglegroup" ${type === 'togglegroup' ? 'selected' : ''}>Toggle Buttons</option>
-            <option value="boolean"     ${type === 'boolean'     ? 'selected' : ''}>Yes / No Switch</option>
+            <option value="boolean"     ${type === 'boolean'     ? 'selected' : ''}>Yes / No Toggle</option>
             <option value="checkbox"    ${type === 'checkbox'    ? 'selected' : ''}>Checkbox List</option>
             <option value="tags"        ${type === 'tags'        ? 'selected' : ''}>Tags</option>
+            <option value="togglegroup" ${type === 'togglegroup' ? 'selected' : ''}>Toggle Group</option>
+            <option value="range"       ${type === 'range'       ? 'selected' : ''}>Range</option>
             </optgroup>
-            <optgroup label="Controls">
+            <optgroup label="Advanced">
             <option value="slider"      ${type === 'slider'      ? 'selected' : ''}>Slider</option>
-            <option value="range"       ${type === 'range'       ? 'selected' : ''}>Range (min to max)</option>
-            <option value="rangeslider" ${type === 'rangeslider' ? 'selected' : ''}>Range Slider</option>
-            <option value="dial"        ${type === 'dial'        ? 'selected' : ''}>Dial</option>
-            <option value="xypad"       ${type === 'xypad'       ? 'selected' : ''}>XY Pad</option>
-            <option value="mix"         ${type === 'mix'         ? 'selected' : ''}>Weighted Mix</option>
-            <option value="dice"        ${type === 'dice'        ? 'selected' : ''}>Dice Roll</option>
-            </optgroup>
-            <optgroup label="Library">
-            <option value="persona"       ${type === 'persona'       ? 'selected' : ''}>Persona Picker</option>
+            <option value="rating"      ${type === 'rating'      ? 'selected' : ''}>Star Rating</option>
+            <option value="rangeslider" ${type === 'rangeslider' ? 'selected' : ''}>Range Slider (min-max)</option>
+            <option value="rankedlist"  ${type === 'rankedlist'  ? 'selected' : ''}>Ranked List</option>
+            <option value="iconpicker"  ${type === 'iconpicker'  ? 'selected' : ''}>Icon Picker</option>
+            <option value="matrix"      ${type === 'matrix'      ? 'selected' : ''}>Matrix / Likert Grid</option>
+            <option value="emojipicker" ${type === 'emojipicker' ? 'selected' : ''}>Emoji Picker</option>
+            <option value="stepper"     ${type === 'stepper'     ? 'selected' : ''}>Stepper (+/-)</option>
             <option value="libraryprompt" ${type === 'libraryprompt' ? 'selected' : ''}>Library Prompt (insert)</option>
-            <option value="iconpicker"    ${type === 'iconpicker'    ? 'selected' : ''}>Icon Picker</option>
             </optgroup>
           </select>
           <input type="text" data-field="default" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
@@ -3620,30 +3356,16 @@ STYLE/THEME: [[reserved for future use]]`;
             Allow multiple selections
           </label>
         </div>
-        <div class="var-mode-row" style="display: ${VAR_MODES[type] ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
-          <span style="font-size: 11px; color: var(--ink-3);">Mode:</span>
-          <select data-field="mode" style="font-size: 12px; padding: 4px 8px;">${_varModeOptions(type, m.mode)}</select>
-        </div>
-        <div class="var-dial-cfg" style="display: ${type === 'dial' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
-          <span style="font-size: 11px; color: var(--ink-3);">Notches per turn:</span>
-          <input type="number" data-field="notches" min="2" max="36" value="${escapeAttr(m.notches || 8)}" style="width: 64px; font-size: 12px; padding: 4px 8px;" />
-          <span style="font-size: 11px; color: var(--ink-3);">Turns:</span>
-          <input type="number" data-field="rotations" min="1" max="6" value="${escapeAttr(m.rotations || 1)}" style="width: 56px; font-size: 12px; padding: 4px 8px;" />
-        </div>
         <div class="dropdown-options" style="display: ${needsOptions ? 'block' : 'none'};">
-          <textarea data-field="options" placeholder="${escapeAttr(VAR_OPTION_HINTS[type] || 'Comma-separated options')}" rows="2"
+          <textarea data-field="options" placeholder="Comma-separated options" rows="2"
                     style="width: 100%; padding: 6px 10px; font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; color: var(--ink); margin-top: 4px;">${escapeHtml(opts)}</textarea>
         </div>
         </div>
       </details>`;
         }).join('');
     }
-    function _varModeOptions(type, current) {
-        const list = VAR_MODES[type] || [];
-        return list.map(([k, l], i) => `<option value="${k}"${(current ? current === k : i === 0) ? ' selected' : ''}>${escapeHtml(l)}</option>`).join('');
-    }
     window.PL_onVarTypeChange = function(sel) {
-        const OPTIONS_TYPES = VAR_OPTION_TYPES;
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix'];
         const row = sel.closest('.var-meta-row');
         const opts = row.querySelector('.dropdown-options');
         const sizeRow = row.querySelector('.paragraph-size');
@@ -3652,15 +3374,6 @@ STYLE/THEME: [[reserved for future use]]`;
         if (opts) opts.style.display = OPTIONS_TYPES.includes(sel.value) ? 'block' : 'none';
         if (sizeRow) sizeRow.style.display = sel.value === 'paragraph' ? 'flex' : 'none';
         if (multiRow) multiRow.style.display = sel.value === 'togglegroup' ? 'flex' : 'none';
-        const modeRow = row.querySelector('.var-mode-row');
-        if (modeRow) {
-            modeRow.style.display = VAR_MODES[sel.value] ? 'flex' : 'none';
-            modeRow.querySelector('select').innerHTML = _varModeOptions(sel.value);
-        }
-        const dialRow = row.querySelector('.var-dial-cfg');
-        if (dialRow) dialRow.style.display = sel.value === 'dial' ? 'flex' : 'none';
-        const optBox = row.querySelector('[data-field="options"]');
-        if (optBox) optBox.placeholder = VAR_OPTION_HINTS[sel.value] || 'Comma-separated options';
         if (pill) pill.textContent = sel.value;
     };
 
@@ -3684,12 +3397,6 @@ STYLE/THEME: [[reserved for future use]]`;
             };
             if (type === 'paragraph' && sizeEl) entry.size = sizeEl.value;
             if (type === 'togglegroup' && multiEl) entry.multi = multiEl.checked;
-            const modeEl = row.querySelector('[data-field="mode"]');
-            if (VAR_MODES[type] && modeEl && modeEl.value) entry.mode = modeEl.value;
-            if (type === 'dial') {
-                entry.notches = Math.min(36, Math.max(2, parseInt(row.querySelector('[data-field="notches"]')?.value, 10) || 8));
-                entry.rotations = Math.min(6, Math.max(1, parseInt(row.querySelector('[data-field="rotations"]')?.value, 10) || 1));
-            }
             const wrapEl = row.querySelector('[data-field="wrap"]');
             if (wrapEl && wrapEl.value) entry.wrap = wrapEl.value;
             meta[v] = entry;

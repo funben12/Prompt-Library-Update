@@ -1331,12 +1331,8 @@
   .var-tag-chip { cursor: default; }
   .var-tag-chip .material-symbols-outlined:hover { color: var(--danger, #e5484d); }
 
-  .var-checklist { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--r-md, 8px); background: var(--surface-sunk); overflow: hidden; }
-  .var-check-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; font-size: var(--fs-sm); color: var(--ink-2); border-bottom: 1px solid var(--line); }
-  .var-check-row:last-of-type { border-bottom: 0; }
-  .var-check-row:hover { background: var(--surface-2); color: var(--ink); }
-  .var-check-row input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
-  .var-check-row:has(input:checked) { color: var(--ink); font-weight: 600; }
+  .var-checklist { display: flex; flex-direction: column; }
+  .var-checklist label:hover { color: var(--ink); }
 
   .var-radio-group {
     display: flex;
@@ -1356,20 +1352,6 @@
 
   .var-toggle-group { display: flex; flex-wrap: wrap; gap: 6px; }
   .var-toggle-btn { cursor: pointer; }
-  /* Radio Cards: a stacked grid of big selectable cards */
-  .var-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
-  .var-cards .var-choice-line { min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md, 8px); background: var(--surface); box-shadow: var(--neu-raised, none); font-weight: 600; }
-  .var-cards .var-choice-line:hover { border-color: var(--line-strong); }
-  .var-cards .var-choice-line:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); box-shadow: var(--neu-inset, none); }
-  .var-cards input[type="radio"] { accent-color: var(--accent); }
-  /* Choice Chips: soft round pills, single pick */
-  .var-chips .chip { border-radius: 999px; padding: 6px 14px; }
-  /* Toggle Buttons: square buttons with a tick, several can be on */
-  .var-tgl-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; font-size: 13px; font-weight: 600; color: var(--ink-2); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; user-select: none; }
-  .var-tgl-btn::before { content: ''; width: 14px; height: 14px; border: 1.5px solid var(--ink-4); border-radius: 3px; box-sizing: border-box; }
-  .var-tgl-btn:hover { border-color: var(--line-strong); color: var(--ink); }
-  .var-tgl-btn.active { color: var(--ink); border-color: var(--accent); background: var(--accent-soft); }
-  .var-tgl-btn.active::before { background: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent-soft); }
 
   .var-switch {
     display: inline-flex;
@@ -1414,9 +1396,13 @@
     font-weight: 600;
   }
 
+  .var-star-rating { display: flex; align-items: center; gap: 2px; }
+  .var-star { transition: color var(--t-fast); }
+  .var-star:hover { transform: scale(1.1); }
+
   .var-code { font-family: var(--ff-mono); }
 
-  /* ---- Advanced variable type widgets (Range Slider / Icon Picker) ---- */
+  /* ---- Advanced variable type widgets (Range Slider / Ranked List / Icon Picker / Matrix / Emoji Picker) ---- */
   .var-rangeslider-track { position: relative; height: 22px; }
   .var-rangeslider-track input[type="range"] {
     position: absolute; top: 0; left: 0; width: 100%; margin: 0;
@@ -1426,13 +1412,33 @@
   .var-rangeslider-track input[type="range"]::-moz-range-thumb { pointer-events: auto; }
   .var-rangeslider-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-2); margin-top: 4px; }
 
-  .var-icon-picker { display: flex; flex-wrap: wrap; gap: 6px; }
-  .var-icon-choice {
+  .var-ranked-list { display: flex; flex-direction: column; gap: 4px; }
+  .var-ranked-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--surface); cursor: grab; font-size: 13px; color: var(--ink-2);
+  }
+  .var-ranked-item:active { cursor: grabbing; }
+  .var-ranked-num { font-weight: 700; color: var(--ink-3); min-width: 16px; }
+  .var-ranked-handle { font-size: 16px; color: var(--ink-4); }
+
+  .var-icon-picker, .var-emoji-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+  .var-icon-choice, .var-emoji-choice {
     display: flex; align-items: center; justify-content: center;
     width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 6px;
     cursor: pointer; font-size: 18px; background: var(--surface);
   }
-  .var-icon-choice.active { border-color: var(--accent); background: var(--accent-soft); }
+  .var-icon-choice.active, .var-emoji-choice.active { border-color: var(--accent); background: var(--accent-soft); }
+
+  .var-matrix { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+  .var-matrix-header, .var-matrix-row { display: grid; grid-template-columns: 1fr repeat(5, 32px); align-items: center; gap: 4px; }
+  .var-matrix-col-label { text-align: center; color: var(--ink-3); font-size: 10px; }
+  .var-matrix-row-label { color: var(--ink-2); }
+  .var-matrix-cell {
+    width: 18px; height: 18px; margin: 0 auto; border: 1px solid var(--line);
+    border-radius: 50%; cursor: pointer; display: block;
+  }
+  .var-matrix-cell.active { background: var(--accent); border-color: var(--accent); }
 
   .var-preview-wrap { margin-top: var(--sp-4); }
   .var-preview-label {
@@ -10731,8 +10737,8 @@ body.plx-workspace-open{overflow:hidden}
 #forgeFwDelete[hidden], #forgeFwEditBtn[hidden] { display: none; }
 
   /* ---- Variable types: Segmented / Stepper / Percentage / Date Range ---- */
-  .var-seg { display: flex; width: 100%; flex-wrap: nowrap; gap: 0; border: 1px solid var(--line); border-radius: var(--r-md, 8px); overflow: hidden; }
-  .var-seg-btn { flex: 1; text-align: center; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink-2); background: var(--surface); border-right: 1px solid var(--line); user-select: none; }
+  .var-seg { display: inline-flex; flex-wrap: nowrap; gap: 0; border: 1px solid var(--line); border-radius: var(--r-md, 8px); overflow: hidden; }
+  .var-seg-btn { padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink-2); background: var(--surface); border-right: 1px solid var(--line); user-select: none; }
   .var-seg-btn:last-of-type { border-right: 0; }
   .var-seg-btn.active { background: var(--accent); color: var(--on-accent, #fff); }
   .var-stepper { display: inline-flex; align-items: center; gap: 6px; }
@@ -10750,58 +10756,3 @@ body.plx-workspace-open{overflow:hidden}
   /* ---- Variable types: Clipboard / Library Prompt ---- */
   .var-clip { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
   .var-lib-select { width: 100%; padding: 8px 12px; background: var(--surface-sunk); border: 1px solid var(--line); border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--ink); }
-
-  /* ---- Variable types: Relative Date / Recurring Date ---- */
-  .var-reldate, .var-recur { display: flex; flex-direction: column; gap: 8px; }
-  .var-recur { flex-direction: row; flex-wrap: wrap; align-items: center; }
-  .var-reldate-expr, .var-recur select { width: 100%; padding: 8px 12px; background: var(--surface-sunk); border: 1px solid var(--line); border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--ink); }
-  .var-recur select { width: auto; flex: 1 1 120px; }
-  .var-reldate-expr:focus, .var-recur select:focus { border-color: var(--accent); box-shadow: var(--ring); outline: none; }
-  .var-reldate-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .var-reldate-out { display: flex; align-items: center; gap: 8px; flex-basis: 100%; padding: 8px 12px; border-radius: var(--r-sm); background: var(--surface-sunk); border: 1px dashed var(--line-strong); font-family: var(--ff-mono); font-size: 12px; color: var(--ink); }
-  .var-reldate-out .material-symbols-outlined { font-size: 16px; color: var(--accent); }
-  .var-reldate.is-bad .var-reldate-out { color: var(--danger, oklch(55% 0.18 25)); border-color: var(--danger, oklch(55% 0.18 25)); }
-
-  /* ---- Variable types: XY Pad ---- */
-  .var-xy-grid { display: grid; grid-template-columns: 20px minmax(0, 1fr); grid-template-rows: auto 18px; gap: 6px; }
-  .var-xy-ylabel { grid-row: 1; writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
-  .var-xy-xlabel { grid-column: 2; text-align: center; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
-  .var-xy-pad { position: relative; grid-column: 2; aspect-ratio: 16 / 10; max-height: 220px; border: 1px solid var(--line-strong); border-radius: var(--r-md, 8px); background: var(--surface-sunk);
-    cursor: crosshair; touch-action: none; box-shadow: var(--neu-inset, none); }
-  .var-xy-pad::before, .var-xy-pad::after { content: ''; position: absolute; background: var(--line); pointer-events: none; }
-  .var-xy-pad::before { left: 50%; top: 0; bottom: 0; width: 1px; }
-  .var-xy-pad::after { top: 50%; left: 0; right: 0; height: 1px; }
-  .var-xy-pad:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
-  .var-xy-dot { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: var(--accent); border: 3px solid var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); pointer-events: none; }
-  .var-xy-read { margin-top: 6px; font-family: var(--ff-mono); font-size: 12px; color: var(--ink-2); }
-
-  /* ---- Variable types: Dial ---- */
-  .var-dial { display: flex; align-items: center; gap: 16px; }
-  .var-dial-knob { position: relative; flex: none; width: 96px; height: 96px; border-radius: 50%; touch-action: none; cursor: grab; outline: none; }
-  .var-dial-knob.is-turning { cursor: grabbing; }
-  .var-dial-knob:focus-visible .var-dial-cap { box-shadow: var(--ring); }
-  .var-dial-ticks { position: absolute; inset: 0; }
-  .var-dial-ticks i { position: absolute; left: 50%; top: 0; width: 2px; height: 7px; margin-left: -1px; background: var(--ink-4); border-radius: 1px; transform-origin: 50% 48px; }
-  .var-dial-cap { position: absolute; inset: 12px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line-strong); box-shadow: var(--neu-raised, 0 2px 6px rgba(0, 0, 0, 0.18)); }
-  .var-dial-knob:not(.is-turning) .var-dial-cap { transition: transform var(--t-fast); }
-  .var-dial-cap b { position: absolute; left: 50%; top: 6px; width: 4px; height: 14px; margin-left: -2px; border-radius: 2px; background: var(--accent); }
-  .var-dial-side { display: flex; flex-direction: column; gap: 8px; }
-  .var-dial-read { font-family: var(--ff-mono); font-size: 13px; color: var(--ink-2); }
-  .var-dial-read b { font-size: 22px; color: var(--ink); margin-right: 4px; }
-  .var-dial-read span { display: block; font-size: 11px; color: var(--ink-3); }
-  .var-dial-btns { display: flex; gap: 6px; }
-  .var-dial-btns button { width: 32px; height: 28px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 16px; line-height: 1; cursor: pointer; }
-  .var-dial-btns button:hover { background: var(--surface-2); }
-
-  /* ---- Variable types: Dice Roll / Weighted Mix / Persona ---- */
-  .var-dice { display: flex; align-items: center; gap: 12px; }
-  .var-dice-btn .material-symbols-outlined { font-size: 16px; }
-  .var-dice-face { flex: 1; min-height: 40px; display: flex; align-items: center; padding: 8px 14px; border-radius: var(--r-md, 8px); background: var(--surface-sunk); border: 1px solid var(--line); box-shadow: var(--neu-inset, none); font-weight: 700; color: var(--ink); }
-  .var-mix { display: flex; flex-direction: column; gap: 8px; }
-  .var-mix-row { display: grid; grid-template-columns: minmax(70px, 28%) minmax(0, 1fr) 44px; align-items: center; gap: 10px; }
-  .var-mix-name { font-size: 13px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .var-mix-pct { text-align: right; font-family: var(--ff-mono); font-size: 12px; color: var(--ink); }
-  .var-mix input[type="range"] { accent-color: var(--accent); width: 100%; }
-  .var-persona { display: flex; flex-direction: column; gap: 8px; }
-  .var-persona-preview { font-size: 12px; line-height: 1.5; color: var(--ink-3); }
-  .var-persona-preview:empty { display: none; }

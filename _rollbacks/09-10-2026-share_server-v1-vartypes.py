@@ -93,13 +93,6 @@ def _meta(v):
             entry['wrap'] = m['wrap']
         if m.get('size') in ('short', 'medium', 'tall'):
             entry['size'] = m['size']
-        if m.get('mode') in ('date', 'time', 'datetime', 'month', 'week', 'long', 'short', 'iso', 'both', 'phrase', 'next'):
-            entry['mode'] = m['mode']
-        for key, hi in (('notches', 36), ('rotations', 6)):
-            try:
-                entry[key] = min(hi, max(1, int(m.get(key))))
-            except (TypeError, ValueError):
-                pass
         out[str(name)] = entry
     return out
 
