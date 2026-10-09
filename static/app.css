@@ -1422,13 +1422,13 @@
   .var-ranked-num { font-weight: 700; color: var(--ink-3); min-width: 16px; }
   .var-ranked-handle { font-size: 16px; color: var(--ink-4); }
 
-  .var-icon-picker, .var-emoji-picker { display: flex; flex-wrap: wrap; gap: 6px; }
-  .var-icon-choice, .var-emoji-choice {
+  .var-emoji-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+  .var-emoji-choice {
     display: flex; align-items: center; justify-content: center;
     width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 6px;
     cursor: pointer; font-size: 18px; background: var(--surface);
   }
-  .var-icon-choice.active, .var-emoji-choice.active { border-color: var(--accent); background: var(--accent-soft); }
+  .var-emoji-choice.active { border-color: var(--accent); background: var(--accent-soft); }
 
   .var-matrix { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
   .var-matrix-header, .var-matrix-row { display: grid; grid-template-columns: 1fr repeat(5, 32px); align-items: center; gap: 4px; }
@@ -10753,6 +10753,5 @@ body.plx-workspace-open{overflow:hidden}
   .var-daterange input[type="date"]:focus { border-color: var(--accent); box-shadow: var(--ring); outline: none; }
   .var-daterange > span { color: var(--ink-3); font-size: 12px; }
 
-  /* ---- Variable types: Clipboard / Library Prompt ---- */
-  .var-clip { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-  .var-lib-select { width: 100%; padding: 8px 12px; background: var(--surface-sunk); border: 1px solid var(--line); border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--ink); }
+  /* ---- Variable types: Number scale ---- */
+  .var-scale .var-toggle-btn { min-width: 38px; text-align: center; justify-content: center; }

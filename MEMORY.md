@@ -347,3 +347,13 @@ The Gauntlet Loop workspace now generates the Gauntlet meta-prompt (goal, inspec
 - Mobile parity (2026-10-08): the phone now renders every desktop variable type (added Range, Range Slider, Ranked List, Matrix, Emoji, Icon names, Duration, Timezone, Language) and its editor sets type, options, default, wrap, Show when filling and multi. Prompts can be written, typed and filled entirely on the phone. Icon Picker on the phone shows icon names as chips (no Material Symbols font on the phone). Paragraph `size` is not carried to the phone.
 - Open: desktop live preview chains sequential replaces, copy output is correct.
 - Phone companion state (2026-10-09, v0.7.1 in AI-App-Factory): Quick Fill redesigned (guided, all variable types), Prompt Components (stacked block builder, no AI key), Prompt Board, Gauntlet Loop on the desktop meta prompt, Library Organizer, Prompt Splicer (by part), Backup and restore with safety copy, Forge templates and tone. Boards travel in phone backups. Committed APK here is stale, use the AI-App-Factory workflow build. CLAUDE.md has a new Android companion section.
+### Variable types cleanup and presets (2026-10-09)
+
+This supersedes the 2026-10-08 notes above wherever they conflict.
+
+- Removed for good from desktop and phone: XY Pad, Color, Icon Picker, Persona Text, Clipboard, Library Prompt, Dice Roll, Weighted Mix. Dead code removed too (`_PL_rollChoice`, `_PL_pasteClip`, `_PL_pickLibPrompt`, `_PL_selectIcon`, the `.var-icon-*`, `.var-clip`, `.var-lib-select` CSS). The phone's "paste a template" button in Quick Fill is a separate feature and stays.
+- Saved prompts that still carry `diceroll` or `weightedmix` open as a Dropdown with the weights stripped from the options (`_migrateLegacyVarMeta` on desktop, `legacy()` in the phone's `vartypes.js`). No schema change, nothing rewritten in the DB until the prompt is saved.
+- New types, same on both apps: Combo Box (pick or type, options become suggestions), Number Scale (1 to 10 buttons), and six presets with built-in options that the user can override in the options box: Tone, Output Format (`outputformat`), Length, Audience, Priority, Sentiment. Presets render as single-select chips through the existing `var-toggle-group` path on desktop and `chips()` on the phone. Desktop editor has a new Presets group, Combo Box and Number Scale sit in Choice.
+- Option sets live in `_PL_VAR_PRESETS` (app.js) and `PRESETS` (phone `vartypes.js`). Keep the two lists identical.
+- Verified headless: desktop detail panel renders all new types and the legacy fallback, phone `vartypes.js` renders and emits values at 390 px.
+

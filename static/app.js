@@ -156,7 +156,7 @@
     }
 
     function replaceVariables(content, varMap) {
-        // Single pass so inserted text (Library Prompt, Clipboard) is never re-expanded
+        // Single pass so inserted values are never re-expanded
         return String(content == null ? '' : content).replace(/\[\[(.+?)\]\]|\{\{(.+?)\}\}|\(\((.+?)\)\)/g, (m, x, y, z) => {
             const k = (x || y || z).trim();
             return Object.prototype.hasOwnProperty.call(varMap, k) ? varMap[k] : m;
@@ -1606,11 +1606,25 @@
     // Old shape:  { type: 'checkbox', default: 'true' | 'Yes' | 'No' }  -- no options array
     // New shape:  { type: 'checkbox', default: 'Yes', options: ['Yes','No'] }
     // Star Rating (type: 'rating') needs no migration -- same numeric 1-5 value, only the widget changed.
+    // Built-in option sets for preset choice types. Custom options in the editor override them.
+    const _PL_VAR_PRESETS = {
+        tone: ['Professional', 'Friendly', 'Casual', 'Formal', 'Persuasive', 'Playful', 'Empathetic', 'Authoritative', 'Witty', 'Direct'],
+        outputformat: ['Paragraphs', 'Bullet points', 'Numbered list', 'Table', 'Step by step', 'Q and A', 'Outline', 'JSON', 'Markdown', 'Email'],
+        length: ['One line', 'Short', 'Medium', 'Long', 'In depth'],
+        audience: ['Beginner', 'Intermediate', 'Expert', 'Executive', 'Student', 'Child', 'General public', 'Customer', 'Developer'],
+        priority: ['Low', 'Medium', 'High', 'Urgent'],
+        sentiment: ['Positive', 'Neutral', 'Negative', 'Mixed']
+    };
+    const _PL_SCALE_DEFAULT = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+
     function _migrateLegacyVarMeta(meta) {
         const out = {};
         for (const v in meta) {
             const m = meta[v] || {};
-            if (m.type === 'checkbox' && (!m.options || !m.options.length)) {
+            if (m.type === 'diceroll' || m.type === 'weightedmix') {
+                // Removed types become a plain dropdown, weights stripped from the options
+                out[v] = { ...m, type: 'dropdown', options: (m.options || []).map(o => String(o).replace(/\s*[:=]\s*\d+(?:\.\d+)?$/, '').trim()).filter(Boolean), default: '' };
+            } else if (m.type === 'checkbox' && (!m.options || !m.options.length)) {
                 const wasChecked = m.default === 'true' || m.default === 'Yes';
                 out[v] = {
                     ...m,
@@ -1661,6 +1675,14 @@
             multiselect: 'select_check_box',
             radio: 'radio_button_checked',
             choicechips: 'apps',
+            combobox: 'edit_note',
+            scale: 'format_list_numbered',
+            tone: 'record_voice_over',
+            outputformat: 'dashboard',
+            length: 'straighten',
+            audience: 'groups',
+            priority: 'flag',
+            sentiment: 'sentiment_satisfied',
             boolean: 'toggle_on',
             checkbox: 'checklist',
             tags: 'sell',
@@ -1682,7 +1704,7 @@
             list: 'format_list_bulleted',
         };
 
-        wrap.innerHTML = visible.map(v => {
+        wrap.innerHTML = visible.map((v, index) => {
             const m = meta[v] || {};
             const type = m.type || 'text';
             const def = m.default || '';
@@ -1713,12 +1735,15 @@
         ${choiceOpts.map(o => `<button type="button" class="chip var-toggle-btn${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</button>`).join('')}
         <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
-            } else if (type === 'diceroll' || type === 'weightedmix') {
-                const rollOpts = opts.length ? opts : (type === 'diceroll' ? ['1','2','3','4','5','6'] : ['Idea A:5','Idea B:3','Idea C:2']);
-                input = `<div class="var-random-block"><div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
-        <button type="button" class="btn btn-sm" data-roll-kind="${type}" data-roll-options="${escapeAttr(JSON.stringify(rollOpts))}" onclick="window._PL_rollChoice(this)">${type === 'diceroll' ? 'Roll dice' : 'Pick weighted option'}</button>
-        <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+            } else if (_PL_VAR_PRESETS[type] || type === 'scale') {
+                const presetOpts = opts.length ? opts : (type === 'scale' ? _PL_SCALE_DEFAULT : _PL_VAR_PRESETS[type]);
+                input = `<div class="var-toggle-group${type === 'scale' ? ' var-scale' : ''}" data-var="${escapeAttr(v)}">
+        ${presetOpts.map(o => `<button type="button" class="chip var-toggle-btn${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</button>`).join('')}
+        <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
+            } else if (type === 'combobox') {
+                input = `<input type="text" class="var-input" list="var-combo-${index}" data-var="${escapeAttr(v)}" placeholder="Pick or type…" value="${escapeAttr(def)}" autocomplete="off" />
+      <datalist id="var-combo-${index}">${opts.map(o => `<option value="${escapeAttr(o)}"></option>`).join('')}</datalist>`;
             } else if (type === 'boolean') {
                 const isOn = ['true', 'yes', 'on', '1'].includes(String(def).toLowerCase());
                 input = `<label class="var-switch">
@@ -2007,20 +2032,6 @@
         if (wrap === 'xml') { const t = String(name || 'value').toLowerCase().replace(/\W+/g, '_').replace(/^_+|_+$/g, '') || 'value'; return `<${t}>\n${v}\n</${t}>`; }
         return v;
     }
-    window._PL_pasteClip = async function(btn) {
-        const ta = btn.parentElement.querySelector('textarea');
-        try {
-            ta.value = await navigator.clipboard.readText();
-            ta.dispatchEvent(new Event('input', { bubbles: true }));
-        } catch (e) { toast('Clipboard blocked. Paste with Ctrl+V instead.', 'warning'); ta.focus(); }
-    };
-    window._PL_pickLibPrompt = function(sel) {
-        const hidden = sel.parentElement.querySelector('.var-lib-hidden');
-        const p = (state.prompts || []).find(x => String(x.id) === sel.value);
-        hidden.value = p ? (p.content || '') : '';
-        hidden.dispatchEvent(new Event('input', { bubbles: true }));
-    };
-
     // Per-type output formatting applied when a value is written into the prompt
     function _PL_formatVar(type, v) {
         if (!v) return v;
@@ -2101,26 +2112,6 @@
         }));
     };
 
-    window._PL_rollChoice = function(btn) {
-        let options = [];
-        try { options = JSON.parse(btn.dataset.rollOptions || '[]'); } catch (_) {}
-        if (!options.length) options = btn.dataset.rollKind === 'diceroll' ? ['1','2','3','4','5','6'] : ['Idea A:5','Idea B:3','Idea C:2'];
-        let picked = '';
-        if (btn.dataset.rollKind === 'diceroll') picked = options[Math.floor(Math.random() * options.length)];
-        else {
-            const weighted = options.map(raw => {
-                const match = String(raw).match(/^(.*?)(?:\s*[:=]\s*(\d+(?:\.\d+)?))$/);
-                return { label: match ? match[1].trim() : String(raw), weight: match ? Math.max(0, Number(match[2])) : 1 };
-            }).filter(x => x.label && x.weight > 0);
-            let n = Math.random() * weighted.reduce((sum, x) => sum + x.weight, 0);
-            picked = (weighted.find(x => (n -= x.weight) < 0) || weighted[weighted.length - 1] || {label:''}).label;
-        }
-        const wrap = btn.closest('.var-random-block'), hidden = wrap && wrap.querySelector('input.var-input');
-        const result = wrap && wrap.querySelector('[data-roll-result]');
-        if (hidden) { hidden.value = picked; hidden.dispatchEvent(new Event('input', { bubbles: true })); }
-        if (result) result.textContent = picked || 'No valid options';
-    };
-
     window._PL_selectStar = function(star) {
         const wrap = star.closest('.var-star-rating');
         const val = parseInt(star.dataset.value, 10);
@@ -2136,15 +2127,6 @@
         hidden.dispatchEvent(new Event('input', {
             bubbles: true
         }));
-    };
-
-    window._PL_selectIcon = function(el) {
-        const wrap = el.closest('.var-icon-picker');
-        wrap.querySelectorAll('.var-icon-choice').forEach(i => i.classList.remove('active'));
-        el.classList.add('active');
-        const hidden = wrap.querySelector('.var-icon-hidden');
-        hidden.value = el.dataset.value;
-        hidden.dispatchEvent(new Event('input', { bubbles: true }));
     };
 
     window._PL_selectEmoji = function(el) {
@@ -3251,7 +3233,7 @@ STYLE/THEME: [[reserved for future use]]`;
             list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
             return;
         }
-        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'choicecards', 'yesno', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix', 'diceroll', 'weightedmix'];
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'choicecards', 'yesno', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix', 'combobox', 'scale', 'tone', 'outputformat', 'length', 'audience', 'priority', 'sentiment'];
         const meta = existing || collectVarMeta();
         list.innerHTML = vars.map((v, index) => {
             const m = meta[v] || {};
@@ -3319,6 +3301,8 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="choicecards" ${type === 'choicecards' ? 'selected' : ''}>Choice Cards</option>
             <option value="yesno"       ${type === 'yesno'       ? 'selected' : ''}>Yes / No / Maybe</option>
             <option value="segmented"   ${type === 'segmented'   ? 'selected' : ''}>Segmented Control</option>
+            <option value="combobox"    ${type === 'combobox'    ? 'selected' : ''}>Combo Box (pick or type)</option>
+            <option value="scale"       ${type === 'scale'       ? 'selected' : ''}>Number Scale (1 to 10)</option>
             <option value="boolean"     ${type === 'boolean'     ? 'selected' : ''}>Yes / No Toggle</option>
             <option value="checkbox"    ${type === 'checkbox'    ? 'selected' : ''}>Checkbox List</option>
             <option value="tags"        ${type === 'tags'        ? 'selected' : ''}>Tags</option>
@@ -3333,8 +3317,14 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="matrix"      ${type === 'matrix'      ? 'selected' : ''}>Matrix / Likert Grid</option>
             <option value="emojipicker" ${type === 'emojipicker' ? 'selected' : ''}>Emoji Picker</option>
             <option value="stepper"     ${type === 'stepper'     ? 'selected' : ''}>Stepper (+/-)</option>
-            <option value="diceroll"    ${type === 'diceroll'    ? 'selected' : ''}>Dice Roll</option>
-            <option value="weightedmix" ${type === 'weightedmix' ? 'selected' : ''}>Weighted Mix</option>
+            </optgroup>
+            <optgroup label="Presets">
+            <option value="tone"         ${type === 'tone'         ? 'selected' : ''}>Tone</option>
+            <option value="outputformat" ${type === 'outputformat' ? 'selected' : ''}>Output Format</option>
+            <option value="length"       ${type === 'length'       ? 'selected' : ''}>Length</option>
+            <option value="audience"     ${type === 'audience'     ? 'selected' : ''}>Audience</option>
+            <option value="priority"     ${type === 'priority'     ? 'selected' : ''}>Priority</option>
+            <option value="sentiment"    ${type === 'sentiment'    ? 'selected' : ''}>Sentiment</option>
             </optgroup>
           </select>
           <input type="text" data-field="default" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
@@ -3363,7 +3353,7 @@ STYLE/THEME: [[reserved for future use]]`;
           </label>
         </div>
         <div class="dropdown-options" style="display: ${needsOptions ? 'block' : 'none'};">
-          <textarea data-field="options" placeholder="${type === 'weightedmix' ? 'Option:weight, Option:weight' : type === 'diceroll' ? 'Dice faces, comma-separated' : 'Comma-separated options'}" rows="2"
+          <textarea data-field="options" placeholder="${['tone','outputformat','length','audience','priority','sentiment','scale'].includes(type) ? 'Leave blank for the built-in options, or type your own' : 'Comma-separated options'}" rows="2"
                     style="width: 100%; padding: 6px 10px; font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; color: var(--ink); margin-top: 4px;">${escapeHtml(opts)}</textarea>
         </div>
         </div>
@@ -3371,7 +3361,7 @@ STYLE/THEME: [[reserved for future use]]`;
         }).join('');
     }
     window.PL_onVarTypeChange = function(sel) {
-        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'choicecards', 'yesno', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix', 'diceroll', 'weightedmix'];
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'choicecards', 'yesno', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix', 'combobox', 'scale', 'tone', 'outputformat', 'length', 'audience', 'priority', 'sentiment'];
         const row = sel.closest('.var-meta-row');
         const opts = row.querySelector('.dropdown-options');
         const sizeRow = row.querySelector('.paragraph-size');
