@@ -1613,8 +1613,14 @@
         length: ['One line', 'Short', 'Medium', 'Long', 'In depth'],
         audience: ['Beginner', 'Intermediate', 'Expert', 'Executive', 'Student', 'Child', 'General public', 'Customer', 'Developer'],
         priority: ['Low', 'Medium', 'High', 'Urgent'],
-        sentiment: ['Positive', 'Neutral', 'Negative', 'Mixed']
+        sentiment: ['Positive', 'Neutral', 'Negative', 'Mixed'],
+        agreement: ['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree'],
+        frequency: ['Never', 'Rarely', 'Sometimes', 'Often', 'Always'],
+        importance: ['Not important', 'Nice to have', 'Important', 'Very important', 'Critical'],
+        difficulty: ['Easy', 'Medium', 'Hard', 'Expert']
     };
+    const _PL_CARD_DEFAULT = ['Idea A', 'Idea B', 'Idea C', 'Idea D', 'Idea E'];
+    const _PL_STEP_DEFAULT = ['Low', 'Medium', 'High'];
     // Random types: dice roll, weighted mix, coin flip, random pick, random number
     const _PL_RANDOM_DEFAULTS = {
         diceroll: ['1', '2', '3', '4', '5', '6'],
@@ -1695,12 +1701,18 @@
             datetime: 'event_available',
             month: 'calendar_view_month',
             week: 'date_range',
-            json: 'data_object',
             dropdown: 'arrow_drop_down',
             multiselect: 'select_check_box',
             radio: 'radio_button_checked',
             choicechips: 'apps',
             combobox: 'edit_note',
+            carddeck: 'style',
+            cardcarousel: 'view_carousel',
+            stepslider: 'tune',
+            agreement: 'thumbs_up_down',
+            frequency: 'repeat',
+            importance: 'priority_high',
+            difficulty: 'signal_cellular_alt',
             diceroll: 'casino',
             weightedmix: 'balance',
             coinflip: 'toll',
@@ -1765,6 +1777,34 @@
         ${choiceOpts.map(o => `<button type="button" class="chip var-toggle-btn${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</button>`).join('')}
         <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
+            } else if (type === 'carddeck') {
+                const deckOpts = opts.length ? opts : _PL_CARD_DEFAULT;
+                input = `<div class="var-deck" data-deck-options="${escapeAttr(JSON.stringify(deckOpts))}">
+        <div class="var-deck-table">
+          <div class="var-deck-pile" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div class="var-deck-card${def ? ' dealt' : ''}" data-deck-face>${def ? escapeHtml(def) : 'Draw a card'}</div>
+        </div>
+        <div class="var-deck-actions"><button type="button" class="btn btn-sm" onclick="window._PL_drawCard(this)">Shuffle and draw</button><span class="var-deck-left" data-deck-left>${deckOpts.length} cards in the deck</span></div>
+        <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
+            } else if (type === 'cardcarousel') {
+                const carOpts = opts.length ? opts : _PL_CARD_DEFAULT;
+                input = `<div class="var-carousel">
+        <button type="button" class="var-carousel-nav" onclick="window._PL_carouselNav(this,-1)" aria-label="Previous cards">&lsaquo;</button>
+        <div class="var-toggle-group var-carousel-track" data-var="${escapeAttr(v)}">
+          ${carOpts.map(o => `<button type="button" class="var-toggle-btn var-carousel-card${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</button>`).join('')}
+          <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+        </div>
+        <button type="button" class="var-carousel-nav" onclick="window._PL_carouselNav(this,1)" aria-label="Next cards">&rsaquo;</button>
+      </div>`;
+            } else if (type === 'stepslider') {
+                const stepOpts = opts.length >= 2 ? opts : _PL_STEP_DEFAULT;
+                const stepIdx = stepOpts.indexOf(def);
+                input = `<div class="var-stepslider" data-step-options="${escapeAttr(JSON.stringify(stepOpts))}">
+        <div class="var-step-labels">${stepOpts.map((o, i) => `<button type="button" class="var-step-label${i===stepIdx?' active':''}" data-idx="${i}" onclick="window._PL_stepPick(this)">${escapeHtml(o)}</button>`).join('')}</div>
+        <input type="range" class="var-step-range" min="0" max="${stepOpts.length - 1}" step="1" value="${stepIdx < 0 ? 0 : stepIdx}" oninput="window._PL_stepSlide(this)" />
+        <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
             } else if (_PL_RANDOM_DEFAULTS[type]) {
                 const rollOpts = opts.length ? opts : _PL_RANDOM_DEFAULTS[type];
                 input = `<div class="var-random-block"><div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
@@ -1812,8 +1852,6 @@
                 input = `<textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter paragraph…" rows="${pRows}" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>`;
             } else if (type === 'code') {
                 input = `<textarea class="var-input var-code" data-var="${escapeAttr(v)}" placeholder="Enter code…" rows="4" style="width:100%;resize:vertical;font-family:monospace;font-size:12px;">${escapeHtml(def)}</textarea>`;
-            } else if (type === 'json') {
-                input = `<textarea class="var-input var-code" data-var="${escapeAttr(v)}" placeholder='{"key": "value"}' rows="6" style="width:100%;resize:vertical;font-family:monospace;font-size:12px;">${escapeHtml(def)}</textarea>`;
             } else if (type === 'currency') {
                 input = `<div style="display:flex;align-items:center;gap:6px;">
         <span style="font-size:13px;color:var(--ink-2);font-weight:600;">$</span>
@@ -2156,6 +2194,48 @@
         const result = wrap && wrap.querySelector('[data-roll-result]');
         if (hidden) { hidden.value = picked; hidden.dispatchEvent(new Event('input', { bubbles: true })); }
         if (result) result.textContent = picked || 'No valid options';
+    };
+
+    window._PL_drawCard = function(btn) {
+        const deck = btn.closest('.var-deck');
+        let all = [];
+        try { all = JSON.parse(deck.dataset.deckOptions || '[]'); } catch (_) {}
+        if (!all.length) return;
+        if (!deck._left || !deck._left.length) deck._left = all.slice();
+        const face = deck.querySelector('[data-deck-face]'), hidden = deck.querySelector('input.var-input'), count = deck.querySelector('[data-deck-left]');
+        const pick = deck._left.splice(Math.floor(Math.random() * deck._left.length), 1)[0];
+        deck.classList.add('shuffling');
+        btn.disabled = true;
+        face.classList.remove('dealt');
+        setTimeout(() => {
+            deck.classList.remove('shuffling');
+            btn.disabled = false;
+            face.textContent = pick;
+            face.classList.add('dealt');
+            hidden.value = pick;
+            hidden.dispatchEvent(new Event('input', { bubbles: true }));
+            if (count) count.textContent = deck._left.length ? `${deck._left.length} card${deck._left.length === 1 ? '' : 's'} left in the deck` : 'Deck empty, the next draw reshuffles';
+        }, 450);
+    };
+
+    window._PL_carouselNav = function(btn, dir) {
+        const track = btn.parentElement.querySelector('.var-carousel-track');
+        if (track) track.scrollBy({ left: dir * Math.max(120, track.clientWidth * 0.8), behavior: 'smooth' });
+    };
+
+    function _PL_stepSet(wrap, idx) {
+        let o = [];
+        try { o = JSON.parse(wrap.dataset.stepOptions || '[]'); } catch (_) {}
+        const hidden = wrap.querySelector('input.var-input');
+        hidden.value = o[idx] || '';
+        wrap.querySelectorAll('.var-step-label').forEach((l, i) => l.classList.toggle('active', i === idx));
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    window._PL_stepSlide = function(range) { _PL_stepSet(range.closest('.var-stepslider'), parseInt(range.value, 10)); };
+    window._PL_stepPick = function(btn) {
+        const wrap = btn.closest('.var-stepslider');
+        wrap.querySelector('.var-step-range').value = btn.dataset.idx;
+        _PL_stepSet(wrap, parseInt(btn.dataset.idx, 10));
     };
 
     window._PL_selectStar = function(star) {
@@ -3279,7 +3359,7 @@ STYLE/THEME: [[reserved for future use]]`;
             list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
             return;
         }
-        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'choicecards', 'yesno', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix', 'combobox', 'scale', 'diceroll', 'weightedmix', 'coinflip', 'randompick', 'randomnumber', 'tone', 'outputformat', 'length', 'audience', 'priority', 'sentiment'];
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'choicecards', 'yesno', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix', 'combobox', 'scale', 'diceroll', 'weightedmix', 'coinflip', 'randompick', 'randomnumber', 'carddeck', 'cardcarousel', 'stepslider', 'agreement', 'frequency', 'importance', 'difficulty', 'tone', 'outputformat', 'length', 'audience', 'priority', 'sentiment'];
         const meta = existing || collectVarMeta();
         list.innerHTML = vars.map((v, index) => {
             const m = meta[v] || {};
@@ -3334,7 +3414,6 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="duration"   ${type === 'duration'   ? 'selected' : ''}>Duration</option>
             <option value="timezone"   ${type === 'timezone'   ? 'selected' : ''}>Timezone</option>
             <option value="language"   ${type === 'language'   ? 'selected' : ''}>Language</option>
-            <option value="json"       ${type === 'json'       ? 'selected' : ''}>JSON</option>
             <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
             <option value="daterange"  ${type === 'daterange'  ? 'selected' : ''}>Date Range</option>
             <option value="today"      ${type === 'today'      ? 'selected' : ''}>Today (auto date)</option>
@@ -3349,6 +3428,8 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="segmented"   ${type === 'segmented'   ? 'selected' : ''}>Segmented Control</option>
             <option value="combobox"    ${type === 'combobox'    ? 'selected' : ''}>Combo Box (pick or type)</option>
             <option value="scale"       ${type === 'scale'       ? 'selected' : ''}>Number Scale (1 to 10)</option>
+            <option value="cardcarousel" ${type === 'cardcarousel' ? 'selected' : ''}>Card Carousel</option>
+            <option value="stepslider"  ${type === 'stepslider'  ? 'selected' : ''}>Step Slider</option>
             <option value="boolean"     ${type === 'boolean'     ? 'selected' : ''}>Yes / No Toggle</option>
             <option value="checkbox"    ${type === 'checkbox'    ? 'selected' : ''}>Checkbox List</option>
             <option value="tags"        ${type === 'tags'        ? 'selected' : ''}>Tags</option>
@@ -3370,6 +3451,7 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="coinflip"     ${type === 'coinflip'     ? 'selected' : ''}>Coin Flip</option>
             <option value="randompick"   ${type === 'randompick'   ? 'selected' : ''}>Random Pick</option>
             <option value="randomnumber" ${type === 'randomnumber' ? 'selected' : ''}>Random Number</option>
+            <option value="carddeck"     ${type === 'carddeck'     ? 'selected' : ''}>Card Deck (shuffle and draw)</option>
             </optgroup>
             <optgroup label="Presets">
             <option value="tone"         ${type === 'tone'         ? 'selected' : ''}>Tone</option>
@@ -3378,6 +3460,10 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="audience"     ${type === 'audience'     ? 'selected' : ''}>Audience</option>
             <option value="priority"     ${type === 'priority'     ? 'selected' : ''}>Priority</option>
             <option value="sentiment"    ${type === 'sentiment'    ? 'selected' : ''}>Sentiment</option>
+            <option value="agreement"    ${type === 'agreement'    ? 'selected' : ''}>Agreement</option>
+            <option value="frequency"    ${type === 'frequency'    ? 'selected' : ''}>Frequency</option>
+            <option value="importance"   ${type === 'importance'   ? 'selected' : ''}>Importance</option>
+            <option value="difficulty"   ${type === 'difficulty'   ? 'selected' : ''}>Difficulty</option>
             </optgroup>
           </select>
           <input type="text" data-field="default" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
@@ -3406,7 +3492,7 @@ STYLE/THEME: [[reserved for future use]]`;
           </label>
         </div>
         <div class="dropdown-options" style="display: ${needsOptions ? 'block' : 'none'};">
-          <textarea data-field="options" placeholder="${type === 'weightedmix' ? 'Option:weight, Option:weight' : type === 'diceroll' ? 'Dice faces, comma-separated' : type === 'randomnumber' ? 'Min, Max (whole numbers)' : type === 'coinflip' ? 'Two sides, comma-separated (default Heads, Tails)' : ['tone','outputformat','length','audience','priority','sentiment','scale'].includes(type) ? 'Leave blank for the built-in options, or type your own' : 'Comma-separated options'}" rows="2"
+          <textarea data-field="options" placeholder="${type === 'weightedmix' ? 'Option:weight, Option:weight' : type === 'diceroll' ? 'Dice faces, comma-separated' : type === 'randomnumber' ? 'Min, Max (whole numbers)' : type === 'carddeck' || type === 'cardcarousel' ? 'Card names, comma-separated (blank gives five sample cards)' : type === 'stepslider' ? 'Steps in order, comma-separated (at least 2)' : type === 'coinflip' ? 'Two sides, comma-separated (default Heads, Tails)' : ['tone','outputformat','length','audience','priority','sentiment','agreement','frequency','importance','difficulty','scale'].includes(type) ? 'Leave blank for the built-in options, or type your own' : 'Comma-separated options'}" rows="2"
                     style="width: 100%; padding: 6px 10px; font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; color: var(--ink); margin-top: 4px;">${escapeHtml(opts)}</textarea>
         </div>
         </div>
@@ -3414,7 +3500,7 @@ STYLE/THEME: [[reserved for future use]]`;
         }).join('');
     }
     window.PL_onVarTypeChange = function(sel) {
-        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'choicecards', 'yesno', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix', 'combobox', 'scale', 'diceroll', 'weightedmix', 'coinflip', 'randompick', 'randomnumber', 'tone', 'outputformat', 'length', 'audience', 'priority', 'sentiment'];
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'choicecards', 'yesno', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix', 'combobox', 'scale', 'diceroll', 'weightedmix', 'coinflip', 'randompick', 'randomnumber', 'carddeck', 'cardcarousel', 'stepslider', 'agreement', 'frequency', 'importance', 'difficulty', 'tone', 'outputformat', 'length', 'audience', 'priority', 'sentiment'];
         const row = sel.closest('.var-meta-row');
         const opts = row.querySelector('.dropdown-options');
         const sizeRow = row.querySelector('.paragraph-size');

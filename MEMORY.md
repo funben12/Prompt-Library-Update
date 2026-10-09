@@ -347,6 +347,16 @@ The Gauntlet Loop workspace now generates the Gauntlet meta-prompt (goal, inspec
 - Mobile parity (2026-10-08): the phone now renders every desktop variable type (added Range, Range Slider, Ranked List, Matrix, Emoji, Icon names, Duration, Timezone, Language) and its editor sets type, options, default, wrap, Show when filling and multi. Prompts can be written, typed and filled entirely on the phone. Icon Picker on the phone shows icon names as chips (no Material Symbols font on the phone). Paragraph `size` is not carried to the phone.
 - Open: desktop live preview chains sequential replaces, copy output is correct.
 - Phone companion state (2026-10-09, v0.7.1 in AI-App-Factory): Quick Fill redesigned (guided, all variable types), Prompt Components (stacked block builder, no AI key), Prompt Board, Gauntlet Loop on the desktop meta prompt, Library Organizer, Prompt Splicer (by part), Backup and restore with safety copy, Forge templates and tone. Boards travel in phone backups. Committed APK here is stale, use the AI-App-Factory workflow build. CLAUDE.md has a new Android companion section.
+### BASELINE: the version to clean up from (2026-10-09)
+
+Eugene chose the current main of both repos as the version to clean up from, after the variable type work below merges. Any clean up, trim or refactor starts from here. Do not clean up from older commits or older APKs.
+
+- Desktop: `funben12/Prompt-Library-Update` main. Phone: `funben12/AI-App-Factory` main, app-003 Prompt Library Mobile `versionName 0.7.1` (`versionCode 10`). Read the merge commit of the PR that carries this section for the exact SHAs.
+- Do not use the APK Eugene sent on 2026-10-09 (sha256 `4390e8e8...fa0d`, 894,623 bytes) as the reference. It is an older pre-cleanup build: it still has XY Pad, Color, Icon Picker, Persona Text, Clipboard and Library Prompt and lacks Dice Roll, Weighted Mix and every new type. The committed `PromptLibrary-Mobile-debug.apk` (sha256 `4efa097c...3335e`) is older still. The reference phone build is the latest "Build Prompt Library Mobile APK" release from AI-App-Factory main. Ask Eugene for a fresh APK from that release if a byte comparison is needed.
+- Removed for good on both apps: XY Pad, Color, Icon Picker, Persona Text, Clipboard, Library Prompt, JSON. Old saved variables of those types open as a plain text field.
+- Kept: Dice Roll, Weighted Mix. Do not remove them.
+- Before cleaning anything, list what would go and ask. The desktop and phone type lists must stay identical.
+
 ### Variable types cleanup and presets (2026-10-09)
 
 This supersedes the 2026-10-08 notes above wherever they conflict.
@@ -355,5 +365,6 @@ This supersedes the 2026-10-08 notes above wherever they conflict.
 - Random group (same on both apps): Dice Roll, Weighted Mix, plus new Coin Flip, Random Pick (uniform from options) and Random Number (options box takes `min, max`, whole numbers). One picker, `_PL_randomValue` (app.js) and `randomValue` (phone `vartypes.js`), defaults in `_PL_RANDOM_DEFAULTS` / `RANDOM`. Keep the two in step.
 - New types, same on both apps: Combo Box (pick or type, options become suggestions), Number Scale (1 to 10 buttons), and six presets with built-in options that the user can override in the options box: Tone, Output Format (`outputformat`), Length, Audience, Priority, Sentiment. Presets render as single-select chips through the existing `var-toggle-group` path on desktop and `chips()` on the phone. Desktop editor has a new Presets group, Combo Box and Number Scale sit in Choice.
 - Option sets live in `_PL_VAR_PRESETS` (app.js) and `PRESETS` (phone `vartypes.js`). Keep the two lists identical.
+- Cards and controls (2026-10-09, same on both apps): Card Deck (`carddeck`, shuffle animation, draws without repeats until the deck is empty then reshuffles, cards come from the options box, five sample cards when blank), Card Carousel (`cardcarousel`, scroll snap row, prev and next arrows, tap to pick), Step Slider (`stepslider`, options are the steps in order, labels are tappable), and presets Agreement, Frequency, Importance, Difficulty. Card Deck sits in the Random group, Card Carousel and Step Slider in Choice, the new presets in Presets. Code: `_PL_drawCard`, `_PL_carouselNav`, `_PL_stepSlide` here, `data-vdraw`, `data-vccard`, `data-vss` handlers in the phone's `vartypes.js`.
 - Verified headless: desktop detail panel renders all new types and the random buttons write into the live preview, phone `vartypes.js` renders and emits values at 390 px.
 
