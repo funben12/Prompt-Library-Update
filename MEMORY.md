@@ -351,9 +351,9 @@ The Gauntlet Loop workspace now generates the Gauntlet meta-prompt (goal, inspec
 
 This supersedes the 2026-10-08 notes above wherever they conflict.
 
-- Removed for good from desktop and phone: XY Pad, Color, Icon Picker, Persona Text, Clipboard, Library Prompt, Dice Roll, Weighted Mix. Dead code removed too (`_PL_rollChoice`, `_PL_pasteClip`, `_PL_pickLibPrompt`, `_PL_selectIcon`, the `.var-icon-*`, `.var-clip`, `.var-lib-select` CSS). The phone's "paste a template" button in Quick Fill is a separate feature and stays.
-- Saved prompts that still carry `diceroll` or `weightedmix` open as a Dropdown with the weights stripped from the options (`_migrateLegacyVarMeta` on desktop, `legacy()` in the phone's `vartypes.js`). No schema change, nothing rewritten in the DB until the prompt is saved.
+- Removed for good from desktop and phone: XY Pad, Color, Icon Picker, Persona Text, Clipboard, Library Prompt. Dice Roll and Weighted Mix are KEPT (Eugene confirmed, do not remove them). Dead code removed too (`_PL_rollChoice`, `_PL_pasteClip`, `_PL_pickLibPrompt`, `_PL_selectIcon`, the `.var-icon-*`, `.var-clip`, `.var-lib-select` CSS). The phone's "paste a template" button in Quick Fill is a separate feature and stays.
+- Random group (same on both apps): Dice Roll, Weighted Mix, plus new Coin Flip, Random Pick (uniform from options) and Random Number (options box takes `min, max`, whole numbers). One picker, `_PL_randomValue` (app.js) and `randomValue` (phone `vartypes.js`), defaults in `_PL_RANDOM_DEFAULTS` / `RANDOM`. Keep the two in step.
 - New types, same on both apps: Combo Box (pick or type, options become suggestions), Number Scale (1 to 10 buttons), and six presets with built-in options that the user can override in the options box: Tone, Output Format (`outputformat`), Length, Audience, Priority, Sentiment. Presets render as single-select chips through the existing `var-toggle-group` path on desktop and `chips()` on the phone. Desktop editor has a new Presets group, Combo Box and Number Scale sit in Choice.
 - Option sets live in `_PL_VAR_PRESETS` (app.js) and `PRESETS` (phone `vartypes.js`). Keep the two lists identical.
-- Verified headless: desktop detail panel renders all new types and the legacy fallback, phone `vartypes.js` renders and emits values at 390 px.
+- Verified headless: desktop detail panel renders all new types and the random buttons write into the live preview, phone `vartypes.js` renders and emits values at 390 px.
 
