@@ -1606,8 +1606,8 @@
     // Old shape:  { type: 'checkbox', default: 'true' | 'Yes' | 'No' }  -- no options array
     // New shape:  { type: 'checkbox', default: 'Yes', options: ['Yes','No'] }
     // Variable types kept after the 2026-10-09 trim. Old saved types map to the nearest kept one or fall back to text.
-    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'boolean', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
-    const _PL_LEGACY_TYPE_MAP = { radio: 'choicechips', segmented: 'choicechips', yesno: 'choicechips', multiselect: 'checkbox', togglegroup: 'checkbox' };
+    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
+    const _PL_LEGACY_TYPE_MAP = { radio: 'choicechips', segmented: 'choicechips', yesno: 'choicechips', multiselect: 'checkbox', togglegroup: 'checkbox', boolean: 'choicechips' };
     const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
     const _PL_RANDOM_TYPES = ['diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
     function _PL_normMeta(m) {
@@ -1615,6 +1615,11 @@
         const t = m.type || 'text';
         out.type = _PL_KEPT_TYPES.includes(t) ? t : (_PL_LEGACY_TYPE_MAP[t] || 'text');
         if (t === 'yesno' && !(m.options && m.options.length)) out.options = ['Yes', 'No', 'Maybe'];
+        if (t === 'boolean') {
+            out.options = ['Yes', 'No'];
+            if (['true', 'yes', 'on', '1'].includes(String(m.default || '').toLowerCase())) out.default = 'Yes';
+            else if (m.default) out.default = 'No';
+        }
         return out;
     }
     // Option lines may carry a description: "Title | description" (used by Choice Cards)
@@ -1717,7 +1722,6 @@
             choicecards: 'view_agenda',
             checkbox: 'checklist',
             combobox: 'edit_note',
-            boolean: 'toggle_on',
             stepslider: 'tune',
             number: 'tag',
             percentage: 'percent',
@@ -1806,13 +1810,6 @@
             } else if (type === 'combobox') {
                 input = `<input type="text" class="var-input" list="var-combo-${index}" data-var="${escapeAttr(v)}" placeholder="Pick or type…" value="${escapeAttr(def)}" autocomplete="off" />
       <datalist id="var-combo-${index}">${opts.map(o => `<option value="${escapeAttr(o)}"></option>`).join('')}</datalist>`;
-            } else if (type === 'boolean') {
-                const isOn = ['true', 'yes', 'on', '1'].includes(String(def).toLowerCase());
-                input = `<label class="var-switch">
-        <input type="checkbox" class="var-input var-boolean-input" data-var="${escapeAttr(v)}" value="Yes" ${isOn ? 'checked' : ''} />
-        <span class="var-switch-track"><span class="var-switch-thumb"></span></span>
-        <span class="var-switch-label">${isOn ? 'Yes' : 'No'}</span>
-      </label>`;
             } else if (type === 'number') {
                 input = `<input type="number" class="var-input" data-var="${escapeAttr(v)}" placeholder="Number" value="${escapeAttr(def)}" />`;
             } else if (type === 'date') {
@@ -1949,11 +1946,6 @@
         if (!inp) return '';
         if (inp.matches('select[multiple]')) {
             return Array.from(inp.selectedOptions || []).map(o => o.value.trim()).filter(Boolean).join(', ');
-        }
-        if (inp.classList.contains('var-boolean-input')) {
-            const label = inp.closest('.var-switch')?.querySelector('.var-switch-label');
-            if (label) label.textContent = inp.checked ? 'Yes' : 'No';
-            return inp.checked ? 'Yes' : 'No';
         }
         if (inp.type === 'checkbox') return inp.checked ? 'Yes' : 'No';
         const vtype = inp.closest('.var-field')?.querySelector('.var-field-type')?.textContent.trim();
@@ -3227,7 +3219,6 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="choicecards" ${type === 'choicecards' ? 'selected' : ''}>Choice Cards (title and description)</option>
             <option value="checkbox" ${type === 'checkbox' ? 'selected' : ''}>Checkbox List</option>
             <option value="combobox" ${type === 'combobox' ? 'selected' : ''}>Combo Box (pick or type)</option>
-            <option value="boolean" ${type === 'boolean' ? 'selected' : ''}>Yes / No Toggle</option>
             <option value="stepslider" ${type === 'stepslider' ? 'selected' : ''}>Step Slider</option>
             </optgroup>
             <optgroup label="Number">

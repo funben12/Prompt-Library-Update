@@ -1332,48 +1332,6 @@
   .var-toggle-group { display: flex; flex-wrap: wrap; gap: 6px; }
   .var-toggle-btn { cursor: pointer; }
 
-  .var-switch {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--sp-2);
-    width: fit-content;
-    cursor: pointer;
-  }
-  .var-switch input { position: absolute; opacity: 0; pointer-events: none; }
-  .var-switch-track {
-    position: relative;
-    width: 38px;
-    height: 22px;
-    border: 1px solid var(--line-strong);
-    border-radius: 999px;
-    background: var(--surface-3);
-    box-shadow: var(--neu-inset);
-    transition: background var(--t-fast), border-color var(--t-fast);
-  }
-  .var-switch-thumb {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: var(--ink-4);
-    transition: transform var(--t-fast), background var(--t-fast);
-  }
-  .var-switch input:checked + .var-switch-track {
-    background: var(--accent-soft);
-    border-color: var(--accent-line);
-  }
-  .var-switch input:checked + .var-switch-track .var-switch-thumb {
-    transform: translateX(16px);
-    background: var(--accent);
-  }
-  .var-switch-label {
-    min-width: 24px;
-    color: var(--ink-2);
-    font-size: var(--fs-sm);
-    font-weight: 600;
-  }
 
   .var-code { font-family: var(--ff-mono); }
 
