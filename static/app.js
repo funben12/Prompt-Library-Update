@@ -1707,10 +1707,17 @@
         </label>`).join('')}
         <input type="hidden" class="var-input var-radio-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def || opts[0] || '')}" />
       </div>`;
-            } else if (type === 'choicechips' && opts.length) {
-                input = `<div class="var-toggle-group" data-var="${escapeAttr(v)}">
-        ${opts.map(o => `<span class="chip var-toggle-btn${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</span>`).join('')}
+            } else if ((type === 'choicechips' || type === 'choicecards' || type === 'yesno') && (opts.length || type === 'yesno')) {
+                const choiceOpts = type === 'yesno' ? (opts.length ? opts : ['Yes', 'No', 'Maybe']) : opts;
+                input = `<div class="var-toggle-group ${type === 'choicecards' ? 'var-choice-cards' : ''}" data-var="${escapeAttr(v)}">
+        ${choiceOpts.map(o => `<button type="button" class="chip var-toggle-btn${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</button>`).join('')}
         <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
+            } else if (type === 'diceroll' || type === 'weightedmix') {
+                const rollOpts = opts.length ? opts : (type === 'diceroll' ? ['1','2','3','4','5','6'] : ['Idea A:5','Idea B:3','Idea C:2']);
+                input = `<div class="var-random-block"><div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
+        <button type="button" class="btn btn-sm" data-roll-kind="${type}" data-roll-options="${escapeAttr(JSON.stringify(rollOpts))}" onclick="window._PL_rollChoice(this)">${type === 'diceroll' ? 'Roll dice' : 'Pick weighted option'}</button>
+        <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
             } else if (type === 'boolean') {
                 const isOn = ['true', 'yes', 'on', '1'].includes(String(def).toLowerCase());
@@ -2092,6 +2099,26 @@
         hidden.dispatchEvent(new Event('input', {
             bubbles: true
         }));
+    };
+
+    window._PL_rollChoice = function(btn) {
+        let options = [];
+        try { options = JSON.parse(btn.dataset.rollOptions || '[]'); } catch (_) {}
+        if (!options.length) options = btn.dataset.rollKind === 'diceroll' ? ['1','2','3','4','5','6'] : ['Idea A:5','Idea B:3','Idea C:2'];
+        let picked = '';
+        if (btn.dataset.rollKind === 'diceroll') picked = options[Math.floor(Math.random() * options.length)];
+        else {
+            const weighted = options.map(raw => {
+                const match = String(raw).match(/^(.*?)(?:\s*[:=]\s*(\d+(?:\.\d+)?))$/);
+                return { label: match ? match[1].trim() : String(raw), weight: match ? Math.max(0, Number(match[2])) : 1 };
+            }).filter(x => x.label && x.weight > 0);
+            let n = Math.random() * weighted.reduce((sum, x) => sum + x.weight, 0);
+            picked = (weighted.find(x => (n -= x.weight) < 0) || weighted[weighted.length - 1] || {label:''}).label;
+        }
+        const wrap = btn.closest('.var-random-block'), hidden = wrap && wrap.querySelector('input.var-input');
+        const result = wrap && wrap.querySelector('[data-roll-result]');
+        if (hidden) { hidden.value = picked; hidden.dispatchEvent(new Event('input', { bubbles: true })); }
+        if (result) result.textContent = picked || 'No valid options';
     };
 
     window._PL_selectStar = function(star) {
@@ -3224,7 +3251,7 @@ STYLE/THEME: [[reserved for future use]]`;
             list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
             return;
         }
-        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix'];
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'choicecards', 'yesno', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix', 'diceroll', 'weightedmix'];
         const meta = existing || collectVarMeta();
         list.innerHTML = vars.map((v, index) => {
             const m = meta[v] || {};
@@ -3289,6 +3316,8 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="multiselect" ${type === 'multiselect' ? 'selected' : ''}>Multi-select</option>
             <option value="radio"       ${type === 'radio'       ? 'selected' : ''}>Radio Buttons</option>
             <option value="choicechips" ${type === 'choicechips' ? 'selected' : ''}>Choice Chips</option>
+            <option value="choicecards" ${type === 'choicecards' ? 'selected' : ''}>Choice Cards</option>
+            <option value="yesno"       ${type === 'yesno'       ? 'selected' : ''}>Yes / No / Maybe</option>
             <option value="segmented"   ${type === 'segmented'   ? 'selected' : ''}>Segmented Control</option>
             <option value="boolean"     ${type === 'boolean'     ? 'selected' : ''}>Yes / No Toggle</option>
             <option value="checkbox"    ${type === 'checkbox'    ? 'selected' : ''}>Checkbox List</option>
@@ -3304,6 +3333,8 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="matrix"      ${type === 'matrix'      ? 'selected' : ''}>Matrix / Likert Grid</option>
             <option value="emojipicker" ${type === 'emojipicker' ? 'selected' : ''}>Emoji Picker</option>
             <option value="stepper"     ${type === 'stepper'     ? 'selected' : ''}>Stepper (+/-)</option>
+            <option value="diceroll"    ${type === 'diceroll'    ? 'selected' : ''}>Dice Roll</option>
+            <option value="weightedmix" ${type === 'weightedmix' ? 'selected' : ''}>Weighted Mix</option>
             </optgroup>
           </select>
           <input type="text" data-field="default" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
@@ -3340,7 +3371,7 @@ STYLE/THEME: [[reserved for future use]]`;
         }).join('');
     }
     window.PL_onVarTypeChange = function(sel) {
-        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix'];
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'choicecards', 'yesno', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix', 'diceroll', 'weightedmix'];
         const row = sel.closest('.var-meta-row');
         const opts = row.querySelector('.dropdown-options');
         const sizeRow = row.querySelector('.paragraph-size');
