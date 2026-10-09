@@ -12201,11 +12201,11 @@ Must avoid: [Anything sensitive or previously declined]`
         var _aiLevel = 'intermediate';
 
         var _AI_LEVELS = {
-            basic: 'Pick 4 to 5 blocks. Bare essentials: a role, context, the task, and an output format.',
-            intermediate: 'Pick 6 to 8 blocks. Essentials plus constraints and one reasoning block.',
-            advanced: 'Pick 9 to 11 blocks. Essentials, reasoning, constraints, plus at least one Guardrails block.',
-            veryadvanced: 'Pick 11 to 13 blocks. Essentials, reasoning, constraints, guardrails, plus an evaluation or success-criteria block and one metaprompting block.',
-            engineer: 'Pick 13 to 16 blocks. Full professional structure: role, context, scope, task, two or more reasoning blocks, constraints, guardrails, evaluation criteria, output format, and a metaprompting block.'
+            basic: 'Pick 8 to 10 blocks. Core foundation: role definition, target context, primary task, and structured output format.',
+            intermediate: 'Pick 12 to 16 blocks. Core foundation plus operational constraints, workflow boundaries, and a single reasoning framework.',
+            advanced: 'Core foundation, multiple reasoning frameworks, operational constraints, and comprehensive guardrails.',
+            veryadvanced: 'Pick 22 to 26 blocks. Complete foundation, dual reasoning frameworks, strict operational constraints, guardrails, quantitative success criteria, and a metaprompting layer.',
+            engineer: 'Pick 26 to 32 blocks. Enterprise-grade architecture: role definition, deep context, execution scope, primary task, multi-stage reasoning frameworks, strict constraints, robust guardrails, validation criteria, precise output format, and iterative metaprompting layers.'
         };
 
         function _aiCatalogue() {
