@@ -45,13 +45,6 @@
     --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
     --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
     --ease-in:        cubic-bezier(0.7, 0, 0.84, 0);
-    /* Motion spec (same on the phone app): 120 colour, 200 transform, 320 entrance */
-    --dur-color: 120ms;
-    --dur-move:  200ms;
-    --dur-enter: 320ms;
-    --ease-enter: var(--ease-out-quart);
-    --ease-snap:  var(--ease-out-expo);
-    --stagger: 45ms;
 
     /* Teal primary (#006666), warm beige surfaces (#E7E5E4), dark blue text (#1E2938) */
     --bg:           oklch(93.5% 0.01 70);    /* page */
@@ -434,17 +427,14 @@
     background: var(--surface);
     border-left: 1px solid var(--line);
     box-shadow: var(--shadow-lg);
-    transform: translateX(24px);
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transition: transform var(--dur-enter) var(--ease-enter), opacity var(--dur-enter) var(--ease-enter), visibility 0s linear var(--dur-enter);
+    transform: translateX(100%);
+    transition: transform var(--t-slow) var(--ease-out-expo);
     z-index: var(--z-detail);
     display: flex;
     flex-direction: column;
     min-height: 0;
   }
-  #detailPanel.open { transform: translateX(0); opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0s; }
+  #detailPanel.open { transform: translateX(0); }
 }
 
 /* =============================================================
@@ -1518,6 +1508,8 @@
     max-height: 88vh;
     display: flex; flex-direction: column;
     min-height: 0;
+    transform: scale(0.97) translateY(8px);
+    transition: transform var(--t-base) var(--ease-out-quart);
     overflow: hidden;
   }
   /* The form inside the modal must also be flex column so its body scrolls
@@ -1530,6 +1522,9 @@
     overflow: hidden;
   }
   .modal-box-sm { width: min(440px, 92vw); }
+  .modal-overlay.active .modal-box,
+  .modal-overlay.active .modal-box-sm { transform: scale(1) translateY(0); }
+
   .modal-header {
     display: flex; align-items: flex-start; justify-content: space-between;
     gap: var(--sp-4);
@@ -2001,11 +1996,11 @@
     border-radius: var(--r-xl);
     box-shadow: var(--shadow-lg);
     overflow: hidden;
-    animation: cmdBoxIn var(--dur-move) var(--ease-enter) backwards;
+    animation: cmdBoxIn 180ms var(--ease-out-expo);
   }
   @keyframes cmdBoxIn {
-    from { opacity: 0; transform: translateY(12px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(-8px) scale(0.985); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
   }
   .cmd-input-row {
     display: flex; align-items: center; gap: var(--sp-3);
@@ -2139,8 +2134,7 @@
     border-radius: var(--r-md);
     box-shadow: var(--shadow-md);
     font-size: var(--fs-sm); color: var(--ink);
-    animation: toast-in var(--dur-enter) var(--ease-enter) backwards;
-    transition: opacity var(--dur-move) var(--ease-in), transform var(--dur-move) var(--ease-in);
+    animation: toast-in var(--t-base) var(--ease-out-quart);
     min-width: 240px;
     max-width: 380px;
   }
@@ -2170,8 +2164,8 @@
    ============================================================= */
 @layer motion {
   @keyframes toast-in {
-    from { opacity: 0; transform: translateY(16px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0); }
   }
   @keyframes skeleton-shimmer {
     from { background-position: 200% 0; }
@@ -3364,10 +3358,12 @@
 
 /* ── Surprise Me — card flash ──────────────────────────────── */
 @keyframes surprise-flash {
-  from { background-color: var(--accent-soft); border-color: var(--accent); }
+  0%   { box-shadow: 0 0 0 0 oklch(38% 0.14 190 / 0.6); }
+  50%  { box-shadow: 0 0 0 8px oklch(38% 0.14 190 / 0.15); }
+  100% { box-shadow: 0 0 0 0 oklch(38% 0.14 190 / 0); }
 }
 .prompt-card.surprise-flash {
-  animation: surprise-flash var(--dur-move) var(--ease-enter);
+  animation: surprise-flash 0.8s var(--ease-out-expo) forwards;
 }
 
 /* =============================================================
@@ -4881,6 +4877,16 @@
   border-color: var(--danger) !important;
 }
 
+/* Entrance animation */
+#contextBankWorkspace.open .ctx-list-panel,
+#contextBankWorkspace.open .ctx-editor-panel {
+  animation: ws-fade-in var(--t-base) var(--ease-out-quart) both;
+}
+#contextBankWorkspace.open .ctx-editor-panel { animation-delay: 40ms; }
+@keyframes ws-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 
 /* ── Prompt Scorecard ──────────────────────────────────────── */
@@ -5613,6 +5619,14 @@
   from { opacity: 0; transform: scale(0.96) translateY(10px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
 }
+@keyframes modal-out {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to   { opacity: 0; transform: scale(0.96) translateY(6px); }
+}
+@keyframes card-pop-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
 @keyframes save-pulse {
   0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 60%, transparent); }
   60%  { box-shadow: 0 0 0 8px color-mix(in srgb, var(--success) 0%, transparent); }
@@ -5623,6 +5637,14 @@
   30%  { background: var(--success); color: #fff; }
   100% { background: var(--accent); color: #fff; }
 }
+@keyframes ripple-expand {
+  from { transform: scale(0); opacity: 0.35; }
+  to   { transform: scale(2.5); opacity: 0; }
+}
+@keyframes block-insert {
+  0%   { background: color-mix(in srgb, var(--accent) 15%, transparent); }
+  100% { background: transparent; }
+}
 @keyframes ctx-item-in {
   from { opacity: 0; transform: translateX(-6px); }
   to   { opacity: 1; transform: translateX(0); }
@@ -5632,13 +5654,29 @@
   to   { transform: translateY(-2px); }
 }
 
+/* ---------- Card entrance stagger ---------- */
+
+.prompt-card.entering {
+  animation: card-pop-in 220ms var(--ease-out-expo) both;
+}
+
 /* ---------- Ripple ---------- */
 
 .btn { overflow: hidden; position: relative; }
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  animation: ripple-expand 480ms var(--ease-out-expo) forwards;
+  transform-origin: center;
+}
+
 /* ---------- Save button success state ---------- */
 
 .btn-primary.save-success {
-  animation: btn-success-flash var(--dur-move) var(--ease-enter);
+  animation: btn-success-flash 600ms var(--ease-out-expo) forwards;
 }
 
 /* ---------- Modal wrap — replaces per-modal transform ---------- */
@@ -5652,6 +5690,18 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: var(--shadow-lg), 0 0 0 1px var(--line);
+  transform: scale(0.97) translateY(8px);
+  opacity: 0;
+  transition: transform var(--t-base) var(--ease-out-expo),
+              opacity var(--t-base) linear,
+              width var(--t-slow) var(--ease-out-expo);
+}
+.modal-overlay.active .modal-main-wrap {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+.modal-overlay.leaving .modal-main-wrap {
+  animation: modal-out 180ms var(--ease-in) forwards;
 }
 .modal-main-wrap.panel-open {
   width: min(1380px, 97vw);
@@ -5679,6 +5729,9 @@
     linear-gradient(180deg, color-mix(in oklch, var(--surface-2) 82%, var(--bg)) 0%, var(--surface-2) 100%);
   display: flex;
   flex-direction: column;
+  transition: flex-basis var(--t-slow) var(--ease-out-expo),
+              min-width var(--t-slow) var(--ease-out-expo),
+              border-left-width 1ms var(--t-slow);
 }
 .modal-side-panel.open {
   flex: 0 0 384px;
@@ -5805,6 +5858,10 @@
   background: color-mix(in oklch, var(--surface) 60%, transparent);
 }
 
+/* Textarea flash when content is inserted */
+#promptContent.content-inserted {
+  animation: block-insert 500ms var(--ease-out-expo);
+}
 
 /* ---------- Prompt components panel ---------- */
 
@@ -5946,6 +6003,17 @@
   min-width: 0;
 }
 
+/* ---------- Modal close (leaving) animation ---------- */
+
+.modal-overlay.leaving {
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 175ms var(--ease-in);
+}
+.modal-overlay.leaving .modal-main-wrap {
+  animation: modal-out 175ms var(--ease-in) forwards;
+}
+
 /* ============================================================
    FOLDER PICKER — searchable inline combobox
    ============================================================ */
@@ -5958,15 +6026,97 @@
 
 /* ── Easing tokens (if not already set) ─────────────────────────────────── */
 :root {
+  --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-in:        cubic-bezier(0.4, 0, 1, 1);
   --ease-in-out:    cubic-bezier(0.45, 0, 0.55, 1);
+  --t-fast:  120ms;
+  --t-base:  200ms;
+  --t-slow:  320ms;
   --success: #10b981;
 }
 
 /* ── Additional keyframes ────────────────────────────────────────────────── */
+@keyframes ws-item-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pl-chip-pop {
+  0%   { transform: scale(0.88); opacity: 0; }
+  60%  { transform: scale(1.05); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+@keyframes pl-row-saved {
+  0%   { background: transparent; }
+  18%  { background: color-mix(in srgb, var(--success) 14%, transparent); }
+  100% { background: transparent; }
+}
+@keyframes pl-detail-in {
+  from { opacity: 0; transform: translateX(10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes content-inserted {
+  0%   { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 0%, transparent); background: transparent; }
+  25%  { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 0%, transparent); background: transparent; }
+}
+@keyframes pl-nav-pip {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+@keyframes canvas-block-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
 @keyframes comp-palette-in {
   from { opacity: 0; transform: translateX(-8px); }
   to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes pl-ws-open {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Workspace open — children entrance ─────────────────────────────────── */
+/* Applied via JS when a workspace transitions to .open */
+.ws-body.animating-in > * {
+  opacity: 0;
+  animation: ws-item-in 280ms var(--ease-out-expo) forwards;
+}
+.ws-body.animating-in > *:nth-child(1) { animation-delay:  40ms; }
+.ws-body.animating-in > *:nth-child(2) { animation-delay:  90ms; }
+.ws-body.animating-in > *:nth-child(3) { animation-delay: 130ms; }
+.ws-body.animating-in > *:nth-child(4) { animation-delay: 170ms; }
+
+/* ── Workspace header icon pulse on open ─────────────────────────────────── */
+.ws-header-icon.ws-icon-pulse {
+  animation: pl-chip-pop 280ms var(--ease-out-expo) both;
+}
+
+/* ── textarea content-inserted flash ────────────────────────────────────── */
+#promptContent.content-inserted {
+  animation: content-inserted 600ms var(--ease-out-expo) forwards;
+}
+
+/* ── Prompt card row saved flash ─────────────────────────────────────────── */
+.prompt-card.row-saved {
+  animation: pl-row-saved 900ms var(--ease-out-quart) forwards;
+}
+
+/* ── Detail panel content refresh ───────────────────────────────────────── */
+#detailPanel.content-refresh .detail-body-inner,
+#detailPanel.content-refresh .detail-header {
+  animation: pl-detail-in 200ms var(--ease-out-expo) both;
+}
+
+/* ── Category chip pop ───────────────────────────────────────────────────── */
+.cat-chip.chip-added {
+  animation: pl-chip-pop 240ms var(--ease-out-expo) both;
+}
+
+/* ── Tag add pop ─────────────────────────────────────────────────────────── */
+.tag-chip.tag-added {
+  animation: pl-chip-pop 240ms var(--ease-out-expo) both;
 }
 
 /* ── Nav active pip ──────────────────────────────────────────────────────── */
@@ -5980,6 +6130,7 @@
   height: 22px;
   background: var(--accent);
   border-radius: 0 2px 2px 0;
+  animation: pl-nav-pip 180ms var(--ease-out-expo) both;
 }
 .nav-item { position: relative; }
 
@@ -5990,15 +6141,16 @@
 
 /* ── Chip select micro-feedback ─────────────────────────────────────────── */
 .chip {
-  transition: background var(--dur-color), color var(--dur-color),
-              border-color var(--dur-color), transform var(--dur-move) var(--ease-out-quart) !important;
+  transition: background var(--t-fast), color var(--t-fast),
+              border-color var(--t-fast), transform var(--t-fast) !important;
 }
-.chip:active { transform: scale(0.98) !important; }
+.chip:active { transform: scale(0.93) !important; }
 
-/* ── Button press micro-feedback (press itself: .btn:active in the layer above) ── */
-.btn { transition: background var(--dur-color), color var(--dur-color),
-                   border-color var(--dur-color), transform var(--dur-move) var(--ease-out-quart),
-                   box-shadow var(--dur-color) !important; }
+/* ── Button press micro-feedback ────────────────────────────────────────── */
+.btn:active:not(:disabled) { transform: scale(0.96); }
+.btn { transition: background var(--t-fast), color var(--t-fast),
+                   border-color var(--t-fast), transform var(--t-fast),
+                   box-shadow var(--t-fast) !important; }
 
 /* ── Drag-over textarea ──────────────────────────────────────────────────── */
 #promptContent.drag-over {
@@ -6021,6 +6173,7 @@
 }
 #componentsWorkspace.open {
   display: flex;
+  animation: pl-ws-open 240ms var(--ease-out-expo) both;
 }
 
 .pcw-body {
@@ -6250,7 +6403,8 @@
   border-left: 3px solid var(--blk-color, var(--accent));
   border-radius: 10px;
   overflow: hidden;
-  transition: border-color var(--dur-color), box-shadow var(--dur-color);
+  animation: canvas-block-in 220ms var(--ease-out-expo) both;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
   box-shadow: 0 1px 3px rgba(0,0,0,.08);
 }
 .pcw-canvas-block:hover {
@@ -8243,13 +8397,13 @@
   border: 1px solid transparent;
   border-radius: var(--r-md);
   cursor: pointer;
-  transition: background var(--dur-color), border-color var(--dur-color), box-shadow var(--dur-color), transform var(--dur-move) var(--ease-snap);
+  transition: background var(--t-fast), border-color var(--t-fast), transform var(--t-fast);
 }
 .launcher-card:hover {
   background: var(--surface);
-  border-color: var(--accent-line);
+  border-color: var(--line);
+  transform: translateX(2px);
 }
-.launcher-card:active { transform: scale(.98); box-shadow: var(--neu-pressed); transition-duration: var(--dur-color); }
 .launcher-card-icon {
   display: inline-flex;
   align-items: center;
@@ -8330,12 +8484,12 @@
   border: 1px solid var(--line);
   border-radius: 999px;
   cursor: pointer;
-  transition: border-color var(--dur-color), transform var(--dur-move) var(--ease-snap);
+  transition: border-color var(--t-fast), transform var(--t-fast);
 }
 .launcher-recent-card:hover {
   border-color: var(--accent-line);
+  transform: translateY(-1px);
 }
-.launcher-recent-card:active { transform: scale(.98); }
 .launcher-recent-card .material-symbols-outlined { font-size: 18px; color: var(--ink-2); }
 .launcher-recent-title { font-size: var(--fs-sm); font-weight: 600; color: var(--ink); }
 .launcher-recent-card .launcher-card-pro {
@@ -10571,105 +10725,4 @@ body.plx-workspace-open{overflow:hidden}
   .var-step-label.active { color: var(--accent); }
   .var-step-range { width: 100%; accent-color: var(--accent); }
 
-/* =============================================================
-   MOTION SYSTEM - shared entrances, exits and feedback.
-   Same spec as the phone app: transform + opacity, 120ms colour,
-   200ms move, 320ms entrance. Tokens: --dur-*, --ease-*, --stagger.
-   Exits: JS _plLeave() drops the open/active class at once and adds
-   .leaving; the :not(.open|.active) rules below keep the box visible
-   while it fades, and a reopen simply matches the entrance rule again.
-   ============================================================= */
-@keyframes pl-view-in   { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
-@keyframes pl-view-out  { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(12px); } }
-@keyframes pl-rise-in   { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
-@keyframes pl-fade-in   { from { opacity: 0; } to { opacity: 1; } }
-@keyframes pl-fade-out  { from { opacity: 1; } to { opacity: 0; } }
-@keyframes pl-row-rise  { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-@keyframes pl-node-in   { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-@keyframes pl-pop       { from { transform: scale(.8); } to { transform: scale(1); } }
-@keyframes pl-panel-in  { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
 
-/* Workspace dialogs and launcher: fade + 18px slide in, fade out on close */
-[id$="Workspace"].open, #forkWorkstation.open, #workspacesLauncher.open {
-  animation: pl-view-in var(--dur-enter) var(--ease-enter) backwards;
-}
-[id$="Workspace"].leaving:not(.open), #forkWorkstation.leaving:not(.open), #workspacesLauncher.leaving:not(.open) {
-  display: flex;
-  animation: pl-view-out var(--dur-move) var(--ease-in) forwards;
-  pointer-events: none;
-}
-/* Library view switch (sidebar nav, folders) */
-#content.view-enter { animation: pl-view-in var(--dur-enter) var(--ease-enter) backwards; }
-
-/* Launcher cards rise 10px, 45ms stagger capped at 6 */
-#workspacesLauncher.open .launcher-card,
-#workspacesLauncher.open .launcher-recent-card {
-  animation: pl-row-rise var(--dur-enter) var(--ease-enter) backwards;
-}
-#workspacesLauncher.open .launcher-card:nth-child(2) { animation-delay: calc(var(--stagger) * 1); }
-#workspacesLauncher.open .launcher-card:nth-child(3) { animation-delay: calc(var(--stagger) * 2); }
-#workspacesLauncher.open .launcher-card:nth-child(4) { animation-delay: calc(var(--stagger) * 3); }
-#workspacesLauncher.open .launcher-card:nth-child(5) { animation-delay: calc(var(--stagger) * 4); }
-#workspacesLauncher.open .launcher-card:nth-child(n+6) { animation-delay: calc(var(--stagger) * 5); }
-
-/* Library rows: renderPrompts tags the first 6 prompt cards with .row-in and --i */
-#promptsContainer.rows-enter .prompt-card.row-in {
-  animation: pl-row-rise var(--dur-enter) var(--ease-enter) backwards;
-  animation-delay: calc(var(--stagger) * var(--i, 0));
-}
-
-/* Copy confirmation tick */
-.material-symbols-outlined.copy-ok { color: var(--success); animation: pl-pop var(--dur-move) var(--ease-snap); }
-
-/* Toast exit */
-.toast.leaving { opacity: 0; transform: translateY(8px); }
-
-/* Overlays and modals: fade + 24px rise in (.modal-anim marks the single moving box), fade out */
-.modal-overlay.active { animation: pl-fade-in var(--dur-move) var(--ease-enter) backwards; }
-.modal-overlay.active .modal-anim { animation: pl-rise-in var(--dur-enter) var(--ease-enter) backwards; }
-.modal-overlay.leaving:not(.active) {
-  display: grid; place-items: center; pointer-events: none;
-  animation: pl-fade-out var(--dur-move) var(--ease-in) forwards;
-}
-.modal-overlay.leaving:not(.active) .modal-anim { animation: pl-view-out var(--dur-move) var(--ease-in) forwards; }
-/* Side panel content slides in; the panel box itself snaps (no layout transition) */
-.modal-side-panel.open .modal-side-panel-inner { animation: pl-panel-in var(--dur-enter) var(--ease-enter) backwards; }
-
-/* Command palette */
-#cmdPalette.active { animation: pl-fade-in var(--dur-move) var(--ease-enter) backwards; }
-#cmdPalette.leaving:not(.active) { display: flex; pointer-events: none; animation: pl-fade-out var(--dur-move) var(--ease-in) forwards; }
-#cmdPalette.leaving:not(.active) .cmd-box { animation: none; }
-
-/* Full-screen prompt viewer */
-#promptViewer.active { animation: pl-rise-in var(--dur-enter) var(--ease-enter) backwards; }
-#promptViewer.leaving:not(.active) { display: flex; pointer-events: none; animation: pl-view-out var(--dur-move) var(--ease-in) forwards; }
-
-/* Prompt Components canvas: only the newly added block animates; drag stays transition-free */
-.pcw-canvas-block.pcw-new { animation: pl-node-in var(--dur-enter) var(--ease-enter) backwards; }
-.pcw-canvas-block.pcw-float.dragging { transition: none; }
-.pcw-canvas-block:focus-within {
-  border-color: var(--blk-color, var(--accent));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--blk-color, var(--accent)) 28%, transparent), 0 2px 8px rgba(0,0,0,.1);
-}
-
-/* Shared form controls (workspaces + fill panel): focus ring and selected state are colour transitions only */
-.forge-input, .var-input, .var-select, .var-pct input, .var-daterange input[type="date"], .var-step-label, .var-card-opt, .var-toggle-btn, .var-card-mark, .var-field-check {
-  transition: border-color var(--dur-color), background-color var(--dur-color), color var(--dur-color), box-shadow var(--dur-color), opacity var(--dur-color), transform var(--dur-move) var(--ease-out-quart);
-}
-.var-toggle-btn:focus-visible, .var-step-label:focus-visible, .var-card-opt:focus-visible,
-.var-checklist-item:focus-visible, .var-pct input:focus-visible, .var-mix-range:focus-visible, .var-step-range:focus-visible {
-  outline: none;
-  box-shadow: var(--ring);
-}
-.var-card-opt:active, .var-toggle-btn:active { transform: scale(.98); }
-
-@media (prefers-reduced-motion: reduce) {
-  [id$="Workspace"].open, #forkWorkstation.open, #workspacesLauncher.open,
-  #content.view-enter, #workspacesLauncher.open .launcher-card, #workspacesLauncher.open .launcher-recent-card,
-  #promptsContainer.rows-enter .prompt-card.row-in, .material-symbols-outlined.copy-ok,
-  .modal-overlay.active, .modal-overlay.active .modal-anim, .modal-side-panel.open .modal-side-panel-inner,
-  #cmdPalette.active, #promptViewer.active, .pcw-canvas-block.pcw-new, .cmd-box, .toast {
-    animation: none !important;
-  }
-  .launcher-card, .launcher-recent-card, .var-card-opt, .var-toggle-btn, .btn, .chip, #detailPanel { transition-duration: 0.01ms !important; transition-delay: 0s !important; }
-}
