@@ -1649,7 +1649,6 @@
             number: 'tag',
             date: 'event',
             time: 'schedule',
-            color: 'palette',
             currency: 'payments',
             duration: 'timer',
             timezone: 'public',
@@ -1671,7 +1670,6 @@
             rating: 'star',
             rangeslider: 'linear_scale',
             rankedlist: 'reorder',
-            iconpicker: 'category',
             matrix: 'grid_on',
             emojipicker: 'mood',
             segmented: 'view_column',
@@ -1682,8 +1680,6 @@
             title: 'title',
             hashtags: 'tag',
             list: 'format_list_bulleted',
-            clipboard: 'content_paste',
-            libraryprompt: 'library_books'
         };
 
         wrap.innerHTML = visible.map(v => {
@@ -1743,8 +1739,6 @@
                 input = `<input type="tel" class="var-input" data-var="${escapeAttr(v)}" placeholder="+1 555 000 0000" value="${escapeAttr(def)}" />`;
             } else if (type === 'password') {
                 input = `<input type="password" class="var-input" data-var="${escapeAttr(v)}" placeholder="Password" value="${escapeAttr(def)}" />`;
-            } else if (type === 'color') {
-                input = `<input type="color" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def) || '#000000'}" style="width:48px;height:32px;padding:2px;cursor:pointer;" />`;
             } else if (type === 'paragraph') {
                 const pRows = m.size === 'short' ? 3 : (m.size === 'tall' ? 10 : 6);
                 input = `<textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter paragraph…" rows="${pRows}" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>`;
@@ -1843,12 +1837,6 @@
       </div>`;
             } else if (type === 'rankedlist') {
                 input = `<p style="font-size:12px;color:var(--ink-3);">Add options in the variable editor to rank them.</p>`;
-            } else if (type === 'iconpicker') {
-                const ICON_CHOICES = ['rocket_launch','lightbulb','target','flag','star','bolt','favorite','psychology','trending_up','build','auto_awesome','emoji_objects','shield','diamond','local_fire_department','eco'];
-                input = `<div class="var-icon-picker" data-var="${escapeAttr(v)}">
-        ${ICON_CHOICES.map(ic => `<span class="material-symbols-outlined var-icon-choice${def===ic?' active':''}" data-value="${ic}" onclick="window._PL_selectIcon(this)">${ic}</span>`).join('')}
-        <input type="hidden" class="var-input var-icon-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
-      </div>`;
             } else if (type === 'matrix' && opts.length) {
                 const MATRIX_COLS = ['Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree'];
                 let matrixVal = {};
@@ -1892,15 +1880,6 @@
         <input type="date" class="var-dr-to" value="${escapeAttr(drB || '')}" oninput="window._PL_syncDateRange(this)" />
         <input type="hidden" class="var-input var-dr-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
-            } else if (type === 'clipboard') {
-                input = `<div class="var-clip"><textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="Paste text here" rows="3" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>
-        <button type="button" class="btn btn-sm" onclick="window._PL_pasteClip(this)"><span class="material-symbols-outlined" style="font-size:14px;">content_paste</span> Paste from clipboard</button></div>`;
-            } else if (type === 'libraryprompt') {
-                const libs = (state.prompts || []).filter(x => x && x.id !== state.detailId);
-                input = `<div class="var-lib"><select class="var-lib-select" onchange="window._PL_pickLibPrompt(this)">
-        <option value="">Choose a prompt...</option>
-        ${libs.map(x => `<option value="${escapeAttr(x.id)}">${escapeHtml(x.title || 'Untitled')}</option>`).join('')}
-      </select><input type="hidden" class="var-input var-lib-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" /></div>`;
             } else if (type === 'title') {
                 input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="the quick brown fox" value="${escapeAttr(def)}" />`;
             } else if (type === 'hashtags') {
@@ -3296,7 +3275,6 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="month"      ${type === 'month'      ? 'selected' : ''}>Month</option>
             <option value="week"       ${type === 'week'       ? 'selected' : ''}>Week</option>
             <option value="time"       ${type === 'time'       ? 'selected' : ''}>Time</option>
-            <option value="color"      ${type === 'color'      ? 'selected' : ''}>Color</option>
             <option value="currency"   ${type === 'currency'   ? 'selected' : ''}>Currency</option>
             <option value="duration"   ${type === 'duration'   ? 'selected' : ''}>Duration</option>
             <option value="timezone"   ${type === 'timezone'   ? 'selected' : ''}>Timezone</option>
@@ -3305,7 +3283,6 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
             <option value="daterange"  ${type === 'daterange'  ? 'selected' : ''}>Date Range</option>
             <option value="today"      ${type === 'today'      ? 'selected' : ''}>Today (auto date)</option>
-            <option value="clipboard"  ${type === 'clipboard'  ? 'selected' : ''}>Clipboard (paste)</option>
             </optgroup>
             <optgroup label="Choice">
             <option value="dropdown"    ${type === 'dropdown'    ? 'selected' : ''}>Dropdown</option>
@@ -3324,11 +3301,9 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="rating"      ${type === 'rating'      ? 'selected' : ''}>Star Rating</option>
             <option value="rangeslider" ${type === 'rangeslider' ? 'selected' : ''}>Range Slider (min-max)</option>
             <option value="rankedlist"  ${type === 'rankedlist'  ? 'selected' : ''}>Ranked List</option>
-            <option value="iconpicker"  ${type === 'iconpicker'  ? 'selected' : ''}>Icon Picker</option>
             <option value="matrix"      ${type === 'matrix'      ? 'selected' : ''}>Matrix / Likert Grid</option>
             <option value="emojipicker" ${type === 'emojipicker' ? 'selected' : ''}>Emoji Picker</option>
             <option value="stepper"     ${type === 'stepper'     ? 'selected' : ''}>Stepper (+/-)</option>
-            <option value="libraryprompt" ${type === 'libraryprompt' ? 'selected' : ''}>Library Prompt (insert)</option>
             </optgroup>
           </select>
           <input type="text" data-field="default" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
