@@ -3363,7 +3363,7 @@ STYLE/THEME: [[reserved for future use]]`;
           </label>
         </div>
         <div class="dropdown-options" style="display: ${needsOptions ? 'block' : 'none'};">
-          <textarea data-field="options" placeholder="Comma-separated options" rows="2"
+          <textarea data-field="options" placeholder="${type === 'weightedmix' ? 'Option:weight, Option:weight' : type === 'diceroll' ? 'Dice faces, comma-separated' : 'Comma-separated options'}" rows="2"
                     style="width: 100%; padding: 6px 10px; font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; color: var(--ink); margin-top: 4px;">${escapeHtml(opts)}</textarea>
         </div>
         </div>
