@@ -10757,5 +10757,32 @@ body.plx-workspace-open{overflow:hidden}
   .var-random-block { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
   .var-random-result { min-width: 110px; padding: 8px 14px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface-sunk); font-weight: 700; color: var(--ink); }
 
+  /* ---- Variable types: Card deck, carousel, step slider ---- */
+  .var-deck { display: flex; flex-direction: column; gap: 10px; }
+  .var-deck-table { display: flex; align-items: center; gap: 22px; min-height: 96px; }
+  .var-deck-pile { position: relative; width: 64px; height: 88px; flex: none; }
+  .var-deck-pile span { position: absolute; inset: 0; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface-3); }
+  .var-deck-pile span:nth-child(1) { transform: translate(-4px, 4px); }
+  .var-deck-pile span:nth-child(2) { transform: translate(-2px, 2px); }
+  .var-deck.shuffling .var-deck-pile span:nth-child(1) { animation: var-deck-shuffle 0.45s ease-in-out; }
+  .var-deck.shuffling .var-deck-pile span:nth-child(2) { animation: var-deck-shuffle 0.45s ease-in-out 0.06s reverse; }
+  @keyframes var-deck-shuffle { 0%, 100% { transform: translate(-4px, 4px); } 35% { transform: translate(30px, -4px) rotate(8deg); } 65% { transform: translate(-12px, 6px) rotate(-6deg); } }
+  .var-deck-card { flex: 1; max-width: 240px; min-height: 88px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px 14px; border: 1px dashed var(--line); border-radius: var(--r-sm); background: var(--surface); color: var(--ink-3); font-weight: 700; }
+  .var-deck-card.dealt { color: var(--ink); border: 1px solid var(--accent); animation: var-deck-deal 0.35s ease-out; }
+  @keyframes var-deck-deal { from { transform: translateX(-26px) rotateY(60deg); opacity: 0; } to { transform: none; opacity: 1; } }
+  .var-deck-actions { display: flex; align-items: center; gap: 12px; }
+  .var-deck-left { font-size: 12px; color: var(--ink-3); }
+  .var-carousel { display: flex; align-items: center; gap: 6px; }
+  .var-carousel-nav { flex: none; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 20px; line-height: 1; cursor: pointer; }
+  .var-carousel-nav:hover { background: var(--surface-2); }
+  .var-toggle-group.var-carousel-track { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x mandatory; gap: 10px; padding: 4px 2px; scrollbar-width: none; }
+  .var-carousel-card { flex: none; scroll-snap-align: center; min-width: 120px; min-height: 76px; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); color: var(--ink-2); font-weight: 600; cursor: pointer; }
+  .var-carousel-card.active { border-color: var(--accent); background: var(--accent); color: var(--on-accent, #fff); }
+  .var-stepslider { display: flex; flex-direction: column; gap: 6px; }
+  .var-step-labels { display: flex; justify-content: space-between; gap: 4px; }
+  .var-step-label { flex: 1; padding: 4px 2px; border: 0; background: none; color: var(--ink-3); font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; }
+  .var-step-label.active { color: var(--accent); }
+  .var-step-range { width: 100%; accent-color: var(--accent); }
+
   /* ---- Variable types: Number scale ---- */
   .var-scale .var-toggle-btn { min-width: 38px; text-align: center; justify-content: center; }
