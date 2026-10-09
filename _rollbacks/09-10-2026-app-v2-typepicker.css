@@ -10805,24 +10805,3 @@ body.plx-workspace-open{overflow:hidden}
   .var-persona { display: flex; flex-direction: column; gap: 8px; }
   .var-persona-preview { font-size: 12px; line-height: 1.5; color: var(--ink-3); }
   .var-persona-preview:empty { display: none; }
-
-  /* ---- Variable editor: searchable type picker ---- */
-  .var-type-btn { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; font-size: 12px; color: var(--ink); cursor: pointer; text-align: left; }
-  .var-type-btn:hover { border-color: var(--line-strong); }
-  .var-type-btn .material-symbols-outlined { font-size: 16px; color: var(--accent); }
-  .var-type-btn-label { flex: 1; font-weight: 600; }
-  .var-type-btn .var-type-btn-caret { color: var(--ink-3); }
-  .var-type-panel { margin-top: var(--sp-2); border: 1px solid var(--line); border-radius: var(--r-md, 8px); background: var(--surface-sunk); overflow: hidden; }
-  .var-type-panel[hidden] { display: none; }
-  .var-meta-fields .var-type-search, .var-type-search { width: 100%; padding: 8px 12px; border: 0; border-bottom: 1px solid var(--line); background: var(--surface); font-size: 13px; color: var(--ink); outline: none; }
-  .var-type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; padding: 8px; max-height: 320px; overflow-y: auto; }
-  .var-type-group { grid-column: 1 / -1; padding: 6px 2px 0; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
-  .var-type-group[hidden], .var-type-tile[hidden], .var-type-empty[hidden] { display: none; }
-  .var-type-tile { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; text-align: left; color: var(--ink-2); }
-  .var-type-tile:hover { border-color: var(--line-strong); color: var(--ink); }
-  .var-type-tile.active { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
-  .var-type-tile > .material-symbols-outlined { font-size: 20px; color: var(--accent); flex: none; }
-  .var-type-tile-text { display: flex; flex-direction: column; min-width: 0; }
-  .var-type-tile-text b { font-size: 12px; font-weight: 700; }
-  .var-type-tile-text small { font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .var-type-empty { grid-column: 1 / -1; padding: 16px; text-align: center; font-size: 12px; color: var(--ink-3); }

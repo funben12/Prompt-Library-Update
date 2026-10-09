@@ -3488,97 +3488,6 @@ STYLE/THEME: [[reserved for future use]]`;
     /* ============================================================================
        VARIABLE META EDITOR
        ============================================================================ */
-    // One list drives the hidden type select and the searchable type picker: [value, label, icon, hint]
-    const VAR_TYPE_CATALOG = [
-        ['Text', [
-            ['text', 'Text', 'abc', 'One line'], ['paragraph', 'Paragraph', 'subject', 'Several lines'],
-            ['title', 'Title Case', 'title', 'Capitalises each word'], ['hashtags', 'Hashtags', 'tag', 'Words become #tags'],
-            ['list', 'List (bullets)', 'format_list_bulleted', 'One item per line']]],
-        ['Contact', [
-            ['email', 'Email', 'email', 'Email address'], ['url', 'URL', 'link', 'Web address'], ['phone', 'Phone', 'phone', 'Phone number']]],
-        ['Dates', [
-            ['date', 'Date / Time', 'event', 'A date, a time, or both'], ['period', 'Month / Week', 'calendar_view_month', 'A whole month or week'],
-            ['daterange', 'Date Range', 'date_range', 'From and to'], ['duration', 'Duration', 'timer', '30 minutes, 2h 15m'],
-            ['reldate', 'Relative Date', 'update', '"Next Friday", "in 3 days"'], ['recurring', 'Recurring Date', 'event_repeat', '"Last Friday of every month"']]],
-        ['Input', [
-            ['number', 'Number', 'pin', 'Any number'], ['stepper', 'Stepper (+/-)', 'exposure', 'Tap up or down'],
-            ['currency', 'Currency', 'payments', 'An amount'], ['percentage', 'Percentage', 'percent', 'Adds the % sign'],
-            ['color', 'Color', 'palette', 'Colour swatch'], ['timezone', 'Timezone', 'public', 'GMT, PST, CET'],
-            ['language', 'Language', 'translate', 'English, Spanish'], ['json', 'JSON', 'data_object', 'Structured data'],
-            ['clipboard', 'Clipboard (paste)', 'content_paste', 'Paste from clipboard']]],
-        ['Choice', [
-            ['dropdown', 'Dropdown', 'arrow_drop_down', 'Pick one from a list'], ['multiselect', 'Multi-select', 'select_check_box', 'Pick several'],
-            ['radio', 'Radio Cards', 'radio_button_checked', 'Big cards, pick one'], ['choicechips', 'Choice Chips', 'apps', 'Round chips, pick one'],
-            ['segmented', 'Segmented Control', 'view_column', 'Joined bar, 2 to 4 options'], ['togglegroup', 'Toggle Buttons', 'toggle_on', 'Buttons, several allowed'],
-            ['boolean', 'Yes / No Switch', 'toggle_on', 'On or off'], ['checkbox', 'Checkbox List', 'checklist', 'Tick any number'],
-            ['tags', 'Tags', 'sell', 'Type your own tags']]],
-        ['Controls', [
-            ['slider', 'Slider', 'linear_scale', 'One value, 0 to 100'], ['range', 'Range (min to max)', 'stacked_line_chart', 'Two numbers'],
-            ['rangeslider', 'Range Slider', 'linear_scale', 'Two handles'], ['dial', 'Dial', 'data_usage', 'Rotary knob, set notches and turns'],
-            ['xypad', 'XY Pad', 'control_camera', 'Drag a dot on two axes'], ['mix', 'Weighted Mix', 'donut_small', 'Split 100% across parts'],
-            ['dice', 'Dice Roll', 'casino', 'Random pick, roll again']]],
-        ['Library', [
-            ['persona', 'Persona Picker', 'person', 'Inserts a persona from Roles'], ['libraryprompt', 'Library Prompt (insert)', 'library_books', 'Insert another prompt'],
-            ['iconpicker', 'Icon Picker', 'category', 'Pick an icon']]]
-    ];
-    const _varTypeInfo = t => { for (const g of VAR_TYPE_CATALOG) { const hit = g[1].find(x => x[0] === t); if (hit) return hit; } return [t, t, 'abc', '']; };
-    function _varTypeControlsHtml(type) {
-        const info = _varTypeInfo(type);
-        const select = `<select data-field="type" style="display:none" onchange="window.PL_onVarTypeChange(this)">${VAR_TYPE_CATALOG.map(g =>
-            `<optgroup label="${g[0]}">${g[1].map(x => `<option value="${x[0]}"${x[0] === type ? ' selected' : ''}>${escapeHtml(x[1])}</option>`).join('')}</optgroup>`).join('')}</select>`;
-        const button = `<button type="button" class="var-type-btn" onclick="window.PL_toggleTypePicker(this)" aria-label="Variable type">` +
-            `<span class="material-symbols-outlined">${info[2]}</span><span class="var-type-btn-label">${escapeHtml(info[1])}</span><span class="material-symbols-outlined var-type-btn-caret">unfold_more</span></button>`;
-        return select + button;
-    }
-    function _varTypePanelHtml(type) {
-        const groups = VAR_TYPE_CATALOG.map(g => `<div class="var-type-group">${g[0]}</div>` + g[1].map(x =>
-            `<button type="button" class="var-type-tile${x[0] === type ? ' active' : ''}" data-type="${x[0]}" data-q="${escapeAttr((x[1] + ' ' + x[3] + ' ' + g[0]).toLowerCase())}" onclick="window.PL_pickVarType(this)">` +
-            `<span class="material-symbols-outlined">${x[2]}</span><span class="var-type-tile-text"><b>${escapeHtml(x[1])}</b><small>${escapeHtml(x[3])}</small></span></button>`).join('')).join('');
-        return `<div class="var-type-panel" hidden><input type="search" class="var-type-search" placeholder="Search types, e.g. date, pick, slider" oninput="window.PL_filterTypePicker(this)" onkeydown="window.PL_typePickerKey(event, this)" />` +
-            `<div class="var-type-grid">${groups}<div class="var-type-empty" hidden>No type matches that</div></div></div>`;
-    }
-    window.PL_toggleTypePicker = function(btn) {
-        const panel = btn.closest('.var-meta-row').querySelector('.var-type-panel');
-        panel.hidden = !panel.hidden;
-        if (!panel.hidden) {
-            const search = panel.querySelector('.var-type-search');
-            search.value = '';
-            window.PL_filterTypePicker(search);
-            search.focus();
-            const active = panel.querySelector('.var-type-tile.active');
-            if (active) active.scrollIntoView({ block: 'nearest' });
-        }
-    };
-    window.PL_filterTypePicker = function(input) {
-        const q = input.value.toLowerCase().trim(), panel = input.closest('.var-type-panel');
-        let any = false;
-        panel.querySelectorAll('.var-type-tile').forEach(t => {
-            const show = !q || q.split(/\s+/).every(w => t.dataset.q.includes(w));
-            t.hidden = !show;
-            if (show) any = true;
-        });
-        panel.querySelectorAll('.var-type-group').forEach(g => {
-            let n = g.nextElementSibling, has = false;
-            while (n && n.classList.contains('var-type-tile')) { if (!n.hidden) has = true; n = n.nextElementSibling; }
-            g.hidden = !has;
-        });
-        panel.querySelector('.var-type-empty').hidden = any;
-    };
-    window.PL_typePickerKey = function(evt, input) {
-        const panel = input.closest('.var-type-panel');
-        if (evt.key === 'Escape') { evt.preventDefault(); panel.hidden = true; }
-        if (evt.key === 'Enter') {
-            evt.preventDefault();
-            const first = Array.from(panel.querySelectorAll('.var-type-tile')).find(t => !t.hidden);
-            if (first) window.PL_pickVarType(first);
-        }
-    };
-    window.PL_pickVarType = function(tile) {
-        const row = tile.closest('.var-meta-row'), sel = row.querySelector('select[data-field="type"]');
-        sel.value = tile.dataset.type;
-        window.PL_onVarTypeChange(sel);
-        row.querySelector('.var-type-panel').hidden = true;
-    };
     const VAR_OPTION_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'segmented', 'checkbox', 'togglegroup', 'xypad', 'dice', 'mix'];
     const VAR_MODES = {
         date: [['date', 'Date only'], ['time', 'Time only'], ['datetime', 'Date and time']],
@@ -3628,10 +3537,66 @@ STYLE/THEME: [[reserved for future use]]`;
           </label>
         </div>
         <div class="var-meta-fields">
-          ${_varTypeControlsHtml(type)}
+          <select data-field="type" onchange="window.PL_onVarTypeChange(this)">
+            <optgroup label="Text">
+            <option value="text"      ${type === 'text'      ? 'selected' : ''}>Text</option>
+            <option value="paragraph" ${type === 'paragraph' ? 'selected' : ''}>Paragraph</option>
+            <option value="title"     ${type === 'title'     ? 'selected' : ''}>Title Case</option>
+            <option value="hashtags"  ${type === 'hashtags'  ? 'selected' : ''}>Hashtags</option>
+            <option value="list"      ${type === 'list'      ? 'selected' : ''}>List (bullets)</option>
+            </optgroup>
+            <optgroup label="Contact">
+            <option value="email"     ${type === 'email'     ? 'selected' : ''}>Email</option>
+            <option value="url"       ${type === 'url'       ? 'selected' : ''}>URL</option>
+            <option value="phone"     ${type === 'phone'     ? 'selected' : ''}>Phone</option>
+            </optgroup>
+            <optgroup label="Dates">
+            <option value="date"       ${type === 'date'       ? 'selected' : ''}>Date / Time</option>
+            <option value="period"     ${type === 'period'     ? 'selected' : ''}>Month / Week</option>
+            <option value="daterange"  ${type === 'daterange'  ? 'selected' : ''}>Date Range</option>
+            <option value="duration"   ${type === 'duration'   ? 'selected' : ''}>Duration</option>
+            <option value="reldate"    ${type === 'reldate'    ? 'selected' : ''}>Relative Date</option>
+            <option value="recurring"  ${type === 'recurring'  ? 'selected' : ''}>Recurring Date</option>
+            </optgroup>
+            <optgroup label="Input">
+            <option value="number"     ${type === 'number'     ? 'selected' : ''}>Number</option>
+            <option value="stepper"    ${type === 'stepper'    ? 'selected' : ''}>Stepper (+/-)</option>
+            <option value="currency"   ${type === 'currency'   ? 'selected' : ''}>Currency</option>
+            <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
+            <option value="color"      ${type === 'color'      ? 'selected' : ''}>Color</option>
+            <option value="timezone"   ${type === 'timezone'   ? 'selected' : ''}>Timezone</option>
+            <option value="language"   ${type === 'language'   ? 'selected' : ''}>Language</option>
+            <option value="json"       ${type === 'json'       ? 'selected' : ''}>JSON</option>
+            <option value="clipboard"  ${type === 'clipboard'  ? 'selected' : ''}>Clipboard (paste)</option>
+            </optgroup>
+            <optgroup label="Choice">
+            <option value="dropdown"    ${type === 'dropdown'    ? 'selected' : ''}>Dropdown</option>
+            <option value="multiselect" ${type === 'multiselect' ? 'selected' : ''}>Multi-select</option>
+            <option value="radio"       ${type === 'radio'       ? 'selected' : ''}>Radio Cards</option>
+            <option value="choicechips" ${type === 'choicechips' ? 'selected' : ''}>Choice Chips</option>
+            <option value="segmented"   ${type === 'segmented'   ? 'selected' : ''}>Segmented Control</option>
+            <option value="togglegroup" ${type === 'togglegroup' ? 'selected' : ''}>Toggle Buttons</option>
+            <option value="boolean"     ${type === 'boolean'     ? 'selected' : ''}>Yes / No Switch</option>
+            <option value="checkbox"    ${type === 'checkbox'    ? 'selected' : ''}>Checkbox List</option>
+            <option value="tags"        ${type === 'tags'        ? 'selected' : ''}>Tags</option>
+            </optgroup>
+            <optgroup label="Controls">
+            <option value="slider"      ${type === 'slider'      ? 'selected' : ''}>Slider</option>
+            <option value="range"       ${type === 'range'       ? 'selected' : ''}>Range (min to max)</option>
+            <option value="rangeslider" ${type === 'rangeslider' ? 'selected' : ''}>Range Slider</option>
+            <option value="dial"        ${type === 'dial'        ? 'selected' : ''}>Dial</option>
+            <option value="xypad"       ${type === 'xypad'       ? 'selected' : ''}>XY Pad</option>
+            <option value="mix"         ${type === 'mix'         ? 'selected' : ''}>Weighted Mix</option>
+            <option value="dice"        ${type === 'dice'        ? 'selected' : ''}>Dice Roll</option>
+            </optgroup>
+            <optgroup label="Library">
+            <option value="persona"       ${type === 'persona'       ? 'selected' : ''}>Persona Picker</option>
+            <option value="libraryprompt" ${type === 'libraryprompt' ? 'selected' : ''}>Library Prompt (insert)</option>
+            <option value="iconpicker"    ${type === 'iconpicker'    ? 'selected' : ''}>Icon Picker</option>
+            </optgroup>
+          </select>
           <input type="text" data-field="default" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
         </div>
-        ${_varTypePanelHtml(type)}
         <div class="var-wrap-row" style="display:flex;gap:8px;align-items:center;margin-top:4px;">
           <span style="font-size:11px;color:var(--ink-3);">Output wrap:</span>
           <select data-field="wrap" style="font-size:12px;padding:4px 8px;">
@@ -3697,12 +3662,6 @@ STYLE/THEME: [[reserved for future use]]`;
         const optBox = row.querySelector('[data-field="options"]');
         if (optBox) optBox.placeholder = VAR_OPTION_HINTS[sel.value] || 'Comma-separated options';
         if (pill) pill.textContent = sel.value;
-        const info = _varTypeInfo(sel.value), tbtn = row.querySelector('.var-type-btn');
-        if (tbtn) {
-            tbtn.querySelector('.material-symbols-outlined').textContent = info[2];
-            tbtn.querySelector('.var-type-btn-label').textContent = info[1];
-        }
-        row.querySelectorAll('.var-type-tile').forEach(t => t.classList.toggle('active', t.dataset.type === sel.value));
     };
 
     function collectVarMeta() {
