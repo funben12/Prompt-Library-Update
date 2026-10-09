@@ -156,11 +156,15 @@
     }
 
     function replaceVariables(content, varMap) {
-        // Single pass so inserted text (Library Prompt, Clipboard) is never re-expanded
-        return String(content == null ? '' : content).replace(/\[\[(.+?)\]\]|\{\{(.+?)\}\}|\(\((.+?)\)\)/g, (m, x, y, z) => {
-            const k = (x || y || z).trim();
-            return Object.prototype.hasOwnProperty.call(varMap, k) ? varMap[k] : m;
-        });
+        let out = content;
+        for (const [name, value] of Object.entries(varMap)) {
+            const ev = escapeRegex(name);
+            out = out
+                .replace(new RegExp(`\\[\\[${ev}\\]\\]`, 'g'), value)
+                .replace(new RegExp(`\\{\\{${ev}\\}\\}`, 'g'), value)
+                .replace(new RegExp(`\\(\\(${ev}\\)\\)`, 'g'), value);
+        }
+        return out;
     }
 
     /* Fetch a prompt's assigned role (if any) and prepend its persona to the text.
@@ -1673,17 +1677,7 @@
             rankedlist: 'reorder',
             iconpicker: 'category',
             matrix: 'grid_on',
-            emojipicker: 'mood',
-            segmented: 'view_column',
-            stepper: 'exposure',
-            percentage: 'percent',
-            daterange: 'date_range',
-            today: 'today',
-            title: 'title',
-            hashtags: 'tag',
-            list: 'format_list_bulleted',
-            clipboard: 'content_paste',
-            libraryprompt: 'library_books'
+            emojipicker: 'mood'
         };
 
         wrap.innerHTML = visible.map(v => {
@@ -1869,48 +1863,10 @@
         ${EMOJI_CHOICES.map(em => `<span class="var-emoji-choice${def===em?' active':''}" data-value="${em}" onclick="window._PL_selectEmoji(this)">${em}</span>`).join('')}
         <input type="hidden" class="var-input var-emoji-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
-            } else if (type === 'segmented' && opts.length) {
-                input = `<div class="var-toggle-group var-seg" data-var="${escapeAttr(v)}">
-        ${opts.map(o => `<span class="var-toggle-btn var-seg-btn${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</span>`).join('')}
-        <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
-      </div>`;
-            } else if (type === 'stepper') {
-                input = `<div class="var-stepper">
-        <button type="button" onclick="window._PL_step(this,-1)" aria-label="Decrease">&minus;</button>
-        <input type="number" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def || '0')}" />
-        <button type="button" onclick="window._PL_step(this,1)" aria-label="Increase">+</button>
-      </div>`;
-            } else if (type === 'percentage') {
-                input = `<div class="var-pct"><input type="number" class="var-input" data-var="${escapeAttr(v)}" placeholder="0" value="${escapeAttr(def)}" /><span>%</span></div>`;
-            } else if (type === 'today') {
-                input = `<input type="date" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def || _PL_todayISO())}" />`;
-            } else if (type === 'daterange') {
-                const [drA, drB] = def ? def.split('|') : ['', ''];
-                input = `<div class="var-daterange">
-        <input type="date" class="var-dr-from" value="${escapeAttr(drA || '')}" oninput="window._PL_syncDateRange(this)" />
-        <span>to</span>
-        <input type="date" class="var-dr-to" value="${escapeAttr(drB || '')}" oninput="window._PL_syncDateRange(this)" />
-        <input type="hidden" class="var-input var-dr-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
-      </div>`;
-            } else if (type === 'clipboard') {
-                input = `<div class="var-clip"><textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="Paste text here" rows="3" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>
-        <button type="button" class="btn btn-sm" onclick="window._PL_pasteClip(this)"><span class="material-symbols-outlined" style="font-size:14px;">content_paste</span> Paste from clipboard</button></div>`;
-            } else if (type === 'libraryprompt') {
-                const libs = (state.prompts || []).filter(x => x && x.id !== state.detailId);
-                input = `<div class="var-lib"><select class="var-lib-select" onchange="window._PL_pickLibPrompt(this)">
-        <option value="">Choose a prompt...</option>
-        ${libs.map(x => `<option value="${escapeAttr(x.id)}">${escapeHtml(x.title || 'Untitled')}</option>`).join('')}
-      </select><input type="hidden" class="var-input var-lib-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" /></div>`;
-            } else if (type === 'title') {
-                input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="the quick brown fox" value="${escapeAttr(def)}" />`;
-            } else if (type === 'hashtags') {
-                input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="travel, food, uk" value="${escapeAttr(def)}" />`;
-            } else if (type === 'list') {
-                input = `<textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="One item per line" rows="4" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>`;
             } else {
                 input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter value…" value="${escapeAttr(def)}" />`;
             }
-            return `<details class="var-field" data-varfield="${escapeAttr(v)}" data-wrap="${escapeAttr(m.wrap || '')}" open>
+            return `<details class="var-field" data-varfield="${escapeAttr(v)}" open>
       <summary class="var-field-label">
         <span class="material-symbols-outlined var-field-icon">${icon}</span>
         <span class="var-field-name">${escapeHtml(v)}</span>
@@ -1994,7 +1950,7 @@
         previewBox.innerHTML = preview;
     }
 
-    function _readVarRaw(inp) {
+    function _readVarControlValue(inp) {
         if (!inp) return '';
         if (inp.matches('select[multiple]')) {
             return Array.from(inp.selectedOptions || []).map(o => o.value.trim()).filter(Boolean).join(', ');
@@ -2005,62 +1961,8 @@
             return inp.checked ? 'Yes' : 'No';
         }
         if (inp.type === 'checkbox') return inp.checked ? 'Yes' : 'No';
-        const vtype = inp.closest('.var-field')?.querySelector('.var-field-type')?.textContent.trim();
-        return _PL_formatVar(vtype, (inp.value || '').trim());
+        return (inp.value || '').trim();
     }
-
-    function _readVarControlValue(inp) {
-        const val = _readVarRaw(inp);
-        const card = inp && inp.closest('.var-field');
-        return card ? _PL_wrapVar(card.dataset.wrap, card.dataset.varfield, val) : val;
-    }
-    function _PL_wrapVar(wrap, name, v) {
-        if (!v || !wrap) return v;
-        if (wrap === 'quotes') return '"' + v + '"';
-        if (wrap === 'codefence') return '```\n' + v + '\n```';
-        if (wrap === 'xml') { const t = String(name || 'value').toLowerCase().replace(/\W+/g, '_').replace(/^_+|_+$/g, '') || 'value'; return `<${t}>\n${v}\n</${t}>`; }
-        return v;
-    }
-    window._PL_pasteClip = async function(btn) {
-        const ta = btn.parentElement.querySelector('textarea');
-        try {
-            ta.value = await navigator.clipboard.readText();
-            ta.dispatchEvent(new Event('input', { bubbles: true }));
-        } catch (e) { toast('Clipboard blocked. Paste with Ctrl+V instead.', 'warning'); ta.focus(); }
-    };
-    window._PL_pickLibPrompt = function(sel) {
-        const hidden = sel.parentElement.querySelector('.var-lib-hidden');
-        const p = (state.prompts || []).find(x => String(x.id) === sel.value);
-        hidden.value = p ? (p.content || '') : '';
-        hidden.dispatchEvent(new Event('input', { bubbles: true }));
-    };
-
-    // Per-type output formatting applied when a value is written into the prompt
-    function _PL_formatVar(type, v) {
-        if (!v) return v;
-        if (type === 'title') return v.toLowerCase().replace(/(^|[\s\-(])([a-z\u00c0-\u024f])/g, (m, a, b) => a + b.toUpperCase());
-        if (type === 'hashtags') return v.split(/[\s,]+/).filter(Boolean).map(t => '#' + t.replace(/^#+/, '').replace(/\W+/g, '')).filter(t => t.length > 1).join(' ');
-        if (type === 'list') return v.split('\n').map(x => x.trim()).filter(Boolean).map(x => '- ' + x.replace(/^[-*\u2022]\s*/, '')).join('\n');
-        if (type === 'percentage') return /^-?\d+(\.\d+)?$/.test(v) ? v + '%' : v;
-        if (type === 'daterange') return v.replace('|', ' to ');
-        return v;
-    }
-    function _PL_todayISO() {
-        const d = new Date(), p = n => String(n).padStart(2, '0');
-        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-    }
-    window._PL_step = function(btn, dir) {
-        const inp = btn.parentElement.querySelector('input');
-        inp.value = String(Math.round(((parseFloat(inp.value) || 0) + dir) * 1000) / 1000);
-        inp.dispatchEvent(new Event('input', { bubbles: true }));
-    };
-    window._PL_syncDateRange = function(el) {
-        const wrap = el.closest('.var-daterange');
-        const a = wrap.querySelector('.var-dr-from').value, b = wrap.querySelector('.var-dr-to').value;
-        const hidden = wrap.querySelector('.var-dr-hidden');
-        hidden.value = (a || b) ? a + '|' + b : '';
-        hidden.dispatchEvent(new Event('input', { bubbles: true }));
-    };
 
     /* ---- Variable type interaction helpers (Tags / Toggle Group / Star Rating / Checklist / Range) ---- */
     window._PL_addTagKey = function(evt, input) {
@@ -3245,7 +3147,7 @@ STYLE/THEME: [[reserved for future use]]`;
             list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
             return;
         }
-        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix'];
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'checkbox', 'togglegroup', 'rankedlist', 'matrix'];
         const meta = existing || collectVarMeta();
         list.innerHTML = vars.map((v, index) => {
             const m = meta[v] || {};
@@ -3280,9 +3182,6 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="paragraph" ${type === 'paragraph' ? 'selected' : ''}>Paragraph</option>
             <option value="code"      ${type === 'code'      ? 'selected' : ''}>Code</option>
             <option value="password"  ${type === 'password'  ? 'selected' : ''}>Password</option>
-            <option value="title"     ${type === 'title'     ? 'selected' : ''}>Title Case</option>
-            <option value="hashtags"  ${type === 'hashtags'  ? 'selected' : ''}>Hashtags</option>
-            <option value="list"      ${type === 'list'      ? 'selected' : ''}>List (bullets)</option>
             </optgroup>
             <optgroup label="Contact">
             <option value="email"     ${type === 'email'     ? 'selected' : ''}>Email</option>
@@ -3302,17 +3201,12 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="timezone"   ${type === 'timezone'   ? 'selected' : ''}>Timezone</option>
             <option value="language"   ${type === 'language'   ? 'selected' : ''}>Language</option>
             <option value="json"       ${type === 'json'       ? 'selected' : ''}>JSON</option>
-            <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
-            <option value="daterange"  ${type === 'daterange'  ? 'selected' : ''}>Date Range</option>
-            <option value="today"      ${type === 'today'      ? 'selected' : ''}>Today (auto date)</option>
-            <option value="clipboard"  ${type === 'clipboard'  ? 'selected' : ''}>Clipboard (paste)</option>
             </optgroup>
             <optgroup label="Choice">
             <option value="dropdown"    ${type === 'dropdown'    ? 'selected' : ''}>Dropdown</option>
             <option value="multiselect" ${type === 'multiselect' ? 'selected' : ''}>Multi-select</option>
             <option value="radio"       ${type === 'radio'       ? 'selected' : ''}>Radio Buttons</option>
             <option value="choicechips" ${type === 'choicechips' ? 'selected' : ''}>Choice Chips</option>
-            <option value="segmented"   ${type === 'segmented'   ? 'selected' : ''}>Segmented Control</option>
             <option value="boolean"     ${type === 'boolean'     ? 'selected' : ''}>Yes / No Toggle</option>
             <option value="checkbox"    ${type === 'checkbox'    ? 'selected' : ''}>Checkbox List</option>
             <option value="tags"        ${type === 'tags'        ? 'selected' : ''}>Tags</option>
@@ -3327,20 +3221,9 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="iconpicker"  ${type === 'iconpicker'  ? 'selected' : ''}>Icon Picker</option>
             <option value="matrix"      ${type === 'matrix'      ? 'selected' : ''}>Matrix / Likert Grid</option>
             <option value="emojipicker" ${type === 'emojipicker' ? 'selected' : ''}>Emoji Picker</option>
-            <option value="stepper"     ${type === 'stepper'     ? 'selected' : ''}>Stepper (+/-)</option>
-            <option value="libraryprompt" ${type === 'libraryprompt' ? 'selected' : ''}>Library Prompt (insert)</option>
             </optgroup>
           </select>
           <input type="text" data-field="default" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
-        </div>
-        <div class="var-wrap-row" style="display:flex;gap:8px;align-items:center;margin-top:4px;">
-          <span style="font-size:11px;color:var(--ink-3);">Output wrap:</span>
-          <select data-field="wrap" style="font-size:12px;padding:4px 8px;">
-            <option value=""${!m.wrap ? ' selected' : ''}>None</option>
-            <option value="quotes"${m.wrap === 'quotes' ? ' selected' : ''}>Quotes</option>
-            <option value="codefence"${m.wrap === 'codefence' ? ' selected' : ''}>Code fence</option>
-            <option value="xml"${m.wrap === 'xml' ? ' selected' : ''}>XML tag</option>
-          </select>
         </div>
         <div class="paragraph-size" style="display: ${type === 'paragraph' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
           <span style="font-size: 11px; color: var(--ink-3);">Size:</span>
@@ -3365,7 +3248,7 @@ STYLE/THEME: [[reserved for future use]]`;
         }).join('');
     }
     window.PL_onVarTypeChange = function(sel) {
-        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'segmented', 'checkbox', 'togglegroup', 'rankedlist', 'matrix'];
+        const OPTIONS_TYPES = ['dropdown', 'multiselect', 'radio', 'choicechips', 'checkbox', 'togglegroup', 'rankedlist', 'matrix'];
         const row = sel.closest('.var-meta-row');
         const opts = row.querySelector('.dropdown-options');
         const sizeRow = row.querySelector('.paragraph-size');
@@ -3397,8 +3280,6 @@ STYLE/THEME: [[reserved for future use]]`;
             };
             if (type === 'paragraph' && sizeEl) entry.size = sizeEl.value;
             if (type === 'togglegroup' && multiEl) entry.multi = multiEl.checked;
-            const wrapEl = row.querySelector('[data-field="wrap"]');
-            if (wrapEl && wrapEl.value) entry.wrap = wrapEl.value;
             meta[v] = entry;
         });
         return meta;
@@ -12320,11 +12201,11 @@ Must avoid: [Anything sensitive or previously declined]`
         var _aiLevel = 'intermediate';
 
         var _AI_LEVELS = {
-            basic: 'Pick 8 to 10 blocks. Core foundation: role definition, target context, primary task, and structured output format.',
-            intermediate: 'Pick 12 to 16 blocks. Core foundation plus operational constraints, workflow boundaries, and a single reasoning framework.',
-            advanced: 'Core foundation, multiple reasoning frameworks, operational constraints, and comprehensive guardrails.',
-            veryadvanced: 'Pick 22 to 26 blocks. Complete foundation, dual reasoning frameworks, strict operational constraints, guardrails, quantitative success criteria, and a metaprompting layer.',
-            engineer: 'Pick 26 to 32 blocks. Enterprise-grade architecture: role definition, deep context, execution scope, primary task, multi-stage reasoning frameworks, strict constraints, robust guardrails, validation criteria, precise output format, and iterative metaprompting layers.'
+            basic: 'Pick 4 to 5 blocks. Bare essentials: a role, context, the task, and an output format.',
+            intermediate: 'Pick 6 to 8 blocks. Essentials plus constraints and one reasoning block.',
+            advanced: 'Pick 9 to 11 blocks. Essentials, reasoning, constraints, plus at least one Guardrails block.',
+            veryadvanced: 'Pick 11 to 13 blocks. Essentials, reasoning, constraints, guardrails, plus an evaluation or success-criteria block and one metaprompting block.',
+            engineer: 'Pick 13 to 16 blocks. Full professional structure: role, context, scope, task, two or more reasoning blocks, constraints, guardrails, evaluation criteria, output format, and a metaprompting block.'
         };
 
         function _aiCatalogue() {
@@ -17583,8 +17464,8 @@ Must avoid: [Anything sensitive or previously declined]`
     /* ============================================================================
        WORKSPACE: Gauntlet Loop
        data-view="gauntlet" | openGauntletWorkspace() | initGauntletWorkspace()
-       Generates the Gauntlet Loop meta-prompt (goal, bar, builder/critic
-       fan-out, live progress page) from two plain inputs (goal, references) --
+       Generates a fan-out / /loop / harsh-critic "build this to AAA quality"
+       prompt from three plain inputs (what to build, specifics, language) --
        pure client-side string templating, no AI call, no schema changes.
        ============================================================================ */
 
@@ -17592,17 +17473,14 @@ Must avoid: [Anything sensitive or previously declined]`
         lastOutput: ''
     };
 
-    function _gauntTemplate(goal, refs) {
-        const g = goal || '[GOAL]';
-        const r = refs || '[OPTIONAL REFERENCES]';
-        return 'I want to run a Gauntlet Loop for this goal:\n\n' + g + '\n\n' +
-            'Possible references or quality bars:\n\n' + r + '\n\n' +
-            'Choose the strongest concrete bar that an agent can actually inspect and compare its work against. If I have not supplied one, propose a useful comp or measurement that plays the same role for this task that real Call of Duty screenshots played for Matt Shumer\'s Claude of Duty game (read the prompt: https://github.com/mshumer/Claude-of-Duty/blob/main/prompt.md). Explain the bar in one sentence.\n\n' +
-            'Then write a short prompt for Claude Code or Codex in the style of Matt\'s prompt (minimal is better here, we want the agent to decide the specifics!).\n\n' +
-            'Give the lead agent the goal and the bar, but let it choose the approach. Tell it to divide the goal into the smallest pieces that can be improved and judged independently. For each important piece, it should fan out a builder and a separate critic with fresh context.\n\n' +
-            'Each critic must inspect the real output, compare it directly with the bar, using a blind A/B comparison when possible, identify the biggest remaining gap, and send it back for another round. Keep looping until our output wins or I stop the run.\n\n' +
-            'Have the lead agent maintain a simple live progress page that shows the work evolving over time.\n\n' +
-            'Have it use subagents and ultracode. Do not prescribe the architecture, exact decomposition, or a fixed number of rounds. Keep the final prompt short, just like Matt\'s.';
+    function _gauntTemplate(built, specifics, lang) {
+        const b = built || '[DESCRIBE_WHAT_YOU_WANT_BUILT]';
+        const s = specifics || '[NAME_SOME_SPECIFICS]';
+        const l = lang || '[NAME_CODE_LANGUAGE]';
+        return 'I want you to build a ' + b + ' to an extremley high level. \n\n' +
+            'It should be utterly perfect from a technical perspective, visually beautiful from a UI design perspective with every single thing done at AAA quality from ' + s + ' to anything you could think of.\n\n' +
+            'Fan out sub-agents and have sub-agents tackle each one individually so that the ' + b + ' is utterly perfect. You should /loop on each item and have a separate sub-agent check it visually to ensure it looks triple A. That separate sub-agent should be a really harsh critic, and if it doesn\'t look triple A, it should keep going.\n\n' +
+            'Don\'t stop until each sub-agent is utterly wowed with the quality when compared with the high end, world class version this needs to be. Do this in ' + l + ' /loop until it\'s utterly perfect. Fan out sub-agents and ultracode.';
     }
 
     window.openGauntletWorkspace = function() {
@@ -17623,13 +17501,14 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     function _gauntRun() {
-        const goal = $('#gauntBuiltInput')?.value?.trim();
-        if (!goal) {
-            toast('Describe your goal first', 'warning');
+        const built = $('#gauntBuiltInput')?.value?.trim();
+        if (!built) {
+            toast('Describe what you want built first', 'warning');
             return;
         }
-        const refs = $('#gauntRefsInput')?.value?.trim();
-        const generated = _gauntTemplate(goal, refs);
+        const specifics = $('#gauntSpecificsInput')?.value?.trim();
+        const lang = $('#gauntLangInput')?.value?.trim();
+        const generated = _gauntTemplate(built, specifics, lang);
 
         _gauntState.lastOutput = generated;
         const out = $('#gauntOutput');

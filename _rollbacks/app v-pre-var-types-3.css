@@ -10752,7 +10752,3 @@ body.plx-workspace-open{overflow:hidden}
   .var-daterange input[type="date"] { flex: 1; min-width: 0; padding: 8px 12px; background: var(--surface-sunk); border: 1px solid var(--line); border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--ink); }
   .var-daterange input[type="date"]:focus { border-color: var(--accent); box-shadow: var(--ring); outline: none; }
   .var-daterange > span { color: var(--ink-3); font-size: 12px; }
-
-  /* ---- Variable types: Clipboard / Library Prompt ---- */
-  .var-clip { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-  .var-lib-select { width: 100%; padding: 8px 12px; background: var(--surface-sunk); border: 1px solid var(--line); border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--ink); }

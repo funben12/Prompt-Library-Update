@@ -67,36 +67,6 @@ def _list(v):
     return [_text(x, 60) for x in v if _text(x, 60)][:20]
 
 
-def _meta(v):
-    # Keep only the variable type fields the app understands, with hard size limits
-    if isinstance(v, str):
-        try:
-            v = json.loads(v)
-        except ValueError:
-            return {}
-    if not isinstance(v, dict):
-        return {}
-    out = {}
-    for name, m in list(v.items())[:50]:
-        if not isinstance(m, dict) or len(str(name)) > 120:
-            continue
-        opts = m.get('options')
-        entry = {
-            'type': _text(m.get('type'), 30) or 'text',
-            'default': _text(m.get('default'), 500),
-            'visible': m.get('visible') is not False,
-            'options': [_text(o, 100) for o in opts[:50] if _text(o, 100)] if isinstance(opts, list) else [],
-        }
-        if m.get('multi'):
-            entry['multi'] = True
-        if m.get('wrap') in ('quotes', 'codefence', 'xml'):
-            entry['wrap'] = m['wrap']
-        if m.get('size') in ('short', 'medium', 'tall'):
-            entry['size'] = m['size']
-        out[str(name)] = entry
-    return out
-
-
 def configure(device_id, name, enabled=True):
     _state.update(device_id=device_id, name=name, enabled=bool(enabled))
 
@@ -158,7 +128,6 @@ def offer():
                 'content': content[:MAX_BODY],
                 'categories': _list(p.get('categories')),
                 'tags': _list(p.get('tags')),
-                'variable_meta': _meta(p.get('variable_meta')),
             },
         }
     _remember(*_remember_later)
