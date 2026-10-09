@@ -347,6 +347,16 @@ The Gauntlet Loop workspace now generates the Gauntlet meta-prompt (goal, inspec
 - Mobile parity (2026-10-08): the phone now renders every desktop variable type (added Range, Range Slider, Ranked List, Matrix, Emoji, Icon names, Duration, Timezone, Language) and its editor sets type, options, default, wrap, Show when filling and multi. Prompts can be written, typed and filled entirely on the phone. Icon Picker on the phone shows icon names as chips (no Material Symbols font on the phone). Paragraph `size` is not carried to the phone.
 - Open: desktop live preview chains sequential replaces, copy output is correct.
 - Phone companion state (2026-10-09, v0.7.1 in AI-App-Factory): Quick Fill redesigned (guided, all variable types), Prompt Components (stacked block builder, no AI key), Prompt Board, Gauntlet Loop on the desktop meta prompt, Library Organizer, Prompt Splicer (by part), Backup and restore with safety copy, Forge templates and tone. Boards travel in phone backups. Committed APK here is stale, use the AI-App-Factory workflow build. CLAUDE.md has a new Android companion section.
+### BASELINE: the version to clean up from (2026-10-09)
+
+Eugene chose this exact state as the version he uses on his phone and desktop. Any clean up, trim or refactor starts from here. Do not clean up from older commits or from older APKs.
+
+- Desktop: `funben12/Prompt-Library-Update` main at `aa748bd` (PR #42). Prompt Library Pro with the variable type set described below.
+- Phone: `funben12/AI-App-Factory` main at `a1bfe1a` (PR #21), app-003 Prompt Library Mobile `versionName 0.7.1` (`versionCode 10`). Main build run 59 passed.
+- Eugene supplies the matching APK himself and it is the source of truth for what the phone looks like. Until he supplies it, treat the committed `PromptLibrary-Mobile-debug.apk` here as stale and do not compare against it.
+- Variable types on both apps at baseline: removed XY Pad, Color, Icon Picker, Persona Text, Clipboard, Library Prompt. Kept Dice Roll and Weighted Mix. Added Coin Flip, Random Pick, Random Number, Combo Box, Number Scale, and presets Tone, Output Format, Length, Audience, Priority, Sentiment. Do not remove or rename any of these during clean up without asking.
+- Before cleaning anything, list what would go and ask. A clean up PR must keep desktop and phone type lists identical.
+
 ### Variable types cleanup and presets (2026-10-09)
 
 This supersedes the 2026-10-08 notes above wherever they conflict.
