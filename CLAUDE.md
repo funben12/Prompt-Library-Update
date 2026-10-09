@@ -240,3 +240,19 @@ Recent fixes also include:
 ### Working principle
 
 For future changes, prefer surgical upgrades to the live architecture over adding parallel systems. Preserve the SQLite schema and existing graph data unless a schema change is explicitly approved. Before adding a workspace, first check whether an existing workspace already covers the same job.
+
+## Android companion app (Prompt Library Mobile)
+
+The phone app lives in the separate repo `funben12/AI-App-Factory`, folder `apps/app-003-prompt-library-mobile` (v0.7.1). It is not part of this repo's build. Read its `specification.md` and `architecture.md` before touching anything that has to stay in step with it.
+
+- **Same rules, different code:** no AI key and no account on the phone, ever. Workspaces that call an AI on desktop are not ported. Tools that only build text are.
+- **Phone tools (Tools hub):** Prompt Forge, Quick Fill, Prompt Components, Gauntlet Loop, AI Teammate, Prompt Splicer, Prompt Board, Library Organizer, Backup and restore, Prompt Auditor, Prompt X-Ray. Each is its own `assets/tools-*.js` file registering `PL_TOOLS[view]`.
+- **Redesigned for the phone, not copied:** Quick Fill is guided, one blank per card, using every variable type. Prompt Components is a stacked block builder, not the node canvas. Splicer defaults to by part. Prompt Board is local to the phone.
+- **Must stay in step with desktop:**
+  - `static/components-data.js` feeds the phone through `scripts/build-components-data.js` in the AI-App-Factory app folder. Rerun it when blocks or frameworks change here.
+  - `static/forge-frameworks.js` is copied to the phone as `forge-frameworks.js`.
+  - `variable_meta` (type, default, options, visible, multi, wrap) and nearby share (`share_server.py`, `/api/share/send`) carry variable types both ways. Changing either needs the phone's `vartypes.js` and `MainActivity.java` checked.
+  - The Gauntlet Loop text is shared word for word with the phone (`_gauntTemplate` here, `tools-build.js` there).
+- **The APK in this repo is stale.** `PromptLibrary-Mobile-debug.apk` was built before variable types and is not rebuilt automatically. The current APK comes from the "Build Prompt Library Mobile APK" GitHub Action in AI-App-Factory. Do not treat the committed file as the latest phone build.
+- **Phone-side gotchas:** the Android WebView has no Material Symbols font, so icons are inline SVG. Phone data is in IndexedDB (`prompt-library`, prompts only) and localStorage (boards, drafts, custom frameworks). Library Organizer deletes by writing IndexedDB directly. Backup restore keeps a safety copy in IndexedDB `prompt-library-safety`.
+- **Verification:** headless Chromium at 390 x 844 against the phone's `assets/index.html`. It has not been run on a physical phone yet.
