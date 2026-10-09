@@ -263,56 +263,12 @@
         el.className = `toast ${kind}`;
         el.innerHTML = `<span class="material-symbols-outlined">${icons[kind] || 'info'}</span><span>${escapeHtml(msg)}</span>`;
         root.appendChild(el);
-        setTimeout(() => el.classList.add('leaving'), 2700);
-        setTimeout(() => el.remove(), 3000);
-    }
-
-    /* ============================================================================
-       MOTION HELPERS - styles live in app.css (MOTION SYSTEM block)
-       ============================================================================ */
-    function _plReduced() {
-        try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
-    }
-    // Animate an overlay/workspace out, then drop its open class
-    function _plLeave(target, cls) {
-        const el = typeof target === 'string' ? $(target) : target;
-        if (!el) return;
-        cls = cls || 'open';
-        if (!el.classList.contains(cls)) return;
-        // Drop the open class at once (side effects stay immediate); CSS keeps the box visible while .leaving fades it.
-        el.classList.remove(cls);
-        if (_plReduced()) { el.classList.remove('leaving'); return; }
-        const tok = el._plTok = (el._plTok || 0) + 1;
-        el.classList.add('leaving');
-        // A reopen matches the open rule again; only the latest close may clear .leaving
-        setTimeout(() => { if (el._plTok === tok) el.classList.remove('leaving'); }, 220);
-    }
-    // Restart the view-enter animation on an element
-    function _plEnter(target) {
-        const el = typeof target === 'string' ? $(target) : target;
-        if (!el) return;
-        el.classList.remove('view-enter');
-        void el.offsetWidth;
-        el.classList.add('view-enter');
-        setTimeout(() => el.classList.remove('view-enter'), 360);
-    }
-    // Copy confirmation: swap the copy icon for a popping tick
-    let _plCopyBtn = null, _plCopyAt = 0;
-    document.addEventListener('click', e => {
-        const b = e.target.closest && e.target.closest('button');
-        if (b) { _plCopyBtn = b; _plCopyAt = Date.now(); }
-    }, true);
-    function _plCopyPop() {
-        const b = _plCopyBtn;
-        if (!b || Date.now() - _plCopyAt > 2500 || !b.isConnected) return;
-        const ic = Array.from(b.querySelectorAll('.material-symbols-outlined')).find(x => x.textContent.trim() === 'content_copy');
-        if (!ic) return;
-        ic.textContent = 'check';
-        ic.classList.add('copy-ok');
         setTimeout(() => {
-            if (ic.textContent === 'check') ic.textContent = 'content_copy';
-            ic.classList.remove('copy-ok');
-        }, 1400);
+            el.style.opacity = '0';
+            el.style.transform = 'translateX(20px)';
+            el.style.transition = 'all 200ms ease-out';
+        }, 2700);
+        setTimeout(() => el.remove(), 3000);
     }
 
     /* ============================================================================
@@ -335,7 +291,6 @@
                 document.execCommand('copy');
                 document.body.removeChild(ta);
             }
-            _plCopyPop();
             return true;
         } catch (err) {
             console.error('clipboard:', err);
@@ -679,9 +634,6 @@
        VIEW MANAGEMENT
        ============================================================================ */
     function setView(view) {
-        const viewChanged = state._enterView !== view;
-        state._enterView = view;
-        state._viewJustChanged = viewChanged;
         state.view = view;
         state.filterPill = null; // clear any active pill
         state.search = '';
@@ -736,8 +688,6 @@
         // Update active filter pill
         refreshActivePill();
         renderPrompts();
-        state._viewJustChanged = false;
-        if (viewChanged) _plEnter('#content');
         updateCounts();
     }
 
@@ -791,14 +741,6 @@
         const isVault = state.librarySource && state.librarySource.type === 'vault';
         const folderTilesHtml = isVault ? renderVaultFolderTiles() : '';
 
-        // Stagger rows in when the row set changes (load, filter), not on fav/edit rerenders,
-        // not on a view switch (the view fade covers it) and not while typing in search
-        const rowSig = state.view + '|' + list.length + '|' + (list[0] ? list[0].id : '') + '|' + (list.length ? list[list.length - 1].id : '');
-        const sigChanged = rowSig !== state._rowSig;
-        state._rowSig = rowSig;
-        state._rowAnim = sigChanged && !state._viewJustChanged && !state.search && document.activeElement !== $('#searchInput') && !_plReduced();
-        state._viewJustChanged = false;
-
         if (!list.length && !(isVault && (state.vaultFolders || []).length)) {
             container.innerHTML = folderTilesHtml + renderEmptyState();
             return;
@@ -808,17 +750,6 @@
             container.innerHTML = folderTilesHtml + renderGroupedByFolder(list);
         } else {
             container.innerHTML = folderTilesHtml + list.map(renderPromptCard).join('');
-        }
-        container.classList.remove('rows-enter');
-        if (state._rowAnim) {
-            Array.from(container.querySelectorAll('.prompt-card')).slice(0, 6).forEach((el, i) => {
-                el.classList.add('row-in');
-                el.style.setProperty('--i', i);
-            });
-            void container.offsetWidth;
-            container.classList.add('rows-enter');
-            clearTimeout(state._rowT);
-            state._rowT = setTimeout(() => container.classList.remove('rows-enter'), 700);
         }
     }
 
@@ -1475,7 +1406,7 @@
             renderTagManager();
             modal.classList.add('active');
         });
-        const close = () => _plLeave(modal, 'active');
+        const close = () => modal.classList.remove('active');
         $('#closeTagManagerBtn')?.addEventListener('click', close);
         $('#tagManagerDoneBtn')?.addEventListener('click', close);
         modal.addEventListener('click', e => {
@@ -3000,7 +2931,7 @@ STYLE/THEME: [[reserved for future use]]`;
     window.PL_openNewPromptInFolder = openNewPromptInFolder;
 
     function closePromptModal() {
-        _plLeave('#promptModal', 'active');
+        $('#promptModal').classList.remove('active');
     }
 
     function encodeVaultPath(relativePath) {
@@ -3617,7 +3548,7 @@ STYLE/THEME: [[reserved for future use]]`;
     }
 
     function closeFolderModal() {
-        _plLeave('#folderModal', 'active');
+        $('#folderModal').classList.remove('active');
     }
 
     function renameFolder(id, currentName) {
@@ -3763,7 +3694,7 @@ STYLE/THEME: [[reserved for future use]]`;
     };
 
     function closeImportModal() {
-        _plLeave('#importModal', 'active');
+        $('#importModal').classList.remove('active');
     }
 
     /* ── Import template panel ────────────────────────────────────────────────── */
@@ -4173,7 +4104,7 @@ Here are my prompts:
     }
 
     function closeExportModal() {
-        _plLeave('#exportModal', 'active');
+        $('#exportModal').classList.remove('active');
     }
 
     // Vault sources have no DB-backed export routes — build export content
@@ -4356,7 +4287,7 @@ Here are my prompts:
     }
 
     function closeVarTemplateModal() {
-        _plLeave('#varTemplateModal', 'active');
+        $('#varTemplateModal').classList.remove('active');
     }
 
     window.PL_loadVarTemplate = function(idx) {
@@ -4388,7 +4319,7 @@ Here are my prompts:
     }
 
     function closeSaveTemplateModal() {
-        _plLeave('#saveTemplateModal', 'active');
+        $('#saveTemplateModal').classList.remove('active');
     }
 
     function saveCurrentVarTemplate() {
@@ -4445,7 +4376,7 @@ Here are my prompts:
     }
 
     function closePremiumModal() {
-        _plLeave('#premiumModal', 'active');
+        $('#premiumModal').classList.remove('active');
     }
 
     // Validate a key against the backend. Unlocks Pro for this session only --
@@ -4584,7 +4515,7 @@ Here are my prompts:
     }
 
     function closeAnalytics() {
-        _plLeave('#analyticsModal', 'active');
+        $('#analyticsModal').classList.remove('active');
     }
 
     function renderAnalytics(d) {
@@ -4905,7 +4836,7 @@ Here are my prompts:
     }
 
     function closeCmdPalette() {
-        _plLeave('#cmdPalette', 'active');
+        $('#cmdPalette').classList.remove('active');
     }
 
     function renderCmdResults(query) {
@@ -5612,7 +5543,7 @@ Here are my prompts:
                 }
                 const openModal = $$('.modal-overlay.active')[0];
                 if (openModal) {
-                    _plLeave(openModal, 'active');
+                    openModal.classList.remove('active');
                     return;
                 }
                 if ($('#detailPanel').classList.contains('open')) {
@@ -5665,7 +5596,7 @@ Here are my prompts:
     function closeRolesWorkspace() {
         const ws = $('#rolesWorkspace');
         if (!ws) return;
-        _plLeave(ws);
+        ws.classList.remove('open');
         document.body.style.overflow = '';
         _rolesState.activeId = null;
         _rolesState.dirty = false;
@@ -7275,7 +7206,7 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
 
         function _pgClose() {
             if (_pg.dirty) _pgSaveAll(false);
-            _plLeave(pgW());
+            pgW().classList.remove('open');
             document.body.style.overflow = '';
         }
 
@@ -7558,7 +7489,7 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
                 toast('Variant ' + variantLetter + ' saved to library', 'success');
                 // Open the detail panel so user can see it
                 if (result && result.id) {
-                    _plLeave(pgW());
+                    pgW().classList.remove('open');
                     document.body.style.overflow = '';
                     openDetail(result.id);
                 }
@@ -8366,7 +8297,7 @@ Must avoid: [Anything sensitive or previously declined]`
     function _ctxClose() {
         const ws = $('#contextBankWorkspace');
         if (!ws) return;
-        _plLeave(ws);
+        ws.classList.remove('open');
         document.body.style.overflow = '';
         $$$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -11851,7 +11782,6 @@ Must avoid: [Anything sensitive or previously declined]`
                 card.style.left = (b.x || 0) + 'px';
                 card.style.top = (b.y || 0) + 'px';
                 card.dataset.canvasIdx = idx;
-                if (idx === _pcwFreshIdx) { card.classList.add('pcw-new'); _pcwFreshIdx = -1; }
                 var cardBlanks = countBlanks(b.text);
                 var cardSnippet = escH(String(b.text).replace(/\s+/g, ' ').slice(0, 90));
                 card.innerHTML =
@@ -11939,7 +11869,6 @@ Must avoid: [Anything sensitive or previously declined]`
         }
 
         /* ---- Add block to canvas ---- */
-        var _pcwFreshIdx = -1;
         function addBlock(label, text, cat, pos) {
             var p = pos || _pcwNextPos();
             _canvasBlocks.push({
@@ -11950,7 +11879,6 @@ Must avoid: [Anything sensitive or previously declined]`
                 x: p.x,
                 y: p.y
             });
-            _pcwFreshIdx = _canvasBlocks.length - 1;
             renderCanvas();
         }
 
@@ -13229,7 +13157,7 @@ Must avoid: [Anything sensitive or previously declined]`
         };
 
         function closeComponentsWorkspace() {
-            _plLeave('#componentsWorkspace');
+            $('#componentsWorkspace') && $('#componentsWorkspace').classList.remove('open');
             $$('.nav-item[data-view]').forEach(function(el) {
                 el.classList.toggle('active', el.dataset.view === 'library');
             });
@@ -13265,7 +13193,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeOptimizerWorkspace() {
-        _plLeave('#optimizerWorkspace');
+        $('#optimizerWorkspace')?.classList.remove('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -13901,7 +13829,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeFillWorkspace() {
-        _plLeave('#fillWorkspace');
+        $('#fillWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -14134,7 +14062,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeAuditWorkspace() {
-        _plLeave('#auditWorkspace');
+        $('#auditWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -14327,7 +14255,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeDiffWorkspace() {
-        _plLeave('#diffWorkspace');
+        $('#diffWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -14464,7 +14392,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeCostWorkspace() {
-        _plLeave('#costWorkspace');
+        $('#costWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -14590,7 +14518,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeForkWorkstation() {
-        _plLeave('#forkWorkstation');
+        $('#forkWorkstation')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(function(el) { el.classList.toggle('active', el.dataset.view === 'library'); });
     }
@@ -14672,7 +14600,7 @@ Must avoid: [Anything sensitive or previously declined]`
     async function _pfwRunAB(){const a=_pfw.nodes.get(Number(_pfw.activeId)),b=_pfw.nodes.get(Number(_pfw.compareId)),t=_pfw.tests[0];if(!a||!b||!t){toast('Select two branches and add a test first','warning');return;}if(typeof callAI!=='function'){toast('AI is not configured','warning');return;}try{const outA=await callAI(a.content,t.input,1400),outB=await callAI(b.content,t.input,1400);const judge='You are a blind A/B evaluator. Compare two outputs against the same test and quality bar. Do not favour A because it appears first. Return strict JSON with winner, scoreA, scoreB and reason.';const raw=await callAI(judge,'TEST INPUT:\n'+t.input+'\nQUALITY BAR:\n'+t.expected+'\n\nOUTPUT A:\n'+outA+'\n\nOUTPUT B:\n'+outB,1100);const parsed=JSON.parse(String(raw).replace(/^\`\`\`json\s*/i,'').replace(/\`\`\`$/,'').trim()),sa=Math.max(0,Math.min(100,Number(parsed.scoreA)||0)),sb=Math.max(0,Math.min(100,Number(parsed.scoreB)||0));_pfw.results[a.id]={score:sa,summary:'A/B result',output:String(outA),at:Date.now()};_pfw.results[b.id]={score:sb,summary:'A/B result',output:String(outB),at:Date.now()};_pfwSaveLocal();_pfwRenderTree();_pfwRenderCompare();$('#pfwAbResult').textContent='Winner: '+(String(parsed.winner).toUpperCase()==='B'?'B':'A')+' · A '+sa+' · B '+sb+' · '+(parsed.reason||'');}catch(e){toast('A/B evaluation failed: '+e.message,'error');}}
     async function _pfwMerge(){const a=_pfw.nodes.get(Number(_pfw.activeId)),b=_pfw.nodes.get(Number(_pfw.compareId));if(!a||!b||!confirm('Create a new branch by merging these prompts with AI?'))return;if(typeof callAI!=='function'){toast('AI is not configured','warning');return;}try{const merged=await callAI('You merge prompt variants. Preserve the strongest concrete instructions from both, remove contradictions and duplication, and return only the complete merged prompt.','PROMPT A:\n'+a.content+'\n\nPROMPT B:\n'+b.content,1800);const r=await fetch('/api/prompts/'+a.id+'/fork',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:(a.title||'Prompt')+' · Merge'})});if(!r.ok)throw new Error('Could not create merge branch');const d=await r.json(),p=await _pfwGetPrompt(d.id);const save=await fetch('/api/prompts/'+d.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:p.title,content:String(merged).trim(),description:p.description||'',categories:p.categories||[],tags:p.tags||[],folder_id:p.folder_id||null,colour_label:p.colour_label||'',rating:p.rating||0,notes:'Merged from #'+a.id+' and #'+b.id,chain_ids:p.chain_ids||[],variable_meta:p.variable_meta||{},chat_turns:p.chat_turns||[],role_id:p.role_id||null,status:'draft',parent_id:a.id,prompt_domain:p.prompt_domain||'',prompt_use_case:p.prompt_use_case||'',prompt_output_format:p.prompt_output_format||'',prompt_tone:p.prompt_tone||''})});if(!save.ok)throw new Error('Could not save merged branch');await loadPrompts();await _pfwLoadTree(_pfw.rootId);await _pfwSelect(d.id);toast('Merged branch created','success');}catch(e){toast('Merge failed: '+e.message,'error');}}
     function _pfwAddTest(){const name=prompt('Test name','New test case');if(!name)return;const input=prompt('Test input','');if(!input)return;const expected=prompt('Quality bar','The output should satisfy the intended task precisely.');_pfw.tests.push({id:'t-'+Date.now(),name,input,expected});_pfwSaveLocal();_pfwRenderTests();}
-    function _pfwClose(){_plLeave('#promptForkingWorkspace');document.body.style.overflow='';}
+    function _pfwClose(){$('#promptForkingWorkspace')?.classList.remove('open');document.body.style.overflow='';}
     function _pfwRenderPicker(){const list=$('#pfwPromptPicker');if(!list)return;const q=($('#pfwPromptSearch')?.value||'').toLowerCase().trim();const items=state.prompts.filter(p=>!q||((p.title||'')+' '+(p.content||'')).toLowerCase().includes(q)).slice(0,80);list.innerHTML=items.map(p=>'<button type="button" class="pfw-picker-row" data-pfw-pick="'+p.id+'"><span class="material-symbols-outlined">description</span><span><b>'+escapeHtml(p.title||'Untitled')+'</b><small>'+escapeHtml((p.description||p.content||'').slice(0,100))+'</small></span></button>').join('')||'<div class="pfw-empty">No prompts found.</div>';list.querySelectorAll('[data-pfw-pick]').forEach(b=>b.addEventListener('click',()=>window.openPromptForkingWorkspace(Number(b.dataset.pfwPick))));}
     window.openPromptForkingWorkspace=async function(promptId){if(!state.isPremium){showPremiumModal();return;}const ws=$('#promptForkingWorkspace');if(!ws)return;ws.classList.add('open');document.body.style.overflow='hidden';const id=Number(promptId||state.detailId||0);if(!id){_pfw.rootId=null;_pfw.activeId=null;_pfw.nodes.clear();$('#pfwPicker')?.removeAttribute('hidden');$('#pfwMain')?.setAttribute('hidden','');_pfwRenderPicker();return;}$('#pfwPicker')?.setAttribute('hidden','');$('#pfwMain')?.removeAttribute('hidden');_pfw.rootId=id;await _pfwLoadTree(id);_pfwLoadLocal(id);_pfw.activeId=id;_pfw.compareId=null;_pfwRenderTree();_pfwRenderActive();_pfwRenderTests();_pfwSetMode('edit');};
     function initPromptForkingWorkspace(){const ws=$('#promptForkingWorkspace');if(!ws)return;$('#pfwCloseBtn')?.addEventListener('click',_pfwClose);$('#pfwNewForkBtn')?.addEventListener('click',_pfwCreateFork);$('#pfwSaveBtn')?.addEventListener('click',_pfwSave);$('#pfwDeleteBtn')?.addEventListener('click',_pfwDelete);$('#pfwArchiveBtn')?.addEventListener('click',_pfwArchive);$('#pfwWinnerBtn')?.addEventListener('click',_pfwMarkWinner);$('#pfwRunTestBtn')?.addEventListener('click',_pfwRunTest);$('#pfwRunABBtn')?.addEventListener('click',_pfwRunAB);$('#pfwMergeBtn')?.addEventListener('click',_pfwMerge);$('#pfwAddTestBtn')?.addEventListener('click',_pfwAddTest);$('#pfwCompareBtn')?.addEventListener('click',()=>{const ids=[..._pfw.nodes.keys()].filter(id=>id!==Number(_pfw.activeId));if(!ids.length)return;_pfw.compareId=_pfw.compareId&&ids.includes(Number(_pfw.compareId))?_pfw.compareId:ids[0];_pfwSetMode('compare');});ws.querySelectorAll('[data-pfw-mode]').forEach(b=>b.addEventListener('click',()=>_pfwSetMode(b.dataset.pfwMode)));$('#pfwPromptSearch')?.addEventListener('input',_pfwRenderPicker);$('#pfwTitleInput')?.addEventListener('input',_pfwRenderDiff);$('#pfwContentInput')?.addEventListener('input',_pfwRenderDiff);ws.addEventListener('keydown',e=>{if(e.key==='Escape')_pfwClose();});}
@@ -15037,7 +14965,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closePulseWorkspace() {
-        _plLeave('#pulseWorkspace');
+        $('#pulseWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -15154,7 +15082,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeXrayWorkspace() {
-        _plLeave('#xrayWorkspace');
+        $('#xrayWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -15285,7 +15213,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeSpliceWorkspace() {
-        _plLeave('#spliceWorkspace');
+        $('#spliceWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -16045,7 +15973,7 @@ Must avoid: [Anything sensitive or previously declined]`
 
     function closeBoardWorkspace() {
         _pmbCloseModal();
-        _plLeave('#boardWorkspace');
+        $('#boardWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -16559,7 +16487,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeGenWorkspace() {
-        _plLeave('#genWorkspace');
+        $('#genWorkspace')?.classList.remove('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -16795,7 +16723,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeExampleWorkspace() {
-        _plLeave('#exampleWorkspace');
+        $('#exampleWorkspace')?.classList.remove('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -16966,7 +16894,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeAdapterWorkspace() {
-        _plLeave('#adapterWorkspace');
+        $('#adapterWorkspace')?.classList.remove('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -17117,7 +17045,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeSimplifyWorkspace() {
-        _plLeave('#simplifyWorkspace');
+        $('#simplifyWorkspace')?.classList.remove('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -17300,7 +17228,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeToneWorkspace() {
-        _plLeave('#toneWorkspace');
+        $('#toneWorkspace')?.classList.remove('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -17466,7 +17394,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeTranslateWorkspace() {
-        _plLeave('#translateWorkspace');
+        $('#translateWorkspace')?.classList.remove('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -17625,7 +17553,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeGauntletWorkspace() {
-        _plLeave('#gauntletWorkspace');
+        $('#gauntletWorkspace')?.classList.remove('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -17796,7 +17724,7 @@ Must avoid: [Anything sensitive or previously declined]`
         setTimeout(() => $('#pidPromptEditor')?.focus(), 80);
     };
     function _pidClose() {
-        _plLeave('#promptIdeWorkspace');
+        $('#promptIdeWorkspace')?.classList.remove('open');
         $('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
     async function _pidRunPrompt() {
@@ -18261,7 +18189,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeEvalWorkspace() {
-        _plLeave('#evalWorkspace');
+        $('#evalWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -18549,7 +18477,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeCompareWorkspace() {
-        _plLeave('#compareWorkspace');
+        $('#compareWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -18639,7 +18567,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeWorkspacesLauncher() {
-        _plLeave('#workspacesLauncher');
+        $('#workspacesLauncher')?.classList.remove('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -18715,7 +18643,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeDashboardWorkspace() {
-        _plLeave('#dashboardWorkspace');
+        $('#dashboardWorkspace')?.classList.remove('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -18893,7 +18821,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeBackupWorkspace() {
-        _plLeave('#backupWorkspace');
+        $('#backupWorkspace')?.classList.remove('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -18981,7 +18909,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeHistoryWorkspace() {
-        _plLeave('#historyWorkspace');
+        $('#historyWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
@@ -19100,7 +19028,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeLockWorkspace() {
-        _plLeave('#lockWorkspace');
+        $('#lockWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
@@ -19208,7 +19136,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeIntegrityWorkspace() {
-        _plLeave('#integrityWorkspace');
+        $('#integrityWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
@@ -19298,7 +19226,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeCredentialsWorkspace() {
-        _plLeave('#credentialsWorkspace');
+        $('#credentialsWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
@@ -19642,7 +19570,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeBatchWorkspace() {
-        _plLeave('#batchWorkspace');
+        $('#batchWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -20028,7 +19956,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 failed += ids.length;
             }
         }
-        _plLeave('#taxAutoTagModal', 'active');
+        $('#taxAutoTagModal')?.classList.remove('active');
         if (failed) toast(taggedCount + ' tagged, ' + failed + ' failed', 'warning');
         else toast(taggedCount + ' prompt' + (taggedCount !== 1 ? 's' : '') + ' auto-tagged', 'success');
         if (_taxState.selectedType === 'usecase') await _taxRenderDetail();
@@ -20051,7 +19979,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeTaxonomyWorkspace() {
-        _plLeave('#taxonomyWorkspace');
+        $('#taxonomyWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -20243,7 +20171,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeVersionWorkspace() {
-        _plLeave('#versionWorkspace');
+        $('#versionWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -20941,7 +20869,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeForgeWorkspace() {
-        _plLeave('#forgeWorkspace');
+        $('#forgeWorkspace')?.classList.remove('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -21127,7 +21055,7 @@ Must avoid: [Anything sensitive or previously declined]`
             modal.id = 'forgeFwModal';
             modal.setAttribute('role', 'dialog');
             modal.setAttribute('aria-modal', 'true');
-            modal.innerHTML = `<div class="modal-box-sm modal-anim">
+            modal.innerHTML = `<div class="modal-box-sm">
               <div class="modal-header"><h3 id="forgeFwTitle">New framework</h3>
                 <button class="icon-btn" data-ffw-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></div>
               <form id="forgeFwForm"><div class="modal-body">
@@ -21161,8 +21089,8 @@ Must avoid: [Anything sensitive or previously declined]`
                 const b = e.target.closest('.ffw-del');
                 if (b && rows.children.length > 1) b.closest('.ffw-row').remove();
             });
-            modal.addEventListener('click', e => { if (e.target === modal || e.target.closest('[data-ffw-close]')) _plLeave(modal, 'active'); });
-            modal.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); _plLeave(modal, 'active'); } });
+            modal.addEventListener('click', e => { if (e.target === modal || e.target.closest('[data-ffw-close]')) modal.classList.remove('active'); });
+            modal.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); modal.classList.remove('active'); } });
             $('#forgeFwDelete').addEventListener('click', async () => {
                 const id = modal.dataset.editing;
                 if (!id || !confirm('Delete this framework? Prompts you already saved are not affected.')) return;
@@ -21170,7 +21098,7 @@ Must avoid: [Anything sensitive or previously declined]`
                     await saveForgeCustom(forgeCustom.filter(f => f.id !== id));
                     state.forgeFramework = 'custom';
                     renderForgeFields(); applyForgeCustom();
-                    _plLeave(modal, 'active');
+                    modal.classList.remove('active');
                     toast('Framework deleted', 'success');
                 } catch (err) { toast('Could not delete the framework', 'error'); }
             });
@@ -21193,7 +21121,7 @@ Must avoid: [Anything sensitive or previously declined]`
                     await saveForgeCustom(list);
                     state.forgeFramework = forgeMyKey(id);
                     renderForgeFields(); applyForgeCustom();
-                    _plLeave(modal, 'active');
+                    modal.classList.remove('active');
                     toast(editing ? 'Framework updated' : 'Framework saved: ' + name, 'success');
                 } catch (err) { toast('Could not save the framework', 'error'); }
             });
@@ -21369,7 +21297,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeLabWorkspace() {
-        _plLeave('#labWorkspace');
+        $('#labWorkspace')?.classList.remove('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -21688,7 +21616,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeChainWorkspace() {
-        _plLeave('#chainWorkspace');
+        $('#chainWorkspace')?.classList.remove('open');
         $('#chainPreviewPanel')?.classList.add('collapsed');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
@@ -22248,7 +22176,7 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function closeMetaPromptingWorkspace() {
-        _plLeave('#metaPromptingWorkspace');
+        $('#metaPromptingWorkspace')?.classList.remove('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'library'));
     }
@@ -22774,7 +22702,7 @@ Must avoid: [Anything sensitive or previously declined]`
         // Sending: scan the network, pick a device, wait for it to accept
         let sendOverlay = null, sendRun = 0;
         const getJson = (url, opts) => fetch(url, opts).then(async r => ({ ok: r.ok, d: await r.json().catch(() => ({})) }));
-        function sendClose() { if (sendOverlay) _plLeave(sendOverlay, 'active'); sendRun++; }
+        function sendClose() { if (sendOverlay) sendOverlay.classList.remove('active'); sendRun++; }
         function sendDraw(st) {
             const box = sendOverlay.querySelector('.nbs-body');
             const rows = st.devices.map(d => {
@@ -22833,7 +22761,7 @@ Must avoid: [Anything sensitive or previously declined]`
             if (!sendOverlay) {
                 sendOverlay = document.createElement('div');
                 sendOverlay.className = 'modal-overlay';
-                sendOverlay.innerHTML = '<div class="modal-box-sm modal-anim" role="dialog" aria-label="Send to a nearby device">' +
+                sendOverlay.innerHTML = '<div class="modal-box-sm" role="dialog" aria-label="Send to a nearby device">' +
                     '<div class="modal-header"><h2>Send to nearby</h2>' +
                     '<button class="modal-close" type="button" aria-label="Close"><span class="material-symbols-outlined">close</span></button></div>' +
                     '<div class="phs-body nbs-body"></div></div>';
@@ -23393,7 +23321,7 @@ Must avoid: [Anything sensitive or previously declined]`
     window.PL_closeViewer = function() {
         _viewerId = null;
         const viewer = _el('promptViewer');
-        if (viewer) _plLeave(viewer, 'active');
+        if (viewer) viewer.classList.remove('active');
     };
 
     window.initPromptViewer = function() {
@@ -23476,13 +23404,13 @@ Must avoid: [Anything sensitive or previously declined]`
             }
         }
 
-        function close() { _plLeave(overlay, 'active'); }
+        function close() { overlay.classList.remove('active'); }
 
         btn.addEventListener('click', async () => {
             if (!overlay) {
                 overlay = document.createElement('div');
                 overlay.className = 'modal-overlay';
-                overlay.innerHTML = '<div class="modal-box-sm modal-anim" role="dialog" aria-label="Continue on phone">' +
+                overlay.innerHTML = '<div class="modal-box-sm" role="dialog" aria-label="Continue on phone">' +
                     '<div class="modal-header"><h2>Continue on phone</h2>' +
                     '<button class="modal-close" type="button" aria-label="Close"><span class="material-symbols-outlined">close</span></button></div>' +
                     '<div class="phs-body"></div><div class="phs-nearby"></div></div>';
