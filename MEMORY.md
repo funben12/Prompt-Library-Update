@@ -406,3 +406,12 @@ This supersedes the "trim to 22" notes above wherever they conflict. Eugene did 
 - These two ignore `prefers-reduced-motion` on purpose: Windows and Android set it when system animations are off, which made the old version look like a quick cut. They only run when the user presses the button. The reduced-motion CSS rule for them was removed.
 - Phone `vartypes.js` gets the same motion (AI-App-Factory PR #34).
 - Backups: `_rollbacks/12-10-2026-app-v3-motion.js` and `.css` (local only).
+
+### Fill sheet interaction and dice builder (2026-10-12)
+
+- Dice builder in the variable editor (Dice Roll type): a live 3D die with a d-count badge, presets d4, d6, d8, d10, d12, d20, one editable tile per side (type words or numbers), Add side and a remove button on each tile (minimum 2, maximum 100). Adding a side pops a tile in and the die spins or hops, editing a side turns the die to that face, presets re-deal the tiles. Sides sync into the existing `options` text (blank when the sides are plain 1 to N) and `faces` count, so the saved shape is unchanged. The cube shows the first six sides, the tiles show all of them (`_PL_diceBuilderInit`).
+- Fill sheet Dice Roll shows a chip for every side that flickers during the throw and lights up the result. Random Pick shows its options as chips and Random Pick and Random Number now flicker slot-machine style: 24 to 46 flips through the options (never the same one twice in a row), starting about 40ms apart and slowing to about 300ms, then land with a pop (`_PL_flickerSeq`, `_PL_flickerRun`).
+- Motion across the other types (CSS plus small hooks, scoped to `#variableFields`, ignores reduced motion on purpose): field cards rise in with a stagger, the filled tick pops, chips and toggle buttons press and pop, Segmented has a sliding thumb (`_PL_segThumb`), checklist boxes and radios are custom drawn with an animated tick or dot, Yes/No switch thumb overshoots and the label bumps, tags pop in and shrink out, stepper number slides, slider and range labels bump, mix percentages bump, icon picker lifts, buttons press.
+- Fixed two bugs found while testing: the Yes/No switch label never updated after the restore, and removing a tag did not update the stored value (the chip text included the "close" icon text).
+- Phone parity: AI-App-Factory PR #34 (`vartypes.js`).
+- Backups: `_rollbacks/12-10-2026-app-v4-interaction.js` and `.css` (local only).

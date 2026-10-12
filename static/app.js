@@ -1730,6 +1730,119 @@
         run(0);
     }
     const _DIE_PIPS = [[4], [0, 8], [0, 4, 8], [0, 2, 6, 8], [0, 2, 4, 6, 8], [0, 2, 3, 5, 6, 8]];
+    // ---- Fill sheet motion helpers ----
+    function _PL_bump(el, big) {
+        if (!el || el._bumping || !el.animate) return;
+        el._bumping = true;
+        const a = el.animate([{ transform: 'scale(1)' }, { transform: `scale(${big || 1.25})` }, { transform: 'scale(1)' }], { duration: 260, easing: 'cubic-bezier(.2,1.4,.4,1)' });
+        a.onfinish = a.oncancel = () => { el._bumping = false; };
+    }
+    // Slot-machine flicker: visit random options (never the same twice in a row), slowing down until the last one lands
+    function _PL_flickerSeq(n, ticks, finalIdx) {
+        const seq = [];
+        let prev = -1;
+        for (let t = 0; t < ticks - 1; t++) {
+            let i;
+            do { i = Math.floor(Math.random() * n); } while (n > 1 && i === prev);
+            seq.push(i); prev = i;
+        }
+        if (n > 1 && prev === finalIdx) seq[seq.length - 1] = (finalIdx + 1 + Math.floor(Math.random() * (n - 1))) % n;
+        seq.push(finalIdx);
+        return seq;
+    }
+    function _PL_flickerRun(seq, onTick, onDone, total) {
+        const raw = seq.map((_, t) => 40 + Math.pow(t / Math.max(1, seq.length - 1), 2.6) * 260);
+        const k = total ? total / raw.reduce((a, b) => a + b, 0) : 1;
+        let t = 0;
+        const step = () => {
+            onTick(t, seq[t], raw[t] * k);
+            if (++t >= seq.length) return onDone();
+            setTimeout(step, raw[t] * k);
+        };
+        step();
+    }
+    function _PL_slideIn(el, ms) {
+        if (el && el.animate) el.animate([{ transform: 'translateY(60%) scaleY(.7)', opacity: 0.15 }, { transform: 'none', opacity: 1 }], { duration: Math.max(50, ms), easing: 'cubic-bezier(.2,.9,.3,1)' });
+    }
+    // Dice builder in the variable editor: add, edit and remove sides and watch the die change
+    function _PL_diceIsPlain(faces) { return faces.every((f, i) => f === String(i + 1)); }
+    function _PL_diceBuilderDie(b) {
+        const live = b._faces.map(f => f.trim()).filter(Boolean);
+        const vals6 = Array.from({ length: 6 }, (_, i) => b._faces[i] != null ? b._faces[i] : '');
+        b.querySelector('.dice-b-die').innerHTML = _PL_dieHTML(vals6, _PL_diceIsPlain(b._faces) && b._faces.length === 6);
+        b.querySelector('.dice-b-badge').textContent = 'd' + live.length;
+        b.querySelector('.dice-b-count').textContent = live.length + (live.length === 1 ? ' side.' : ' sides.');
+    }
+    function _PL_diceBuilderTilt(b, slot) {
+        const die = b.querySelector('.dice-b-die'), [bx, by] = _DIE_ROT[slot % 6];
+        const cur = `${_DIE_TILT} rotateX(${bx}deg) rotateY(${by}deg)`;
+        if (slot < 6) die.style.transform = cur;
+        else if (die.animate) die.animate([{ transform: cur }, { transform: `${_DIE_TILT} rotateX(${bx}deg) rotateY(${by + 360}deg)` }], { duration: 600, easing: 'cubic-bezier(.3,1.2,.5,1)' });
+        const scene = b.querySelector('.dice-b-scene');
+        if (scene.animate) scene.animate([{ transform: 'translateY(0) scale(1)' }, { transform: 'translateY(-14px) scale(1.1)', offset: 0.4 }, { transform: 'translateY(0) scale(1)' }], { duration: 480, easing: 'cubic-bezier(.3,1.3,.5,1)' });
+        _PL_bump(b.querySelector('.dice-b-badge'), 1.3);
+    }
+    function _PL_diceBuilderSync(row) {
+        const b = row.querySelector('.dice-builder');
+        const live = b._faces.map(f => f.trim()).filter(Boolean);
+        const ta = row.querySelector('[data-field="options"]'), fi = row.querySelector('[data-field="faces"]');
+        if (ta) ta.value = _PL_diceIsPlain(live) ? '' : live.join(', ');
+        if (fi) fi.value = live.length;
+    }
+    function _PL_diceBuilderTiles(b, mode, focusIdx) {
+        const n = b._faces.length;
+        b.querySelector('.dice-b-faces').innerHTML = b._faces.map((f, i) => `<span class="dice-b-tile${mode === 'stagger' ? ' stagger' : ''}${mode === 'add' && i === n - 1 ? ' pop' : ''}" data-i="${i}" style="--d:${i * 16}ms"><b>${i + 1}</b><input type="text" maxlength="14" value="${escapeAttr(f)}" aria-label="Side ${i + 1}" /><button type="button" class="dice-b-del" aria-label="Remove side ${i + 1}"${n <= 2 ? ' disabled' : ''}>&times;</button></span>`).join('') +
+            `<button type="button" class="dice-b-add"><span class="material-symbols-outlined">add</span> Add side</button>`;
+        if (focusIdx != null) {
+            const inp = b.querySelectorAll('.dice-b-tile input')[focusIdx];
+            if (inp) { inp.focus(); inp.select(); }
+        }
+    }
+    function _PL_diceBuilderInit(row) {
+        const b = row.querySelector('.dice-builder');
+        if (!b || b._init) return;
+        b._init = true;
+        let faces = [];
+        try { faces = JSON.parse(b.dataset.faces || '[]'); } catch (_) {}
+        b._faces = (faces.length >= 2 ? faces : ['1', '2', '3', '4', '5', '6']).map(String);
+        b.innerHTML = `<div class="dice-b-stage"><div class="dice-b-scene"><div class="dice-b-die"></div><div class="dice-b-shadow"></div></div><div class="dice-b-badge">d6</div></div>
+        <div class="dice-b-main"><div class="dice-b-presets">${[4, 6, 8, 10, 12, 20].map(n => `<button type="button" class="dice-b-preset" data-n="${n}">d${n}</button>`).join('')}</div>
+        <div class="dice-b-faces"></div><div class="dice-b-note"><span class="dice-b-count"></span>Type words or numbers. Every side is one possible roll.</div></div>`;
+        b.querySelector('.dice-b-die').style.transform = `${_DIE_TILT} rotateX(0deg) rotateY(0deg)`;
+        _PL_diceBuilderTiles(b, 'stagger');
+        _PL_diceBuilderDie(b);
+        b.addEventListener('click', e => {
+            const add = e.target.closest('.dice-b-add'), del = e.target.closest('.dice-b-del'), pre = e.target.closest('.dice-b-preset');
+            if (add) {
+                if (b._faces.length >= 100) return;
+                const live = b._faces.map(f => f.trim()).filter(Boolean);
+                b._faces.push(_PL_diceIsPlain(live) && live.length === b._faces.length ? String(b._faces.length + 1) : '');
+                _PL_diceBuilderTiles(b, 'add', b._faces.length - 1);
+                _PL_diceBuilderDie(b); _PL_diceBuilderTilt(b, b._faces.length - 1);
+            } else if (del) {
+                const tile = del.closest('.dice-b-tile'), i = +tile.dataset.i;
+                if (b._faces.length <= 2) return;
+                tile.classList.add('out');
+                setTimeout(() => { b._faces.splice(i, 1); _PL_diceBuilderTiles(b); _PL_diceBuilderDie(b); _PL_diceBuilderTilt(b, Math.min(i, b._faces.length - 1)); _PL_diceBuilderSync(row); }, 170);
+                return;
+            } else if (pre) {
+                b._faces = Array.from({ length: +pre.dataset.n }, (_, i) => String(i + 1));
+                _PL_diceBuilderTiles(b, 'stagger');
+                _PL_diceBuilderDie(b); _PL_diceBuilderTilt(b, 6);
+            } else return;
+            _PL_diceBuilderSync(row);
+        });
+        b.addEventListener('input', e => {
+            const inp = e.target.closest('.dice-b-tile input');
+            if (!inp) return;
+            const i = +inp.closest('.dice-b-tile').dataset.i;
+            inp.value = inp.value.replace(/,/g, '');
+            b._faces[i] = inp.value;
+            _PL_diceBuilderDie(b);
+            if (i < 6) b.querySelector('.dice-b-die').style.transform = `${_DIE_TILT} rotateX(${_DIE_ROT[i][0]}deg) rotateY(${_DIE_ROT[i][1]}deg)`;
+            _PL_diceBuilderSync(row);
+        });
+    }
     function _PL_dieHTML(vals, pips) {
         return [0, 1, 2, 3, 4, 5].map(slot => {
             const inner = pips
@@ -1827,6 +1940,7 @@
           <div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
           <button type="button" class="btn btn-sm" onclick="window._PL_rollDice(this)">Roll dice</button>
         </div>
+        <div class="var-random-strip" aria-hidden="true">${diceVals.slice(0, 30).map(f => `<span class="var-random-chip">${escapeHtml(f)}</span>`).join('')}${diceVals.length > 30 ? `<span class="var-random-more">+${diceVals.length - 30}</span>` : ''}</div>
         <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
             } else if (type === 'weightedmix') {
@@ -1840,6 +1954,7 @@
                 const rollOpts = opts.length ? optTitles : _PL_RANDOM_DEFAULTS[type];
                 input = `<div class="var-random-block"><div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
         <button type="button" class="btn btn-sm" data-roll-kind="${type}" data-roll-options="${escapeAttr(JSON.stringify(rollOpts))}" onclick="window._PL_rollChoice(this)">${_PL_RANDOM_LABELS[type]}</button>
+        ${type === 'randompick' ? `<div class="var-random-strip" aria-hidden="true">${rollOpts.slice(0, 40).map(o => `<span class="var-random-chip">${escapeHtml(o)}</span>`).join('')}</div>` : ''}
         <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
             } else if (type === 'dropdown' && opts.length) {
@@ -1981,6 +2096,7 @@
       </div>`;
             } else if (type === 'segmented' && opts.length) {
                 input = `<div class="var-toggle-group var-seg" data-var="${escapeAttr(v)}">
+        <span class="var-seg-thumb" aria-hidden="true"></span>
         ${opts.map(o => `<span class="var-toggle-btn var-seg-btn${def===o?' active':''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</span>`).join('')}
         <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
@@ -2020,7 +2136,7 @@
             } else {
                 input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter value…" value="${escapeAttr(def)}" />`;
             }
-            return `<details class="var-field" data-varfield="${escapeAttr(v)}" data-wrap="${escapeAttr(m.wrap || '')}" open>
+            return `<details class="var-field" style="--i:${Math.min(index, 12)}" data-varfield="${escapeAttr(v)}" data-wrap="${escapeAttr(m.wrap || '')}" open>
       <summary class="var-field-label">
         <span class="material-symbols-outlined var-field-icon">${icon}</span>
         <span class="var-field-name">${escapeHtml(v)}</span>
@@ -2045,6 +2161,8 @@
                 _updateVarLivePreview();
             });
         });
+
+        $$('#variableFields .var-seg').forEach(_PL_segThumb);
 
         // Seed preview with defaults and update filled states
         _updateVarLivePreview();
@@ -2109,6 +2227,11 @@
         if (inp.matches('select[multiple]')) {
             return Array.from(inp.selectedOptions || []).map(o => o.value.trim()).filter(Boolean).join(', ');
         }
+        if (inp.classList.contains('var-boolean-input')) {
+            const label = inp.closest('.var-switch')?.querySelector('.var-switch-label');
+            if (label && label.textContent !== (inp.checked ? 'Yes' : 'No')) { label.textContent = inp.checked ? 'Yes' : 'No'; _PL_bump(label, 1.3); }
+            return inp.checked ? 'Yes' : 'No';
+        }
         if (inp.type === 'checkbox') return inp.checked ? 'Yes' : 'No';
         const vtype = inp.closest('.var-field')?.querySelector('.var-field-type')?.textContent.trim();
         return _PL_formatVar(vtype, (inp.value || '').trim());
@@ -2131,6 +2254,7 @@
         try {
             ta.value = await navigator.clipboard.readText();
             ta.dispatchEvent(new Event('input', { bubbles: true }));
+            btn.classList.remove('var-pasted'); void btn.offsetWidth; btn.classList.add('var-pasted');
         } catch (e) { toast('Clipboard blocked. Paste with Ctrl+V instead.', 'warning'); ta.focus(); }
     };
     window._PL_pickLibPrompt = function(sel) {
@@ -2157,6 +2281,7 @@
     window._PL_step = function(btn, dir) {
         const inp = btn.parentElement.querySelector('input');
         inp.value = String(Math.round(((parseFloat(inp.value) || 0) + dir) * 1000) / 1000);
+        if (inp.animate) inp.animate([{ transform: `translateY(${dir > 0 ? 10 : -10}px)`, opacity: 0.2 }, { transform: 'none', opacity: 1 }], { duration: 200, easing: 'cubic-bezier(.2,.9,.3,1)' });
         inp.dispatchEvent(new Event('input', { bubbles: true }));
     };
     window._PL_syncDateRange = function(el) {
@@ -2193,11 +2318,12 @@
         const chip = closeIcon.closest('.var-tag-chip');
         const field = chip.closest('.var-tags-field');
         const hidden = field.querySelector('.var-tags-hidden');
-        const removedText = chip.textContent.trim();
+        const removedText = (chip.firstChild ? chip.firstChild.textContent : chip.textContent).trim();
         const current = hidden.value ? hidden.value.split(',').map(s => s.trim()).filter(Boolean) : [];
         const next = current.filter(t => t !== removedText);
         hidden.value = next.join(', ');
-        chip.remove();
+        chip.classList.add('leaving');
+        setTimeout(() => chip.remove(), 170);
         hidden.dispatchEvent(new Event('input', {
             bubbles: true
         }));
@@ -2215,10 +2341,20 @@
             btn.classList.add('active');
             hidden.value = btn.dataset.value;
         }
+        if (group.classList.contains('var-seg')) _PL_segThumb(group);
         hidden.dispatchEvent(new Event('input', {
             bubbles: true
         }));
     };
+    // Segmented control: a sliding thumb follows the active segment
+    function _PL_segThumb(group) {
+        const thumb = group.querySelector('.var-seg-thumb'), on = group.querySelector('.var-seg-btn.active');
+        if (!thumb) return;
+        if (!on) { thumb.style.opacity = '0'; return; }
+        thumb.style.opacity = '1';
+        thumb.style.setProperty('--x', on.offsetLeft + 'px');
+        thumb.style.setProperty('--w', on.offsetWidth + 'px');
+    }
 
     window._PL_selectIcon = function(el) {
         const wrap = el.closest('.var-icon-picker');
@@ -2235,22 +2371,39 @@
         let options = [];
         try { options = JSON.parse(btn.dataset.rollOptions || '[]'); } catch (_) {}
         const kind = btn.dataset.rollKind;
-        const picked = _PL_randomValue(kind, options);
+        const list = options.length ? options : _PL_RANDOM_DEFAULTS[kind];
         const hidden = wrap.querySelector('input.var-input'), result = wrap.querySelector('[data-roll-result]');
-        const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-        const finish = () => {
-            wrap._busy = false; btn.disabled = false;
-            if (result) { result.classList.remove('ticking'); result.textContent = picked || 'No valid options'; }
-            if (hidden) { hidden.value = picked; hidden.dispatchEvent(new Event('input', { bubbles: true })); }
-        };
-        if (reduce) return finish();
+        const chips = Array.from(wrap.querySelectorAll('.var-random-chip'));
+        let shown, idxs = null;
+        if (kind === 'randomnumber') {
+            let lo = parseInt(list[0], 10), hi = parseInt(list[1], 10);
+            if (isNaN(lo)) lo = 1;
+            if (isNaN(hi)) hi = 100;
+            if (lo > hi) [lo, hi] = [hi, lo];
+            const rnd = () => String(lo + Math.floor(Math.random() * (hi - lo + 1)));
+            shown = []; let prev = null;
+            for (let t = 0; t < 27; t++) { let v, g = 0; do { v = rnd(); } while (hi > lo && v === prev && ++g < 12); shown.push(v); prev = v; }
+            shown.push(rnd());
+        } else {
+            idxs = _PL_flickerSeq(list.length, Math.max(24, Math.min(46, list.length * 3)), Math.floor(Math.random() * list.length));
+            shown = idxs.map(i => list[i]);
+        }
+        const picked = shown[shown.length - 1];
         wrap._busy = true; btn.disabled = true;
-        if (result) result.classList.add('ticking');
-        let n = 0;
-        const t = setInterval(() => {
-            if (result) result.textContent = _PL_randomValue(kind, options);
-            if (++n >= 10) { clearInterval(t); finish(); }
-        }, 55);
+        chips.forEach(c => c.classList.remove('hit', 'won'));
+        result.classList.remove('landed');
+        result.classList.add('ticking');
+        _PL_flickerRun(shown, (t, _v, ms) => {
+            result.textContent = shown[t];
+            _PL_slideIn(result, ms * 0.9);
+            if (idxs) { chips.forEach(c => c.classList.remove('hit')); if (chips[idxs[t]]) chips[idxs[t]].classList.add('hit'); }
+        }, () => {
+            wrap._busy = false; btn.disabled = false;
+            result.classList.remove('ticking'); result.classList.add('landed');
+            result.textContent = picked || 'No valid options';
+            if (idxs && chips[idxs[idxs.length - 1]]) { chips.forEach(c => c.classList.remove('hit')); chips[idxs[idxs.length - 1]].classList.add('won'); }
+            if (hidden) { hidden.value = picked; hidden.dispatchEvent(new Event('input', { bubbles: true })); }
+        });
     };
 
     window._PL_rollDice = function(btn) {
@@ -2282,6 +2435,10 @@
         block._busy = true; btn.disabled = true;
         block.classList.add('rolling');
         out.textContent = 'Rolling...';
+        const chips = Array.from(block.querySelectorAll('.var-random-chip'));
+        chips.forEach(c => c.classList.remove('hit', 'won'));
+        const finalIdx = Math.max(0, chips.findIndex(c => c.textContent === result));
+        if (chips.length > 1) _PL_flickerRun(_PL_flickerSeq(chips.length, 22, finalIdx), (t, i) => { chips.forEach(c => c.classList.remove('hit')); chips[i].classList.add('hit'); }, () => { chips.forEach(c => c.classList.remove('hit')); chips[finalIdx].classList.add('won'); }, 1900);
         _PL_dieThrow(block, die, block.querySelector('.var-die-shadow'), _DIE_ROT[slot], finish);
     };
 
@@ -2302,7 +2459,7 @@
             next[i] = x;
         }
         const pcts = wrap.querySelectorAll('.var-mix-pct'), segs = wrap.querySelectorAll('.var-mix-bar span');
-        ranges.forEach((r, j) => { r.value = next[j]; pcts[j].textContent = next[j] + '%'; segs[j].style.flexGrow = next[j]; });
+        ranges.forEach((r, j) => { if (Number(r.value) !== next[j]) _PL_bump(pcts[j], 1.2); r.value = next[j]; pcts[j].textContent = next[j] + '%'; segs[j].style.flexGrow = next[j]; });
         const hidden = wrap.querySelector('input.var-input');
         let labels = [];
         try { labels = JSON.parse(hidden.dataset.mixLabels || '[]'); } catch (_) {}
@@ -2341,6 +2498,18 @@
             setTimeout(() => { topCard.style.visibility = ''; done(); }, 950);
         });
     };
+
+    // Slider values and range labels bump as you drag
+    document.addEventListener('input', function(evt) {
+        const t = evt.target;
+        if (!t.matches || !t.matches('#variableFields input[type="range"]')) return;
+        const label = t.nextElementSibling && t.nextElementSibling.matches('span, b') ? t.nextElementSibling : null;
+        if (label) _PL_bump(label, 1.2);
+        if (t.classList.contains('var-rangeslider-min') || t.classList.contains('var-rangeslider-max')) {
+            const l = t.closest('.var-rangeslider').querySelector(t.classList.contains('var-rangeslider-min') ? '.var-rangeslider-min-label' : '.var-rangeslider-max-label');
+            _PL_bump(l, 1.2);
+        }
+    });
 
     // Checklist (multi-option checkbox) and Range fields sync their hidden input via delegated listeners
     document.addEventListener('change', function(evt) {
@@ -3496,11 +3665,8 @@ STYLE/THEME: [[reserved for future use]]`;
             Allow multiple selections
           </label>
         </div>
-        <div class="dice-faces" style="display: ${type === 'diceroll' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
-          <span style="font-size: 11px; color: var(--ink-3);">Sides:</span>
-          <input type="number" data-field="faces" min="2" max="100" value="${escapeAttr(m.faces || 6)}" style="width: 72px; font-size: 12px; padding: 4px 8px;" />
-          <span style="font-size: 11px; color: var(--ink-3);">or type your own faces below</span>
-        </div>
+        <div class="dice-builder" style="display: ${type === 'diceroll' ? 'flex' : 'none'};" data-faces="${escapeAttr(JSON.stringify(type === 'diceroll' ? _PL_diceValues(m) : []))}"></div>
+        <input type="hidden" data-field="faces" value="${escapeAttr(m.faces || 6)}" />
         <div class="dropdown-options" style="display: ${needsOptions ? 'block' : 'none'};">
           <textarea data-field="options" placeholder="${_PL_optPlaceholder(type)}" rows="2"
                     style="width: 100%; padding: 6px 10px; font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; color: var(--ink); margin-top: 4px;">${escapeHtml(opts)}</textarea>
@@ -3513,7 +3679,6 @@ STYLE/THEME: [[reserved for future use]]`;
     function _PL_optPlaceholder(type) {
         return ({
             weightedmix: 'Name:percentage, one per line or comma separated (blank gives three sample options)',
-            diceroll: 'Custom faces, words or numbers, comma separated (blank uses the sides above)',
             randomnumber: 'Min, Max (whole numbers)',
             carddeck: 'Card names, comma separated (blank gives five sample cards)',
             randompick: 'Options, comma separated'
@@ -3522,10 +3687,11 @@ STYLE/THEME: [[reserved for future use]]`;
     function _PL_applyVarTypeUI(row, type) {
         const show = (sel, on, disp) => { const el = row.querySelector(sel); if (el) el.style.display = on ? (disp || 'flex') : 'none'; };
         const isRandom = _PL_RANDOM_TYPES.includes(type);
-        show('.dropdown-options', _PL_OPTION_TYPES.includes(type), 'block');
+        show('.dropdown-options', _PL_OPTION_TYPES.includes(type) && type !== 'diceroll', 'block');
         show('.paragraph-size', type === 'paragraph');
         show('.togglegroup-multi', type === 'togglegroup');
-        show('.dice-faces', type === 'diceroll');
+        show('.dice-builder', type === 'diceroll');
+        if (type === 'diceroll') _PL_diceBuilderInit(row);
         show('.var-wrap-row', !isRandom);
         show('[data-field="default"]', !isRandom, 'block');
         const ta = row.querySelector('[data-field="options"]');
