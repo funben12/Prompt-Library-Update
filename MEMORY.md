@@ -392,4 +392,4 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - Adds two Date types on top of the 22-type set (now 24 on desktop): Relative Date (`reldate`, phrase box with quick chips, resolves at fill time, for example "next Friday", "in 3 weeks", "end of next month", "1st of next month") and Recurring Date (`recurring`, ordinal plus weekday or day of month, output "The last Friday of every month (next: Friday 30 October 2026)"). Helpers `_PL_parseRelDate`, `_PL_reldateSync`, `_PL_recurSync` in app.js. No new meta fields, no schema change, nothing to whitelist in `share_server`.
 - Skipped on purpose: Dial, XY Pad, Persona picker and the searchable type picker from the earlier rework, which clashed with the 22-type trim. That work is archived on branch `claude/vartypes-rework-archive`.
 - Phone parity still to do: `vartypes.js` in AI-App-Factory needs the same two types (keep the two apps in step).
-- Backups: `_rollbacks/12-10-2026-app-v1-reldate.js` and `.css`.
+- Backup: the pre-change files are `static/app.js` and `static/app.css` on `main` at 5a5d351 (local copies were not committed to keep the PR small).
