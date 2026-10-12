@@ -386,3 +386,32 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - Backups: `_rollbacks/app v-pre-var-trim.js`, `.css`, `index v-pre-var-trim.html`, `share_server v-pre-var-trim.py`. Phone: `_rollbacks/vartypes v-pre-var-trim.js` in the app-003 folder.
 
 - **Icon, favicon and logo swap (2026-10-11):** all three now use the cream squircle with the teal hardcover book (supplied art, dark background removed, transparent PNG). Regenerated: `icon.ico` and `static/icon.ico` (16 to 256), `app-icon.png` (512), `static/logo.png` (256), `static/logo-mark.png` (128, sidebar), `mac/app-icon.icns`. New: `static/favicon-32.png`, `static/apple-touch-icon.png`, with matching `<link>` tags in index.html. `.brand-mark` CSS no longer crops or borders the logo, since the squircle carries its own shape. Old files backed up in `_rollbacks/` (`icon v2.ico`, `static-icon v2.ico`, `app-icon v1.png`, `static-logo v1.png`, `static-logo-mark v1.png`, `mac-app-icon v1.icns`, `index v-pre-icon-swap.html`, `app v-pre-icon-swap.css`). Not verified in a browser or installer build. The Android app in AI-App-Factory still uses the previous book art.
+
+### Variable types back to the original list (2026-10-12)
+
+This supersedes the "trim to 22" notes above wherever they conflict. Eugene did not like the 22-type trim and asked for the original list back with Toggle Group, plus the new random types.
+
+- Desktop now has 44 types. Original list restored: text, paragraph, title, hashtags, list, email, url, phone, number, date, datetime, month, week, time, color, currency, duration, timezone, language, json, percentage, daterange, today, clipboard, dropdown, multiselect, radio, choicechips, segmented, boolean, checkbox, tags, togglegroup, range, slider, rangeslider, iconpicker, stepper, libraryprompt. Random group kept from the trim work: diceroll (rolling die), weightedmix (sliders), carddeck, randompick, randomnumber.
+- Still removed, as Eugene asked at the start of the session: Code, Password, Ranked List, Star Rating, Matrix, Emoji Picker. Old saved ones fall back through `_PL_LEGACY_TYPE_MAP` (code to paragraph, password and emoji to text, ranked list to checkbox, rating to stepper, matrix to dropdown).
+- Dropped again (they came with the trim): Choice Cards, Combo Box, Step Slider. Saved ones open as choice chips, dropdown and dropdown. Unused `.var-choice-cards` and `.var-card-*` CSS was left in `app.css`.
+- Restored from the 2026-10-08 build: renderers, helpers (`_PL_todayISO`, `_PL_step`, tag helpers, `_PL_selectIcon`, `_PL_pickLibPrompt`, `_PL_pasteClip`), `_PL_formatVar` title and hashtag rules, and the CSS blocks for tags, radio, switch, segmented, stepper, clipboard and library prompt. The editor type select is the original grouped list plus a Random group. Toggle Group has its "Allow multiple selections" row again.
+- Relative Date and Recurring Date (draft PR #48) were not wanted either, so that PR is superseded by this one.
+- Phone parity: AI-App-Factory `vartypes.js` must get the same change (separate PR).
+- Verified in headless Chromium: all 44 types render, interactions write values, old and trimmed types fall back, no console errors.
+
+### Real motion for Dice Roll and Card Deck (2026-10-12)
+
+- Dice Roll: the die is thrown across a 220 x 120 tray, bounces three times with shrinking height while tumbling on all three axes, with a shadow that shrinks and fades as the die rises, and lands on the chosen face after 2 seconds (`_PL_dieThrow`, Web Animations API). The die keeps a fixed viewing tilt so it reads as 3D.
+- Card Deck: twelve cards on the pile. Shuffle is two riffle rounds (`_PL_deckShuffle`): the pile splits into two halves, cards drop back one by one interleaved, the pile is tapped square, then the top card is dealt to the slot with a lift and flip (0.9s). About 4 seconds in total.
+- These two ignore `prefers-reduced-motion` on purpose: Windows and Android set it when system animations are off, which made the old version look like a quick cut. They only run when the user presses the button. The reduced-motion CSS rule for them was removed.
+- Phone `vartypes.js` gets the same motion (AI-App-Factory PR #34).
+- Backups: `_rollbacks/12-10-2026-app-v3-motion.js` and `.css` (local only).
+
+### Fill sheet interaction and dice builder (2026-10-12)
+
+- Dice builder in the variable editor (Dice Roll type): a live 3D die with a d-count badge, presets d4, d6, d8, d10, d12, d20, one editable tile per side (type words or numbers), Add side and a remove button on each tile (minimum 2, maximum 100). Adding a side pops a tile in and the die spins or hops, editing a side turns the die to that face, presets re-deal the tiles. Sides sync into the existing `options` text (blank when the sides are plain 1 to N) and `faces` count, so the saved shape is unchanged. The cube shows the first six sides, the tiles show all of them (`_PL_diceBuilderInit`).
+- Fill sheet Dice Roll shows a chip for every side that flickers during the throw and lights up the result. Random Pick shows its options as chips and Random Pick and Random Number now flicker slot-machine style: 24 to 46 flips through the options (never the same one twice in a row), starting about 40ms apart and slowing to about 300ms, then land with a pop (`_PL_flickerSeq`, `_PL_flickerRun`).
+- Motion across the other types (CSS plus small hooks, scoped to `#variableFields`, ignores reduced motion on purpose): field cards rise in with a stagger, the filled tick pops, chips and toggle buttons press and pop, Segmented has a sliding thumb (`_PL_segThumb`), checklist boxes and radios are custom drawn with an animated tick or dot, Yes/No switch thumb overshoots and the label bumps, tags pop in and shrink out, stepper number slides, slider and range labels bump, mix percentages bump, icon picker lifts, buttons press.
+- Fixed two bugs found while testing: the Yes/No switch label never updated after the restore, and removing a tag did not update the stored value (the chip text included the "close" icon text).
+- Phone parity: AI-App-Factory PR #34 (`vartypes.js`).
+- Backups: `_rollbacks/12-10-2026-app-v4-interaction.js` and `.css` (local only).
