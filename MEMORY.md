@@ -386,3 +386,10 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - Backups: `_rollbacks/app v-pre-var-trim.js`, `.css`, `index v-pre-var-trim.html`, `share_server v-pre-var-trim.py`. Phone: `_rollbacks/vartypes v-pre-var-trim.js` in the app-003 folder.
 
 - **Icon, favicon and logo swap (2026-10-11):** all three now use the cream squircle with the teal hardcover book (supplied art, dark background removed, transparent PNG). Regenerated: `icon.ico` and `static/icon.ico` (16 to 256), `app-icon.png` (512), `static/logo.png` (256), `static/logo-mark.png` (128, sidebar), `mac/app-icon.icns`. New: `static/favicon-32.png`, `static/apple-touch-icon.png`, with matching `<link>` tags in index.html. `.brand-mark` CSS no longer crops or borders the logo, since the squircle carries its own shape. Old files backed up in `_rollbacks/` (`icon v2.ico`, `static-icon v2.ico`, `app-icon v1.png`, `static-logo v1.png`, `static-logo-mark v1.png`, `mac-app-icon v1.icns`, `index v-pre-icon-swap.html`, `app v-pre-icon-swap.css`). Not verified in a browser or installer build. The Android app in AI-App-Factory still uses the previous book art.
+
+### Relative and recurring dates (2026-10-12)
+
+- Adds two Date types on top of the 22-type set (now 24 on desktop): Relative Date (`reldate`, phrase box with quick chips, resolves at fill time, for example "next Friday", "in 3 weeks", "end of next month", "1st of next month") and Recurring Date (`recurring`, ordinal plus weekday or day of month, output "The last Friday of every month (next: Friday 30 October 2026)"). Helpers `_PL_parseRelDate`, `_PL_reldateSync`, `_PL_recurSync` in app.js. No new meta fields, no schema change, nothing to whitelist in `share_server`.
+- Skipped on purpose: Dial, XY Pad, Persona picker and the searchable type picker from the earlier rework, which clashed with the 22-type trim. That work is archived on branch `claude/vartypes-rework-archive`.
+- Phone parity still to do: `vartypes.js` in AI-App-Factory needs the same two types (keep the two apps in step).
+- Backups: `_rollbacks/12-10-2026-app-v1-reldate.js` and `.css`.

@@ -1606,7 +1606,7 @@
     // Old shape:  { type: 'checkbox', default: 'true' | 'Yes' | 'No' }  -- no options array
     // New shape:  { type: 'checkbox', default: 'Yes', options: ['Yes','No'] }
     // Variable types kept after the 2026-10-09 trim. Old saved types map to the nearest kept one or fall back to text.
-    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
+    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'reldate', 'recurring', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
     const _PL_LEGACY_TYPE_MAP = { radio: 'choicechips', segmented: 'choicechips', yesno: 'choicechips', multiselect: 'checkbox', togglegroup: 'checkbox', boolean: 'choicechips' };
     const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
     const _PL_RANDOM_TYPES = ['diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
@@ -1729,6 +1729,8 @@
             rangeslider: 'linear_scale',
             date: 'event',
             daterange: 'date_range',
+            reldate: 'update',
+            recurring: 'event_repeat',
             diceroll: 'casino',
             weightedmix: 'balance',
             carddeck: 'style',
@@ -1854,6 +1856,24 @@
       </div>`;
             } else if (type === 'percentage') {
                 input = `<div class="var-pct"><input type="number" class="var-input" data-var="${escapeAttr(v)}" placeholder="0" value="${escapeAttr(def)}" /><span>%</span></div>`;
+            } else if (type === 'reldate') {
+                const rdChips = ['Today', 'Tomorrow', 'Next Friday', 'In 2 weeks', '1st of next month', 'End of month'];
+                input = `<div class="var-reldate" data-fmt="long">
+        <input type="text" class="var-reldate-expr" placeholder="e.g. in 3 days, next Friday" value="${escapeAttr(def || 'today')}" oninput="window._PL_reldateSync(this)" />
+        <div class="var-reldate-chips">${rdChips.map(c => `<button type="button" class="chip" onclick="window._PL_reldatePick(this)">${escapeHtml(c)}</button>`).join('')}</div>
+        <div class="var-reldate-out"><span class="material-symbols-outlined">event</span><span class="var-reldate-text"></span></div>
+        <input type="hidden" class="var-input var-reldate-hidden" data-var="${escapeAttr(v)}" value="" />
+      </div>`;
+            } else if (type === 'recurring') {
+                const [rcOrd, rcDow] = (def && def.includes('|')) ? def.split('|') : ['1', 'day'];
+                const rcOrds = [['every', 'Every'], ['1', '1st'], ['2', '2nd'], ['3', '3rd'], ['4', '4th'], ['last', 'Last']];
+                const rcDays = [['day', 'day of the month'], ['1', 'Monday'], ['2', 'Tuesday'], ['3', 'Wednesday'], ['4', 'Thursday'], ['5', 'Friday'], ['6', 'Saturday'], ['0', 'Sunday']];
+                input = `<div class="var-recur" data-fmt="both">
+        <select class="var-recur-ord" onchange="window._PL_recurSync(this)">${rcOrds.map(([k, l]) => `<option value="${k}"${k === rcOrd ? ' selected' : ''}>${l}</option>`).join('')}</select>
+        <select class="var-recur-dow" onchange="window._PL_recurSync(this)">${rcDays.map(([k, l]) => `<option value="${k}"${k === rcDow ? ' selected' : ''}>${l}</option>`).join('')}</select>
+        <div class="var-reldate-out"><span class="material-symbols-outlined">event_repeat</span><span class="var-reldate-text"></span></div>
+        <input type="hidden" class="var-input var-recur-hidden" data-var="${escapeAttr(v)}" value="" />
+      </div>`;
             } else if (type === 'daterange') {
                 const [drA, drB] = def ? def.split('|') : ['', ''];
                 input = `<div class="var-daterange">
@@ -1884,6 +1904,10 @@
             inp.addEventListener('input', _updateVarLivePreview);
             inp.addEventListener('change', _updateVarLivePreview);
         });
+        // Resolve relative and recurring dates before the first preview
+        $$('#variableFields .var-reldate-expr').forEach(el => window._PL_reldateSync(el, true));
+        $$('#variableFields .var-recur-ord').forEach(el => window._PL_recurSync(el, true));
+
         // Seed preview with defaults and update filled states
         _updateVarLivePreview();
     }
@@ -1972,6 +1996,122 @@
         if (type === 'daterange') return v.replace('|', ' to ');
         return v;
     }
+    /* ---- Variable types: Relative Date / Recurring Date ---- */
+    const _PL_DOW = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    function _PL_emit(hidden, val, silent) {
+        hidden.value = val;
+        if (!silent) hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    function _PL_fmtDate(d, fmt) {
+        if (fmt === 'iso') return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        if (fmt === 'short') return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    }
+    // Turns plain phrases ("in 3 days", "next Friday", "end of next month") into a Date, or null when not understood
+    function _PL_parseRelDate(str, base) {
+        const s = String(str || '').toLowerCase().trim().replace(/\s+/g, ' ').replace(/^the /, '');
+        if (!s) return null;
+        const t = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+        const days = n => { const x = new Date(t); x.setDate(x.getDate() + n); return x; };
+        const months = n => {
+            const x = new Date(t.getFullYear(), t.getMonth() + n, 1);
+            x.setDate(Math.min(t.getDate(), new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate()));
+            return x;
+        };
+        const shift = { next: 1, last: -1, this: 0 };
+        let m;
+        if (/^(today|now)$/.test(s)) return t;
+        if (s === 'tomorrow') return days(1);
+        if (s === 'yesterday') return days(-1);
+        if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/))) return new Date(+m[1], +m[2] - 1, +m[3]);
+        const NUM = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+        if ((m = s.match(/^(?:in )?(\d+|a|an|one|two|three|four|five|six|seven|eight|nine|ten) (day|week|month|year)s?( ago| from now)?$/))) {
+            let n = NUM[m[1]] || parseInt(m[1], 10);
+            if (m[3] === ' ago') n = -n;
+            if (m[2] === 'day') return days(n);
+            if (m[2] === 'week') return days(7 * n);
+            return months(m[2] === 'month' ? n : 12 * n);
+        }
+        if ((m = s.match(/^(next|last|this) (week|month|year)$/))) {
+            const k = shift[m[1]];
+            return m[2] === 'week' ? days(7 * k) : months(m[2] === 'month' ? k : 12 * k);
+        }
+        if ((m = s.match(/^(?:(next|last|this) )?([a-z]{3,9})$/))) {
+            const di = _PL_DOW.findIndex(n => n.startsWith(m[2]));
+            if (di >= 0) {
+                const fwd = (di - t.getDay() + 7) % 7;
+                if (m[1] === 'next') return days(fwd || 7);
+                if (m[1] === 'last') return days(-(((t.getDay() - di + 7) % 7) || 7));
+                return days(fwd);
+            }
+        }
+        if ((m = s.match(/^(start|beginning|end|first day|last day|1st|first) of (?:the )?(?:(this|next|last) )?(week|month|year)$/))) {
+            const k = shift[m[2]] || 0, end = /^(end|last day)$/.test(m[1]);
+            if (m[3] === 'month') {
+                const first = new Date(t.getFullYear(), t.getMonth() + k, 1);
+                return end ? new Date(first.getFullYear(), first.getMonth() + 1, 0) : first;
+            }
+            if (m[3] === 'year') {
+                const y = t.getFullYear() + k;
+                return end ? new Date(y, 11, 31) : new Date(y, 0, 1);
+            }
+            const mon = days(7 * k - ((t.getDay() + 6) % 7));
+            return end ? new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6) : mon;
+        }
+        if ((m = s.match(/^(\d{1,2})(?:st|nd|rd|th) of (?:(this|next|last) )?month$/))) {
+            const first = new Date(t.getFullYear(), t.getMonth() + (shift[m[2]] || 0), 1);
+            const last = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+            return new Date(first.getFullYear(), first.getMonth(), Math.min(+m[1], last));
+        }
+        return null;
+    }
+    window._PL_reldateSync = function(el, silent) {
+        const root = el.closest('.var-reldate');
+        const d = _PL_parseRelDate(el.value, new Date());
+        const text = d ? _PL_fmtDate(d, root.dataset.fmt) : '';
+        root.classList.toggle('is-bad', !d && !!el.value.trim());
+        root.querySelector('.var-reldate-text').textContent = d ? text : (el.value.trim() ? 'Not understood, try "in 3 days" or "next Friday"' : 'Type a phrase or pick one');
+        _PL_emit(root.querySelector('.var-reldate-hidden'), text, silent);
+    };
+    window._PL_reldatePick = function(btn) {
+        const input = btn.closest('.var-reldate').querySelector('.var-reldate-expr');
+        input.value = btn.textContent.trim();
+        window._PL_reldateSync(input);
+    };
+    // Recurring rule: ordinal ("every", 1st to 4th, last) plus a weekday or day of the month
+    function _PL_recurMatch(d, ord, dow) {
+        const dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+        if (dow === 'day') {
+            if (ord === 'every') return true;
+            return ord === 'last' ? d.getDate() === dim : d.getDate() === +ord;
+        }
+        if (d.getDay() !== +dow) return false;
+        if (ord === 'every') return true;
+        return ord === 'last' ? d.getDate() + 7 > dim : Math.ceil(d.getDate() / 7) === +ord;
+    }
+    function _PL_recurPhrase(ord, dow) {
+        const nth = { 1: '1st', 2: '2nd', 3: '3rd', 4: '4th' };
+        const day = dow === 'day' ? '' : _PL_DOW[+dow].replace(/^./, c => c.toUpperCase());
+        if (ord === 'every') return dow === 'day' ? 'Every day' : 'Every ' + day;
+        return dow === 'day'
+            ? (ord === 'last' ? 'The last day of every month' : `The ${nth[ord]} of every month`)
+            : `The ${ord === 'last' ? 'last' : nth[ord]} ${day} of every month`;
+    }
+    window._PL_recurSync = function(el, silent) {
+        const root = el.closest('.var-recur');
+        const ord = root.querySelector('.var-recur-ord').value, dow = root.querySelector('.var-recur-dow').value;
+        const now = new Date(), base = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        let next = null;
+        for (let i = 0; i < 400 && !next; i++) {
+            const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
+            if (_PL_recurMatch(d, ord, dow)) next = d;
+        }
+        const phrase = _PL_recurPhrase(ord, dow), nextTxt = next ? _PL_fmtDate(next, 'long') : '';
+        const mode = root.dataset.fmt;
+        const out = mode === 'phrase' ? phrase : (mode === 'next' ? nextTxt : `${phrase} (next: ${nextTxt})`);
+        root.querySelector('.var-reldate-text').textContent = out;
+        _PL_emit(root.querySelector('.var-recur-hidden'), out, silent);
+    };
     window._PL_syncDateRange = function(el) {
         const wrap = el.closest('.var-daterange');
         const a = wrap.querySelector('.var-dr-from').value, b = wrap.querySelector('.var-dr-to').value;
@@ -3230,6 +3370,8 @@ STYLE/THEME: [[reserved for future use]]`;
             <optgroup label="Date">
             <option value="date" ${type === 'date' ? 'selected' : ''}>Date</option>
             <option value="daterange" ${type === 'daterange' ? 'selected' : ''}>Date Range</option>
+            <option value="reldate" ${type === 'reldate' ? 'selected' : ''}>Relative Date</option>
+            <option value="recurring" ${type === 'recurring' ? 'selected' : ''}>Recurring Date</option>
             </optgroup>
             <optgroup label="Random">
             <option value="diceroll" ${type === 'diceroll' ? 'selected' : ''}>Dice Roll (rolling die)</option>

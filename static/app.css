@@ -10722,4 +10722,13 @@ body.plx-workspace-open{overflow:hidden}
   .var-step-label.active { color: var(--accent); }
   .var-step-range { width: 100%; accent-color: var(--accent); }
 
-
+  /* ---- Variable types: Relative Date / Recurring Date ---- */
+  .var-reldate, .var-recur { display: flex; flex-direction: column; gap: 8px; }
+  .var-recur { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .var-reldate-expr, .var-recur select { width: 100%; padding: 8px 12px; background: var(--surface-sunk); border: 1px solid var(--line); border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--ink); }
+  .var-recur select { width: auto; flex: 1 1 120px; }
+  .var-reldate-expr:focus, .var-recur select:focus { border-color: var(--accent); box-shadow: var(--ring); outline: none; }
+  .var-reldate-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .var-reldate-out { display: flex; align-items: center; gap: 8px; flex-basis: 100%; padding: 8px 12px; border-radius: var(--r-sm); background: var(--surface-sunk); border: 1px dashed var(--line-strong); font-family: var(--ff-mono); font-size: 12px; color: var(--ink); }
+  .var-reldate-out .material-symbols-outlined { font-size: 16px; color: var(--accent); }
+  .var-reldate.is-bad .var-reldate-out { color: var(--danger, oklch(55% 0.18 25)); border-color: var(--danger, oklch(55% 0.18 25)); }
