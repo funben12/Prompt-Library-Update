@@ -1322,17 +1322,82 @@
   }
   .var-input:focus, .var-select:focus { border-color: var(--accent); box-shadow: var(--ring); }
 
-  /* ---- Variable type widgets (Checklist / Toggle Group) ---- */
+  /* ---- Variable type widgets (Tags / Checklist / Toggle Group) ---- */
+  .var-tags-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+  .var-tags-chips:empty { margin-bottom: 0; }
+  .var-tag-chip { cursor: default; }
+  .var-tag-chip .material-symbols-outlined:hover { color: var(--danger, #e5484d); }
+
   .var-checklist { display: flex; flex-direction: column; }
   .var-checklist label:hover { color: var(--ink); }
+
+  .var-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .var-choice-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 28px;
+    color: var(--ink-2);
+    font-size: var(--fs-sm);
+    cursor: pointer;
+  }
+  .var-choice-line:hover { color: var(--ink); }
 
   .var-toggle-group { display: flex; flex-wrap: wrap; gap: 6px; }
   .var-toggle-btn { cursor: pointer; }
 
+  .var-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    width: fit-content;
+    cursor: pointer;
+  }
+  .var-switch input { position: absolute; opacity: 0; pointer-events: none; }
+  .var-switch-track {
+    position: relative;
+    width: 38px;
+    height: 22px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: var(--surface-3);
+    box-shadow: var(--neu-inset);
+    transition: background var(--t-fast), border-color var(--t-fast);
+  }
+  .var-switch-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--ink-4);
+    transition: transform var(--t-fast), background var(--t-fast);
+  }
+  .var-switch input:checked + .var-switch-track {
+    background: var(--accent-soft);
+    border-color: var(--accent-line);
+  }
+  .var-switch input:checked + .var-switch-track .var-switch-thumb {
+    transform: translateX(16px);
+    background: var(--accent);
+  }
+  .var-switch-label {
+    min-width: 24px;
+    color: var(--ink-2);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+  }
+
+
 
   .var-code { font-family: var(--ff-mono); }
 
-  /* ---- Advanced variable type widgets (Range Slider) ---- */
+  /* ---- Advanced variable type widgets (Range Slider / Icon Picker) ---- */
   .var-rangeslider-track { position: relative; height: 22px; }
   .var-rangeslider-track input[type="range"] {
     position: absolute; top: 0; left: 0; width: 100%; margin: 0;
@@ -1341,6 +1406,15 @@
   .var-rangeslider-track input[type="range"]::-webkit-slider-thumb { pointer-events: auto; }
   .var-rangeslider-track input[type="range"]::-moz-range-thumb { pointer-events: auto; }
   .var-rangeslider-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-2); margin-top: 4px; }
+
+  .var-icon-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+  .var-icon-choice {
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 6px;
+    cursor: pointer; font-size: 18px; background: var(--surface);
+  }
+  .var-icon-choice.active { border-color: var(--accent); background: var(--accent-soft); }
+
 
   .var-preview-wrap { margin-top: var(--sp-4); }
   .var-preview-label {
@@ -10638,6 +10712,15 @@ body.plx-workspace-open{overflow:hidden}
 .ffw-remove { margin-right: auto; color: var(--danger, oklch(55% 0.18 25)); }
 #forgeFwDelete[hidden], #forgeFwEditBtn[hidden] { display: none; }
 
+  /* ---- Variable types: Segmented / Stepper / Percentage / Date Range ---- */
+  .var-seg { display: inline-flex; flex-wrap: nowrap; gap: 0; border: 1px solid var(--line); border-radius: var(--r-md, 8px); overflow: hidden; }
+  .var-seg-btn { padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink-2); background: var(--surface); border-right: 1px solid var(--line); user-select: none; }
+  .var-seg-btn:last-of-type { border-right: 0; }
+  .var-seg-btn.active { background: var(--accent); color: var(--on-accent, #fff); }
+  .var-stepper { display: inline-flex; align-items: center; gap: 6px; }
+  .var-stepper button { width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 18px; line-height: 1; cursor: pointer; }
+  .var-stepper button:hover { background: var(--surface-2); }
+  .var-stepper input { width: 80px; text-align: center; font-family: var(--ff-mono); }
   /* ---- Variable types: Percentage / Date Range ---- */
   .var-pct { display: flex; align-items: center; gap: 6px; }
   .var-pct input { flex: 1; }
@@ -10646,6 +10729,10 @@ body.plx-workspace-open{overflow:hidden}
   .var-daterange input[type="date"] { flex: 1; min-width: 0; padding: 8px 12px; background: var(--surface-sunk); border: 1px solid var(--line); border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--ink); }
   .var-daterange input[type="date"]:focus { border-color: var(--accent); box-shadow: var(--ring); outline: none; }
   .var-daterange > span { color: var(--ink-3); font-size: 12px; }
+
+  /* ---- Variable types: Clipboard / Library Prompt ---- */
+  .var-clip { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+  .var-lib-select { width: 100%; padding: 8px 12px; background: var(--surface-sunk); border: 1px solid var(--line); border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--ink); }
 
   /* ---- Variable types: choice cards, dice, weighted mix, card deck ---- */
   .var-choice-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
