@@ -1648,6 +1648,87 @@
         return Array.from({ length: n }, (_, i) => String(i + 1));
     }
     const _DIE_ROT = [[0, 0], [0, -90], [-90, 0], [90, 0], [0, 90], [0, 180]];
+    const _DIE_TILT = 'rotateX(-22deg) rotateY(28deg)';
+    const _DIE_GROUND = 26;
+    function _PL_dieTransform(x, y, ax, ay, az) {
+        return `translate3d(${x}px, ${y}px, 0) ${_DIE_TILT} rotateX(${ax}deg) rotateY(${ay}deg) rotateZ(${az}deg)`;
+    }
+    // Throw the die across the tray: arc in, three bounces that shrink, tumbling on every axis, then rest on the chosen face
+    function _PL_dieThrow(block, die, shadow, target, done) {
+        const [bx, by] = target;
+        const sx = block._ax || 0, sy = block._ay || 0, sz = block._az || 0;
+        const ex = Math.ceil(sx / 360) * 360 + 360 * (3 + Math.floor(Math.random() * 2)) + bx;
+        const ey = Math.ceil(sy / 360) * 360 + 360 * (3 + Math.floor(Math.random() * 2)) + by;
+        const ez = sz + 360 * (1 + Math.floor(Math.random() * 2));
+        const G = _DIE_GROUND, fall = 'cubic-bezier(.55,0,.9,.5)', rise = 'cubic-bezier(.1,.5,.35,1)';
+        const path = [
+            { t: 0, x: -92, y: -48, f: 0, e: fall }, { t: 0.24, x: -52, y: G, f: 0.30, e: rise },
+            { t: 0.42, x: -26, y: -32, f: 0.52, e: fall }, { t: 0.60, x: 0, y: G, f: 0.70, e: rise },
+            { t: 0.72, x: 14, y: 0, f: 0.82, e: fall }, { t: 0.83, x: 26, y: G, f: 0.92, e: rise },
+            { t: 0.91, x: 32, y: 14, f: 0.97, e: fall }, { t: 1, x: 36, y: G, f: 1, e: 'linear' }
+        ];
+        const dieFrames = path.map(p => ({ offset: p.t, easing: p.e, transform: _PL_dieTransform(p.x, p.y, sx + (ex - sx) * p.f, sy + (ey - sy) * p.f, sz + (ez - sz) * p.f) }));
+        const shadowFrames = path.map(p => {
+            const h = Math.max(0, (G - p.y) / (G + 48));
+            return { offset: p.t, easing: p.e, opacity: 0.24 - 0.17 * h, transform: `translateX(${p.x}px) scale(${(1 - 0.5 * h).toFixed(3)})` };
+        });
+        const last = path[path.length - 1];
+        block._ax = ex; block._ay = ey; block._az = ez;
+        const a1 = die.animate(dieFrames, { duration: 2000, fill: 'forwards' });
+        const a2 = shadow ? shadow.animate(shadowFrames, { duration: 2000, fill: 'forwards' }) : null;
+        a1.onfinish = () => {
+            die.style.transform = _PL_dieTransform(last.x, last.y, ex, ey, ez);
+            if (shadow) { shadow.style.transform = `translateX(${last.x}px) scale(1)`; shadow.style.opacity = '0.24'; }
+            a1.cancel(); if (a2) a2.cancel();
+            done();
+        };
+    }
+    // Card deck: twelve cards on the pile, base positions are set inline so animations can return to them
+    const _PL_DECK_N = 12;
+    function _PL_deckPos(k) { return `translate(${((k - (_PL_DECK_N - 1)) * 0.35).toFixed(2)}px, ${(((_PL_DECK_N - 1) - k) * 0.35).toFixed(2)}px)`; }
+    function _PL_deckPileHTML() {
+        return Array.from({ length: _PL_DECK_N }, (_, k) => `<span style="z-index:${k};transform:${_PL_deckPos(k)}"></span>`).join('');
+    }
+    // Riffle shuffle: the pile splits in two, the halves drop back card by card interleaved, then the pile is squared up
+    function _PL_deckShuffle(deck, done) {
+        const pile = deck.querySelector('.var-deck-pile');
+        let order = Array.from(pile.querySelectorAll('span'));
+        const N = order.length, half = Math.floor(N / 2);
+        const rounds = [{ gap: 64, sep: 48 }, { gap: 40, sep: 42 }];
+        const run = ri => {
+            if (ri >= rounds.length) return done(order[order.length - 1]);
+            const r = rounds[ri];
+            const left = order.slice(0, half), right = order.slice(half), startRight = Math.random() < 0.5;
+            const next = [];
+            for (let j = 0; j < N; j++) {
+                const fromRight = (j % 2 === 0) === startRight;
+                const src = fromRight ? right : left;
+                next.push(src.length ? src.shift() : (left.length ? left.shift() : right.shift()));
+            }
+            const D = 420 + N * r.gap + 300 + 180, anims = [];
+            next.forEach((el, j) => {
+                const kOld = order.indexOf(el), side = kOld < half ? -1 : 1, within = kOld < half ? kOld : kOld - half;
+                const sep = `translate(${side * r.sep}px, ${-8 - within * 0.4}px) rotate(${side * 5}deg)`;
+                const dropStart = (420 + j * r.gap) / D, dropEnd = (420 + j * r.gap + 250) / D;
+                el.style.zIndex = j;
+                el.style.transform = _PL_deckPos(j);
+                anims.push(el.animate([
+                    { offset: 0, transform: _PL_deckPos(kOld) },
+                    { offset: 320 / D, transform: sep, easing: 'ease-out' },
+                    { offset: dropStart, transform: sep, easing: 'ease-in-out' },
+                    { offset: (dropStart + dropEnd) / 2, transform: `translate(${side * r.sep * 0.45}px, -24px) rotate(${side * 2}deg)` },
+                    { offset: dropEnd, transform: _PL_deckPos(j) },
+                    { offset: 1, transform: _PL_deckPos(j) }
+                ], { duration: D, fill: 'both' }));
+            });
+            anims.push(pile.animate([
+                { offset: 0, transform: 'translateY(0)' }, { offset: (D - 190) / D, transform: 'translateY(0)' },
+                { offset: (D - 110) / D, transform: 'translateY(-8px) rotate(-1.4deg)' }, { offset: 1, transform: 'translateY(0)' }
+            ], { duration: D }));
+            setTimeout(() => { anims.forEach(a => a.cancel()); order = next; run(ri + 1); }, D + 20);
+        };
+        run(0);
+    }
     const _DIE_PIPS = [[4], [0, 8], [0, 4, 8], [0, 2, 6, 8], [0, 2, 4, 6, 8], [0, 2, 3, 5, 6, 8]];
     function _PL_dieHTML(vals, pips) {
         return [0, 1, 2, 3, 4, 5].map(slot => {
@@ -1731,7 +1812,7 @@
                 const deckOpts = opts.length ? optTitles : _PL_CARD_DEFAULT;
                 input = `<div class="var-deck${def ? ' drawn' : ''}" data-deck-options="${escapeAttr(JSON.stringify(deckOpts))}">
         <div class="var-deck-table">
-          <div class="var-deck-pile" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="var-deck-pile" aria-hidden="true">${_PL_deckPileHTML()}</div>
           <div class="var-deck-slot"><div class="var-deck-card"><div class="var-deck-back"></div><div class="var-deck-front" data-deck-face>${escapeHtml(def)}</div></div></div>
         </div>
         <div class="var-deck-actions"><button type="button" class="btn btn-sm" onclick="window._PL_drawCard(this)">Shuffle and draw</button><span class="var-deck-left" data-deck-left>${deckOpts.length} cards in the deck</span></div>
@@ -1741,7 +1822,7 @@
                 const diceVals = _PL_diceValues(m);
                 const dicePips = !(opts.length) && diceVals.length === 6;
                 input = `<div class="var-dice" data-dice-vals="${escapeAttr(JSON.stringify(diceVals))}" data-dice-pips="${dicePips ? '1' : '0'}">
-        <div class="var-dice-scene"><div class="var-die">${_PL_dieHTML(diceVals, dicePips)}</div></div>
+        <div class="var-dice-scene"><div class="var-die-shadow"></div><div class="var-die">${_PL_dieHTML(diceVals, dicePips)}</div></div>
         <div class="var-dice-side">
           <div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
           <button type="button" class="btn btn-sm" onclick="window._PL_rollDice(this)">Roll dice</button>
@@ -2191,10 +2272,6 @@
                 w.classList.toggle('long', w.textContent.length > 7);
             });
         }
-        const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-        block._tx = (block._tx || 0) + 2 + Math.floor(Math.random() * 2);
-        block._ty = (block._ty || 0) + 2 + Math.floor(Math.random() * 2);
-        const [bx, by] = _DIE_ROT[slot];
         const finish = () => {
             block._busy = false; btn.disabled = false;
             block.classList.remove('rolling');
@@ -2202,13 +2279,10 @@
             hidden.value = result;
             hidden.dispatchEvent(new Event('input', { bubbles: true }));
         };
-        die.style.transition = reduce ? 'none' : 'transform 1.4s cubic-bezier(.15,.7,.2,1)';
-        die.style.transform = `rotateX(${bx + 360 * block._tx}deg) rotateY(${by + 360 * block._ty}deg)`;
-        if (reduce) return finish();
         block._busy = true; btn.disabled = true;
         block.classList.add('rolling');
-        out.textContent = '';
-        setTimeout(finish, 1450);
+        out.textContent = 'Rolling...';
+        _PL_dieThrow(block, die, block.querySelector('.var-die-shadow'), _DIE_ROT[slot], finish);
     };
 
     window._PL_mixSlide = function(el) {
@@ -2245,7 +2319,6 @@
         if (!deck._left || !deck._left.length) deck._left = all.slice();
         const face = deck.querySelector('[data-deck-face]'), hidden = deck.querySelector('input.var-input'), count = deck.querySelector('[data-deck-left]');
         const pick = deck._left.splice(Math.floor(Math.random() * deck._left.length), 1)[0];
-        const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
         const done = () => {
             deck._busy = false; btn.disabled = false;
             deck.classList.remove('shuffling', 'dealing');
@@ -2257,16 +2330,16 @@
             hidden.value = pick;
             hidden.dispatchEvent(new Event('input', { bubbles: true }));
         };
-        if (reduce) { setValue(); return done(); }
         deck._busy = true; btn.disabled = true;
         deck.classList.remove('drawn', 'dealing');
         deck.classList.add('shuffling');
-        setTimeout(() => {
+        _PL_deckShuffle(deck, topCard => {
             deck.classList.remove('shuffling');
+            topCard.style.visibility = 'hidden';
             setValue();
             deck.classList.add('dealing');
-            setTimeout(done, 700);
-        }, 950);
+            setTimeout(() => { topCard.style.visibility = ''; done(); }, 950);
+        });
     };
 
     // Checklist (multi-option checkbox) and Range fields sync their hidden input via delegated listeners

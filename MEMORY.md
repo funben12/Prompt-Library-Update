@@ -398,3 +398,11 @@ This supersedes the "trim to 22" notes above wherever they conflict. Eugene did 
 - Relative Date and Recurring Date (draft PR #48) were not wanted either, so that PR is superseded by this one.
 - Phone parity: AI-App-Factory `vartypes.js` must get the same change (separate PR).
 - Verified in headless Chromium: all 44 types render, interactions write values, old and trimmed types fall back, no console errors.
+
+### Real motion for Dice Roll and Card Deck (2026-10-12)
+
+- Dice Roll: the die is thrown across a 220 x 120 tray, bounces three times with shrinking height while tumbling on all three axes, with a shadow that shrinks and fades as the die rises, and lands on the chosen face after 2 seconds (`_PL_dieThrow`, Web Animations API). The die keeps a fixed viewing tilt so it reads as 3D.
+- Card Deck: twelve cards on the pile. Shuffle is two riffle rounds (`_PL_deckShuffle`): the pile splits into two halves, cards drop back one by one interleaved, the pile is tapped square, then the top card is dealt to the slot with a lift and flip (0.9s). About 4 seconds in total.
+- These two ignore `prefers-reduced-motion` on purpose: Windows and Android set it when system animations are off, which made the old version look like a quick cut. They only run when the user presses the button. The reduced-motion CSS rule for them was removed.
+- Phone `vartypes.js` gets the same motion (AI-App-Factory PR #34).
+- Backups: `_rollbacks/12-10-2026-app-v3-motion.js` and `.css` (local only).
