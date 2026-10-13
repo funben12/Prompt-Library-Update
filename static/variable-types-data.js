@@ -12,7 +12,7 @@ window.PL_VARTYPES = {
     { id: 'choice', label: 'Choice', types: ['dropdown', 'togglegroup', 'combobox', 'stepslider'] },
     { id: 'number', label: 'Number', types: ['number', 'percentage', 'slider', 'rangeslider'] },
     { id: 'date', label: 'Date', types: ['date', 'daterange'] },
-    { id: 'random', label: 'Random', types: ['diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'] }
+    { id: 'random', label: 'Random', types: ['weightedmix', 'carddeck', 'randompick', 'randomnumber'] }
   ],
   types: {
     text: { label: 'Text', icon: 'abc', options: 'none', random: false, hint: '', defaults: {}, motion: { style: 'none' } },
@@ -30,7 +30,6 @@ window.PL_VARTYPES = {
     rangeslider: { label: 'Range slider (min to max)', icon: 'linear_scale', options: 'none', random: false, hint: '', defaults: {}, motion: { style: 'follow', speed: 1, intensity: 0.6 } },
     date: { label: 'Date', icon: 'event', options: 'none', random: false, hint: '', defaults: {}, motion: { style: 'none' } },
     daterange: { label: 'Date range', icon: 'date_range', options: 'none', random: false, hint: '', defaults: {}, motion: { style: 'none' } },
-    diceroll: { label: 'Dice roll (rolling die)', icon: 'casino', options: 'list', random: true, hint: 'Custom faces, words or numbers (blank uses the sides above)', defaults: { faces: 6 }, motion: { style: 'tumble', speed: 1, intensity: 0.7 } },
     weightedmix: { label: 'Weighted mix (percentage sliders)', icon: 'balance', options: 'weights', random: true, hint: 'Name:percentage, comma separated (blank gives three samples)', defaults: {}, motion: { style: 'morph', speed: 1, intensity: 0.6 } },
     carddeck: { label: 'Card deck (shuffle and draw)', icon: 'style', options: 'list', random: true, hint: 'Card names, comma separated (blank gives five samples)', defaults: {}, motion: { style: 'fan', speed: 1, intensity: 0.6 } },
     randompick: { label: 'Random pick', icon: 'shuffle', options: 'list', random: true, hint: 'Options, comma separated', defaults: {}, motion: { style: 'roll', speed: 1, intensity: 0.6 } },
