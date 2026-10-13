@@ -24,13 +24,6 @@ META = {'Name': {'type': 'text', 'default': 'Sam', 'visible': True, 'options': [
 
 A = B = P = None
 pw = browser = httpd = None
-# Syntax errors already in the phone baseline (tools-board.js, tools-components.js). test_0 reports
-# them; the nearby tests ignore them so they only fail on new problems.
-KNOWN_BASELINE_ERRORS = {'Missing } in template expression', "Unexpected token '}'"}
-
-
-def unexpected(errors):
-    return [e for e in errors if e not in KNOWN_BASELINE_ERRORS]
 
 
 def setUpModule():
@@ -94,6 +87,16 @@ class PhoneAssets(unittest.TestCase):
 
 
 class PhoneSender(unittest.TestCase):
+    def test_00_board_and_components_tools_register(self):
+        ctx, page, errors = open_phone(seed=False)
+        try:
+            tools = page.evaluate('Object.keys(window.PL_TOOLS || {})')
+            self.assertEqual(errors, [])
+            self.assertTrue(any('board' in t.lower() for t in tools), tools)
+            self.assertTrue(any('component' in t.lower() for t in tools), tools)
+        finally:
+            ctx.close()
+
     def test_1_sheet_lists_desktops_and_phones(self):
         ctx, page, errors = open_phone()
         try:
@@ -102,7 +105,7 @@ class PhoneSender(unittest.TestCase):
             self.assertEqual(sorted(found), ['Desk A', 'Desk B', 'Pixel Test'])
             self.assertIn('Computer', found['Desk A'].inner_text())
             self.assertIn('Phone', found['Pixel Test'].inner_text())
-            self.assertEqual(unexpected(errors), [])
+            self.assertEqual(errors, [])
         finally:
             ctx.close()
 
@@ -185,7 +188,7 @@ class PhoneReceiver(unittest.TestCase):
             p = page.evaluate("PL.S.prompts.find(p => p.title === 'From desktop')")
             self.assertEqual(p['categories'], ['Received'])
             self.assertEqual(p['varMeta']['Name']['default'], 'Sam')
-            self.assertEqual(unexpected(errors), [])
+            self.assertEqual(errors, [])
         finally:
             ctx.close()
 
