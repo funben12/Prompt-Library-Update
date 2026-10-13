@@ -1606,10 +1606,12 @@
     // Old shape:  { type: 'checkbox', default: 'true' | 'Yes' | 'No' }  -- no options array
     // New shape:  { type: 'checkbox', default: 'Yes', options: ['Yes','No'] }
     // Variable types kept after the 2026-10-09 trim. Old saved types map to the nearest kept one or fall back to text.
-    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
+    // Variable type definitions come from variable-types-data.js, shared with the phone app.
+    const _PL_VT = (window.PL_VARTYPES && window.PL_VARTYPES.types) || (console.error('variable-types-data.js did not load'), { text: { label: 'Text', icon: 'abc', options: 'none', random: false, hint: '' } });
+    const _PL_KEPT_TYPES = Object.keys(_PL_VT);
     const _PL_LEGACY_TYPE_MAP = { radio: 'choicechips', segmented: 'choicechips', yesno: 'choicechips', multiselect: 'checkbox', togglegroup: 'checkbox', boolean: 'choicechips' };
-    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
-    const _PL_RANDOM_TYPES = ['diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
+    const _PL_OPTION_TYPES = _PL_KEPT_TYPES.filter(t => _PL_VT[t].options && _PL_VT[t].options !== 'none');
+    const _PL_RANDOM_TYPES = _PL_KEPT_TYPES.filter(t => _PL_VT[t].random);
     function _PL_normMeta(m) {
         const out = Object.assign({}, m);
         const t = m.type || 'text';
@@ -1711,30 +1713,7 @@
             return;
         }
 
-        const typeIcon = {
-            text: 'abc',
-            paragraph: 'subject',
-            code: 'code',
-            list: 'format_list_bulleted',
-            language: 'translate',
-            dropdown: 'arrow_drop_down',
-            choicechips: 'apps',
-            choicecards: 'view_agenda',
-            checkbox: 'checklist',
-            combobox: 'edit_note',
-            stepslider: 'tune',
-            number: 'tag',
-            percentage: 'percent',
-            slider: 'linear_scale',
-            rangeslider: 'linear_scale',
-            date: 'event',
-            daterange: 'date_range',
-            diceroll: 'casino',
-            weightedmix: 'balance',
-            carddeck: 'style',
-            randompick: 'shuffle',
-            randomnumber: 'pin',
-        };
+        const typeIcon = Object.fromEntries(_PL_KEPT_TYPES.map(t => [t, _PL_VT[t].icon || 'abc']));
 
         wrap.innerHTML = visible.map((v, index) => {
             const m = _PL_normMeta(meta[v] || {});
@@ -3205,40 +3184,7 @@ STYLE/THEME: [[reserved for future use]]`;
           </label>
         </div>
         <div class="var-meta-fields">
-          <select data-field="type" onchange="window.PL_onVarTypeChange(this)">
-            <optgroup label="Text">
-            <option value="text" ${type === 'text' ? 'selected' : ''}>Text</option>
-            <option value="paragraph" ${type === 'paragraph' ? 'selected' : ''}>Paragraph</option>
-            <option value="code" ${type === 'code' ? 'selected' : ''}>Code</option>
-            <option value="list" ${type === 'list' ? 'selected' : ''}>List (bullets)</option>
-            <option value="language" ${type === 'language' ? 'selected' : ''}>Language</option>
-            </optgroup>
-            <optgroup label="Choice">
-            <option value="dropdown" ${type === 'dropdown' ? 'selected' : ''}>Dropdown</option>
-            <option value="choicechips" ${type === 'choicechips' ? 'selected' : ''}>Choice Chips (compact)</option>
-            <option value="choicecards" ${type === 'choicecards' ? 'selected' : ''}>Choice Cards (title and description)</option>
-            <option value="checkbox" ${type === 'checkbox' ? 'selected' : ''}>Checkbox List</option>
-            <option value="combobox" ${type === 'combobox' ? 'selected' : ''}>Combo Box (pick or type)</option>
-            <option value="stepslider" ${type === 'stepslider' ? 'selected' : ''}>Step Slider</option>
-            </optgroup>
-            <optgroup label="Number">
-            <option value="number" ${type === 'number' ? 'selected' : ''}>Number</option>
-            <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
-            <option value="slider" ${type === 'slider' ? 'selected' : ''}>Slider</option>
-            <option value="rangeslider" ${type === 'rangeslider' ? 'selected' : ''}>Range Slider (min-max)</option>
-            </optgroup>
-            <optgroup label="Date">
-            <option value="date" ${type === 'date' ? 'selected' : ''}>Date</option>
-            <option value="daterange" ${type === 'daterange' ? 'selected' : ''}>Date Range</option>
-            </optgroup>
-            <optgroup label="Random">
-            <option value="diceroll" ${type === 'diceroll' ? 'selected' : ''}>Dice Roll (rolling die)</option>
-            <option value="weightedmix" ${type === 'weightedmix' ? 'selected' : ''}>Weighted Mix (percentage sliders)</option>
-            <option value="carddeck" ${type === 'carddeck' ? 'selected' : ''}>Card Deck (shuffle and draw)</option>
-            <option value="randompick" ${type === 'randompick' ? 'selected' : ''}>Random Pick</option>
-            <option value="randomnumber" ${type === 'randomnumber' ? 'selected' : ''}>Random Number</option>
-            </optgroup>
-          </select>
+          ${_PL_typeSelectHtml(type)}
           <input type="text" data-field="default" class="var-default-field" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
         </div>
         <div class="var-wrap-row" style="display:flex;gap:8px;align-items:center;margin-top:4px;">
@@ -3278,16 +3224,12 @@ STYLE/THEME: [[reserved for future use]]`;
         }).join('');
         list.querySelectorAll('.var-meta-row').forEach(r => _PL_applyVarTypeUI(r, r.querySelector('[data-field="type"]').value));
     }
+    function _PL_typeSelectHtml(type) {
+        const groups = (window.PL_VARTYPES && window.PL_VARTYPES.groups) || [];
+        return `<select data-field="type" onchange="window.PL_onVarTypeChange(this)">${groups.map(g => `<optgroup label="${escapeAttr(g.label)}">${g.types.filter(t => _PL_VT[t]).map(t => `<option value="${t}" ${type === t ? 'selected' : ''}>${escapeHtml(_PL_VT[t].label)}</option>`).join('')}</optgroup>`).join('')}</select>`;
+    }
     function _PL_optPlaceholder(type) {
-        return ({
-            weightedmix: 'Name:percentage, one per line or comma separated (blank gives three sample options)',
-            diceroll: 'Custom faces, words or numbers, comma separated (blank uses the sides above)',
-            randomnumber: 'Min, Max (whole numbers)',
-            carddeck: 'Card names, comma separated (blank gives five sample cards)',
-            randompick: 'Options, comma separated',
-            stepslider: 'Steps in order, comma separated (at least 2)',
-            choicecards: 'One card per line: Title | short description'
-        })[type] || 'Comma separated options';
+        return (_PL_VT[type] && _PL_VT[type].hint) || 'Comma separated options';
     }
     function _PL_applyVarTypeUI(row, type) {
         const show = (sel, on, disp) => { const el = row.querySelector(sel); if (el) el.style.display = on ? (disp || 'flex') : 'none'; };
