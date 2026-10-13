@@ -263,6 +263,13 @@ Do not replace this with a generic node editor, and do not damage the existing S
 - Root cause of desktop not finding phones (2026-10-07, confirmed in the 0.7.0 APK bytecode): `MainActivity.handleShare` matched `/share/hello` exactly, so the desktop probe `/share/hello?from=&name=&type=` got a 404. `share_server.probe()` now retries the plain path on a 404, so already installed phone builds are found. The phone source now strips the query string; rebuild the APK to pick it up. Backup: `_rollbacks/share_server v-pre-hello-fix.py`.
 - Phone side lives in `funben12/AI-App-Factory` `apps/app-003-prompt-library-mobile` (v0.3: sends and receives; it only receives while the app is on screen).
 
+### Nearby share test harness (2026-10-13)
+
+- `tests/nearby/` runs two real desktop instances (own `HOME`, share port bound to 127.0.0.2 and 127.0.0.3), a Python stub of the Android receiver (127.0.0.4) and the real phone `index.html` in headless Chromium. `test_desktop.py` passes 11 of 11: desktop to desktop and desktop to phone discovery, send, accept, decline, receive off, port isolation, rate limit all work. `test_phone.py` (9 tests) covers phone to desktop and phone to phone sender side and the Incoming sheet.
+- Already in the code before this harness: phone to phone sending (the phone Send sheet lists any Prompt Library, phone or computer) and desktop to desktop sending. Neither had been run between two real devices.
+- First run found three things, all fixed 2026-10-13 in AI-App-Factory `apps/app-003-prompt-library-mobile` (backups in its `_rollbacks/`, `*v-pre-parse-fix.js` and `index v-pre-nearby-copy.html`): `tools-board.js` had a misplaced `}` in a template string plus a stray duplicate `})();`, `tools-components.js` had a stray duplicate `})();`, so Prompt Board and Prompt Components never loaded; and the phone Send sheet empty state now says another phone or a computer. Harness now 11 of 11 desktop and 9 of 9 phone.
+- Not covered by the harness: the Java receiver and real radios. Phone app folder `tests/README.md` items 14 to 21 still need two real devices.
+
 ### Memory maintenance rule
 
 Substantial repository changes must update the relevant model-specific memory file automatically.
