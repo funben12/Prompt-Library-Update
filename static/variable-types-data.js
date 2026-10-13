@@ -27,7 +27,7 @@ window.PL_VARTYPES = {
     number: { label: 'Number', icon: 'tag', options: 'none', random: false, hint: '', defaults: {}, motion: { style: 'roll', speed: 1, intensity: 0.6 } },
     percentage: { label: 'Percentage', icon: 'percent', options: 'none', random: false, hint: '', defaults: {}, motion: { style: 'roll', speed: 1, intensity: 0.6 } },
     slider: { label: 'Slider', icon: 'linear_scale', options: 'none', random: false, hint: '', defaults: {}, motion: { style: 'follow', speed: 1, intensity: 0.6 } },
-    rangeslider: { label: 'Range slider (min-max)', icon: 'linear_scale', options: 'none', random: false, hint: '', defaults: {}, motion: { style: 'follow', speed: 1, intensity: 0.6 } },
+    rangeslider: { label: 'Range slider (min to max)', icon: 'linear_scale', options: 'none', random: false, hint: '', defaults: {}, motion: { style: 'follow', speed: 1, intensity: 0.6 } },
     date: { label: 'Date', icon: 'event', options: 'none', random: false, hint: '', defaults: {}, motion: { style: 'none' } },
     daterange: { label: 'Date range', icon: 'date_range', options: 'none', random: false, hint: '', defaults: {}, motion: { style: 'none' } },
     diceroll: { label: 'Dice roll (rolling die)', icon: 'casino', options: 'list', random: true, hint: 'Custom faces, words or numbers (blank uses the sides above)', defaults: { faces: 6 }, motion: { style: 'tumble', speed: 1, intensity: 0.7 } },

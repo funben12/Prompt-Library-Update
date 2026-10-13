@@ -400,3 +400,10 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - Phone: new `vartypes-motion.js` owns SVG dice (shape follows the sides: 4, 6, 8, 10, 12, 20, token for anything else, 1 to 6 dice, total when several numeric dice) and motion presets for chips, cards, checkbox list, sliders, step slider, weighted mix, number, percentage, random and deck. `vartypes.js` reads the data file and calls two hooks, with the old lists as fallback. Saved value formats are unchanged, except multi dice save `3, 5, 2 (total 10)`.
 - Harness: `apps/app-003-prompt-library-mobile/tests/vartypes/` (regression against a golden snapshot, dice, motion). Not run on a physical phone. Backups in the app's `_rollbacks/` (`*v-pre-motion*`).
 - Per variable motion overrides need a new `variable_meta` key, which the phone's Java `cleanVarMeta` and `share_server._meta` would drop until both are updated and the APK rebuilt. Parked.
+
+## 2026-10-13, phone 0.7.2 clean up (branch claude/wizardly-ptolemy-wq1o71, not for merge yet)
+
+- Variable types are now 20. Choice chips, Choice cards and Checkbox list merged into one `togglegroup` (single by default, `multi` makes it multi select). Old ids map to it on the phone.
+- Matrix, icon picker, emoji picker, ranked list and star rating are gone for good, no replacements. Old saved ones open as text on the phone.
+- Desktop `static/variable-types-data.js` updated to match. Desktop `static/app.js` has NOT been updated: it still renders choicechips, choicecards and checkbox, and maps togglegroup to checkbox. Follow up needed before desktop and phone are back in step.
+- Phone: the motion pass (9b10bce) that only ever lived on a side branch is re-applied to screens, sheets, lists and tools. Prompt Components works. Dice roll and Random pick work. Quick Fill bottom bar no longer covers the dice controls.
