@@ -32,7 +32,7 @@ window.PL_VARTYPES = {
     daterange: { label: 'Date range', icon: 'date_range', options: 'none', random: false, hint: '', defaults: {}, motion: { style: 'none' } },
     weightedmix: { label: 'Weighted mix (percentage sliders)', icon: 'balance', options: 'weights', random: true, hint: 'Name:percentage, comma separated (blank gives three samples)', defaults: {}, motion: { style: 'morph', speed: 1, intensity: 0.6 } },
     carddeck: { label: 'Card deck (shuffle and draw)', icon: 'style', options: 'list', random: true, hint: 'Card names, comma separated (blank gives five samples)', defaults: {}, motion: { style: 'fan', speed: 1, intensity: 0.6 } },
-    diceroll: { label: 'Dice Roll', icon: 'casino', options: 'list', random: true, hint: 'Leave blank for a six sided die, or enter face labels separated by commas', defaults: {}, motion: { style: 'tumble', speed: 1, intensity: 0.8 } },
+    diceroll: { label: 'Dice Roll', icon: 'casino', options: 'list', random: true, hint: 'Choose a side count, or enter custom face labels separated by commas', defaults: {}, motion: { style: 'tumble', speed: 1, intensity: 0.8 } },
     randompick: { label: 'Random pick', icon: 'shuffle', options: 'list', random: true, hint: 'Options, comma separated', defaults: {}, motion: { style: 'roll', speed: 1, intensity: 0.6 } },
     randomnumber: { label: 'Random number', icon: 'pin', options: 'range', random: true, hint: 'Min, Max (whole numbers)', defaults: {}, motion: { style: 'roll', speed: 1, intensity: 0.6 } }
   }
