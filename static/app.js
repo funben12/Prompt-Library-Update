@@ -1606,15 +1606,19 @@
     // Old shape:  { type: 'checkbox', default: 'true' | 'Yes' | 'No' }  -- no options array
     // New shape:  { type: 'checkbox', default: 'Yes', options: ['Yes','No'] }
     // Variable types kept after the 2026-10-09 trim. Old saved types map to the nearest kept one or fall back to text.
-    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
-    const _PL_LEGACY_TYPE_MAP = { radio: 'choicechips', segmented: 'choicechips', yesno: 'choicechips', multiselect: 'checkbox', togglegroup: 'checkbox', boolean: 'choicechips' };
-    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
+    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'togglegroup', 'combobox', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
+    const _PL_LEGACY_TYPE_MAP = { radio: 'togglegroup', segmented: 'togglegroup', yesno: 'togglegroup', boolean: 'togglegroup', choicechips: 'togglegroup', choicecards: 'togglegroup', multiselect: 'togglegroup', checkbox: 'togglegroup' };
+    const _PL_OPTION_TYPES = ['dropdown', 'togglegroup', 'combobox', 'stepslider', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
     const _PL_RANDOM_TYPES = ['diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
     function _PL_normMeta(m) {
         const out = Object.assign({}, m);
         const t = m.type || 'text';
         out.type = _PL_KEPT_TYPES.includes(t) ? t : (_PL_LEGACY_TYPE_MAP[t] || 'text');
         if (t === 'yesno' && !(m.options && m.options.length)) out.options = ['Yes', 'No', 'Maybe'];
+        // Checklists become a multi select toggle group, a plain Yes / No checkbox stays single
+        if ((t === 'checkbox' || t === 'multiselect') && (m.options || []).join(',') !== 'Yes,No') out.multi = true;
+        // Choice cards keep only the title of each "Title | description" option
+        if (t === 'choicecards' && Array.isArray(m.options)) out.options = m.options.map(o => _PL_splitOpt(o).t);
         if (t === 'boolean') {
             out.options = ['Yes', 'No'];
             if (['true', 'yes', 'on', '1'].includes(String(m.default || '').toLowerCase())) out.default = 'Yes';
@@ -1718,9 +1722,7 @@
             list: 'format_list_bulleted',
             language: 'translate',
             dropdown: 'arrow_drop_down',
-            choicechips: 'apps',
-            choicecards: 'view_agenda',
-            checkbox: 'checklist',
+            togglegroup: 'apps',
             combobox: 'edit_note',
             stepslider: 'tune',
             number: 'tag',
@@ -1744,16 +1746,11 @@
             const optTitles = opts.map(o => _PL_splitOpt(o).t);
             const icon = typeIcon[type] || 'abc';
             let input = '';
-            if (type === 'choicechips' || type === 'choicecards') {
+            if (type === 'togglegroup') {
                 const isMulti = !!m.multi;
                 const activeVals = isMulti ? (def ? def.split(',').map(x => x.trim()) : []) : [def];
                 if (!opts.length) {
                     input = `<p style="font-size:12px;color:var(--ink-3);">Add options in the variable editor.</p>`;
-                } else if (type === 'choicecards') {
-                    input = `<div class="var-toggle-group var-choice-cards" data-var="${escapeAttr(v)}" data-multi="${isMulti ? '1' : '0'}">
-        ${opts.map(o => { const p = _PL_splitOpt(o); return `<button type="button" class="var-toggle-btn var-card-opt${activeVals.includes(p.t) ? ' active' : ''}" data-value="${escapeAttr(p.t)}" onclick="window._PL_selectToggle(this)"><span class="var-card-mark material-symbols-outlined">check</span><span class="var-card-title">${escapeHtml(p.t)}</span>${p.d ? `<span class="var-card-desc">${escapeHtml(p.d)}</span>` : ''}</button>`; }).join('')}
-        <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
-      </div>`;
                 } else {
                     input = `<div class="var-toggle-group var-choice-chips" data-var="${escapeAttr(v)}" data-multi="${isMulti ? '1' : '0'}">
         ${optTitles.map(o => `<button type="button" class="chip var-toggle-btn${activeVals.includes(o) ? ' active' : ''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</button>`).join('')}
@@ -3184,7 +3181,7 @@ STYLE/THEME: [[reserved for future use]]`;
             const def = m.default || '';
             const size = m.size || 'medium';
             const visible = m.visible !== false;
-            const opts = (m.options || []).join(type === 'choicecards' ? '\n' : ', ');
+            const opts = (m.options || []).join(', ');
             const needsOptions = _PL_OPTION_TYPES.includes(type);
             return `
       <details class="var-meta-row" data-var="${escapeAttr(v)}" ${index === 0 ? 'open' : ''}>
@@ -3215,9 +3212,7 @@ STYLE/THEME: [[reserved for future use]]`;
             </optgroup>
             <optgroup label="Choice">
             <option value="dropdown" ${type === 'dropdown' ? 'selected' : ''}>Dropdown</option>
-            <option value="choicechips" ${type === 'choicechips' ? 'selected' : ''}>Choice Chips (compact)</option>
-            <option value="choicecards" ${type === 'choicecards' ? 'selected' : ''}>Choice Cards (title and description)</option>
-            <option value="checkbox" ${type === 'checkbox' ? 'selected' : ''}>Checkbox List</option>
+            <option value="togglegroup" ${type === 'togglegroup' ? 'selected' : ''}>Toggle Group</option>
             <option value="combobox" ${type === 'combobox' ? 'selected' : ''}>Combo Box (pick or type)</option>
             <option value="stepslider" ${type === 'stepslider' ? 'selected' : ''}>Step Slider</option>
             </optgroup>
@@ -3258,7 +3253,7 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="tall"   ${size === 'tall'   ? 'selected' : ''}>Tall (10 rows)</option>
           </select>
         </div>
-        <div class="choice-multi" style="display: ${type === 'choicechips' || type === 'choicecards' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
+        <div class="choice-multi" style="display: ${type === 'togglegroup' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);cursor:pointer;">
             <input type="checkbox" data-field="multi" ${m.multi ? 'checked' : ''} />
             Allow multiple selections
@@ -3285,8 +3280,7 @@ STYLE/THEME: [[reserved for future use]]`;
             randomnumber: 'Min, Max (whole numbers)',
             carddeck: 'Card names, comma separated (blank gives five sample cards)',
             randompick: 'Options, comma separated',
-            stepslider: 'Steps in order, comma separated (at least 2)',
-            choicecards: 'One card per line: Title | short description'
+            stepslider: 'Steps in order, comma separated (at least 2)'
         })[type] || 'Comma separated options';
     }
     function _PL_applyVarTypeUI(row, type) {
@@ -3294,7 +3288,7 @@ STYLE/THEME: [[reserved for future use]]`;
         const isRandom = _PL_RANDOM_TYPES.includes(type);
         show('.dropdown-options', _PL_OPTION_TYPES.includes(type), 'block');
         show('.paragraph-size', type === 'paragraph');
-        show('.choice-multi', type === 'choicechips' || type === 'choicecards');
+        show('.choice-multi', type === 'togglegroup');
         show('.dice-faces', type === 'diceroll');
         show('.var-wrap-row', !isRandom);
         show('[data-field="default"]', !isRandom, 'block');
@@ -3316,7 +3310,7 @@ STYLE/THEME: [[reserved for future use]]`;
             const visible = row.querySelector('[data-field="visible"]')?.checked !== false;
             const optsEl = row.querySelector('[data-field="options"]');
             const optRaw = optsEl?.value || '';
-            const options = optRaw ? optRaw.split(/\n/.test(optRaw) || (type === 'choicecards' && optRaw.includes('|')) ? '\n' : ',').map(o => o.trim()).filter(Boolean) : [];
+            const options = optRaw ? optRaw.split(/\n/.test(optRaw) || false ? '\n' : ',').map(o => o.trim()).filter(Boolean) : [];
             const sizeEl = row.querySelector('[data-field="size"]');
             const multiEl = row.querySelector('[data-field="multi"]');
             const isRandom = _PL_RANDOM_TYPES.includes(type);
@@ -3327,7 +3321,7 @@ STYLE/THEME: [[reserved for future use]]`;
                 options
             };
             if (type === 'paragraph' && sizeEl) entry.size = sizeEl.value;
-            if ((type === 'choicechips' || type === 'choicecards') && multiEl && multiEl.checked) entry.multi = true;
+            if (type === 'togglegroup' && multiEl && multiEl.checked) entry.multi = true;
             const facesEl = row.querySelector('[data-field="faces"]');
             if (type === 'diceroll' && facesEl) {
                 const n = parseInt(facesEl.value, 10);

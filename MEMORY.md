@@ -405,5 +405,5 @@ This supersedes every earlier variable type note above wherever they conflict, i
 
 - Variable types are now 20. Choice chips, Choice cards and Checkbox list merged into one `togglegroup` (single by default, `multi` makes it multi select). Old ids map to it on the phone.
 - Matrix, icon picker, emoji picker, ranked list and star rating are gone for good, no replacements. Old saved ones open as text on the phone.
-- Desktop `static/variable-types-data.js` updated to match. Desktop `static/app.js` has NOT been updated: it still renders choicechips, choicecards and checkbox, and maps togglegroup to checkbox. Follow up needed before desktop and phone are back in step.
+- Desktop matches: `static/variable-types-data.js` and `static/app.js` both use `togglegroup`. Desktop editor offers Toggle Group with "Allow multiple selections"; old choicechips, choicecards, checkbox and multiselect open as it (checklists as multi, plain Yes / No stays single). Rollback: `_rollbacks/app-v-pre-togglegroup-2026-10-13.js`.
 - Phone: the motion pass (9b10bce) that only ever lived on a side branch is re-applied to screens, sheets, lists and tools. Prompt Components works. Dice roll and Random pick work. Quick Fill bottom bar no longer covers the dice controls.
