@@ -11,3 +11,7 @@ Format: `[DD-MM-YYYY HH:MM] | TITLE | Description | Context`
 [13-10-2026 15:20] | Nearby share: no shared network phone to phone | Android built in Wi-Fi Direct, no library, but new permissions, a pairing step and native Java. Windows has no simple equivalent, so desktop to desktop with no network is a separate project. | Parked 13-10-2026. Same Wi-Fi comes first.
 
 [13-10-2026 15:20] | Nearby share: send several prompts or a folder | Multi select on the Send sheet, one offer per prompt or one bundle offer. | Option C from the same brainstorm. Separate from the harness work.
+
+[13-10-2026 17:00] | Desktop motion preview in the variable editor | Show the type's motion (dice tumble, chip pop) live beside the type picker so style, speed and intensity can be tuned without a phone. | Parked after the variable motion spec. Needs Phase 2 first.
+
+[13-10-2026 17:00] | Per variable motion overrides | A motion setting inside variable_meta per variable. Needs MainActivity.cleanVarMeta, share_server._meta and an APK rebuild. | Parked, motion is per type for now.
