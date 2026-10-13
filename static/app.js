@@ -1606,23 +1606,14 @@
     // Old shape:  { type: 'checkbox', default: 'true' | 'Yes' | 'No' }  -- no options array
     // New shape:  { type: 'checkbox', default: 'Yes', options: ['Yes','No'] }
     // Variable types kept after the 2026-10-09 trim. Old saved types map to the nearest kept one or fall back to text.
-    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'togglegroup', 'combobox', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
+    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'togglegroup', 'combobox', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
     const _PL_LEGACY_TYPE_MAP = { radio: 'togglegroup', segmented: 'togglegroup', yesno: 'togglegroup', boolean: 'togglegroup', choicechips: 'togglegroup', choicecards: 'togglegroup', multiselect: 'togglegroup', checkbox: 'togglegroup' };
-    const _PL_OPTION_TYPES = ['dropdown', 'togglegroup', 'combobox', 'stepslider', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
-    const _PL_RANDOM_TYPES = ['weightedmix', 'carddeck', 'randompick', 'randomnumber'];
+    const _PL_OPTION_TYPES = ['dropdown', 'togglegroup', 'combobox', 'stepslider', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
+    const _PL_RANDOM_TYPES = ['diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
     function _PL_normMeta(m) {
         const out = Object.assign({}, m);
         const t = m.type || 'text';
         out.type = _PL_KEPT_TYPES.includes(t) ? t : (_PL_LEGACY_TYPE_MAP[t] || 'text');
-        // Dice roll was removed: custom faces become a random pick, plain dice a random number from 1 to the sides
-        if (t === 'diceroll') {
-            const raw = Array.isArray(m.options) ? m.options : String(m.options || '').split(',');
-            const faces = raw.map(o => String(o).trim()).filter(Boolean);
-            out.type = faces.length ? 'randompick' : 'randomnumber';
-            out.options = faces.length ? faces : ['1', String(Math.max(2, Math.min(100, parseInt(m.faces, 10) || 6)))];
-            delete out.faces;
-            return out;
-        }
         if (t === 'yesno' && !(m.options && m.options.length)) out.options = ['Yes', 'No', 'Maybe'];
         // Checklists become a multi select toggle group, a plain Yes / No checkbox stays single
         if ((t === 'checkbox' || t === 'multiselect') && (m.options || []).join(',') !== 'Yes,No') out.multi = true;
@@ -3236,6 +3227,7 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="daterange" ${type === 'daterange' ? 'selected' : ''}>Date Range</option>
             </optgroup>
             <optgroup label="Random">
+            <option value="diceroll" ${type === 'diceroll' ? 'selected' : ''}>Dice Roll</option>
             <option value="weightedmix" ${type === 'weightedmix' ? 'selected' : ''}>Weighted Mix (percentage sliders)</option>
             <option value="carddeck" ${type === 'carddeck' ? 'selected' : ''}>Card Deck (shuffle and draw)</option>
             <option value="randompick" ${type === 'randompick' ? 'selected' : ''}>Random Pick</option>
