@@ -409,3 +409,9 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - Dice roll rebuilt on both apps: a real cube enters from the top edge, drops, bounces three times, settles on the rolled face with a contact shadow. Built by the dice-drop-animator sub-agent (`.claude/agents/dice-drop-animator.md`).
 - Screen motion added: variable cards rise in one after another, buttons press in, reduced motion respected.
 - Not verified: a physical phone, and the full desktop app with Flask running.
+
+### Dice and random pick (2026-10-22, later)
+
+- Old N sided Dice roll removed from both apps. New `dice` type: one six sided cube thrown like a board game roll (physics: flies in, bounces, rolls over edges, settles with pips). Engine `static/dice-throw.js`, identical copy on the phone. `window.DiceThrow = { mount, roll, show }`. Old saved `diceroll` opens as `dice`. No sides setting any more.
+- Random pick and Random number now flick through a slowing reel (about 1.6 s) instead of a 0.5 s flicker.
+- Agents: `dice-drop-animator` builds the engine, `motion-checker` proves motion with frame evidence before anything is reported as working.

@@ -1606,10 +1606,10 @@
     // Old shape:  { type: 'checkbox', default: 'true' | 'Yes' | 'No' }  -- no options array
     // New shape:  { type: 'checkbox', default: 'Yes', options: ['Yes','No'] }
     // Variable types kept after the 2026-10-09 trim. Old saved types map to the nearest kept one or fall back to text.
-    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'togglegroup', 'checkbox', 'combobox', 'stepslider', 'switch', 'tags', 'number', 'percentage', 'slider', 'rangeslider', 'rating', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber', 'coinflip', 'spinwheel'];
-    const _PL_LEGACY_TYPE_MAP = { radio: 'choicechips', segmented: 'choicechips', yesno: 'choicechips', multiselect: 'checkbox', choicecards: 'togglegroup', boolean: 'choicechips' };
-    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'togglegroup', 'checkbox', 'combobox', 'stepslider', 'switch', 'tags', 'rating', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber', 'coinflip', 'spinwheel'];
-    const _PL_RANDOM_TYPES = ['diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber', 'coinflip', 'spinwheel'];
+    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'togglegroup', 'checkbox', 'combobox', 'stepslider', 'switch', 'tags', 'number', 'percentage', 'slider', 'rangeslider', 'rating', 'date', 'daterange', 'dice', 'weightedmix', 'carddeck', 'randompick', 'randomnumber', 'coinflip', 'spinwheel'];
+    const _PL_LEGACY_TYPE_MAP = { radio: 'choicechips', segmented: 'choicechips', yesno: 'choicechips', multiselect: 'checkbox', choicecards: 'togglegroup', diceroll: 'dice', boolean: 'choicechips' };
+    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'togglegroup', 'checkbox', 'combobox', 'stepslider', 'switch', 'tags', 'rating', 'weightedmix', 'carddeck', 'randompick', 'randomnumber', 'coinflip', 'spinwheel'];
+    const _PL_RANDOM_TYPES = ['dice', 'weightedmix', 'carddeck', 'randompick', 'randomnumber', 'coinflip', 'spinwheel'];
     function _PL_normMeta(m) {
         const out = Object.assign({}, m);
         const t = m.type || 'text';
@@ -1645,22 +1645,6 @@
             return String(lo + Math.floor(Math.random() * (hi - lo + 1)));
         }
         return list[Math.floor(Math.random() * list.length)] || '';
-    }
-    // Dice: faces come from the options box (words or numbers), else 1..faces
-    function _PL_diceValues(m) {
-        if (m.options && m.options.length) return m.options.map(o => String(o).trim()).filter(Boolean);
-        const n = Math.max(2, Math.min(100, parseInt(m.faces, 10) || 6));
-        return Array.from({ length: n }, (_, i) => String(i + 1));
-    }
-    const _DIE_ROT = [[0, 0], [0, -90], [-90, 0], [90, 0], [0, 90], [0, 180]];
-    const _DIE_PIPS = [[4], [0, 8], [0, 4, 8], [0, 2, 6, 8], [0, 2, 4, 6, 8], [0, 2, 3, 5, 6, 8]];
-    function _PL_dieHTML(vals, pips) {
-        return [0, 1, 2, 3, 4, 5].map(slot => {
-            const inner = pips
-                ? `<span class="var-die-pips">${[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => `<i${_DIE_PIPS[slot].includes(i) ? ' class="on"' : ''}></i>`).join('')}</span>`
-                : `<span class="var-die-word">${escapeHtml(vals[slot % vals.length])}</span>`;
-            return `<div class="var-die-face var-die-f${slot}">${inner}</div>`;
-        }).join('');
     }
     // Weighted mix: options are "Name:weight", weights are rescaled to whole percentages that total 100
     function _PL_mixParse(opts) {
@@ -1734,7 +1718,7 @@
             rangeslider: 'linear_scale',
             date: 'event',
             daterange: 'date_range',
-            diceroll: 'casino',
+            dice: 'casino',
             weightedmix: 'balance',
             carddeck: 'style',
             randompick: 'shuffle',
@@ -1770,17 +1754,6 @@
           <div class="var-deck-slot"><div class="var-deck-card"><div class="var-deck-back"></div><div class="var-deck-front" data-deck-face>${escapeHtml(def)}</div></div></div>
         </div>
         <div class="var-deck-actions"><button type="button" class="btn btn-sm" onclick="window._PL_drawCard(this)">Shuffle and draw</button><span class="var-deck-left" data-deck-left>${deckOpts.length} cards in the deck</span></div>
-        <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
-      </div>`;
-            } else if (type === 'diceroll') {
-                const diceVals = _PL_diceValues(m);
-                const dicePips = !(opts.length) && diceVals.length === 6;
-                input = `<div class="var-dice" data-dice-vals="${escapeAttr(JSON.stringify(diceVals))}" data-dice-pips="${dicePips ? '1' : '0'}">
-        <div class="var-dice-scene" aria-hidden="true"><i class="var-die-shadow"></i><div class="var-die-fly"><div class="var-die">${_PL_dieHTML(diceVals, dicePips)}</div></div></div>
-        <div class="var-dice-side">
-          <div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
-          <button type="button" class="btn btn-sm" onclick="window._PL_rollDice(this)">Roll dice</button>
-        </div>
         <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
             } else if (type === 'weightedmix') {
@@ -2017,85 +1990,18 @@
         if (reduce) return finish();
         wrap._busy = true; btn.disabled = true;
         if (result) result.classList.add('ticking');
-        let n = 0;
-        const t = setInterval(() => {
-            if (result) result.textContent = _PL_randomValue(kind, options);
-            if (++n >= 10) { clearInterval(t); finish(); }
-        }, 55);
-    };
-
-    // Die drop: fall from above the scene, bounce three times under gravity, rock, settle on the rolled face
-    const _DIE_REST = 'rotateX(56deg) rotateY(-18deg)';
-    function _PL_dieDrop(scene, slot, D) {
-        const fly = scene.querySelector('.var-die-fly'), die = scene.querySelector('.var-die'), sh = scene.querySelector('.var-die-shadow');
-        const R = 28, cy = parseFloat(getComputedStyle(fly).top) || 90, H0 = cy + 1.9 * R, E = 0.52;
-        const [bx, by] = _DIE_ROT[slot], fin = `${_DIE_REST} rotateX(${bx}deg) rotateY(${by}deg)`;
-        let A = [Math.random() - 0.5, Math.random() - 0.5, (Math.random() - 0.5) * 0.7];
-        const al = Math.hypot(A[0], A[1], A[2]) || 1; A = A.map(c => c / al);
-        const spin = (2.4 + Math.random()) * 2 * Math.PI, x0 = (Math.random() < 0.5 ? -1 : 1) * R * (1.5 + Math.random() * 0.8);
-        const hs = [H0, H0 * E * E, H0 * Math.pow(E, 4), H0 * Math.pow(E, 6)], tf = hs.map((h, i) => (i ? 2 : 1) * Math.sqrt(2 * h));
-        const air = tf.reduce((a, b) => a + b, 0), settle = 0.16 * air, total = air + settle, W = [1, 0.5, 0.22, 0.08, 0];
-        const pts = []; let t0 = 0;
-        tf.forEach((T, i) => {
-            const n = i ? 9 : 12;
-            for (let j = i ? 1 : 0; j <= n; j++) {
-                const s = j / n, h = i ? hs[i] * (1 - Math.pow(2 * s - 1, 2)) : hs[0] * (1 - s * s);
-                pts.push({ t: (t0 + s * T) / total, h, u: (t0 + s * T) / air, w: W[i] + (W[i + 1] - W[i]) * s, hit: j === n, rock: 0 });
-            }
-            t0 += T;
-        });
-        for (let j = 1; j <= 10; j++) { const s = j / 10; pts.push({ t: (air + s * settle) / total, h: 0, u: 1, w: 0, hit: false, rock: Math.sin(s * 3 * Math.PI) * (1 - s) * 7 }); }
-        pts[pts.length - 1].t = 1;
-        const r = n => Math.round(n * 1e4) / 1e4;
-        const flyKf = pts.map(p => ({ offset: r(p.t), transform: `translate(${r(x0 * Math.pow(1 - p.u, 1.6))}px,${r(-p.h)}px) scale(${p.hit ? '1.06,.94' : '1,1'})` }));
-        const shKf = pts.map(p => ({ offset: r(p.t), transform: `translateX(${r(x0 * Math.pow(1 - p.u, 1.6))}px) scale(${r(1 / (1 + p.h / (1.8 * R)))})`, opacity: r(0.5 / (1 + p.h / (1.3 * R))) }));
-        const dieKf = pts.map(p => ({ offset: r(p.t), transform: `rotateX(${r(p.rock)}deg) rotate3d(${r(A[0])},${r(A[1])},${r(A[2])},${r(spin * p.w)}rad) ${fin}` }));
-        const opt = { duration: D, fill: 'both', easing: 'linear' };
-        die.style.transform = fin;
-        return [fly.animate(flyKf, opt), sh.animate(shKf, opt), die.animate(dieKf, opt)];
-    }
-
-    window._PL_rollDice = function(btn) {
-        const block = btn.closest('.var-dice');
-        if (!block || block._busy) return;
-        let vals = [];
-        try { vals = JSON.parse(block.dataset.diceVals || '[]'); } catch (_) {}
-        if (!vals.length) return;
-        const die = block.querySelector('.var-die'), out = block.querySelector('[data-roll-result]'), hidden = block.querySelector('input.var-input');
-        const pips = block.dataset.dicePips === '1';
-        const result = vals[Math.floor(Math.random() * vals.length)];
-        let slot;
-        if (pips) {
-            slot = parseInt(result, 10) - 1;
-        } else {
-            slot = Math.floor(Math.random() * 6);
-            die.querySelectorAll('.var-die-word').forEach((w, i) => {
-                w.textContent = i === slot ? result : vals[Math.floor(Math.random() * vals.length)];
-                w.classList.toggle('long', w.textContent.length > 7);
-            });
-        }
-        const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-        const scene = block.querySelector('.var-dice-scene');
-        let anims = [];
-        const finish = () => {
-            if (!block._busy && !reduce) return;
-            block._busy = false; btn.disabled = false;
-            block.classList.remove('rolling');
-            try { const [fx, fy] = _DIE_ROT[slot]; die.style.transform = `${_DIE_REST} rotateX(${fx}deg) rotateY(${fy}deg)`; anims.forEach(a => a.cancel()); } catch (_) {}
-            out.textContent = result;
-            hidden.value = result;
-            hidden.dispatchEvent(new Event('input', { bubbles: true }));
+        // Reel: values flick past fast, slow down, then land on the pick (about 1.6 s)
+        const gaps = [40, 40, 45, 45, 50, 55, 60, 70, 80, 90, 105, 120, 140, 165, 195, 230];
+        let i = 0, last = '';
+        const step = () => {
+            if (i >= gaps.length) return finish();
+            let v = _PL_randomValue(kind, options), tries = 0;
+            while (v === last && tries++ < 4) v = _PL_randomValue(kind, options);
+            last = v;
+            if (result) { const s = document.createElement('span'); s.className = 'vx-tk'; s.textContent = v; result.textContent = ''; result.appendChild(s); }
+            setTimeout(step, gaps[i++]);
         };
-        if (reduce) {
-            const [fx, fy] = _DIE_ROT[slot]; die.style.transform = `${_DIE_REST} rotateX(${fx}deg) rotateY(${fy}deg)`;
-            return finish();
-        }
-        block._busy = true; btn.disabled = true;
-        block.classList.add('rolling');
-        out.textContent = '';
-        const D = 2000;
-        try { anims = _PL_dieDrop(scene, slot, D); anims[2].finished.then(finish, finish); } catch (_) { finish(); }
-        setTimeout(finish, D + 900);
+        step();
     };
 
     window._PL_mixSlide = function(el) {
@@ -3272,7 +3178,7 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="daterange" ${type === 'daterange' ? 'selected' : ''}>Date Range</option>
             </optgroup>
             <optgroup label="Random">
-            <option value="diceroll" ${type === 'diceroll' ? 'selected' : ''}>Dice Roll (rolling die)</option>
+            <option value="dice" ${type === 'dice' ? 'selected' : ''}>Dice (six sided)</option>
             <option value="weightedmix" ${type === 'weightedmix' ? 'selected' : ''}>Weighted Mix (percentage sliders)</option>
             <option value="carddeck" ${type === 'carddeck' ? 'selected' : ''}>Card Deck (shuffle and draw)</option>
             <option value="randompick" ${type === 'randompick' ? 'selected' : ''}>Random Pick</option>
@@ -3306,11 +3212,6 @@ STYLE/THEME: [[reserved for future use]]`;
             Allow multiple selections
           </label>
         </div>
-        <div class="dice-faces" style="display: ${type === 'diceroll' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
-          <span style="font-size: 11px; color: var(--ink-3);">Sides:</span>
-          <input type="number" data-field="faces" min="2" max="100" value="${escapeAttr(m.faces || 6)}" style="width: 72px; font-size: 12px; padding: 4px 8px;" />
-          <span style="font-size: 11px; color: var(--ink-3);">or type your own faces below</span>
-        </div>
         <div class="dropdown-options" style="display: ${needsOptions ? 'block' : 'none'};">
           <textarea data-field="options" placeholder="${_PL_optPlaceholder(type)}" rows="2"
                     style="width: 100%; padding: 6px 10px; font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; color: var(--ink); margin-top: 4px;">${escapeHtml(opts)}</textarea>
@@ -3323,7 +3224,6 @@ STYLE/THEME: [[reserved for future use]]`;
     function _PL_optPlaceholder(type) {
         return ({
             weightedmix: 'Name:percentage, one per line or comma separated (blank gives three sample options)',
-            diceroll: 'Custom faces, words or numbers, comma separated (blank uses the sides above)',
             randomnumber: 'Min, Max (whole numbers)',
             carddeck: 'Card names, comma separated (blank gives five sample cards)',
             randompick: 'Options, comma separated',
@@ -3342,7 +3242,6 @@ STYLE/THEME: [[reserved for future use]]`;
         show('.dropdown-options', _PL_OPTION_TYPES.includes(type), 'block');
         show('.paragraph-size', type === 'paragraph');
         show('.choice-multi', type === 'choicechips' || type === 'togglegroup');
-        show('.dice-faces', type === 'diceroll');
         show('.var-wrap-row', !isRandom);
         show('[data-field="default"]', !isRandom, 'block');
         const ta = row.querySelector('[data-field="options"]');
@@ -3375,11 +3274,6 @@ STYLE/THEME: [[reserved for future use]]`;
             };
             if (type === 'paragraph' && sizeEl) entry.size = sizeEl.value;
             if ((type === 'choicechips' || type === 'togglegroup') && multiEl && multiEl.checked) entry.multi = true;
-            const facesEl = row.querySelector('[data-field="faces"]');
-            if (type === 'diceroll' && facesEl) {
-                const n = parseInt(facesEl.value, 10);
-                if (n >= 2 && n <= 100 && n !== 6) entry.faces = n;
-            }
             const wrapEl = row.querySelector('[data-field="wrap"]');
             if (wrapEl && wrapEl.value && !isRandom) entry.wrap = wrapEl.value;
             meta[v] = entry;

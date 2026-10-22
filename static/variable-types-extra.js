@@ -40,6 +40,10 @@
   }
 
   const TYPES = {
+    dice(v, m, def) {
+      if (!window.DiceThrow) return `<div class="var-random-block"><div class="var-random-result" data-roll-result>${esc(def || 'Ready to roll')}</div><button type="button" class="btn btn-sm" data-roll-kind="randomnumber" data-roll-options='["1","6"]' onclick="window._PL_rollChoice(this)">Roll dice</button>${hidden(v, def)}</div>`;
+      return `<div class="vx-dice" data-vx-dice data-val="${esc(def)}"><div class="vx-dstage"></div><div class="vx-side"><div class="var-random-result" data-vx-out>${esc(def || 'Ready to roll')}</div><button type="button" class="btn btn-sm" data-vx-roll>Roll dice</button></div>${hidden(v, def)}</div>`;
+    },
     togglegroup(v, m, def) {
       const opts = m.options || [];
       if (!opts.length) return '<p style="font-size:12px;color:var(--ink-3);">Add options in the variable editor.</p>';
@@ -82,6 +86,10 @@
     if (!animate) requestAnimationFrame(() => requestAnimationFrame(() => { th.style.transition = ''; }));
   }
   function watch(root) {
+    if (window.DiceThrow && root.querySelectorAll) root.querySelectorAll('.vx-dice:not([data-vx-m])').forEach(g => {
+      g.setAttribute('data-vx-m', '1');
+      try { window.DiceThrow.mount(g.querySelector('.vx-dstage'), parseInt(g.dataset.val, 10) || 0); } catch (e) { console.warn('Dice:', e); }
+    });
     root.querySelectorAll && root.querySelectorAll('.vx-tg:not([data-vx-w])').forEach(g => {
       g.dataset.vxW = '1'; g.setAttribute('data-vx-w', '1');
       placeThumb(g, false);
@@ -141,6 +149,18 @@
       const chip = rm.closest('.vx-tag');
       chip.classList.add('out');
       return void setTimeout(() => { chip.remove(); tagsSync(g); }, reduced() ? 0 : 160);
+    }
+    const droll = t.closest('[data-vx-roll]');
+    if (droll) {
+      const g = droll.closest('[data-vx-dice]'), out = g.querySelector('[data-vx-out]');
+      if (g._busy) return;
+      g._busy = true; droll.disabled = true; out.textContent = 'Rolling';
+      const done = n => {
+        g._busy = false; droll.disabled = false;
+        if (!n) { out.textContent = 'Ready to roll'; return; }
+        out.textContent = String(n); flash(out, 'pop', 420); commit(g, String(n));
+      };
+      return void window.DiceThrow.roll(g.querySelector('.vx-dstage')).then(done, () => done(0));
     }
     const flip = t.closest('[data-vx-flip]');
     if (flip) return coinFlip(flip);
@@ -261,6 +281,9 @@
 .vx-tagsug button{padding:4px 10px;border:1px dashed var(--line-strong);border-radius:14px;background:none;color:var(--ink-3);font:600 12px var(--ff-sans, inherit);cursor:pointer}
 .vx-tagsug button:hover{color:var(--accent);border-color:var(--accent)}
 .vx-tagsug button[hidden]{display:none}
+/* Dice */
+.vx-dice{display:flex;flex-wrap:wrap;align-items:center;gap:22px}
+.vx-dstage{flex:1 1 320px;max-width:460px;min-width:240px}
 /* Coin and wheel */
 .vx-coin,.vx-wheel{display:flex;flex-wrap:wrap;align-items:center;gap:22px}
 .vx-side{display:flex;flex-direction:column;align-items:flex-start;gap:10px}
@@ -285,6 +308,10 @@
 .var-field:nth-child(2){animation-delay:45ms}.var-field:nth-child(3){animation-delay:90ms}.var-field:nth-child(4){animation-delay:135ms}.var-field:nth-child(5){animation-delay:180ms}.var-field:nth-child(6){animation-delay:225ms}.var-field:nth-child(7){animation-delay:270ms}.var-field:nth-child(8){animation-delay:315ms}
 .btn:active{transform:scale(.97)}
 @media (prefers-reduced-motion:reduce){.var-field{animation:none}}
+.var-random-result{overflow:hidden;white-space:nowrap}
+.var-random-result.ticking{color:var(--ink-2)}
+.vx-tk{display:inline-block;animation:vx-tk .14s ease-out}
+@keyframes vx-tk{0%{transform:translateY(-70%);opacity:.25}100%{transform:none;opacity:1}}
 /* Shared motion classes */
 .pop{animation:vx-pop .38s var(--ease-out-quart)}
 @keyframes vx-pop{0%{transform:scale(1)}40%{transform:scale(1.14)}100%{transform:scale(1)}}
@@ -294,7 +321,7 @@
 @keyframes vx-down{0%{transform:translateY(-60%);opacity:.2}100%{transform:none;opacity:1}}
 .star{animation:vx-star .5s cubic-bezier(.3,1.6,.5,1) backwards}
 @keyframes vx-star{0%{transform:scale(.6) rotate(-24deg)}55%{transform:scale(1.35) rotate(8deg)}100%{transform:scale(1) rotate(0)}}
-@media (prefers-reduced-motion:reduce){.pop,.up,.down,.star{animation:none!important}.vx-swk,.vx-swb,.vx-tgthumb{transition:none}}
+@media (prefers-reduced-motion:reduce){.pop,.up,.down,.star,.vx-tk{animation:none!important}.vx-swk,.vx-swb,.vx-tgthumb{transition:none}}
 `;
   document.head.appendChild(css);
 
