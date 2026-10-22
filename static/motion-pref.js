@@ -13,12 +13,15 @@
   const real = window.matchMedia.bind(window), REDUCE = /prefers-reduced-motion\s*:\s*reduce/i;
   window.matchMedia = q => REDUCE.test(String(q)) ? real('not all') : real(q);
   // Stylesheets switch motion off inside @media (prefers-reduced-motion: reduce): drop those blocks
+  // Also looks inside @layer, @supports and other grouping rules
   function clean(sheet) {
     let rules;
     try { rules = sheet.cssRules; } catch (e) { return; }
+    if (!rules) return;
     for (let i = rules.length - 1; i >= 0; i--) {
       const r = rules[i];
       if (r.media && REDUCE.test(r.conditionText || r.media.mediaText || '')) { try { sheet.deleteRule(i); } catch (e) {} }
+      else if (r.cssRules && r.deleteRule) clean(r);
     }
   }
   const cleanAll = () => { for (const s of document.styleSheets) clean(s); };
