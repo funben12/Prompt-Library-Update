@@ -105,7 +105,7 @@
   }
   function tagsAdd(g, text) {
     const list = g.querySelector('.vx-taglist'), have = [...list.querySelectorAll('.vx-tag')].map(t => t.dataset.t);
-    csv(text).filter(t => !have.includes(t)).forEach(t => { list.insertAdjacentHTML('beforeend', tagHtml(t)); flash(list.lastElementChild, 'pop', 380); });
+    csv(text).filter(t => !have.includes(t)).forEach(t => { list.insertAdjacentHTML('beforeend', tagHtml(t)); flash(list.lastElementChild, 'vx-pop', 380); });
     tagsSync(g);
   }
 
@@ -116,7 +116,7 @@
     if (tgb) {
       const g = tgb.closest('[data-vx-tg]'), multi = g.dataset.multi === '1';
       let val;
-      if (multi) { tgb.classList.toggle('on'); val = [...g.querySelectorAll('.vx-tgb.on')].map(b => b.dataset.vxO).join(', '); flash(tgb, 'pop', 380); }
+      if (multi) { tgb.classList.toggle('on'); val = [...g.querySelectorAll('.vx-tgb.on')].map(b => b.dataset.vxO).join(', '); flash(tgb, 'vx-pop', 380); }
       else { const was = tgb.classList.contains('on'); g.querySelectorAll('.vx-tgb').forEach(b => b.classList.remove('on')); if (!was) tgb.classList.add('on'); val = was ? '' : tgb.dataset.vxO; }
       g.querySelectorAll('.vx-tgb').forEach(b => b.setAttribute('aria-pressed', b.classList.contains('on')));
       placeThumb(g, true);
@@ -127,7 +127,7 @@
       const g = swb.closest('[data-vx-sw]'), now = !g.classList.contains('on'), label = g.querySelector('.vx-swl span');
       g.classList.toggle('on', now); swb.setAttribute('aria-checked', now);
       label.textContent = now ? g.dataset.on : g.dataset.off;
-      flash(label, now ? 'up' : 'down', 300);
+      flash(label, now ? 'vx-up' : 'vx-down', 300);
       return commit(g, label.textContent);
     }
     const star = t.closest('.vx-star');
@@ -136,7 +136,7 @@
       const n = +star.dataset.vxStar === prev ? 0 : +star.dataset.vxStar;
       g.querySelectorAll('.vx-star').forEach((s, i) => {
         s.classList.toggle('on', i < n);
-        if (i < n) { s.style.animationDelay = (i * 45) + 'ms'; flash(s, 'star', 520 + i * 45); }
+        if (i < n) { s.style.animationDelay = (i * 45) + 'ms'; flash(s, 'vx-star', 520 + i * 45); }
       });
       g.querySelector('.vx-rout').textContent = n ? n + '/' + max : 'Not rated';
       return commit(g, n ? n + '/' + max : '');
@@ -158,7 +158,7 @@
       const done = n => {
         g._busy = false; droll.disabled = false;
         if (!n) { out.textContent = 'Ready to roll'; return; }
-        out.textContent = String(n); flash(out, 'pop', 420); commit(g, String(n));
+        out.textContent = String(n); flash(out, 'vx-pop', 420); commit(g, String(n));
       };
       return void window.DiceThrow.roll(g.querySelector('.vx-dstage')).then(done, () => done(0));
     }
@@ -185,7 +185,7 @@
     const finish = () => {
       g._busy = false; btn.disabled = false; g.dataset.ang = end % 360;
       coin.style.transform = `rotateY(${end % 360}deg)`;
-      out.textContent = sides[idx]; flash(out, 'pop', 420); commit(g, sides[idx]);
+      out.textContent = sides[idx]; flash(out, 'vx-pop', 420); commit(g, sides[idx]);
     };
     if (reduced() || !coin.animate) { g.dataset.ang = idx * 180; coin.style.transform = `rotateY(${idx * 180}deg)`; out.textContent = sides[idx]; return commit(g, sides[idx]); }
     g._busy = true; btn.disabled = true; out.textContent = '';
@@ -217,7 +217,7 @@
       clear();
       const w = g.querySelectorAll('.vx-wedge'), x = g.querySelectorAll('.vx-wtxt');
       if (w[idx]) { w[idx].classList.add('win'); x[idx].classList.add('win'); }
-      out.textContent = items[idx]; flash(out, 'pop', 420); commit(g, items[idx]);
+      out.textContent = items[idx]; flash(out, 'vx-pop', 420); commit(g, items[idx]);
     };
     if (reduced() || !rotEl.animate) { g.dataset.rot = end; return finish(); }
     g._busy = true; btn.disabled = true; out.textContent = ''; clear();
@@ -226,6 +226,45 @@
     ptr.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(-16deg)' }, { transform: 'rotate(0deg)' }], { duration: dur / (n * 2.2), iterations: Math.round(n * 2.2) });
     a.onfinish = finish; a.oncancel = finish;
   }
+
+
+  // ---- Parity with the phone: chips pop, step labels spring, checklist ticks pop, sliders show a value bubble, numbers roll ----
+  document.addEventListener('click', e => {
+    const chip = e.target.closest && e.target.closest('.var-choice-chips .var-toggle-btn');
+    if (chip && chip.classList.contains('active')) flash(chip, 'vx-pop', 380);
+    const lab = e.target.closest && e.target.closest('.var-step-label');
+    if (lab) flash(lab.parentNode.querySelector('.var-step-label.active') || lab, 'vx-spring', 420);
+  });
+  function bubble(inp) {
+    const body = inp.closest('.var-field-body');
+    if (!body) return;
+    let b = inp._vxb;
+    if (!b) { b = inp._vxb = document.createElement('span'); b.className = 'vx-bub'; b.setAttribute('aria-hidden', 'true'); body.appendChild(b); }
+    const min = Number(inp.min || 0), max = Number(inp.max || 100), r = max > min ? (inp.value - min) / (max - min) : 0;
+    const br = body.getBoundingClientRect(), ir = inp.getBoundingClientRect(), thumb = 16;
+    b.style.left = (ir.left - br.left + thumb / 2 + r * (ir.width - thumb)) + 'px';
+    b.style.top = (ir.top - br.top - 30) + 'px';
+    b.textContent = inp.value;
+    b.classList.add('on');
+    clearTimeout(inp._vxt);
+    inp._vxt = setTimeout(() => b.classList.remove('on'), 800);
+  }
+  document.addEventListener('input', e => {
+    const t = e.target;
+    if (!t.matches) return;
+    if (t.matches('.var-step-range')) { const l = t.closest('.var-stepslider').querySelector('.var-step-label.active'); return flash(l, 'vx-spring', 420); }
+    if (t.matches('.var-mix-range')) return t.closest('.var-mix').querySelectorAll('.var-mix-pct').forEach(p => flash(p, 'vx-pop', 300));
+    if (t.matches('.var-field input[type=range]')) return bubble(t);
+    if (t.matches('.var-field input[type=number]')) {
+      const now = parseFloat(t.value) || 0, before = t._vxv == null ? now : t._vxv;
+      t._vxv = now;
+      if (now !== before) flash(t, now > before ? 'vx-up' : 'vx-down', 300);
+    }
+  });
+  document.addEventListener('change', e => {
+    const c = e.target.matches && e.target.matches('.var-checklist-item') && e.target;
+    if (c) flash(c.closest('label'), 'vx-pop', 380);
+  });
 
   const css = document.createElement('style');
   css.textContent = `
@@ -305,23 +344,30 @@
 /* Screen motion: variable cards rise in one after another, buttons press in */
 .var-field{animation:vx-rise .46s var(--ease-out-quart) both}
 @keyframes vx-rise{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:none}}
-.var-field:nth-child(2){animation-delay:45ms}.var-field:nth-child(3){animation-delay:90ms}.var-field:nth-child(4){animation-delay:135ms}.var-field:nth-child(5){animation-delay:180ms}.var-field:nth-child(6){animation-delay:225ms}.var-field:nth-child(7){animation-delay:270ms}.var-field:nth-child(8){animation-delay:315ms}
+.var-field:nth-child(2){animation-delay:45ms}.var-field:nth-child(3){animation-delay:90ms}.var-field:nth-child(4){animation-delay:135ms}.var-field:nth-child(5){animation-delay:180ms}.var-field:nth-child(6){animation-delay:225ms}.var-field:nth-child(7){animation-delay:270ms}.var-field:nth-child(8){animation-delay:315ms}.var-field:nth-child(9){animation-delay:360ms}.var-field:nth-child(10){animation-delay:405ms}.var-field:nth-child(11){animation-delay:450ms}.var-field:nth-child(12){animation-delay:495ms}
 .btn:active{transform:scale(.97)}
 @media (prefers-reduced-motion:reduce){.var-field{animation:none}}
 .var-random-result{overflow:hidden;white-space:nowrap}
 .var-random-result.ticking{color:var(--ink-2)}
 .vx-tk{display:inline-block;animation:vx-tk .14s ease-out}
 @keyframes vx-tk{0%{transform:translateY(-70%);opacity:.25}100%{transform:none;opacity:1}}
+.var-field-body{position:relative}
+.vx-bub{position:absolute;z-index:3;padding:3px 8px;border-radius:999px;background:var(--ink);color:var(--bg);font:700 11px var(--ff-mono, monospace);pointer-events:none;opacity:0;transform:translate(-50%,6px) scale(.8);transition:opacity .18s var(--ease-out-quart),transform .26s cubic-bezier(.3,1.5,.5,1)}
+.vx-bub.on{opacity:1;transform:translate(-50%,0) scale(1)}
+.vx-spring{display:inline-block;animation:vx-spring .42s cubic-bezier(.3,1.6,.5,1)}
+@keyframes vx-spring{0%{transform:translateY(0) scale(1)}35%{transform:translateY(-4px) scale(1.18)}100%{transform:none}}
+.var-checklist-item{accent-color:var(--accent)}
+.var-choice-chips .var-toggle-btn{transition:background .25s var(--ease-out-quart),color .25s var(--ease-out-quart),transform .18s var(--ease-out-quart)}
 /* Shared motion classes */
-.pop{animation:vx-pop .38s var(--ease-out-quart)}
+.vx-pop{animation:vx-pop .38s var(--ease-out-quart)}
 @keyframes vx-pop{0%{transform:scale(1)}40%{transform:scale(1.14)}100%{transform:scale(1)}}
-.up{animation:vx-up .3s var(--ease-out-quart)}
-.down{animation:vx-down .3s var(--ease-out-quart)}
+.vx-up{animation:vx-up .3s var(--ease-out-quart)}
+.vx-down{animation:vx-down .3s var(--ease-out-quart)}
 @keyframes vx-up{0%{transform:translateY(60%);opacity:.2}100%{transform:none;opacity:1}}
 @keyframes vx-down{0%{transform:translateY(-60%);opacity:.2}100%{transform:none;opacity:1}}
-.star{animation:vx-star .5s cubic-bezier(.3,1.6,.5,1) backwards}
+.vx-star{animation:vx-star .5s cubic-bezier(.3,1.6,.5,1) backwards}
 @keyframes vx-star{0%{transform:scale(.6) rotate(-24deg)}55%{transform:scale(1.35) rotate(8deg)}100%{transform:scale(1) rotate(0)}}
-@media (prefers-reduced-motion:reduce){.pop,.up,.down,.star,.vx-tk{animation:none!important}.vx-swk,.vx-swb,.vx-tgthumb{transition:none}}
+@media (prefers-reduced-motion:reduce){.vx-pop,.vx-up,.vx-down,.vx-star,.vx-spring,.vx-bub,.vx-tk{animation:none!important}.vx-swk,.vx-swb,.vx-tgthumb{transition:none}}
 `;
   document.head.appendChild(css);
 
