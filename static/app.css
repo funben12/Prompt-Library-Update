@@ -662,7 +662,7 @@
 
   /* Theme switch: round illuminated push switch, red in light mode, blue in dark mode */
   .theme-switch-btn { --rswitch-color: #ff0000; --rswitch-mark: #ffffff; padding-top: 5px; padding-bottom: 5px; }
-  [data-theme="dark"] .theme-switch-btn { --rswitch-color: #0000ff; }
+  [data-theme="dark"] .theme-switch-btn { --rswitch-color: #2a4dff; }
   .rswitch {
     position: relative; flex: none;
     width: 34px; height: 34px; border-radius: 50%;

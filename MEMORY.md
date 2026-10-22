@@ -335,7 +335,7 @@ October 5 work also included:
 ### Theme switch (2026-10-22)
 
 - The sidebar footer dark mode control (`#themeToggleBtn`) is now a round illuminated push switch (`.theme-switch-btn`, `.rswitch`, `.rswitch-cap`, `.rswitch-mark`), modelled on the Evil Buttons RealisticSwitch props but built in vanilla HTML, CSS and JS. The shadcn/React component cannot be installed here: no React, no npm, no build step.
-- Off is light mode, red `#ff0000` with a white sun. On is dark mode, blue `#0000ff`, pressed in, with a white moon. Colour comes from `--rswitch-color` keyed on `[data-theme]`.
+- Off is light mode, red `#ff0000` with a white sun. On is dark mode, blue `#2a4dff` (lighter than the original `#0000ff` so it reads on the dark sidebar), pressed in, with a white moon. Colour comes from `--rswitch-color` keyed on `[data-theme]`.
 - `role="switch"` with `aria-checked` set in `applyTheme()`. The label stays "Dark mode" and the switch shows the state.
 - `playSwitchClick()` makes a short click with Web Audio on user toggles only, not on load. No audio file.
 - Backups: `_rollbacks/* v-pre-theme-switch.*`.
