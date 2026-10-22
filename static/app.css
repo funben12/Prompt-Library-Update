@@ -660,6 +660,55 @@
   .sidebar-footer-btn .material-symbols-outlined { font-size: 16px; color: var(--ink-3); }
   .sidebar-footer-btn:hover .material-symbols-outlined { color: var(--ink); }
 
+  /* Theme switch: round illuminated push switch, red in light mode, blue in dark mode */
+  .theme-switch-btn { --rswitch-color: #ff0000; --rswitch-mark: #ffffff; padding-top: 5px; padding-bottom: 5px; }
+  [data-theme="dark"] .theme-switch-btn { --rswitch-color: #2a4dff; }
+  .rswitch {
+    position: relative; flex: none;
+    width: 34px; height: 34px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--surface-3);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.28), inset 0 -1px 1px rgba(255,255,255,.35), 0 1px 0 rgba(255,255,255,.4);
+  }
+  [data-theme="dark"] .rswitch {
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.6), inset 0 -1px 1px rgba(255,255,255,.06), 0 1px 0 rgba(255,255,255,.05);
+  }
+  .rswitch-cap {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--rswitch-color);
+    box-shadow:
+      inset 0 2px 1px rgba(255,255,255,.45),
+      inset 0 -3px 4px rgba(0,0,0,.35),
+      0 2px 3px rgba(0,0,0,.35),
+      0 0 10px color-mix(in srgb, var(--rswitch-color) 55%, transparent);
+    transform: translateY(-1px);
+    transition: transform 90ms ease, box-shadow 180ms ease, background-color 180ms ease;
+  }
+  [data-theme="dark"] .rswitch-cap {
+    transform: translateY(0) scale(.95);
+    box-shadow:
+      inset 0 2px 3px rgba(0,0,0,.4),
+      inset 0 -1px 1px rgba(255,255,255,.25),
+      0 1px 1px rgba(0,0,0,.4),
+      0 0 14px color-mix(in srgb, var(--rswitch-color) 75%, transparent);
+  }
+  .theme-switch-btn:active .rswitch-cap { transform: translateY(1px) scale(.92); }
+  .theme-switch-btn:focus-visible { outline: 2px solid var(--rswitch-color); outline-offset: 2px; }
+  .rswitch-mark {
+    width: 14px; height: 14px;
+    fill: none; stroke: var(--rswitch-mark); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    filter: drop-shadow(0 0 2px rgba(255,255,255,.6));
+    grid-area: 1 / 1;
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+  .rswitch-mark-moon { fill: var(--rswitch-mark); stroke: none; opacity: 0; transform: rotate(-30deg) scale(.6); }
+  [data-theme="dark"] .rswitch-mark-sun { opacity: 0; transform: rotate(30deg) scale(.6); }
+  [data-theme="dark"] .rswitch-mark-moon { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .rswitch-cap, .rswitch-mark { transition: none; }
+  }
+
   #contentHeader {
     grid-row: 1;
     padding: var(--sp-4) clamp(var(--sp-5), 4vw, var(--sp-7)) var(--sp-3);

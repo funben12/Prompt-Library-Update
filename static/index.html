@@ -11,7 +11,7 @@
 
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/app.css?v=5e88df1e-plx">
+<link rel="stylesheet" href="/static/app.css?v=26f2c6f6-plx">
 </head>
 <body>
 
@@ -156,8 +156,13 @@
           <span>Export</span>
         </button>
       </div>
-      <button class="sidebar-footer-btn" id="themeToggleBtn">
-        <span class="material-symbols-outlined" id="themeIcon">dark_mode</span>
+      <button class="sidebar-footer-btn theme-switch-btn" id="themeToggleBtn" role="switch" aria-checked="false" title="Switch between light and dark mode">
+        <span class="rswitch" aria-hidden="true">
+          <span class="rswitch-cap">
+            <svg class="rswitch-mark rswitch-mark-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>
+            <svg class="rswitch-mark rswitch-mark-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+          </span>
+        </span>
         <span id="themeLabel">Dark mode</span>
       </button>
       <button class="sidebar-footer-btn" id="phoneShareBtn" title="Open this library on your phone or tablet">
@@ -4986,7 +4991,7 @@
 
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
-<script defer src="/static/app.js?v=47bacd1b"></script>
+<script defer src="/static/app.js?v=64175566"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

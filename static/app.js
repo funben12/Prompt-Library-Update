@@ -4350,14 +4350,38 @@ Here are my prompts:
         document.documentElement.setAttribute('data-theme', theme);
         state.theme = theme;
         localStorage.setItem('promptlib.theme', theme);
-        const icon = $('#themeIcon');
-        const label = $('#themeLabel');
-        if (icon) icon.textContent = theme === 'dark' ? 'light_mode' : 'dark_mode';
-        if (label) label.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
+        $('#themeToggleBtn')?.setAttribute('aria-checked', theme === 'dark' ? 'true' : 'false');
+    }
+
+    // Short mechanical click for the theme switch, built with Web Audio so no sound file ships
+    let _switchAudio = null;
+    function playSwitchClick(on) {
+        try {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return;
+            _switchAudio = _switchAudio || new Ctx();
+            const ctx = _switchAudio, t = ctx.currentTime;
+            const len = Math.floor(ctx.sampleRate * 0.03);
+            const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+            const data = buf.getChannelData(0);
+            for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 4);
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.value = on ? 2600 : 1800;
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(0.35, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+            src.connect(filter).connect(gain).connect(ctx.destination);
+            src.start(t);
+        } catch (e) { /* sound is optional */ }
     }
 
     function toggleTheme() {
-        applyTheme(state.theme === 'dark' ? 'light' : 'dark');
+        const next = state.theme === 'dark' ? 'light' : 'dark';
+        playSwitchClick(next === 'dark');
+        applyTheme(next);
     }
 
     function loadTheme() {
