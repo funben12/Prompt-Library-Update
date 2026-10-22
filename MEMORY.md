@@ -400,3 +400,25 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - Phone: new `vartypes-motion.js` owns SVG dice (shape follows the sides: 4, 6, 8, 10, 12, 20, token for anything else, 1 to 6 dice, total when several numeric dice) and motion presets for chips, cards, checkbox list, sliders, step slider, weighted mix, number, percentage, random and deck. `vartypes.js` reads the data file and calls two hooks, with the old lists as fallback. Saved value formats are unchanged, except multi dice save `3, 5, 2 (total 10)`.
 - Harness: `apps/app-003-prompt-library-mobile/tests/vartypes/` (regression against a golden snapshot, dice, motion). Not run on a physical phone. Backups in the app's `_rollbacks/` (`*v-pre-motion*`).
 - Per variable motion overrides need a new `variable_meta` key, which the phone's Java `cleanVarMeta` and `share_server._meta` would drop until both are updated and the APK rebuilt. Parked.
+
+## Variable types update (2026-10-22)
+
+- Toggle group replaces Choice cards on desktop and phone. Options are "Title | optional description" per line, so a description shows only when at least one option has one. Single choice slides a thumb, multi choice pops. Old saved `choicecards` and `togglegroup` types open as `togglegroup`. No new variable_meta key, so the phone's `cleanVarMeta` needs no change.
+- Five new types on both apps: switch, rating, tags, coinflip, spinwheel. Desktop code lives in `static/variable-types-extra.js` (own `vx-` CSS, hidden `.var-input` per control, `window.PL_VT_EXTRA.render`), called from `renderVariableFields` in `app.js`. Phone code is `vartypes-more.js`. Rating value is "n/max".
+- `static/variable-types-data.js` is the source of truth and was synced to the phone. diceroll motion speed 5 was out of range, set to 2 (the maximum).
+- Dice roll rebuilt on both apps: a real cube enters from the top edge, drops, bounces three times, settles on the rolled face with a contact shadow. Built by the dice-drop-animator sub-agent (`.claude/agents/dice-drop-animator.md`).
+- Screen motion added: variable cards rise in one after another, buttons press in, reduced motion respected.
+- Not verified: a physical phone, and the full desktop app with Flask running.
+
+### Dice and random pick (2026-10-22, later)
+
+- Old N sided Dice roll removed from both apps. New `dice` type: one six sided cube thrown like a board game roll (physics: flies in, bounces, rolls over edges, settles with pips). Engine `static/dice-throw.js`, identical copy on the phone. `window.DiceThrow = { mount, roll, show }`. Old saved `diceroll` opens as `dice`. No sides setting any more.
+- Random pick and Random number now flick through a slowing reel (about 1.6 s) instead of a 0.5 s flicker.
+- Agents: `dice-drop-animator` builds the engine, `motion-checker` proves motion with frame evidence before anything is reported as working.
+
+### Variable types trimmed and card shuffle (2026-10-22, latest)
+
+- Removed: toggle group, tags, combo box, rating, coin flip, spin wheel. Choice cards are back with optional descriptions (`Title | description`). Old prompts: togglegroup opens as choice cards when any option has a description, else choice chips; tags as text; combo box as dropdown; rating as number; coin flip and spin wheel as random pick.
+- Dice takes your own faces (options), blank gives pips. Random pick and Random number scroll a slot machine strip that slows and settles.
+- Card deck uses `static/card-shuffle.js` (split, riffle, square up, draw, flip), identical on the phone.
+- `static/motion-pref.js` keeps animations on even when Windows or the phone asks for reduced motion. localStorage plMotion = 'system' follows the device.
