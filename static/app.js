@@ -1606,14 +1606,16 @@
     // Old shape:  { type: 'checkbox', default: 'true' | 'Yes' | 'No' }  -- no options array
     // New shape:  { type: 'checkbox', default: 'Yes', options: ['Yes','No'] }
     // Variable types kept after the 2026-10-09 trim. Old saved types map to the nearest kept one or fall back to text.
-    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'togglegroup', 'checkbox', 'combobox', 'stepslider', 'switch', 'tags', 'number', 'percentage', 'slider', 'rangeslider', 'rating', 'date', 'daterange', 'dice', 'weightedmix', 'carddeck', 'randompick', 'randomnumber', 'coinflip', 'spinwheel'];
-    const _PL_LEGACY_TYPE_MAP = { radio: 'choicechips', segmented: 'choicechips', yesno: 'choicechips', multiselect: 'checkbox', choicecards: 'togglegroup', diceroll: 'dice', boolean: 'choicechips' };
-    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'togglegroup', 'checkbox', 'combobox', 'stepslider', 'switch', 'tags', 'rating', 'dice', 'weightedmix', 'carddeck', 'randompick', 'randomnumber', 'coinflip', 'spinwheel'];
-    const _PL_RANDOM_TYPES = ['dice', 'weightedmix', 'carddeck', 'randompick', 'randomnumber', 'coinflip', 'spinwheel'];
+    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'choicecards', 'checkbox', 'stepslider', 'switch', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'dice', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
+    const _PL_LEGACY_TYPE_MAP = { radio: 'choicechips', segmented: 'choicechips', yesno: 'choicechips', multiselect: 'checkbox', boolean: 'choicechips', diceroll: 'dice', tags: 'text', combobox: 'dropdown', rating: 'number', coinflip: 'randompick', spinwheel: 'randompick' };
+    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'choicecards', 'checkbox', 'stepslider', 'switch', 'dice', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
+    const _PL_RANDOM_TYPES = ['dice', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
     function _PL_normMeta(m) {
         const out = Object.assign({}, m);
         const t = m.type || 'text';
         out.type = _PL_KEPT_TYPES.includes(t) ? t : (_PL_LEGACY_TYPE_MAP[t] || 'text');
+        if (t === 'togglegroup') out.type = (m.options || []).some(x => String(x).includes('|')) ? 'choicecards' : 'choicechips';
+        if (t === 'coinflip' && !(m.options && m.options.length)) out.options = ['Heads', 'Tails'];
         if (t === 'yesno' && !(m.options && m.options.length)) out.options = ['Yes', 'No', 'Maybe'];
         if (t === 'boolean') {
             out.options = ['Yes', 'No'];
@@ -1703,14 +1705,9 @@
             language: 'translate',
             dropdown: 'arrow_drop_down',
             choicechips: 'apps',
-            togglegroup: 'view_week',
+            choicecards: 'view_agenda',
             switch: 'toggle_on',
-            tags: 'sell',
-            rating: 'star',
-            coinflip: 'monetization_on',
-            spinwheel: 'donut_large',
             checkbox: 'checklist',
-            combobox: 'edit_note',
             stepslider: 'tune',
             number: 'tag',
             percentage: 'percent',
@@ -1735,11 +1732,16 @@
             let input = '';
             if (window.PL_VT_EXTRA && window.PL_VT_EXTRA.types.includes(type)) {
                 input = window.PL_VT_EXTRA.render(type, v, m, def);
-            } else if (type === 'choicechips') {
+            } else if (type === 'choicechips' || type === 'choicecards') {
                 const isMulti = !!m.multi;
                 const activeVals = isMulti ? (def ? def.split(',').map(x => x.trim()) : []) : [def];
                 if (!opts.length) {
                     input = `<p style="font-size:12px;color:var(--ink-3);">Add options in the variable editor.</p>`;
+                } else if (type === 'choicecards') {
+                    input = `<div class="var-toggle-group var-choice-cards" data-var="${escapeAttr(v)}" data-multi="${isMulti ? '1' : '0'}">
+        ${opts.map(o => { const p = _PL_splitOpt(o); return `<button type="button" class="var-toggle-btn var-card-opt${activeVals.includes(p.t) ? ' active' : ''}" data-value="${escapeAttr(p.t)}" onclick="window._PL_selectToggle(this)"><span class="var-card-mark material-symbols-outlined">check</span><span class="var-card-title">${escapeHtml(p.t)}</span>${p.d ? `<span class="var-card-desc">${escapeHtml(p.d)}</span>` : ''}</button>`; }).join('')}
+        <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
                 } else {
                     input = `<div class="var-toggle-group var-choice-chips" data-var="${escapeAttr(v)}" data-multi="${isMulti ? '1' : '0'}">
         ${optTitles.map(o => `<button type="button" class="chip var-toggle-btn${activeVals.includes(o) ? ' active' : ''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</button>`).join('')}
@@ -1782,9 +1784,6 @@
         <input type="range" class="var-step-range" min="0" max="${stepOpts.length - 1}" step="1" value="${stepIdx < 0 ? 0 : stepIdx}" oninput="window._PL_stepSlide(this)" />
         <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
-            } else if (type === 'combobox') {
-                input = `<input type="text" class="var-input" list="var-combo-${index}" data-var="${escapeAttr(v)}" placeholder="Pick or type…" value="${escapeAttr(def)}" autocomplete="off" />
-      <datalist id="var-combo-${index}">${opts.map(o => `<option value="${escapeAttr(o)}"></option>`).join('')}</datalist>`;
             } else if (type === 'number') {
                 input = `<input type="number" class="var-input" data-var="${escapeAttr(v)}" placeholder="Number" value="${escapeAttr(def)}" />`;
             } else if (type === 'date') {
@@ -3118,7 +3117,7 @@ STYLE/THEME: [[reserved for future use]]`;
             const def = m.default || '';
             const size = m.size || 'medium';
             const visible = m.visible !== false;
-            const opts = (m.options || []).join(type === 'togglegroup' ? '\n' : ', ');
+            const opts = (m.options || []).join(type === 'choicecards' ? '\n' : ', ');
             const needsOptions = _PL_OPTION_TYPES.includes(type);
             return `
       <details class="var-meta-row" data-var="${escapeAttr(v)}" ${index === 0 ? 'open' : ''}>
@@ -3149,20 +3148,17 @@ STYLE/THEME: [[reserved for future use]]`;
             </optgroup>
             <optgroup label="Choice">
             <option value="dropdown" ${type === 'dropdown' ? 'selected' : ''}>Dropdown</option>
+            <option value="choicecards" ${type === 'choicecards' ? 'selected' : ''}>Choice Cards (optional descriptions)</option>
             <option value="choicechips" ${type === 'choicechips' ? 'selected' : ''}>Choice Chips (compact)</option>
-            <option value="togglegroup" ${type === 'togglegroup' ? 'selected' : ''}>Toggle Group (optional descriptions)</option>
             <option value="checkbox" ${type === 'checkbox' ? 'selected' : ''}>Checkbox List</option>
-            <option value="combobox" ${type === 'combobox' ? 'selected' : ''}>Combo Box (pick or type)</option>
             <option value="stepslider" ${type === 'stepslider' ? 'selected' : ''}>Step Slider</option>
             <option value="switch" ${type === 'switch' ? 'selected' : ''}>Switch (two states)</option>
-            <option value="tags" ${type === 'tags' ? 'selected' : ''}>Tags (type and add)</option>
             </optgroup>
             <optgroup label="Number">
             <option value="number" ${type === 'number' ? 'selected' : ''}>Number</option>
             <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
             <option value="slider" ${type === 'slider' ? 'selected' : ''}>Slider</option>
             <option value="rangeslider" ${type === 'rangeslider' ? 'selected' : ''}>Range Slider (min-max)</option>
-            <option value="rating" ${type === 'rating' ? 'selected' : ''}>Rating (stars)</option>
             </optgroup>
             <optgroup label="Date">
             <option value="date" ${type === 'date' ? 'selected' : ''}>Date</option>
@@ -3174,8 +3170,6 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="carddeck" ${type === 'carddeck' ? 'selected' : ''}>Card Deck (shuffle and draw)</option>
             <option value="randompick" ${type === 'randompick' ? 'selected' : ''}>Random Pick</option>
             <option value="randomnumber" ${type === 'randomnumber' ? 'selected' : ''}>Random Number</option>
-            <option value="coinflip" ${type === 'coinflip' ? 'selected' : ''}>Coin Flip</option>
-            <option value="spinwheel" ${type === 'spinwheel' ? 'selected' : ''}>Spin Wheel</option>
             </optgroup>
           </select>
           <input type="text" data-field="default" class="var-default-field" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
@@ -3197,7 +3191,7 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="tall"   ${size === 'tall'   ? 'selected' : ''}>Tall (10 rows)</option>
           </select>
         </div>
-        <div class="choice-multi" style="display: ${type === 'choicechips' || type === 'togglegroup' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
+        <div class="choice-multi" style="display: ${type === 'choicechips' || type === 'choicecards' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);cursor:pointer;">
             <input type="checkbox" data-field="multi" ${m.multi ? 'checked' : ''} />
             Allow multiple selections
@@ -3219,13 +3213,9 @@ STYLE/THEME: [[reserved for future use]]`;
             carddeck: 'Card names, comma separated (blank gives five sample cards)',
             randompick: 'Options, comma separated',
             stepslider: 'Steps in order, comma separated (at least 2)',
-            togglegroup: 'One per line: Title | optional description',
+            choicecards: 'One card per line: Title | optional description',
             dice: 'Faces, comma separated (blank gives pips 1 to 6)',
             switch: 'On label, Off label (blank gives Yes, No)',
-            tags: 'Suggested tags, comma separated (optional)',
-            rating: 'Number of stars (blank gives 5)',
-            coinflip: 'Two sides, comma separated (blank gives Heads, Tails)',
-            spinwheel: 'Wedges, comma separated (blank gives six samples)'
         })[type] || 'Comma separated options';
     }
     function _PL_applyVarTypeUI(row, type) {
@@ -3233,7 +3223,7 @@ STYLE/THEME: [[reserved for future use]]`;
         const isRandom = _PL_RANDOM_TYPES.includes(type);
         show('.dropdown-options', _PL_OPTION_TYPES.includes(type), 'block');
         show('.paragraph-size', type === 'paragraph');
-        show('.choice-multi', type === 'choicechips' || type === 'togglegroup');
+        show('.choice-multi', type === 'choicechips' || type === 'choicecards');
         show('.var-wrap-row', !isRandom);
         show('[data-field="default"]', !isRandom, 'block');
         const ta = row.querySelector('[data-field="options"]');
@@ -3254,7 +3244,7 @@ STYLE/THEME: [[reserved for future use]]`;
             const visible = row.querySelector('[data-field="visible"]')?.checked !== false;
             const optsEl = row.querySelector('[data-field="options"]');
             const optRaw = optsEl?.value || '';
-            const options = optRaw ? optRaw.split(/\n/.test(optRaw) || (type === 'togglegroup' && optRaw.includes('|')) ? '\n' : ',').map(o => o.trim()).filter(Boolean) : [];
+            const options = optRaw ? optRaw.split(/\n/.test(optRaw) || (type === 'choicecards' && optRaw.includes('|')) ? '\n' : ',').map(o => o.trim()).filter(Boolean) : [];
             const sizeEl = row.querySelector('[data-field="size"]');
             const multiEl = row.querySelector('[data-field="multi"]');
             const isRandom = _PL_RANDOM_TYPES.includes(type);
@@ -3265,7 +3255,7 @@ STYLE/THEME: [[reserved for future use]]`;
                 options
             };
             if (type === 'paragraph' && sizeEl) entry.size = sizeEl.value;
-            if ((type === 'choicechips' || type === 'togglegroup') && multiEl && multiEl.checked) entry.multi = true;
+            if ((type === 'choicechips' || type === 'choicecards') && multiEl && multiEl.checked) entry.multi = true;
             const wrapEl = row.querySelector('[data-field="wrap"]');
             if (wrapEl && wrapEl.value && !isRandom) entry.wrap = wrapEl.value;
             meta[v] = entry;
