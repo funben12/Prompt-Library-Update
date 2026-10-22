@@ -41,8 +41,12 @@
 
   const TYPES = {
     dice(v, m, def) {
-      if (!window.DiceThrow) return `<div class="var-random-block"><div class="var-random-result" data-roll-result>${esc(def || 'Ready to roll')}</div><button type="button" class="btn btn-sm" data-roll-kind="randomnumber" data-roll-options='["1","6"]' onclick="window._PL_rollChoice(this)">Roll dice</button>${hidden(v, def)}</div>`;
-      return `<div class="vx-dice" data-vx-dice data-val="${esc(def)}"><div class="vx-dstage"></div><div class="vx-side"><div class="var-random-result" data-vx-out>${esc(def || 'Ready to roll')}</div><button type="button" class="btn btn-sm" data-vx-roll>Roll dice</button></div>${hidden(v, def)}</div>`;
+      const faces = (m.options || []).map(x => split(x).t).filter(Boolean);
+      if (!window.DiceThrow) {
+        const opts = faces.length ? faces : ['1', '2', '3', '4', '5', '6'];
+        return `<div class="var-random-block"><div class="var-random-result" data-roll-result>${esc(def || 'Ready to roll')}</div><button type="button" class="btn btn-sm" data-roll-kind="randompick" data-roll-options="${esc(JSON.stringify(opts))}" onclick="window._PL_rollChoice(this)">Roll dice</button>${hidden(v, def)}</div>`;
+      }
+      return `<div class="vx-dice" data-vx-dice data-val="${esc(def)}" data-faces="${esc(JSON.stringify(faces))}"><div class="vx-dstage"></div><div class="vx-side"><div class="var-random-result" data-vx-out>${esc(def || 'Ready to roll')}</div><button type="button" class="btn btn-sm" data-vx-roll>Roll dice</button></div>${hidden(v, def)}</div>`;
     },
     togglegroup(v, m, def) {
       const opts = m.options || [];
@@ -88,7 +92,7 @@
   function watch(root) {
     if (window.DiceThrow && root.querySelectorAll) root.querySelectorAll('.vx-dice:not([data-vx-m])').forEach(g => {
       g.setAttribute('data-vx-m', '1');
-      try { window.DiceThrow.mount(g.querySelector('.vx-dstage'), parseInt(g.dataset.val, 10) || 0); } catch (e) { console.warn('Dice:', e); }
+      try { const f = JSON.parse(g.dataset.faces || '[]'); window.DiceThrow.mount(g.querySelector('.vx-dstage'), f.length ? g.dataset.val : (parseInt(g.dataset.val, 10) || 0), f); } catch (e) { console.warn('Dice:', e); }
     });
     root.querySelectorAll && root.querySelectorAll('.vx-tg:not([data-vx-w])').forEach(g => {
       g.dataset.vxW = '1'; g.setAttribute('data-vx-w', '1');
@@ -160,7 +164,9 @@
         if (!n) { out.textContent = 'Ready to roll'; return; }
         out.textContent = String(n); flash(out, 'vx-pop', 420); commit(g, String(n));
       };
-      return void window.DiceThrow.roll(g.querySelector('.vx-dstage')).then(done, () => done(0));
+      let f = [];
+      try { f = JSON.parse(g.dataset.faces || '[]'); } catch (_) {}
+      return void window.DiceThrow.roll(g.querySelector('.vx-dstage'), f).then(done, () => done(0));
     }
     const flip = t.closest('[data-vx-flip]');
     if (flip) return coinFlip(flip);
@@ -270,6 +276,28 @@
     if (c) flash(c.closest('label'), 'vx-pop', 380);
   });
 
+
+  // Reel: one strip of values scrolls past like a slot machine, slows, overshoots a touch and settles on the pick
+  function reel(out, next, picked, done) {
+    const items = [];
+    let last = '';
+    for (let i = 0; i < 28; i++) { let t = next(), k = 0; while (t === last && k++ < 4) t = next(); items.push(last = t); }
+    items.push(picked);
+    const strip = document.createElement('span');
+    strip.className = 'vx-strip';
+    items.forEach(t => { const s = document.createElement('span'); s.textContent = t; strip.appendChild(s); });
+    out.textContent = ''; out.appendChild(strip);
+    const h = strip.firstChild.getBoundingClientRect().height || 36, end = -(items.length - 1) * h;
+    if (!strip.animate) return done();
+    const a = strip.animate([
+      { transform: 'translateY(0)', easing: 'cubic-bezier(.32,.05,.12,1)' },
+      { transform: `translateY(${end - h * 0.22}px)`, offset: 0.9, easing: 'ease-in-out' },
+      { transform: `translateY(${end}px)` }
+    ], { duration: 2100, fill: 'forwards' });
+    strip.animate([{ filter: 'blur(0px)' }, { filter: 'blur(1.4px)', offset: 0.15 }, { filter: 'blur(1.4px)', offset: 0.45 }, { filter: 'blur(0px)', offset: 0.8 }, { filter: 'blur(0px)' }], { duration: 2100 });
+    a.onfinish = done; a.oncancel = done;
+  }
+
   const css = document.createElement('style');
   css.textContent = `
 /* Toggle group */
@@ -351,10 +379,10 @@
 .var-field:nth-child(2){animation-delay:45ms}.var-field:nth-child(3){animation-delay:90ms}.var-field:nth-child(4){animation-delay:135ms}.var-field:nth-child(5){animation-delay:180ms}.var-field:nth-child(6){animation-delay:225ms}.var-field:nth-child(7){animation-delay:270ms}.var-field:nth-child(8){animation-delay:315ms}.var-field:nth-child(9){animation-delay:360ms}.var-field:nth-child(10){animation-delay:405ms}.var-field:nth-child(11){animation-delay:450ms}.var-field:nth-child(12){animation-delay:495ms}
 .btn:active{transform:scale(.97)}
 @media (prefers-reduced-motion:reduce){.var-field{animation:none}}
-.var-random-result{overflow:hidden;white-space:nowrap}
+.var-random-result{height:38px;padding-top:0!important;padding-bottom:0!important;line-height:36px;overflow:hidden;white-space:nowrap}
 .var-random-result.ticking{color:var(--ink-2)}
-.vx-tk{display:inline-block;animation:vx-tk .14s ease-out}
-@keyframes vx-tk{0%{transform:translateY(-70%);opacity:.25}100%{transform:none;opacity:1}}
+.vx-strip{display:block;will-change:transform}
+.vx-strip span{display:block;height:36px;line-height:36px}
 .var-field-body{position:relative}
 .vx-bub{position:absolute;z-index:3;padding:3px 8px;border-radius:999px;background:var(--ink);color:var(--bg);font:700 11px var(--ff-mono, monospace);pointer-events:none;opacity:0;transform:translate(-50%,6px) scale(.8);transition:opacity .18s var(--ease-out-quart),transform .26s cubic-bezier(.3,1.5,.5,1)}
 .vx-bub.on{opacity:1;transform:translate(-50%,0) scale(1)}
@@ -378,7 +406,7 @@
   window.PL_VT_EXTRA = {
     types: Object.keys(TYPES),
     render(type, v, m, def) { return TYPES[type] ? TYPES[type](v, m || {}, def == null ? '' : def) : null; },
-    swLabels, ratingMax
+    swLabels, ratingMax, reel
   };
   watch(document);
 })();

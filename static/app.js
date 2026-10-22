@@ -1608,7 +1608,7 @@
     // Variable types kept after the 2026-10-09 trim. Old saved types map to the nearest kept one or fall back to text.
     const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'togglegroup', 'checkbox', 'combobox', 'stepslider', 'switch', 'tags', 'number', 'percentage', 'slider', 'rangeslider', 'rating', 'date', 'daterange', 'dice', 'weightedmix', 'carddeck', 'randompick', 'randomnumber', 'coinflip', 'spinwheel'];
     const _PL_LEGACY_TYPE_MAP = { radio: 'choicechips', segmented: 'choicechips', yesno: 'choicechips', multiselect: 'checkbox', choicecards: 'togglegroup', diceroll: 'dice', boolean: 'choicechips' };
-    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'togglegroup', 'checkbox', 'combobox', 'stepslider', 'switch', 'tags', 'rating', 'weightedmix', 'carddeck', 'randompick', 'randomnumber', 'coinflip', 'spinwheel'];
+    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'togglegroup', 'checkbox', 'combobox', 'stepslider', 'switch', 'tags', 'rating', 'dice', 'weightedmix', 'carddeck', 'randompick', 'randomnumber', 'coinflip', 'spinwheel'];
     const _PL_RANDOM_TYPES = ['dice', 'weightedmix', 'carddeck', 'randompick', 'randomnumber', 'coinflip', 'spinwheel'];
     function _PL_normMeta(m) {
         const out = Object.assign({}, m);
@@ -1990,18 +1990,9 @@
         if (reduce) return finish();
         wrap._busy = true; btn.disabled = true;
         if (result) result.classList.add('ticking');
-        // Reel: values flick past fast, slow down, then land on the pick (about 1.6 s)
-        const gaps = [40, 40, 45, 45, 50, 55, 60, 70, 80, 90, 105, 120, 140, 165, 195, 230];
-        let i = 0, last = '';
-        const step = () => {
-            if (i >= gaps.length) return finish();
-            let v = _PL_randomValue(kind, options), tries = 0;
-            while (v === last && tries++ < 4) v = _PL_randomValue(kind, options);
-            last = v;
-            if (result) { const s = document.createElement('span'); s.className = 'vx-tk'; s.textContent = v; result.textContent = ''; result.appendChild(s); }
-            setTimeout(step, gaps[i++]);
-        };
-        step();
+        // Reel: one strip of values scrolls past like a slot machine and settles on the pick
+        if (result && window.PL_VT_EXTRA && window.PL_VT_EXTRA.reel) window.PL_VT_EXTRA.reel(result, () => _PL_randomValue(kind, options), picked || '', finish);
+        else finish();
     };
 
     window._PL_mixSlide = function(el) {
@@ -3229,6 +3220,7 @@ STYLE/THEME: [[reserved for future use]]`;
             randompick: 'Options, comma separated',
             stepslider: 'Steps in order, comma separated (at least 2)',
             togglegroup: 'One per line: Title | optional description',
+            dice: 'Faces, comma separated (blank gives pips 1 to 6)',
             switch: 'On label, Off label (blank gives Yes, No)',
             tags: 'Suggested tags, comma separated (optional)',
             rating: 'Number of stars (blank gives 5)',

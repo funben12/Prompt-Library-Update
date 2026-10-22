@@ -35,7 +35,7 @@ window.PL_VARTYPES = {
     rating: { label: 'Rating (stars)', icon: 'star', options: 'range', random: false, hint: 'Number of stars (blank gives 5)', defaults: {}, motion: { style: 'spring', speed: 1, intensity: 0.7 } },
     date: { label: 'Date', icon: 'event', options: 'none', random: false, hint: '', defaults: {}, motion: { style: 'none' } },
     daterange: { label: 'Date range', icon: 'date_range', options: 'none', random: false, hint: '', defaults: {}, motion: { style: 'none' } },
-    dice: { label: 'Dice (six sided)', icon: 'casino', options: 'none', random: true, hint: '', defaults: {}, motion: { style: 'tumble', speed: 1, intensity: 0.7 } },
+    dice: { label: 'Dice (six sided)', icon: 'casino', options: 'list', random: true, hint: 'Faces, comma separated (blank gives pips 1 to 6)', defaults: {}, motion: { style: 'tumble', speed: 1, intensity: 0.7 } },
     weightedmix: { label: 'Weighted mix (percentage sliders)', icon: 'balance', options: 'weights', random: true, hint: 'Name:percentage, comma separated (blank gives three samples)', defaults: {}, motion: { style: 'morph', speed: 1, intensity: 0.6 } },
     carddeck: { label: 'Card deck (shuffle and draw)', icon: 'style', options: 'list', random: true, hint: 'Card names, comma separated (blank gives five samples)', defaults: {}, motion: { style: 'fan', speed: 1, intensity: 0.6 } },
     randompick: { label: 'Random pick', icon: 'shuffle', options: 'list', random: true, hint: 'Options, comma separated', defaults: {}, motion: { style: 'roll', speed: 1, intensity: 0.6 } },
