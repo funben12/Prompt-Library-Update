@@ -136,7 +136,7 @@
       const n = +star.dataset.vxStar === prev ? 0 : +star.dataset.vxStar;
       g.querySelectorAll('.vx-star').forEach((s, i) => {
         s.classList.toggle('on', i < n);
-        if (i < n) { s.style.animationDelay = (i * 45) + 'ms'; flash(s, 'vx-star', 520 + i * 45); }
+        if (i < n) { s.style.animationDelay = (i * 45) + 'ms'; flash(s, 'vx-starpop', 520 + i * 45); }
       });
       g.querySelector('.vx-rout').textContent = n ? n + '/' + max : 'Not rated';
       return commit(g, n ? n + '/' + max : '');
@@ -148,7 +148,7 @@
       if (sug) return tagsAdd(g, sug.dataset.vxSug);
       const chip = rm.closest('.vx-tag');
       chip.classList.add('out');
-      return void setTimeout(() => { chip.remove(); tagsSync(g); }, reduced() ? 0 : 160);
+      return void setTimeout(() => { chip.remove(); tagsSync(g); }, reduced() ? 0 : 260);
     }
     const droll = t.closest('[data-vx-roll]');
     if (droll) {
@@ -261,6 +261,10 @@
       if (now !== before) flash(t, now > before ? 'vx-up' : 'vx-down', 300);
     }
   });
+  document.addEventListener('focusin', e => {
+    const t = e.target;
+    if (t.matches && t.matches('.var-field input[type=number]') && t._vxv == null) t._vxv = parseFloat(t.value) || 0;
+  });
   document.addEventListener('change', e => {
     const c = e.target.matches && e.target.matches('.var-checklist-item') && e.target;
     if (c) flash(c.closest('label'), 'vx-pop', 380);
@@ -309,7 +313,7 @@
 .vx-tags{display:flex;flex-direction:column;gap:10px}
 .vx-taglist{display:flex;flex-wrap:wrap;gap:6px}
 .vx-taglist:empty{display:none}
-.vx-tag{display:inline-flex;align-items:center;gap:2px;height:30px;padding:0 4px 0 12px;border-radius:15px;background:var(--accent);color:var(--on-accent,#fff);font:600 13px var(--ff-sans, inherit);transition:transform .16s var(--ease-out-quart),opacity .16s var(--ease-out-quart)}
+.vx-tag{display:inline-flex;align-items:center;gap:2px;height:30px;padding:0 4px 0 12px;border-radius:15px;background:var(--accent);color:var(--on-accent,#fff);font:600 13px var(--ff-sans, inherit);transition:transform .26s cubic-bezier(.5,0,.75,0),opacity .26s ease-in}
 .vx-tag.out{transform:scale(.7);opacity:0}
 .vx-tag button{display:grid;place-items:center;width:22px;height:22px;border:0;border-radius:50%;background:none;color:inherit;opacity:.8;cursor:pointer}
 .vx-tag button:hover{background:oklch(100% 0 0 / .2)}
@@ -365,9 +369,9 @@
 .vx-down{animation:vx-down .3s var(--ease-out-quart)}
 @keyframes vx-up{0%{transform:translateY(60%);opacity:.2}100%{transform:none;opacity:1}}
 @keyframes vx-down{0%{transform:translateY(-60%);opacity:.2}100%{transform:none;opacity:1}}
-.vx-star{animation:vx-star .5s cubic-bezier(.3,1.6,.5,1) backwards}
-@keyframes vx-star{0%{transform:scale(.6) rotate(-24deg)}55%{transform:scale(1.35) rotate(8deg)}100%{transform:scale(1) rotate(0)}}
-@media (prefers-reduced-motion:reduce){.vx-pop,.vx-up,.vx-down,.vx-star,.vx-spring,.vx-bub,.vx-tk{animation:none!important}.vx-swk,.vx-swb,.vx-tgthumb{transition:none}}
+.vx-starpop{animation:vx-starpop .5s cubic-bezier(.3,1.6,.5,1) backwards}
+@keyframes vx-starpop{0%{transform:scale(.6) rotate(-24deg)}55%{transform:scale(1.35) rotate(8deg)}100%{transform:scale(1) rotate(0)}}
+@media (prefers-reduced-motion:reduce){.vx-pop,.vx-up,.vx-down,.vx-starpop,.vx-spring,.vx-bub,.vx-tk{animation:none!important}.vx-swk,.vx-swb,.vx-tgthumb{transition:none}}
 `;
   document.head.appendChild(css);
 
