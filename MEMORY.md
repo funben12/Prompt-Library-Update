@@ -415,3 +415,10 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - Old N sided Dice roll removed from both apps. New `dice` type: one six sided cube thrown like a board game roll (physics: flies in, bounces, rolls over edges, settles with pips). Engine `static/dice-throw.js`, identical copy on the phone. `window.DiceThrow = { mount, roll, show }`. Old saved `diceroll` opens as `dice`. No sides setting any more.
 - Random pick and Random number now flick through a slowing reel (about 1.6 s) instead of a 0.5 s flicker.
 - Agents: `dice-drop-animator` builds the engine, `motion-checker` proves motion with frame evidence before anything is reported as working.
+
+### Variable types trimmed and card shuffle (2026-10-22, latest)
+
+- Removed: toggle group, tags, combo box, rating, coin flip, spin wheel. Choice cards are back with optional descriptions (`Title | description`). Old prompts: togglegroup opens as choice cards when any option has a description, else choice chips; tags as text; combo box as dropdown; rating as number; coin flip and spin wheel as random pick.
+- Dice takes your own faces (options), blank gives pips. Random pick and Random number scroll a slot machine strip that slows and settles.
+- Card deck uses `static/card-shuffle.js` (split, riffle, square up, draw, flip), identical on the phone.
+- `static/motion-pref.js` keeps animations on even when Windows or the phone asks for reduced motion. localStorage plMotion = 'system' follows the device.
