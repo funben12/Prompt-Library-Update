@@ -424,4 +424,4 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - `static/motion-pref.js` keeps animations on even when Windows or the phone asks for reduced motion. localStorage plMotion = 'system' follows the device.
 - Tap motion on chips, checklist, step labels, number roll and switch now lasts about 0.6 s with a slight overshoot, so it reads on a phone. Choice cards lift instead of scaling, so they no longer clip at the field edge.
 - Card deck under reduced motion (plMotion = 'system' plus a device asking for it) lays the drawn card face up at once and still counts down the cards left. Logic lives in `card-shuffle.js` draw().
-- Phone build for this state: Prompt Library Mobile 0.8.5 (17).
+- Phone build for this state: Prompt Library Mobile 0.8.6 (18).
