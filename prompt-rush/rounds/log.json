@@ -1,0 +1,8 @@
+{
+  "status": "building round 1",
+  "updated": "22-10-2026 15:00",
+  "note": "Win rule: a fresh blind judge sees our screenshots and a reference build's screenshots as A and B at 390 x 844 and 844 x 390, and must pick ours as the better game in both orientations. The reference screenshots were not supplied, so the stand in is an independent competitor build of the same brief, made by a separate agent and frozen. Drop real reference screenshots into prompt-rush/reference/shots to replace it.",
+  "rounds": [
+    {"n": 0, "when": "22-10-2026 15:00", "changed": ["Spec, screenshot harness, blind A/B script and offline Android WebView wrapper built", "APK pipeline verified with raw SDK tools"], "verdicts": [], "gap": "No game yet.", "next": "Core game v1 and reference build are being built in parallel."}
+  ]
+}

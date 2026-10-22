@@ -1,0 +1,59 @@
+<title>Prompt Rush Progress</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: single column log, newest round first, status band on top */
+:root {
+  --bg: #ece3d6; --surface: #f6efe3; --ink: #121a2b; --muted: #5d6170; --teal: #17706d; --loss: #a2493a; --line: #d9cdbb;
+  --shadow: 6px 6px 14px #cfc3b2, -6px -6px 14px #fffaf0;
+  --display: "Trebuchet MS", "Segoe UI", system-ui, sans-serif; --body: system-ui, "Segoe UI", sans-serif; --mono: ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #1b1d22; --surface: #23262d; --ink: #ece3d6; --muted: #a4a8b4; --teal: #4fb3ad; --loss: #e08a78; --line: #343842; --shadow: 0 0 0 1px #343842; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #1b1d22; --surface: #23262d; --ink: #ece3d6; --muted: #a4a8b4; --teal: #4fb3ad; --loss: #e08a78; --line: #343842; --shadow: 0 0 0 1px #343842; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); }
+main { max-width: 860px; margin: 0 auto; padding-block: 28px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 22px; }
+h1 { font: 700 28px/1.1 var(--display); margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+h2 { font: 700 13px var(--body); text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin: 0 0 10px; }
+h3 { font: 700 12px var(--body); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 0 0 6px; }
+.band { background: var(--surface); border-radius: 18px; box-shadow: var(--shadow); padding: 18px 20px; display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: baseline; }
+.band .stat { display: grid; }
+.band .k { font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.band .v { font: 700 22px var(--mono); font-variant-numeric: tabular-nums; }
+.band .v.ok { color: var(--teal); }
+.note { color: var(--muted); margin: 0; max-width: 65ch; }
+.strip { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; }
+figure { margin: 0; flex: none; }
+figure img { display: block; border-radius: 10px; border: 1px solid var(--line); }
+figure.portrait img { width: 150px; } figure.landscape img { width: 230px; }
+figcaption { font: 12px var(--mono); color: var(--muted); margin-top: 4px; }
+.round { border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 10px; }
+.round header { display: flex; justify-content: space-between; gap: 12px; }
+.rn { font: 700 18px var(--display); } .when { font: 13px var(--mono); color: var(--muted); }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.cols section { min-width: 0; }
+@media (max-width: 640px) { .cols { grid-template-columns: 1fr; } }
+ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.verdicts { list-style: none; padding: 0; }
+.pill { display: inline-block; font: 700 11px var(--body); text-transform: uppercase; letter-spacing: .08em; padding: 2px 8px; border-radius: 99px; margin-right: 8px; color: var(--bg); }
+.pill.win { background: var(--teal); } .pill.loss { background: var(--loss); }
+.gap, .next { margin: 0; }
+</style>
+<main>
+  <h1>Prompt Rush progress</h1>
+  <div class="band">
+    <div class="stat"><span class="k">Status</span><span class="v ">building round 1</span></div>
+    <div class="stat"><span class="k">Round</span><span class="v"></span></div>
+    <div class="stat"><span class="k">Latest blind wins</span><span class="v">0/0</span></div>
+    <div class="stat"><span class="k">Updated</span><span class="v">22-10-2026 15:00</span></div>
+  </div>
+  <p class="note">Win rule: a fresh blind judge sees our screenshots and a reference build&#x27;s screenshots as A and B at 390 x 844 and 844 x 390, and must pick ours as the better game in both orientations. The reference screenshots were not supplied, so the stand in is an independent competitor build of the same brief, made by a separate agent and frozen. Drop real reference screenshots into prompt-rush/reference/shots to replace it.</p>
+  
+  <section><h2>Rounds</h2><article class="round">
+  <header><span class="rn">Round </span><span class="when">22-10-2026 15:00</span></header>
+  <div class="cols">
+    <section><h3>What changed</h3><ul><li>Spec, screenshot harness, blind A/B script and offline Android WebView wrapper built</li><li>APK pipeline verified with raw SDK tools</li></ul></section>
+    <section><h3>Critic verdicts</h3><ul class="verdicts"><li>Pending</li></ul></section>
+  </div>
+  <p class="gap"><b>Biggest gap:</b> No game yet.</p>
+  <p class="next"><b>Next:</b> Core game v1 and reference build are being built in parallel.</p>
+</article></section>
+</main>
