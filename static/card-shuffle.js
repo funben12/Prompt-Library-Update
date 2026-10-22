@@ -341,6 +341,10 @@
     var reshuffle = !st.left.length;
     if (reshuffle) st.left = st.all.slice();
     var value = st.left.splice(Math.floor(Math.random() * st.left.length), 1)[0];
+    // Reduced motion: lay the drawn card face up at once
+    var still = false;
+    try { still = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+    if (still) { show(el, value); setLeft(st, st.left.length); return Promise.resolve(value); }
     var p = plan(st, value, reshuffle);
     setFace(st, p.top, value);
     st.stage.setAttribute('aria-label', 'Shuffling the deck');

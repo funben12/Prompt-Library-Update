@@ -61,7 +61,7 @@
       const g = swb.closest('[data-vx-sw]'), now = !g.classList.contains('on'), label = g.querySelector('.vx-swl span');
       g.classList.toggle('on', now); swb.setAttribute('aria-checked', now);
       label.textContent = now ? g.dataset.on : g.dataset.off;
-      flash(label, now ? 'vx-up' : 'vx-down', 300);
+      flash(label, now ? 'vx-up' : 'vx-down', 620);
       return commit(g, label.textContent);
     }
     const draw = t.closest('[data-vx-draw]');
@@ -97,9 +97,9 @@
   // ---- Parity with the phone: chips pop, step labels spring, checklist ticks pop, sliders show a value bubble, numbers roll ----
   document.addEventListener('click', e => {
     const chip = e.target.closest && e.target.closest('.var-choice-chips .var-toggle-btn, .var-choice-cards .var-toggle-btn');
-    if (chip && chip.classList.contains('active')) flash(chip, 'vx-pop', 380);
+    if (chip && chip.classList.contains('active')) flash(chip, 'vx-pop', 640);
     const lab = e.target.closest && e.target.closest('.var-step-label');
-    if (lab) flash(lab.parentNode.querySelector('.var-step-label.active') || lab, 'vx-spring', 420);
+    if (lab) flash(lab.parentNode.querySelector('.var-step-label.active') || lab, 'vx-spring', 640);
   });
   function bubble(inp) {
     const body = inp.closest('.var-field-body');
@@ -118,13 +118,13 @@
   document.addEventListener('input', e => {
     const t = e.target;
     if (!t.matches) return;
-    if (t.matches('.var-step-range')) { const l = t.closest('.var-stepslider').querySelector('.var-step-label.active'); return flash(l, 'vx-spring', 420); }
+    if (t.matches('.var-step-range')) { const l = t.closest('.var-stepslider').querySelector('.var-step-label.active'); return flash(l, 'vx-spring', 640); }
     if (t.matches('.var-mix-range')) return t.closest('.var-mix').querySelectorAll('.var-mix-pct').forEach(p => flash(p, 'vx-pop', 300));
     if (t.matches('.var-field input[type=range]')) return bubble(t);
     if (t.matches('.var-field input[type=number]')) {
       const now = parseFloat(t.value) || 0, before = t._vxv == null ? now : t._vxv;
       t._vxv = now;
-      if (now !== before) flash(t, now > before ? 'vx-up' : 'vx-down', 300);
+      if (now !== before) flash(t, now > before ? 'vx-up' : 'vx-down', 620);
     }
   });
   document.addEventListener('focusin', e => {
@@ -133,7 +133,7 @@
   });
   document.addEventListener('change', e => {
     const c = e.target.matches && e.target.matches('.var-checklist-item') && e.target;
-    if (c) flash(c.closest('label'), 'vx-pop', 380);
+    if (c) flash(c.closest('label'), 'vx-pop', 640);
   });
 
 
@@ -163,7 +163,7 @@
 /* Switch */
 .vx-sw{display:flex;align-items:center;gap:12px}
 .vx-swb{position:relative;flex:none;width:48px;height:28px;border:0;border-radius:14px;background:var(--surface-3);cursor:pointer;transition:background .3s var(--ease-out-quart)}
-.vx-swk{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:11px;background:var(--surface);box-shadow:1px 2px 4px oklch(18% 0.04 260 / .28);transition:transform .42s cubic-bezier(.3,1.5,.5,1),width .18s var(--ease-out-quart)}
+.vx-swk{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:11px;background:var(--surface);box-shadow:1px 2px 4px oklch(18% 0.04 260 / .28);transition:transform .62s cubic-bezier(.3,1.5,.5,1),width .18s var(--ease-out-quart)}
 .vx-swb:active .vx-swk{width:28px}
 .vx-sw.on .vx-swb{background:var(--accent)}
 .vx-sw.on .vx-swk{transform:translateX(20px)}
@@ -189,15 +189,15 @@
 .var-field-body{position:relative}
 .vx-bub{position:absolute;z-index:3;padding:3px 8px;border-radius:999px;background:var(--ink);color:var(--bg);font:700 11px var(--ff-mono, monospace);pointer-events:none;opacity:0;transform:translate(-50%,6px) scale(.8);transition:opacity .18s var(--ease-out-quart),transform .26s cubic-bezier(.3,1.5,.5,1)}
 .vx-bub.on{opacity:1;transform:translate(-50%,0) scale(1)}
-.vx-spring{display:inline-block;animation:vx-spring .42s cubic-bezier(.3,1.6,.5,1)}
+.vx-spring{display:inline-block;animation:vx-spring .64s cubic-bezier(.3,1.6,.5,1)}
 @keyframes vx-spring{0%{transform:translateY(0) scale(1)}35%{transform:translateY(-4px) scale(1.18)}100%{transform:none}}
 .var-checklist-item{accent-color:var(--accent)}
 .var-choice-chips .var-toggle-btn{transition:background .25s var(--ease-out-quart),color .25s var(--ease-out-quart),transform .18s var(--ease-out-quart)}
 /* Shared motion classes */
-.vx-pop{animation:vx-pop .38s var(--ease-out-quart)}
-@keyframes vx-pop{0%{transform:scale(1)}40%{transform:scale(1.14)}100%{transform:scale(1)}}
-.vx-up{animation:vx-up .3s var(--ease-out-quart)}
-.vx-down{animation:vx-down .3s var(--ease-out-quart)}
+.vx-pop{animation:vx-pop .64s cubic-bezier(.3,1.4,.5,1)}
+@keyframes vx-pop{0%{transform:scale(1)}30%{transform:scale(1.14)}60%{transform:scale(.97)}100%{transform:scale(1)}}
+.vx-up{animation:vx-up .62s cubic-bezier(.3,1.4,.5,1)}
+.vx-down{animation:vx-down .62s cubic-bezier(.3,1.4,.5,1)}
 @keyframes vx-up{0%{transform:translateY(60%);opacity:.2}100%{transform:none;opacity:1}}
 @keyframes vx-down{0%{transform:translateY(-60%);opacity:.2}100%{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.vx-pop,.vx-up,.vx-down,.vx-spring,.vx-bub{animation:none!important}.vx-swk,.vx-swb,.vx-tgthumb{transition:none}}
