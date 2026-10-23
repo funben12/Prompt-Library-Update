@@ -87,8 +87,8 @@
     }
     head = head.replace(/^(i want|i need|build|make|create|give me)\s+/i, "").replace(/^(an?|the|my|your)\s+/i, "");
     var hw = head.toLowerCase().replace(/^(someone|something|an? ai|ai)$/, "assistant").replace(/\bai\b\s*/g, "").split(" ").filter(Boolean);
-    if (hw.length > 4) hw = hw.slice(-3);
-    var topicWords = hw.filter(function (w) { return !roleSet[w]; });
+    if (hw.length > 6) hw = hw.slice(-5);
+    var topicWords = hw.filter(function (w) { return !roleSet[w] && !/^(calm|friendly|patient|warm|gentle|chatty|fun|funny|strict|kind|helpful|smart|simple|clever|cheerful|playful|quick|small|little)$/.test(w); });
     var topic = topicWords.join(" ") || (d.id === "general" ? "everyday tasks" : d.topic);
     var roleWord = hw.filter(function (w) { return roleSet[w]; }).pop();
     // Unlisted agent nouns such as "summariser" or "reviewer" still count as the role word
@@ -96,7 +96,7 @@
     // "support agent for a small online bike shop": the place becomes the subject, the role word does not
     var focus = topic, orgLine = "";
     if (joiner === "for" && rest) {
-      var rw = (rest.toLowerCase().match(/[a-z0-9']+/g) || []).filter(function (w) { return !/^(a|an|the|small|little|tiny|big|busy|new|local|independent)$/.test(w); });
+      var rw = (rest.toLowerCase().match(/[a-z0-9']+/g) || []).filter(function (w) { return !/^(a|an|the|my|our|your|small|little|tiny|big|busy|new|local|independent)$/.test(w); });
       var rl = rest.toLowerCase().match(/[a-z0-9']+/g) || [];
       if (rw.length && rl.length <= 7 && audienceSet.indexOf(rw[0]) < 0 && !/(ing|ers)$/.test(rw[0]) && !/^(me|us|myself|people|anyone|everyone|someone|those|them|users|beginners)$/.test(rw[0])) {
         focus = rw.join(" ") + (topicWords.length ? " " + topicWords.join(" ") : "");
@@ -122,7 +122,7 @@
     goal = goal || d.goal;
     var what;
     if (rest && (joiner === "that" || joiner === "who" || joiner === "which")) what = sentence(rest);
-    else if (rest && joiner === "for") what = sentence("Made for " + rest);
+    else if (rest && joiner === "for") what = sentence("Built for " + rest);
     else if (rest && joiner === "to") what = sentence("Built to " + rest);
     else what = sentence("Helps " + audience + " " + goal);
     var name = d.names[hash(low) % d.names.length];
@@ -200,12 +200,12 @@
     L.push("");
     L.push("## Role");
     var an = /^[aeiou]/i.test(cx.agent) ? "an " : "a ";
-    if (cx.orgLine) L.push("You are " + cx.name + ", the " + cx.head + " for " + cx.orgLine + ".");
+    if (cx.orgLine) L.push("You are " + cx.name + ", the " + cx.agent + " for " + cx.orgLine + ".");
     else if (cx.thatLine) L.push("You are " + cx.name + ", " + an + cx.agent + " that " + cx.thatLine + ".");
     else L.push("You are " + cx.name + ", " + an + cx.agent + " built for " + cx.audience + ".");
     if (o[0]) L.push(o[0].p);
     L.push("Mission: " + cx.what);
-    L.push("Context: you work with " + cx.audience + " who bring you " + cx.focus + " requests. Most chats are one job to finish, so aim to leave each person with something they can use straight away.");
+    L.push("Context: " + (cx.audience === "the user" ? "you help the user with " + cx.focus + " requests" : "you work with " + cx.audience + " who bring you " + cx.focus + " requests") + ". Most chats are one job to finish, so aim to leave each person with something they can use straight away.");
     L.push("Scope: stay with " + cx.focus + " requests that help " + cx.audience + " " + cx.goal + ". Out of scope: anything unrelated to that, which you decline kindly and point elsewhere.");
     L.push("");
     L.push("## Voice");
@@ -312,14 +312,27 @@
     return h + "</ul>";
   }
 
+  // One plain sentence rebuilt from every pick so far
+  function summaryLine(st, cx) {
+    var o = []; for (var r = 0; r < 7; r++) o.push(resolve(r, st.picks[r], cx));
+    if (!o.some(Boolean)) return "";
+    var lo = function (x) { return x.t.toLowerCase().replace(/\benglish\b/, "English"); };
+    var parts = [];
+    if (o[0]) parts.push(lo(o[0]));
+    if (o[1]) parts.push(lo(o[1]) + " voice");
+    for (var r2 = 2; r2 < 7; r2++) if (o[r2]) parts.push(lo(o[r2]));
+    var t = cap(cx.agent) + (parts.length ? ": " + parts.join(", ") : "");
+    return t + ".";
+  }
+
   function meterHTML(score) {
     return '<div class="meter"><div class="meter-fill" style="transform:scaleX(' + (score / 100).toFixed(3) + ')"></div><div class="meter-ticks">' + new Array(11).join("<i></i>") + "</div></div>";
   }
 
   function renderDock(freshRound) {
     if (!state || state.screen !== "round") { dock.innerHTML = ""; return; }
-    var sc = scoreOf(state, ctx), latest = "", latestLab = "Building";
-    for (var r = 6; r >= 0; r--) { var o = resolve(r, state.picks[r], ctx); if (o) { latest = o.l; latestLab = C.ROUNDS[r].name; break; } }
+    var sc = scoreOf(state, ctx), latest = "";
+    latest = summaryLine(state, ctx);
     var isFresh = latest !== lastLatest; lastLatest = latest;
     dock.innerHTML =
       '<div class="dock-card" id="dockCard">' +
@@ -329,7 +342,7 @@
       '<div class="dock-what">' + esc(ctx.what) + "</div></div>" +
       '<div class="score"><div class="score-num" id="scoreNum">' + sc.score + '</div><div class="score-lab">Strength</div></div></div>' +
       meterHTML(sc.score) +
-      '<div class="latest' + (isFresh ? " fresh" : "") + '"><span class="eyebrow">' + (latest ? latestLab : "Your agent") + "</span><span>" + esc(latest || "Tap a card to add the first layer.") + "</span></div>" +
+      '<div class="latest' + (isFresh ? " fresh" : "") + '"><span class="eyebrow">Your agent so far</span><span>' + esc(latest || "Tap a card to add the first layer.") + "</span></div>" +
       '<div class="dock-layers">' + layersHTML(state, ctx, freshRound) + "</div>" +
       '<button class="expand" id="expandBtn" aria-label="Show your agent"></button>' +
       "</div>";
@@ -429,11 +442,10 @@
       var was = cur && !cur.custom && cur.id === o.id;
       var trial = JSON.parse(JSON.stringify(state)); trial.picks[r] = { id: o.id };
       var tc = scoreOf(trial, ctx).combos.filter(function (c) { return c.round === r; })[0];
-      var tags = (tc && !was ? '<span class="tag combo">+4 ' + esc(tc.name) + "</span>" : "") + (o.tailored ? '<span class="tag">' + STAR + "Tailored</span>" : "");
+      var tags = tc && !was ? '<span class="tag combo" role="img" aria-label="Combo, plus 4: ' + esc(tc.name) + '">+4</span>' : (o.tailored ? '<span class="tag" role="img" aria-label="Tailored to your idea">' + STAR + "</span>" : "");
       h += '<button class="choice' + (was ? " was" : "") + (tags ? " has-tag" : "") + '" data-i="' + i + '">' +
-        (tags ? '<span class="tags">' + tags + "</span>" : "") +
         '<span class="key">' + (was ? icon("check") : LETTERS[i]) + "</span>" +
-        '<span><span class="c-title">' + esc(o.t) + '</span><span class="c-line">' + esc(o.l) + "</span></span></button>";
+        '<span><span class="c-title">' + esc(o.t) + tags + '</span><span class="c-line">' + esc(o.l) + "</span></span></button>";
     });
     h += "</div>";
     h += '<div class="round-actions">' +
@@ -530,19 +542,21 @@
       '<div class="ac-top"><div class="avatar">' + icon(ctx.domain.glyph) + '</div><div><h2 class="ac-name">' + esc(ctx.name) + '</h2><div class="ac-sub">' + esc(ctx.title) + "</div></div></div>" +
       '<p class="ac-what">' + esc(ctx.what) + "</p>" +
       '<div class="ac-score">' + meterHTML(sc.score) + '<span class="score-num">' + sc.score + "</span><em>" + sc.rankName + "</em></div>" +
-      '<div class="ac-layers">' + layersHTML(state, ctx, -1) + "</div>" +
       (sc.combos.length ? '<div class="combos">' + sc.combos.map(function (c) { return '<span class="combo-chip">' + esc(c.name) + "</span>"; }).join("") + "</div>" : "") +
-      "</article></div>";
-    h += '<div class="final-right">' +
-      '<div class="final-actions"><button class="btn btn-primary" id="copyBtn">' + icon("copy") + 'Copy prompt</button><button class="btn btn-soft" id="shareBtn">' + icon("share") + "Share</button></div>" +
-      '<section class="prompt-box"><div class="eyebrow">System prompt <span>' + prompt.split(/\s+/).length + " words</span></div><pre class=\"prompt\" id=\"promptText\">" + promptHTML(prompt) + "</pre></section>" +
+      "</article>" +
       '<div class="tweak"><h3 class="eyebrow">Tweak a layer</h3><div class="tweak-row">' +
       C.ROUNDS.map(function (R, i) { return '<button class="chip" data-tweak="' + i + '"><small>' + (i + 1) + "</small>" + R.name + "</button>"; }).join("") +
       '<button class="chip" id="anotherMini" style="color:var(--teal)"><small>New</small>Build</button></div></div>' +
       '<button class="btn btn-soft btn-wide" id="anotherBtn">' + icon("plus") + "Build another agent</button>" +
+      '<div class="ac-layers">' + layersHTML(state, ctx, -1) + "</div>" +
+      "</div>";
+    h += '<div class="final-right">' +
+      '<section class="prompt-box"><div class="eyebrow">System prompt <span>' + prompt.split(/\s+/).length + ' words</span><button class="prompt-more" id="promptMore" aria-expanded="false">Show all</button></div><pre class="prompt" id="promptText" tabindex="0">' + promptHTML(prompt) + "</pre></section>" +
+      '<div class="final-actions"><button class="btn btn-primary" id="copyBtn">' + icon("copy") + 'Copy prompt</button><button class="btn btn-soft" id="shareBtn">' + icon("share") + "Share</button></div>" +
       "</div></div>";
     screen.innerHTML = h;
     screen.scrollTop = 0;
+    $("#promptMore").onclick = function () { var box = $(".prompt-box"), on = box.classList.toggle("open"); this.textContent = on ? "Show less" : "Show all"; this.setAttribute("aria-expanded", on ? "true" : "false"); };
     $("#copyBtn").onclick = function () { copyText(prompt); };
     $("#shareBtn").onclick = function () { shareText(ctx.name + ", built in Prompt Rush\n\n" + prompt); };
     var another = function () { drop(K_RUN); state = null; ctx = null; show(); };
