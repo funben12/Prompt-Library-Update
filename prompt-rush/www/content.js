@@ -599,18 +599,18 @@ window.PR_CONTENT = (function () {
   var ROLE_WORDS = "tutor tutors coach coaches assistant assistants helper helpers bot bots agent agents buddy guide guides expert experts advisor adviser advisors mentor mentors teacher partner companion planner trainer friend app tool chatbot sidekick chef cook editor reviewer concierge specialist consultant therapist doctor nurse counsellor librarian translator manager organiser organizer designer analyst";
 
   var SEEDS = [
-    "A drum tutor that helps beginners keep steady time",
-    "A sous chef that turns leftovers into weeknight dinners",
-    "A revision buddy that quizzes students before exams",
-    "A support agent that calms angry customers and fixes orders",
-    "A code reviewer that helps developers ship cleaner pull requests",
-    "A budget coach that helps freelancers plan for tax",
-    "A running coach that gets beginners to their first 5k",
-    "A travel planner that builds relaxed city weekends",
-    "A writing editor that tightens newsletters without losing voice",
-    "A chief of staff that keeps a small team on track",
-    "A sleep coach that helps parents wind down at night",
-    "An idea machine that helps creators plan YouTube videos"
+    "A drum tutor for beginners",
+    "A sous chef for leftovers",
+    "A revision buddy for exams",
+    "A support agent for angry customers",
+    "A code reviewer for pull requests",
+    "A budget coach for freelancers",
+    "A running coach for first 5k runners",
+    "A travel planner for city weekends",
+    "A newsletter editor that keeps your voice",
+    "A chief of staff for small teams",
+    "A sleep coach for tired parents",
+    "An idea machine for YouTube creators"
   ];
 
   var SYNERGY = {

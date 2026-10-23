@@ -91,6 +91,19 @@
     var topicWords = hw.filter(function (w) { return !roleSet[w]; });
     var topic = topicWords.join(" ") || (d.id === "general" ? "everyday tasks" : d.topic);
     var roleWord = hw.filter(function (w) { return roleSet[w]; }).pop();
+    // Unlisted agent nouns such as "summariser" or "reviewer" still count as the role word
+    if (!roleWord && hw.length > 1 && /(er|or|ist|ian)$/.test(hw[hw.length - 1])) { roleWord = hw[hw.length - 1]; topicWords = hw.slice(0, -1); topic = topicWords.join(" "); }
+    // "support agent for a small online bike shop": the place becomes the subject, the role word does not
+    var focus = topic, orgLine = "";
+    if (joiner === "for" && rest) {
+      var rw = (rest.toLowerCase().match(/[a-z0-9']+/g) || []).filter(function (w) { return !/^(a|an|the|small|little|tiny|big|busy|new|local|independent)$/.test(w); });
+      var rl = rest.toLowerCase().match(/[a-z0-9']+/g) || [];
+      if (rw.length && rl.length <= 7 && audienceSet.indexOf(rw[0]) < 0 && !/(ing|ers)$/.test(rw[0]) && !/^(me|us|myself|people|anyone|everyone|someone|those|them|users|beginners)$/.test(rw[0])) {
+        focus = rw.join(" ") + (topicWords.length ? " " + topicWords.join(" ") : "");
+        orgLine = rest.toLowerCase();
+        topic = focus;
+      }
+    }
     var agent;
     if (!hw.length) agent = d.id === "general" ? "personal assistant" : d.label.toLowerCase() + " assistant";
     else if (!topicWords.length) agent = (d.id === "general" ? "personal" : d.label.toLowerCase()) + " " + (roleWord || "assistant");
@@ -113,7 +126,8 @@
     else if (rest && joiner === "to") what = sentence("Built to " + rest);
     else what = sentence("Helps " + audience + " " + goal);
     var name = d.names[hash(low) % d.names.length];
-    return { domain: d, topic: topic, agent: agent, audience: audience, goal: goal, what: what, name: name, title: titleCase(agent), idea: raw };
+    var thatLine = (rest && (joiner === "that" || joiner === "who" || joiner === "which")) ? rest.replace(/^helps you /i, "helps you ") : "";
+    return { domain: d, topic: topic, focus: focus || topic, orgLine: orgLine, thatLine: thatLine, head: hw.join(" "), agent: agent, audience: audience, goal: goal, what: what, name: name, title: titleCase(agent), idea: raw };
   }
 
   function fill(s, ctx) {
@@ -185,10 +199,14 @@
     L.push("# " + cx.name + ", the " + cx.title);
     L.push("");
     L.push("## Role");
-    L.push("You are " + cx.name + ", a " + cx.agent + " built for " + cx.audience + ".");
+    var an = /^[aeiou]/i.test(cx.agent) ? "an " : "a ";
+    if (cx.orgLine) L.push("You are " + cx.name + ", the " + cx.head + " for " + cx.orgLine + ".");
+    else if (cx.thatLine) L.push("You are " + cx.name + ", " + an + cx.agent + " that " + cx.thatLine + ".");
+    else L.push("You are " + cx.name + ", " + an + cx.agent + " built for " + cx.audience + ".");
     if (o[0]) L.push(o[0].p);
     L.push("Mission: " + cx.what);
-    L.push("Your designer described you as: \"" + cx.idea + "\".");
+    L.push("Context: you work with " + cx.audience + " who bring you " + cx.focus + " requests. Most chats are one job to finish, so aim to leave each person with something they can use straight away.");
+    L.push("Scope: stay with " + cx.focus + " requests that help " + cx.audience + " " + cx.goal + ". Out of scope: anything unrelated to that, which you decline kindly and point elsewhere.");
     L.push("");
     L.push("## Voice");
     if (o[1]) L.push(o[1].p);
@@ -196,7 +214,7 @@
     L.push("");
     L.push("## Knowledge");
     if (o[2]) L.push(o[2].p);
-    L.push("Boundaries: your expertise is " + cx.topic + ". When a question goes beyond what you reliably know, say so plainly and point to a better source.");
+    L.push("Boundaries: you know " + cx.focus + " well. When a question goes beyond what you reliably know, say so plainly and point to a better source.");
     L.push("");
     L.push("## Tools");
     if (o[3]) L.push(o[3].p);
@@ -275,7 +293,7 @@
 
   function renderBar() {
     document.body.classList.toggle("on-start", !state);
-    if (!state) { barMid.innerHTML = '<span class="brand">' + (load(K_RUN, null) ? "" : "Offline. No sign in.") + "</span>"; return; }
+    if (!state) { barMid.innerHTML = '<span class="brand">Prompt Rush</span>'; return; }
     var h = '<div class="pips" role="img" aria-label="' + pickedCount() + ' of 7 layers built">';
     for (var r = 0; r < 7; r++) {
       var cls = state.picks[r] ? "done" : "";
@@ -321,18 +339,20 @@
   function renderStart() {
     setScreen("start");
     var run = load(K_RUN, null), agents = load(K_AGENTS, []), h = '<div class="start">';
-    h += '<div class="hero"><div class="logo-tile"><svg class="mark"><use href="#mark"/></svg></div>' +
-      '<h1 class="wordmark">Prompt Rush</h1>' +
-      '<p class="pitch">One sentence in. <b>Seven fast rounds.</b> A pro grade AI agent prompt out.</p>' +
-      '<ol class="board" aria-label="The seven rounds">' + C.ROUNDS.map(function (R, i) { return '<li style="animation-delay:' + (0.15 + i * 0.04).toFixed(2) + 's" title="' + R.name + '"><b>' + R.name.charAt(0) + "</b></li>"; }).join("") + "</ol>" +
-      '<p class="board-cap">' + C.ROUNDS.map(function (R) { return R.name; }).join(", ") + "</p></div>";
+    h += '<div class="hero"><h1 class="wordmark">Prompt Rush</h1>' +
+      '<p class="pitch">One sentence in. <b>Seven fast rounds.</b> Copy a finished system prompt.</p>' +
+      '<div class="teaser" role="img" aria-label="Example result: Tempo, Drum Tutor, strength 86"><span class="t-tag">Example result</span>' +
+      '<div class="t-top"><div class="avatar">' + icon("drum") + '</div><div class="t-id"><b>Tempo</b><small>Drum Tutor</small></div><div class="score"><div class="score-num">86</div><div class="score-lab">Strength</div></div></div>' +
+      meterHTML(86) + '<p class="t-prompt">You are Tempo, a patient drum coach for beginners. Keep steady time, explain one step at a time, and end with a short practice plan.</p></div></div>';
     if (run && run.idea) {
       var cx = parseIdea(run.idea), n = run.picks.filter(Boolean).length;
       h += '<button class="continue" id="contBtn"><div class="avatar">' + icon(cx.domain.glyph) + '</div><div class="c-txt"><div class="c-name">Continue ' + esc(cx.name) + '</div><div class="c-sub">' + (n === 7 ? "Finished. Open the card" : "Round " + Math.min(7, n + 1) + " of 7, " + n + (n === 1 ? " layer" : " layers") + " built") + '</div></div><span class="c-go">' + icon("arrow") + "</span></button>";
     }
-    h += '<div class="idea-box"><label class="idea-label" for="idea">Describe the agent you want, in one sentence</label>' +
-      '<textarea id="idea" class="idea-input" rows="3" maxlength="160" placeholder="A drum tutor that helps beginners keep steady time"></textarea>' +
-      '<button class="btn btn-primary btn-wide" id="goBtn" disabled>Start the rush ' + icon("arrow") + "</button></div>";
+    h += '<div class="idea-box"><label class="idea-label" for="idea">Describe your agent in one sentence</label>' +
+      '<textarea id="idea" class="idea-input" rows="3" maxlength="160" placeholder="A gardening mentor for new growers"></textarea>' +
+      '<div class="idea-foot"><span id="ideaHelp">Type a few words to start</span><span id="ideaCount">0 / 160</span></div>' +
+      '<button class="btn btn-primary btn-wide" id="goBtn" disabled>Start the rush ' + icon("arrow") + "</button>" +
+      '<p class="trust">Offline. No sign in. Nothing leaves this phone.</p></div>';
     h += '<div><div class="chips-head"><span class="eyebrow">Stuck? Surprise me</span><button class="chip chip-dice" id="diceBtn">' + icon("dice") + "Roll one</button></div>" +
       '<div class="chips" id="seeds" style="margin-top:10px">' + seedChips() + "</div></div>";
     h += '<div class="shelf"><h3 class="eyebrow">Your agents <small>' + (agents.length ? agents.length + " built" : "Finished builds land here") + "</small></h3><div class=\"shelf-row\">";
@@ -348,12 +368,14 @@
     screen.scrollTop = 0;
 
     var input = $("#idea"), go = $("#goBtn");
-    input.addEventListener("input", function () { go.disabled = input.value.trim().length < 4; });
+    var help = $("#ideaHelp"), cnt = $("#ideaCount");
+    function sync() { var n = input.value.trim().length; go.disabled = n < 4; cnt.textContent = input.value.length + " / 160"; help.textContent = n < 4 ? "Type a few words to start" : "Ready when you are"; help.classList.toggle("ok", n >= 4); }
+    input.addEventListener("input", sync);
     input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); if (!go.disabled) go.click(); } });
     go.onclick = function () { begin(input.value); };
     $("#diceBtn").onclick = function () {
       var s = C.SEEDS[Math.floor(Math.random() * C.SEEDS.length)];
-      input.value = s; go.disabled = false; buzz(8); blip([520, 660]);
+      input.value = s; sync(); buzz(8); blip([520, 660]);
       $("#seeds").innerHTML = seedChips(); wireSeeds();
     };
     wireSeeds();
@@ -558,9 +580,28 @@
   function openSheet(html) {
     sheet.innerHTML = '<div class="grab"></div>' + html;
     sheetWrap.hidden = false;
+    pauseRush();
     buzz(6);
   }
-  function closeSheet() { sheetWrap.hidden = true; sheet.innerHTML = ""; }
+  function closeSheet() { sheetWrap.hidden = true; sheet.innerHTML = ""; resumeRush(); }
+  var rushPausedAt = 0;
+  function pauseRush() {
+    if (rushPausedAt || !settings.rush || !state || state.screen !== "round") return;
+    var el = $("#rush"); if (!el || el.classList.contains("over")) return;
+    rushPausedAt = Date.now(); clearTimeout(rushTimer);
+    var f = el.querySelector(".rush-fill"); if (f) f.style.animationPlayState = "paused";
+  }
+  function resumeRush() {
+    if (!rushPausedAt) return;
+    var gap = Date.now() - rushPausedAt; rushPausedAt = 0;
+    if (!state || state.screen !== "round" || !settings.rush) return;
+    var el = $("#rush"); if (!el || el.classList.contains("over")) return;
+    var f = el.querySelector(".rush-fill"); if (f) f.style.animationPlayState = "";
+    rushStart += gap;
+    var left = RUSH_SECONDS * 1000 - (Date.now() - rushStart);
+    clearTimeout(rushTimer);
+    rushTimer = setTimeout(function () { el.classList.remove("run"); el.classList.add("over"); var lab = $("#rushLab"); if (lab) lab.textContent = "No rush"; }, Math.max(0, left));
+  }
   sheetWrap.addEventListener("click", function (e) { if (e.target.hasAttribute("data-close")) closeSheet(); });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !sheetWrap.hidden) closeSheet(); });
 
@@ -638,7 +679,11 @@
     saveRun(); show();
   }
 
-  window.__promptRush = { parseIdea: parseIdea };
+  window.__promptRush = { parseIdea: parseIdea, build: function (idea) {
+    var st = fresh(idea), cx = parseIdea(idea);
+    for (var r = 0; r < 7; r++) st.picks[r] = { id: deck(r, 0, cx)[0].id };
+    return buildPrompt(st, cx);
+  } };
   applySettings();
   if (shot) runShot(shot);
   else {
@@ -647,5 +692,6 @@
     if (state && state.screen === "start") state = null;
     if (state) setCtx();
     show();
+    if (state && state.screen === "round") toast("Welcome back, round " + (state.round + 1) + " of 7", true);
   }
 })();
