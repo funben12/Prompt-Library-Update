@@ -1,6 +1,6 @@
 {
- "status": "round 1 judged",
- "updated": "22-10-2026 15:30",
+ "status": "won against stand-in, awaiting real reference",
+ "updated": "23-10-2026",
  "note": "Win rule: a fresh blind judge sees our screenshots and a reference build's screenshots as A and B at 390 x 844 and 844 x 390, and must pick ours as the better game in both orientations. The reference screenshots were not supplied, so the stand in is an independent competitor build of the same brief, made by a separate agent and frozen. Drop real reference screenshots into prompt-rush/reference/shots to replace it.",
  "rounds": [
   {
@@ -36,6 +36,32 @@
    ],
    "gap": "Card badges crowd the option cards: orange combo chips and teal Tailored pills overlap card tops and fight the titles. Summary panel truncates chosen answers.",
    "next": "Piece critics for start screen, round loop and final reveal report in, then round 2 fixes and a fresh confirmation panel."
+  },
+  {
+   "n": 2,
+   "when": "23-10-2026",
+   "shots": "rounds/r2/shots",
+   "changed": [
+    "Start screen shows a sample result card and the promise, seeds and shelf fit the fold, character count and hint on Start",
+    "Final screen: prompt preview above the fold, sticky Copy and Share, landscape prompt full height",
+    "Prompts now name the real idea with Context and Scope lines, no slot fills",
+    "Round dock shows a growing summary line, landscape rows wrap, one chip per card",
+    "Toasts moved off the buttons, Rush timer pauses with sheets open"
+   ],
+   "verdicts": [
+    {
+     "orientation": "Portrait",
+     "win": true,
+     "why": "Game feel, live strength score and a rewarding reveal beat the form wizard. Confidence 4."
+    },
+    {
+     "orientation": "Landscape",
+     "win": true,
+     "why": "Better use of width with card plus summary. Confidence 4."
+    }
+   ],
+   "gap": "Landscape still needs scrolling for the summary list, Tweak a layer buttons and the start left column; the final prompt preview is small until Show all.",
+   "next": "Build the APK, then fix landscape clipping, or swap in the user's real reference screenshots and rerun the panel."
   }
  ]
 }
