@@ -1,8 +1,41 @@
 {
-  "status": "building round 1",
-  "updated": "22-10-2026 15:00",
-  "note": "Win rule: a fresh blind judge sees our screenshots and a reference build's screenshots as A and B at 390 x 844 and 844 x 390, and must pick ours as the better game in both orientations. The reference screenshots were not supplied, so the stand in is an independent competitor build of the same brief, made by a separate agent and frozen. Drop real reference screenshots into prompt-rush/reference/shots to replace it.",
-  "rounds": [
-    {"n": 0, "when": "22-10-2026 15:00", "changed": ["Spec, screenshot harness, blind A/B script and offline Android WebView wrapper built", "APK pipeline verified with raw SDK tools"], "verdicts": [], "gap": "No game yet.", "next": "Core game v1 and reference build are being built in parallel."}
-  ]
+ "status": "round 1 judged",
+ "updated": "22-10-2026 15:30",
+ "note": "Win rule: a fresh blind judge sees our screenshots and a reference build's screenshots as A and B at 390 x 844 and 844 x 390, and must pick ours as the better game in both orientations. The reference screenshots were not supplied, so the stand in is an independent competitor build of the same brief, made by a separate agent and frozen. Drop real reference screenshots into prompt-rush/reference/shots to replace it.",
+ "rounds": [
+  {
+   "n": 0,
+   "when": "22-10-2026 15:00",
+   "changed": [
+    "Spec, screenshot harness, blind A/B script and offline Android WebView wrapper built",
+    "APK pipeline verified with raw SDK tools"
+   ],
+   "verdicts": [],
+   "gap": "No game yet.",
+   "next": "Core game v1 and reference build are being built in parallel."
+  },
+  {
+   "n": 1,
+   "when": "22-10-2026 15:30",
+   "shots": "rounds/r1/shots",
+   "changed": [
+    "Prompt Rush v1: cream neumorphic look from the logo, 14 domain offline tailoring, combo badges, strength meter with S to C ranks, agent sheet, final agent card with confetti and copy, Rush timer off by default, restart everywhere",
+    "Reference build frozen: Prompt Builder Quest, a clean seven step wizard"
+   ],
+   "verdicts": [
+    {
+     "orientation": "Portrait",
+     "win": true,
+     "why": "Confidence 5. Plays like a game: tailored choices, bonus tags, strength meter, named agent reveal. Reference reads as a clean form wizard."
+    },
+    {
+     "orientation": "Landscape",
+     "win": true,
+     "why": "Confidence 4. Split layout uses the wide screen, reward screen with grade badge. Reference wastes the sideways start screen."
+    }
+   ],
+   "gap": "Card badges crowd the option cards: orange combo chips and teal Tailored pills overlap card tops and fight the titles. Summary panel truncates chosen answers.",
+   "next": "Piece critics for start screen, round loop and final reveal report in, then round 2 fixes and a fresh confirmation panel."
+  }
+ ]
 }
