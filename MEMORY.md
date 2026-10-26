@@ -408,3 +408,12 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - Phone: new `vartypes-motion.js` owns SVG dice (shape follows the sides: 4, 6, 8, 10, 12, 20, token for anything else, 1 to 6 dice, total when several numeric dice) and motion presets for chips, cards, checkbox list, sliders, step slider, weighted mix, number, percentage, random and deck. `vartypes.js` reads the data file and calls two hooks, with the old lists as fallback. Saved value formats are unchanged, except multi dice save `3, 5, 2 (total 10)`.
 - Harness: `apps/app-003-prompt-library-mobile/tests/vartypes/` (regression against a golden snapshot, dice, motion). Not run on a physical phone. Backups in the app's `_rollbacks/` (`*v-pre-motion*`).
 - Per variable motion overrides need a new `variable_meta` key, which the phone's Java `cleanVarMeta` and `share_server._meta` would drop until both are updated and the APK rebuilt. Parked.
+
+## Prompt Switchboard, initial implementation
+
+- Added a Prompt Switchboard overlay launched from the desktop sidebar on branch `feature/prompt-switchboard`.
+- Separate Local and AI modes share the same editable instruction modules. Local mode uses deterministic keyword rules and no API key. AI mode uses an OpenAI-compatible Chat Completions endpoint and a session-only key.
+- Modules cover Foundation, Instructions, Intelligence, Quality, Output, Workflow and Advanced. Includes presets, master Quality switch, custom modules, live prompt preview, copy, browser-local saves, JSON import and export.
+- Configurations use localStorage key `pl_prompt_switchboard_v1`. API keys are not saved or exported.
+- Local suggestions are heuristic rather than semantic AI. AI mode depends on endpoint, model, valid key, network and provider CORS support.
+- No SQLite schema changes and no existing workspace code replaced. Direct integration with Prompt Components and Chain Prompting remains future work. See `docs/prompt-switchboard/README.md`.

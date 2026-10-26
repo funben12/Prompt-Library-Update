@@ -47,6 +47,7 @@
         <span>Analytics</span>
         <span class="nav-lock material-symbols-outlined">lock</span>
       </button>
+      <button class="nav-item" type="button" id="promptSwitchboardLaunchBtn" onclick="document.getElementById('switchboardOverlay').hidden=false" title="Open Prompt Switchboard"><span class="material-symbols-outlined">toggle_on</span><span>Prompt Switchboard</span></button>
       <button class="nav-item" data-view="workspaces" id="workspacesNavBtn" title="Workspaces — browse all tools">
         <span class="material-symbols-outlined">grid_view</span>
         <span>Workspaces</span>
@@ -5003,5 +5004,7 @@
   (function(){ var s=document.createElement("script"); s.src="/static/gauntlet-suite.js?v=20261005b"; s.defer=true; document.head.appendChild(s); })();
 </script>
 
+
+<div id="switchboardOverlay" hidden style="position:fixed;inset:0;z-index:100000;background:var(--bg,#f4f6f5);"><iframe title="Prompt Switchboard" src="/static/switchboard.html" style="display:block;width:100%;height:100%;border:0;"></iframe></div>
 </body>
 </html>
