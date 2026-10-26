@@ -13,6 +13,8 @@ const modules = [
 {id:'ambiguity',category:'Intelligence',name:'Ambiguity handling',text:'Ask one focused question if an essential detail is missing. Otherwise make a reasonable assumption.',on:false},
 {id:'framework',category:'Intelligence',name:'Reasoning framework',text:'Break the task into logical steps and use the simplest reliable approach.',on:false},
 {id:'quality',category:'Quality',name:'Quality assurance',text:'## Quality checks\nCheck the result against the objective and constraints. Correct gaps and contradictions.',on:true,master:true},
+{id:'validation',category:'Quality',name:'Final validation',text:'Verify the final output against the requested deliverables and correct obvious gaps.',on:true},
+{id:'failure',category:'Quality',name:'Failure mode check',text:'Consider likely failure modes and important edge cases without overcomplicating the answer.',on:false},
 {id:'format',category:'Output',name:'Output format',text:'Use headings, lists, tables or code blocks where they improve clarity.',on:true},
 {id:'workflow',category:'Workflow',name:'Draft, critique, revise',text:'Draft, review against the objective, revise weak areas, then present the result.',on:false},
 {id:'sources',category:'Workflow',name:'Source and evidence handling',text:'Verify changeable facts when reliable sources are available. Separate facts from assumptions.',on:false},
