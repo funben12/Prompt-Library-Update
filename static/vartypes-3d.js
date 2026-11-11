@@ -202,25 +202,50 @@
   function setSides(g, n) { if (g.dataset.custom === '1') return; g.dataset.sides = clamp(n, 2, 100); syncUi(g); redraw(g); }
   function setCount(g, n) { g.dataset.count = clamp(n, 1, 6); syncUi(g); redraw(g); }
 
-  // One die: drop from above, hop three times across the table, tumble on one axis, land on the chosen face
+  // How far a solid's corners reach from its centre, in R (a d4 is drawn at 0.6 R, see cubeHtml)
+  function reach(sides) {
+    let m = 1;
+    geom(sides).faces.forEach(f => f.pts.forEach(p => { m = Math.max(m, Math.hypot(1, p[0], p[1])); }));
+    return sides === 4 ? m * 0.6 : m;
+  }
+  // One die: tossed in low from one side of the table, bounces with a squash, rolls a little, settles on the chosen face.
+  // Start height, start x and touchdown height come from the room the stage really has, so the whole die stays in view in every frame
   function throwDie(cell, faceIdx, sides, delay, D, amp) {
     const g = geom(sides), cube = cell.querySelector('.vd3-cube'), fly = cell.querySelector('.vd3-fly'), sh = cell.querySelector('.vd3-shadow');
-    const R = parseFloat(getComputedStyle(cell).getPropertyValue('--R')) || 34, fin = facing(g.faces[faceIdx].fr);
-    const side = Math.random() < 0.5 ? -1 : 1, x0 = side * (R * (1.6 + Math.random())), up = 4.5 * R + 10;
-    let A = unit([Math.random() - 0.5, Math.random() - 0.5, (Math.random() - 0.5) * 0.6]);
-    if (!isFinite(A[0])) A = [1, 0, 0];
-    const spin = (2.4 + Math.random() * 1.2) * 2 * Math.PI * (0.6 + 0.4 * amp);
-    // offsets: fall, hop 1, hop 2, hop 3, rest
-    const O = [0, 0.3, 0.46, 0.6, 0.71, 0.82, 0.9, 1];
-    const Hh = [up, 0, 1.3 * R, 0, 0.5 * R, 0, 0.16 * R, 0];
-    const X = [x0, x0 * 0.45, x0 * 0.16, -x0 * 0.05, -x0 * 0.04, 0, 0, 0];
-    const ANG = [1, 0.52, 0.4, 0.27, 0.18, 0.1, 0.04, 0];
-    const FALL = 'cubic-bezier(.55,0,.95,.7)', RISE = 'cubic-bezier(.1,.55,.4,1)';
-    const hit = i => Hh[i] === 0 && i > 0;
-    const flyKf = O.map((o, i) => ({ offset: o, transform: `translate(${f4(X[i])}px,${f4(-Hh[i])}px) scale(${hit(i) ? '1.07,.93' : '1,1'})`, easing: Hh[i] > Hh[i + 1] ? FALL : RISE }));
-    const shKf = O.map((o, i) => ({ offset: o, transform: `translateX(${f4(X[i])}px) scale(${f4(1 / (1 + Hh[i] / (2.2 * R)))})`, opacity: f4(0.5 / (1 + Hh[i] / (1.5 * R))), easing: Hh[i] > Hh[i + 1] ? FALL : RISE }));
-    const cubeKf = O.map((o, i) => ({ offset: o, transform: `rotate3d(${f4(A[0])},${f4(A[1])},${f4(A[2])},${f4(spin * ANG[i])}rad) ${fin}`, easing: i < 5 ? 'linear' : 'ease-out' }));
-    const opt = { duration: D, delay, fill: 'both' };
+    const cs = getComputedStyle(cell), R = parseFloat(cs.getPropertyValue('--R')) || 34, cy = parseFloat(cs.getPropertyValue('--cy')) || 2.7 * R;
+    const fin = facing(g.faces[faceIdx].fr), st = cell.closest('.vd-stage');
+    const sr = st.getBoundingClientRect(), cr = cell.getBoundingClientRect();
+    // corners nearer the camera look bigger (640px cell perspective, origin at 50% 30%), so test a corner tipped through 0 to 90 degrees
+    const rho = reach(sides) * R, ox = cr.width / 2, oy = cr.height * 0.3, m = 3, ct = cr.top - sr.top, cl = cr.left - sr.left;
+    const most = fn => { let v = -1e9; for (let i = 0; i <= 12; i++) { const t = i * Math.PI / 24; v = Math.max(v, fn(rho * Math.cos(t), 640 / (640 - rho * Math.sin(t)))); } return v; };
+    // L0: how high a tumbling die must touch down so no corner dips under the stage; Hm: highest point of the arc
+    const L0 = Math.max(0, cy - oy + most((c, k) => c - (sr.height - ct - m - oy) / k));
+    const Hm = Math.max(L0, Math.min(cy - oy - most((c, k) => (m - ct - oy) / k + c), L0 + 1.5 * R));
+    const xmin = most((c, k) => (m - cl - ox) / k + c), xmax = -most((c, k) => c - (sr.width - cl - m - ox) / k);
+    // every die of one roll leaves the same hand, from the side roll() picked; with several, far dice start a little way in so they do not stack
+    const side = st._side || (Math.random() < 0.5 ? -1 : 1), many = st.querySelectorAll('.vd3-cell').length > 1;
+    const xE = side < 0 ? xmin : xmax, dE = Math.abs(xE), mag = Math.max(0, dE - (many ? 0.5 * Math.max(0, dE - 1.2 * R) : 0) - Math.random() * 0.3 * R);
+    const x0 = xmin > xmax ? 0 : clamp(Math.sign(xE) * mag, xmin, xmax), h0 = 0.4 + Math.random() * 0.3;
+    // spin axis leans into the screen so the tumble reads as rolling the way the die travels
+    const dir = x0 > 0 ? -1 : 1;
+    let A = unit([(Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 1.2, -0.9 * dir]);
+    if (!isFinite(A[0])) A = [0, 0, 1];
+    const spin = (1.5 + Math.random() * 0.6) * 2 * Math.PI * (0.6 + 0.4 * amp);
+    // keys: offset, x share of x0, height share from L0 up to Hm, squash, share of the spin left
+    // arc in, hit, hop, hit, hop, hit, hop, hit, roll, rock, rest
+    const K = [
+      [0, 1, h0, 0, 1], [0.07, 0.86, 1, 0, 0.8], [0.17, 0.64, 0, 0.11, 0.55],
+      [0.24, 0.5, 0.75, 0, 0.4], [0.31, 0.38, 0, 0.08, 0.28], [0.36, 0.31, 0.38, 0, 0.2],
+      [0.41, 0.24, 0, 0.05, 0.14], [0.44, 0.21, 0.13, 0, 0.1], [0.47, 0.18, 0, 0.03, 0.07],
+      [0.78, 0, 0, 0, 0.008], [0.88, 0, 0, 0, -0.005], [1, 0, 0, 0, 0]];
+    const FALL = 'cubic-bezier(.5,0,.9,.6)', RISE = 'cubic-bezier(.1,.5,.4,1)', ROLL = 'cubic-bezier(.2,.6,.35,1)';
+    const ease = i => i >= 8 ? (i === 8 ? ROLL : 'ease-in-out') : K[i][2] > K[i + 1][2] ? FALL : RISE;
+    const hOf = (k, i) => i > 8 ? 0 : L0 + (Hm - L0) * k[2];
+    const flyKf = K.map((k, i) => ({ offset: k[0], transform: `translate(${f4(x0 * k[1])}px,${f4(-hOf(k, i))}px) scale(${f4(1 + k[3])},${f4(1 - k[3])})`, easing: ease(i) }));
+    const shKf = K.map((k, i) => { const h = hOf(k, i); return { offset: k[0], transform: `translateX(${f4(x0 * k[1])}px) scale(${f4(1 / (1 + h / (2.2 * R)))})`, opacity: f4(0.5 / (1 + h / (1.5 * R))), easing: ease(i) }; });
+    const cubeKf = K.map((k, i) => ({ offset: k[0], transform: `rotate3d(${f4(A[0])},${f4(A[1])},${f4(A[2])},${f4(spin * k[4])}rad) ${fin}`, easing: i < 8 ? 'linear' : ease(i) }));
+    // all dice leave the hand at the click; a later die flies a little longer, so they still land one after another
+    const opt = { duration: D + delay, fill: 'both' };
     return [fly.animate(flyKf, opt), sh.animate(shKf, opt), cube.animate(cubeKf, opt)];
   }
   function roll(g) {
@@ -253,9 +278,10 @@
     const c = cfg('diceroll'), D = (md === 'short' ? 950 : 1900) / c.speed;
     g._busy = true; go.disabled = true; out.textContent = '';
     st.classList.add('vd-rolling');
+    st._side = Math.random() < 0.5 ? -1 : 1;
     let last = null;
     st.querySelectorAll('.vd3-cell').forEach((cell, i) => {
-      // restart from the face the player last saw; the throw begins above the stage
+      // each die is tossed in from the side, inside the stage from the first frame
       const a = throwDie(cell, faceOf(ks[i]), sides, i * 110 / c.speed, D, md === 'short' ? c.intensity * 0.5 : c.intensity);
       last = a[0];
     });
@@ -325,42 +351,76 @@
     const opts = (m.options || []).map(o => String(o).split('|')[0].trim()).filter(Boolean), deck = opts.length ? opts : CARDS;
     return `<div class="vc${val ? ' drawn' : ''}" data-vc="${esc(v)}" data-options="${esc(JSON.stringify(deck))}"><div class="vc-table"><div class="vc-deck" aria-hidden="true">${Array.from({ length: DECK }, (_, i) => `<i class="vc-c" style="--i:${i}"></i>`).join('')}</div><div class="vc-slot"><div class="vc-card"><div class="vc-back"></div><div class="vc-face" data-vcface>${esc(val)}</div></div></div></div><div class="vc-row"><button type="button" data-vcdraw>Shuffle and draw</button><small data-vcleft>${deck.length} cards in the deck</small>${modeButton()}</div><input type="hidden" data-var="${esc(v)}" value="${esc(val)}"></div>`;
   });
-  const base = i => `translate(${f4(-i * 0.3)}px,${f4(-i * 0.6)}px)`;
+  // each card sits a little up and left of the one below it, so the stack shows its thickness
+  const base = i => `translate(${f4(-i * 0.4)}px,${f4(-i * 1.4)}px)`;
+  // a card at x, y from the deck's home spot, at height i in its pile, turned r degrees
+  const at = (x, y, i, r) => `translate(${f4(x)}px,${f4(y)}px) ${base(i)} rotate(${f4(r || 0)}deg)`;
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
   // Resolve when every animation has finished, never hang the control
   const all = (anims, cap) => Promise.race([Promise.all(anims.map(a => a.finished.catch(() => 0))), wait(cap)]);
+  // leave a card resting at the end of a step, so the next step starts from a clean inline transform
+  const lay = (c, t, z) => { c.style.transform = t; if (z != null) c.style.zIndex = z; c.getAnimations().forEach(a => a.cancel()); };
+  // where the two halves and the gathered stack sit, measured on this table so they stay inside it
+  function spots(g, amp) {
+    const tb = g.querySelector('.vc-table'), dk = g.querySelector('.vc-deck');
+    const W = tb.clientWidth || 310, home = dk.offsetLeft || 44, cw = dk.offsetWidth || 76;
+    const mid = (W - cw) / 2 - home, spread = Math.max(40, Math.min((W - cw) / 2 - 14, 60 + 60 * amp));
+    return { L: mid - spread, R: mid + spread, C: mid };
+  }
+  // One pass: cut into two halves, riffle them together one card at a time, square up with a tap.
+  // The stack starts at x = from and ends gathered at the table centre P.C.
   // live(): false once the draw was skipped, so a stopped shuffle never starts its next step
-  async function riffle(cards, S, amp, live) {
-    const half = DECK / 2, dx = 40 * amp, order = cards.slice();
-    // cut: lower half goes left, upper half goes right
+  async function riffle(cards, S, amp, live, P, from) {
+    const half = DECK / 2, order = cards.slice(), tilt = 9 * Math.min(amp, 1.4), lift = Math.max(10, 14 * Math.min(amp, 1.4));
+    const sideX = left => (left ? P.L : P.R);
+    // a half at its side, tilted towards the other half; j is the card's height in that half
+    const sidePose = (left, j) => at(sideX(left), left ? 0 : -3, j, left ? tilt : -tilt);
+    // cut: the upper half lifts off and swings right, the lower half slides left
     await all(order.map((c, i) => {
-      const left = i < half;
-      return c.animate([{ transform: base(i) + ' rotate(0deg)' }, { transform: `${base(i)} translate(${left ? -dx : dx}px,${left ? 0 : -5}px) rotate(${left ? -6 : 6}deg)` }], { duration: 240 / S, easing: 'ease-out', fill: 'forwards' });
-    }), 700);
+      const left = i < half, j = left ? i : i - half;
+      const mx = from + (sideX(left) - from) * 0.5;
+      return c.animate([
+        { transform: at(from, 0, i, 0) },
+        { transform: at(mx, left ? -4 : -lift, j, left ? tilt * 0.5 : -tilt * 0.5), offset: 0.45 },
+        { transform: sidePose(left, j) }], { duration: 340 / S, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' });
+    }), 900);
     if (!live()) return;
-    // riffle: cards fall one by one from alternating halves into a single stack
-    const fromL = order.slice(0, half), fromR = order.slice(half), next = [];
-    let a = 0, b = 0;
-    for (let k = 0; k < DECK; k++) next.push(k % 2 === 0 ? (a < fromL.length ? fromL[a++] : fromR[b++]) : (b < fromR.length ? fromR[b++] : fromL[a++]));
-    // the upper half drops from its bottom card, so the stack builds from the bottom up
-    const idx = c => order.indexOf(c);
+    order.forEach((c, i) => { const left = i < half; lay(c, sidePose(left, left ? i : i - half)); });
+    // riffle: the top card of each half drops in turn, alternating sides, onto one stack in the centre
+    const L = order.slice(0, half).reverse(), R = order.slice(half).reverse(), next = [];
+    const startLeft = Math.random() < 0.5;
+    for (let k = 0; k < DECK; k++) {
+      const useLeft = (k % 2 === 0) === startLeft;
+      const c = useLeft ? (L.length ? L.shift() : R.shift()) : (R.length ? R.shift() : L.shift());
+      next.push(c);
+    }
+    // a small untidy landing, so the square up has something to tidy
+    const jit = next.map(() => [(Math.random() - 0.5) * 7, (Math.random() - 0.5) * 6]);
     const anims = next.map((c, k) => {
-      const left = idx(c) < half, i0 = idx(c);
-      c.style.zIndex = 100 + k;
-      const cut = `${base(i0)} translate(${left ? -dx : dx}px,${left ? 0 : -5}px) rotate(${left ? -6 : 6}deg)`;
-      const mid = `${base(k)} translate(${left ? -dx * 0.45 : dx * 0.45}px,${f4(-26 * amp)}px) rotate(${left ? -3 : 3}deg)`;
-      const an = c.animate([{ transform: cut, offset: 0 }, { transform: mid, offset: 0.5, easing: 'ease-in' }, { transform: base(k) + ' rotate(0deg)', offset: 1 }], { duration: 300 / S, delay: (240 + k * 46) / S, easing: 'ease-out', fill: 'both' });
-      an.finished.then(() => { c.style.zIndex = k + 1; }, () => {});
-      return an;
+      const i = order.indexOf(c), left = i < half, j = left ? i : i - half, x0 = sideX(left);
+      const z = 100 + k;
+      return c.animate([
+        { transform: sidePose(left, j), zIndex: z },
+        { transform: at(x0 + (P.C - x0) * 0.55, -lift, k, (left ? tilt : -tilt) * 0.3), zIndex: z, offset: 0.5, easing: 'ease-in' },
+        { transform: at(P.C + jit[k][0], 0, k, jit[k][1]), zIndex: z }], { duration: 240 / S, delay: k * 80 / S, easing: 'ease-out', fill: 'forwards' });
     });
-    await all(anims, 2000);
+    await all(anims, 2600);
     if (!live()) return;
+    next.forEach((c, k) => lay(c, at(P.C + jit[k][0], 0, k, jit[k][1]), k + 1));
     cards.length = 0; next.forEach(c => cards.push(c));
-    // square up: a quick squeeze and release of the whole stack
-    const stack = cards[0].parentNode;
-    await all([stack.animate([{ transform: 'scale(1,1)' }, { transform: 'scale(1.06,.93)', offset: 0.45 }, { transform: 'scale(1,1)' }], { duration: 240 / S, easing: 'ease-in-out' })], 600);
+    // square up: the stack is tapped down on the table and every card lines up
+    await all(cards.map((c, k) => c.animate([
+      { transform: at(P.C + jit[k][0], 0, k, jit[k][1]) },
+      { transform: at(P.C, 3, k, 0) + ' scale(1.03,.96)', offset: 0.5 },
+      { transform: at(P.C, 0, k, 0) }], { duration: 220 / S, easing: 'ease-in-out', fill: 'forwards' })), 700);
     if (!live()) return;
-    cards.forEach((c, i) => { c.getAnimations().forEach(x => x.cancel()); c.style.transform = base(i); });
+    cards.forEach((c, k) => lay(c, at(P.C, 0, k, 0)));
+  }
+  // slide the squared stack from the table centre back to the deck's home spot
+  async function gather(cards, S, live, from) {
+    await all(cards.map((c, k) => c.animate([{ transform: at(from, 0, k, 0) }, { transform: at(0, 0, k, 0) }], { duration: 260 / S, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' })), 700);
+    if (!live()) return;
+    cards.forEach((c, k) => lay(c, base(k)));
   }
   async function drawCard(btn) {
     const g = btn.closest('[data-vc]');
@@ -395,23 +455,29 @@
     cards.forEach(x => { x.style.visibility = ''; });
     // a tap on the table skips to the dealt card; the watchdog lands it if anything stalls
     let skipped = false;
+    const live = () => !skipped;
     g._skip = () => { skipped = true; done(); };
     g._watch = setTimeout(done, 7000);
     try {
-      await riffle(cards, S, amp, () => !skipped);
+      const P = spots(g, amp);
+      await riffle(cards, S, amp, live, P, 0);
       if (skipped) return;
-      if (md === 'full') { await riffle(cards, S * 1.15, amp, () => !skipped); if (skipped) return; }
-      // deal: the top card slides out and turns over in the slot
+      if (md === 'full') { await riffle(cards, S * 1.15, amp, live, P, P.C); if (skipped) return; }
+      await gather(cards, S, live, P.C);
+      if (skipped) return;
+      // deal: the top card lifts off the deck, travels to the slot and turns face up
       setValue();
-      g.classList.remove('shuffling'); g.classList.add('dealing');
       const top = cards[cards.length - 1];
-      await all([
-        slotCard.animate([
-          { transform: 'translate(-140px,0) rotateY(0deg)', opacity: 1, offset: 0 },
-          { transform: 'translate(-70px,-22px) rotateY(90deg)', opacity: 1, offset: 0.5 },
-          { transform: 'translate(0,0) rotateY(180deg)', opacity: 1, offset: 1 }], { duration: 700 / S, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }),
-        top.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, fill: 'forwards' })
-      ], 1500);
+      const tr = top.getBoundingClientRect(), sr = slotCard.parentNode.getBoundingClientRect();
+      const dx = tr.left - sr.left, dy = tr.top - sr.top;
+      g.classList.remove('shuffling'); g.classList.add('dealing');
+      top.style.visibility = 'hidden';
+      await all([slotCard.animate([
+        { transform: `translate(${f4(dx)}px,${f4(dy)}px) scale(1) rotateY(0deg)`, offset: 0 },
+        { transform: `translate(${f4(dx + 6)}px,${f4(dy - 18)}px) scale(1.07) rotateY(0deg)`, offset: 0.16, easing: 'ease-in-out' },
+        { transform: 'translate(0px,-16px) scale(1.07) rotateY(0deg)', offset: 0.58, easing: 'ease-in-out' },
+        { transform: 'translate(0px,-8px) scale(1.04) rotateY(90deg)', offset: 0.8, easing: 'ease-out' },
+        { transform: 'translate(0px,0px) scale(1) rotateY(180deg)', offset: 1 }], { duration: 950 / S, fill: 'forwards' })], 1800);
     } catch (e) { /* fall through: the result still lands */ }
     done();
   }
@@ -422,19 +488,21 @@
     const b = e.target.closest && e.target.closest('[data-vcdraw]');
     if (b) drawCard(b);
   }));
+  // Card backs are solid accent with a thin on accent frame; a light edge on each card shows the stack's thickness
   CSS.push(`
 .vc{display:flex;flex-direction:column}
-.vc-table{position:relative;height:150px;border-radius:var(--r-md);background:var(--surface-3);border:1px solid var(--line);overflow:hidden}
-.vc-deck,.vc-slot{position:absolute;top:22px;width:76px;height:106px}
-.vc-deck{left:44px}
-.vc-slot{left:62px;margin-left:140px;perspective:700px}
-.vc-slot::before{content:'';position:absolute;inset:0;border:1px dashed var(--line);border-radius:10px}
-.vc-c{position:absolute;inset:0;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);box-shadow:inset 0 0 0 5px var(--surface-3),1px 2px 3px rgba(110,85,55,.22),-1px -1px 2px rgba(255,255,255,.5);transform:translate(calc(var(--i) * -.3px),calc(var(--i) * -.6px));z-index:calc(var(--i) + 1)}
+.vc-table{position:relative;height:164px;border-radius:var(--r-md);background:var(--surface-3);border:1px solid var(--line);overflow:hidden}
+.vc-deck,.vc-slot{position:absolute;top:36px;width:76px;height:106px}
+.vc-deck{left:44px;z-index:1}
+.vc-slot{left:62px;margin-left:140px;perspective:700px;z-index:2}
+.vc.shuffling .vc-deck{z-index:3}
+.vc-slot::before{content:'';position:absolute;inset:0;border:1px dashed var(--ink);border-radius:8px;opacity:.3}
+.vc-c{position:absolute;inset:0;box-sizing:border-box;border:1px solid var(--surface);border-radius:8px;background:var(--accent);box-shadow:inset 0 0 0 5px var(--accent),inset 0 0 0 6px var(--on-accent);transform:translate(calc(var(--i) * -.4px),calc(var(--i) * -1.4px));z-index:calc(var(--i) + 1)}
 .vc-deck{transform-origin:50% 60%}
 .vc-card{position:relative;width:100%;height:100%;opacity:0;transform-style:preserve-3d}
-.vc-back,.vc-face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:10px;backface-visibility:hidden;-webkit-backface-visibility:hidden}
-.vc-back{background:var(--surface-2);border:1px solid var(--line);box-shadow:inset 0 0 0 5px var(--surface-3)}
-.vc-face{padding:8px;background:var(--surface);border:1px solid var(--accent);transform:rotateY(180deg);font:700 14px/1.25 var(--ff-sans);text-align:center;color:var(--ink);overflow:hidden;overflow-wrap:anywhere}
+.vc-back,.vc-face{position:absolute;inset:0;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border-radius:8px;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.vc-back{background:var(--accent);border:1px solid var(--surface);box-shadow:inset 0 0 0 5px var(--accent),inset 0 0 0 6px var(--on-accent)}
+.vc-face{padding:8px;background:var(--surface);border:2px solid var(--accent);transform:rotateY(180deg);font:700 15px/1.25 var(--ff-sans);text-align:center;color:var(--ink);overflow:hidden;overflow-wrap:anywhere}
 .vc.drawn .vc-card{opacity:1;transform:rotateY(180deg)}
 .vc.dealing .vc-card{opacity:1}
 .vc-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding-top:8px}
