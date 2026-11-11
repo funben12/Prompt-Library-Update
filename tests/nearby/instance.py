@@ -19,6 +19,9 @@ share_boot()
 
 # scan this fake network only: 127.0.0.1 to 127.0.0.254
 share_server._lan_ips = lambda: [ip]
+# quick discovery answers from this fake device's own address
+share_server.SHARE_HOST = ip
+share_server.start_discovery()
 
 
 def serve_share():
