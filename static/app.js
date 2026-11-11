@@ -22738,7 +22738,7 @@ Must avoid: [Anything sensitive or previously declined]`
             box.innerHTML = '<p class="phs-note">Sending “' + escapeHtml(st.title) + '”. Nothing is saved on the other device until it is accepted.</p>' +
                 (st.scanning ? '<div class="nbs-scan"><i></i>Looking for nearby libraries on this network</div>' : '') +
                 rows +
-                (!st.scanning && !st.devices.length ? '<p class="phs-note">No libraries found' + (st.networks && st.networks.length ? ' on ' + escapeHtml(st.networks.join(', ')) : '') + '. On a phone, keep Prompt Library open on screen; it stops listening when locked. Or add it by the address shown in its Send sheet.</p>' : '') +
+                (!st.scanning && !st.devices.length ? '<p class="phs-note">No libraries found' + (st.networks && st.networks.length ? ' on ' + escapeHtml(st.networks.join(', ')) : '') + '. On a phone, keep Prompt Library open, or turn on Receive with the app closed in its Manage screen. Or add it by the address shown in its Send sheet.</p>' : '') +
                 (st.scanning ? '' : '<form class="nbs-manual"><input class="form-input" name="ip" inputmode="decimal" autocomplete="off" placeholder="Add by address, like 192.168.1.23" value="' + escapeHtml(st.manual || '') + '"><button class="btn" type="submit">Add</button></form>' +
                     (st.manualError ? '<p class="phs-note nbs-err">' + escapeHtml(st.manualError) + '</p>' : '') +
                     '<div class="phs-actions"><button class="btn" type="button" data-rescan>Scan again</button></div>');
@@ -22746,10 +22746,17 @@ Must avoid: [Anything sensitive or previously declined]`
         async function sendScan(st, run) {
             Object.assign(st, { scanning: true, devices: [], status: {} });
             sendDraw(st);
+            const merge = list => (list || []).forEach(d => { if (!st.devices.some(x => x.ip === d.ip)) st.devices.push(d); });
+            // Quick look first (devices that answer on the network, about a second), then the full scan
+            const q = await getJson('/api/share/devices?quick=1').catch(() => ({ d: {} }));
+            if (run !== sendRun) return;
+            merge(q.d && q.d.devices);
+            if (st.devices.length) sendDraw(st);
             const r = await getJson('/api/share/devices').catch(() => ({ d: {} }));
             if (run !== sendRun) return;
-            st.devices = (r.d && r.d.devices) || [];
-            st.networks = (r.d && r.d.networks) || [];
+            merge(r.d && r.d.devices);
+            st.devices.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+            st.networks = (r.d && r.d.networks) || (q.d && q.d.networks) || [];
             st.scanning = false;
             sendDraw(st);
         }
