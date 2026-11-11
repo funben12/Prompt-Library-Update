@@ -449,3 +449,12 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - Restoring a backup runs `init_db()` afterwards, so an older backup gets the current columns straight away.
 - Editing a local library (vault) prompt keeps every other front matter line (description, version and so on) and only renames the file when the title changes. Hand-written `[[Title]]` files keep their format (`_rewrite_vault_markdown`).
 - Verified against a disposable copy over HTTP (scratch database and vault). Not clicked through in the PyWebView window. Backup: `_rollbacks/app v-pre-bugfix-five.py`.
+
+### 0.8.6 variable types work recovered (2026-11-11)
+
+- The 2026-10-22 variable types work above (dice throw engine, card shuffle engine, motion always on, type trim) had never reached main on either repo. Desktop draft PR 53 stayed open. On the phone the commits were pushed after PR 53 there had merged. Builds cut from main on 2026-11-11 therefore shipped the older N sided dice and riffle deck, which stop moving when the device asks for reduced motion.
+- Branch `claude/funny-keller-u1thd0` on both repos now carries the fix. Desktop: main plus `claude/sharp-ptolemy-1lwhno` plus `claude/nearby-background` (quick discovery). Phone: `claude/nearby-background` (0.9.0) plus `claude/sharp-ptolemy-1lwhno`, version 0.9.1 (19).
+- `static/dice-throw.js`, `static/card-shuffle.js` and `static/variable-types-data.js` are byte identical to the phone copies in that branch.
+- `claude/randomiser-motion` (desktop PR 58, phone PR 59) reworks the old N sided dice and conflicts with this. Do not merge it on top without Eugene's say.
+- Rule going forward: before cutting a build, check for commits pushed to a branch after its pull request merged or while it is still a draft. `git log origin/main..origin/<branch>` shows them.
+- Verified: syntax checks, cache hash refreshed, and a disposable instance in Chromium with reduced motion requested, where the dice tumbled and wrote its face into the live preview and the card deck wrote its drawn card. Not clicked through in the PyWebView window.
