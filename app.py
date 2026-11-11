@@ -1442,6 +1442,64 @@ def create_vault_template(vault_id):
     return jsonify({'success': True, 'relative_path': rel_path, 'filename': filename})
 
 
+def _rewrite_vault_markdown(old_text, fields):
+    """Rebuild a vault file after an edit in the app, keeping everything the
+    app doesn't edit. Returns (new_text, old_title).
+
+    Front matter files: every existing line is kept as written, in order
+    (description, version, difficulty, inputs and any other keys), and only
+    title, category, tags and last_updated are replaced or added.
+    [[Title]]/[[Prompt]] files keep that format and their description.
+    Anything unparseable falls back to the standard export layout."""
+    nl = '\r\n' if '\r\n' in old_text else '\n'
+    categories = _normalise_list(fields.get('categories') or '')
+    tags = _normalise_list(fields.get('tags') or '')
+    content = fields.get('content') or ''
+    replacements = {
+        'title': fields['title'],
+        'category': categories[0] if categories else '',
+        'tags': f"[{', '.join(tags)}]",
+        'last_updated': datetime.now().strftime('%Y-%m-%d'),
+    }
+
+    match = vault_scanner.FRONT_MATTER_RE.match(old_text)
+    if match:
+        try:
+            old_meta, _ = vault_scanner.parse_front_matter(old_text)
+        except vault_scanner.FrontMatterError:
+            old_meta = None
+        if old_meta is not None:
+            out, seen = [], set()
+            for line in match.group(1).splitlines():
+                key = line.partition(':')[0].strip()
+                if ':' in line and key in replacements and key not in seen:
+                    out.append(f"{key}: {replacements[key]}")
+                    seen.add(key)
+                else:
+                    out.append(line)
+            for key in ('title', 'category', 'tags', 'last_updated'):
+                if key not in seen:
+                    out.append(f"{key}: {replacements[key]}")
+            text = nl.join(['---'] + out + ['---', '', content])
+            return text, str(old_meta.get('title') or '').strip()
+
+    try:
+        old_meta, _ = vault_scanner.parse_simple_tags(old_text)
+    except vault_scanner.FrontMatterError:
+        old_meta = None
+    if old_meta is not None:
+        text = nl.join([
+            '[[Title]]', fields['title'], '',
+            '[[Description]]', old_meta.get('description') or '', '',
+            '[[Prompt]]', content, '',
+            '[[Categories]]', ', '.join(categories), '',
+            '[[Tags]]', ', '.join(tags), '',
+        ])
+        return text, str(old_meta.get('title') or '').strip()
+
+    return _prompt_to_markdown(fields), ''
+
+
 def _retitle_vault_filename(old_filename, new_title):
     """New filename for a retitled vault prompt: slug of the new title,
     keeping the old file's -vN version suffix (defaulting to v1) so a
@@ -1470,16 +1528,27 @@ def update_vault_prompt(vault_id, relative_path):
     if not title:
         return jsonify({'error': 'title is required'}), 400
 
-    markdown = _prompt_to_markdown({
+    new_fields = {
         'title': title,
         'categories': data.get('categories', ''),
         'tags': data.get('tags', ''),
         'content': data.get('content', ''),
-    })
+    }
+    with open(full_path, 'r', encoding='utf-8') as f:
+        old_text = f.read()
+    markdown, old_title = _rewrite_vault_markdown(old_text, new_fields)
 
     dirpath = os.path.dirname(full_path)
     old_filename = os.path.basename(full_path)
-    new_filename = _retitle_vault_filename(old_filename, title)
+    # Rename only when the title really changed. Comparing against the stored
+    # title (or, if the file had none, the filename stem) stops a plain
+    # content edit from renaming Cold-Email.md to Cold-Email-v1.md.
+    if old_title:
+        title_changed = title != old_title
+    else:
+        old_stem = re.sub(r'-v\d+$', '', old_filename[:-len('.md')], flags=re.IGNORECASE)
+        title_changed = _slugify_filename(title) != old_stem
+    new_filename = _retitle_vault_filename(old_filename, title) if title_changed else old_filename
     new_full_path = os.path.join(dirpath, new_filename)
     if new_filename != old_filename:
         counter = 2
@@ -1749,31 +1818,55 @@ def share_settings():
     share_boot()
     return jsonify({'receiving': share_server._state['enabled'], 'name': share_server._state['name']})
 
+def _prune_prompt_versions(conn, pid, keep=20):
+    """Keep the newest `keep` ordinary versions of a prompt. Versions the user
+    has marked as the baseline or given a label are never pruned, so a
+    pinned or named version can't silently disappear after enough saves."""
+    conn.execute('''
+        DELETE FROM prompt_versions
+        WHERE prompt_id=?
+          AND COALESCE(is_baseline, 0)=0
+          AND TRIM(COALESCE(version_label, ''))=''
+          AND id NOT IN (
+              SELECT id FROM prompt_versions
+              WHERE prompt_id=?
+                AND COALESCE(is_baseline, 0)=0
+                AND TRIM(COALESCE(version_label, ''))=''
+              ORDER BY saved_at DESC, id DESC
+              LIMIT ?
+          )
+    ''', (pid, pid, keep))
+
 @app.route('/api/prompts/<int:pid>', methods=['PUT'])
 def update_prompt(pid):
     if pid in _locked_prompt_ids():
         return jsonify({'error': 'This prompt is locked. Unlock it in Version Lock before editing.'}), 423
-    data = _prompt_payload(_json_body())
-    if not data['content'].strip():
-        return jsonify({'error': 'Prompt content is required'}), 400
+    body = _json_body()
     conn = get_db()
     try:
-
-        # Save version snapshot before overwriting
-        old = conn.execute('SELECT title, content, description FROM prompts WHERE id=?', (pid,)).fetchone()
-        if not old:
+        row = conn.execute('SELECT * FROM prompts WHERE id=?', (pid,)).fetchone()
+        if not row:
             return jsonify({'error': 'Not found'}), 404
-        conn.execute('''
+        old = serialize_prompt(row)
+        # Partial update: fields the caller didn't send keep their stored
+        # values, so a save from a panel that only knows a few fields (notes,
+        # rating, the main editor) no longer blanks status, parent link,
+        # taxonomy, role or folder.
+        merged = dict(old)
+        merged.update(body)
+        data = _prompt_payload(merged)
+        if not data['content'].strip():
+            return jsonify({'error': 'Prompt content is required'}), 400
+
+        # Version snapshot only when the versioned text actually changes, so
+        # saving notes, rating or tags doesn't push real edits out of history.
+        old_desc = old.get('description') or ''
+        if (data['title'], data['content'], data['description']) != (old['title'], old['content'], old_desc):
+            conn.execute('''
                 INSERT INTO prompt_versions (prompt_id, title, content, description)
                 VALUES (?,?,?,?)
-            ''', (pid, old['title'], old['content'], old['description'] or ''))
-            # Keep only last 20 versions
-        conn.execute('''
-                DELETE FROM prompt_versions WHERE prompt_id=? AND id NOT IN (
-                    SELECT id FROM prompt_versions WHERE prompt_id=?
-                    ORDER BY saved_at DESC LIMIT 20
-                )
-            ''', (pid, pid))
+            ''', (pid, old['title'], old['content'], old_desc))
+            _prune_prompt_versions(conn, pid)
 
         conn.execute('''
             UPDATE prompts SET
@@ -1800,11 +1893,9 @@ def update_prompt(pid):
         conn.close()
     return jsonify({'success': True})
 
-@app.route('/api/prompts/<int:pid>', methods=['DELETE'])
-def delete_prompt(pid):
-    if pid in _locked_prompt_ids():
-        return jsonify({'error': 'This prompt is locked. Unlock it in Version Lock before deleting.'}), 423
-    conn = get_db()
+def _snapshot_parent_into_forks(conn, pid):
+    """Before a prompt is deleted, copy its title and content into any forks
+    that point at it, so the forks can still show what they came from."""
     row = conn.execute('SELECT title, content FROM prompts WHERE id=?', (pid,)).fetchone()
     if row is not None:
         snapshot = json.dumps({'title': row['title'], 'content': row['content']})
@@ -1812,6 +1903,13 @@ def delete_prompt(pid):
             'UPDATE prompts SET fork_snapshot=? WHERE parent_id=? AND fork_snapshot IS NULL',
             (snapshot, pid)
         )
+
+@app.route('/api/prompts/<int:pid>', methods=['DELETE'])
+def delete_prompt(pid):
+    if pid in _locked_prompt_ids():
+        return jsonify({'error': 'This prompt is locked. Unlock it in Version Lock before deleting.'}), 423
+    conn = get_db()
+    _snapshot_parent_into_forks(conn, pid)
     conn.execute('DELETE FROM prompts WHERE id=?', (pid,))
     conn.commit()
     conn.close()
@@ -1875,6 +1973,7 @@ def bulk_delete_prompts():
     success, failed = 0, 0
     try:
         for pid in ids:
+            _snapshot_parent_into_forks(conn, pid)
             cur = conn.execute('DELETE FROM prompts WHERE id=?', (pid,))
             if cur.rowcount:
                 success += 1
@@ -2373,6 +2472,7 @@ def restore_version(pid, vid):
     if old:
         conn.execute('INSERT INTO prompt_versions (prompt_id, title, content, description) VALUES (?,?,?,?)',
                      (pid, old['title'], old['content'], old['description'] or ''))
+        _prune_prompt_versions(conn, pid)
 
     conn.execute('''
         UPDATE prompts SET title=?, content=?, description=?, updated_at=CURRENT_TIMESTAMP
@@ -3237,6 +3337,12 @@ def restore_backup(filename):
     finally:
         restore_src.close()
         live_dest.close()
+
+    # A backup taken by an older version of the app lacks columns and tables
+    # added since. init_db() only adds what is missing (CREATE IF NOT EXISTS
+    # and guarded ALTERs), so running it here makes the restored library work
+    # straight away instead of failing until the next restart.
+    init_db()
 
     return jsonify({'ok': True, 'safety_backup': safety_name})
 
