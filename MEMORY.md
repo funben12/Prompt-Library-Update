@@ -408,3 +408,12 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - Phone: new `vartypes-motion.js` owns SVG dice (shape follows the sides: 4, 6, 8, 10, 12, 20, token for anything else, 1 to 6 dice, total when several numeric dice) and motion presets for chips, cards, checkbox list, sliders, step slider, weighted mix, number, percentage, random and deck. `vartypes.js` reads the data file and calls two hooks, with the old lists as fallback. Saved value formats are unchanged, except multi dice save `3, 5, 2 (total 10)`.
 - Harness: `apps/app-003-prompt-library-mobile/tests/vartypes/` (regression against a golden snapshot, dice, motion). Not run on a physical phone. Backups in the app's `_rollbacks/` (`*v-pre-motion*`).
 - Per variable motion overrides need a new `variable_meta` key, which the phone's Java `cleanVarMeta` and `share_server._meta` would drop until both are updated and the APK rebuilt. Parked.
+
+### Backend bug fixes in app.py (2026-11-11)
+
+- Saving a prompt (`PUT /api/prompts/<id>`) now merges: fields the caller leaves out keep their stored values. Before, the main editor, notes and rating panel, Prompt IDE and others blanked status, parent link, taxonomy, role or folder on every save.
+- A version is saved only when title, content or description changes. Pruning (`_prune_prompt_versions`, also used by version restore) keeps the newest 20 ordinary versions and never deletes the baseline or a labelled version.
+- Bulk delete now writes `fork_snapshot` into forks like single delete does (`_snapshot_parent_into_forks`).
+- Restoring a backup runs `init_db()` afterwards, so an older backup gets the current columns straight away.
+- Editing a local library (vault) prompt keeps every other front matter line (description, version and so on) and only renames the file when the title changes. Hand-written `[[Title]]` files keep their format (`_rewrite_vault_markdown`).
+- Verified against a disposable copy over HTTP (scratch database and vault). Not clicked through in the PyWebView window. Backup: `_rollbacks/app v-pre-bugfix-five.py`.
