@@ -1635,6 +1635,17 @@
         randomnumber: ['1', '100']
     };
     const _PL_RANDOM_LABELS = { randompick: 'Pick at random', randomnumber: 'Generate number' };
+    // A fair whole number from 0 to n - 1 from the secure random source. Randomiser results always come from here,
+    // never from an animation. See the RANDOMISER MOTION CONTRACT in static/randomiser-motion.js.
+    function _PL_rand(n) {
+        n = Math.floor(n);
+        if (!(n > 0)) return 0;
+        const c = window.crypto;
+        if (!c || !c.getRandomValues) return Math.floor(Math.random() * n);
+        const SPAN = 4294967296, limit = SPAN - (SPAN % n), bucket = limit / n, buf = new Uint32Array(1);
+        for (let i = 0; i < 64; i++) { c.getRandomValues(buf); if (buf[0] < limit) return Math.floor(buf[0] / bucket); }
+        return Math.floor(Math.random() * n);
+    }
     function _PL_randomValue(kind, options) {
         const list = options.length ? options : _PL_RANDOM_DEFAULTS[kind];
         if (kind === 'randomnumber') {
@@ -1642,9 +1653,9 @@
             if (isNaN(lo)) lo = 1;
             if (isNaN(hi)) hi = 100;
             if (lo > hi) [lo, hi] = [hi, lo];
-            return String(lo + Math.floor(Math.random() * (hi - lo + 1)));
+            return String(lo + _PL_rand(hi - lo + 1));
         }
-        return list[Math.floor(Math.random() * list.length)] || '';
+        return list[_PL_rand(list.length)] || '';
     }
     // Dice: faces come from the options box (words or numbers), else 1..faces
     function _PL_diceValues(m) {
@@ -1762,7 +1773,9 @@
                 }
             } else if (type === 'carddeck') {
                 const deckOpts = opts.length ? optTitles : _PL_CARD_DEFAULT;
-                input = `<div class="var-deck${def ? ' drawn' : ''}" data-deck-options="${escapeAttr(JSON.stringify(deckOpts))}">
+                // the shared 3D deck (static/vartypes-3d.js) when it loaded, else the built in deck below
+                const deck3d = window.PL_MOTION && window.PL_MOTION.control && window.PL_MOTION.control('carddeck', v, { options: deckOpts }, def);
+                input = deck3d || `<div class="var-deck${def ? ' drawn' : ''}" data-deck-options="${escapeAttr(JSON.stringify(deckOpts))}">
         <div class="var-deck-table">
           <div class="var-deck-pile" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
           <div class="var-deck-slot"><div class="var-deck-card"><div class="var-deck-back"></div><div class="var-deck-front" data-deck-face>${escapeHtml(def)}</div></div></div>
@@ -1773,7 +1786,9 @@
             } else if (type === 'diceroll') {
                 const diceVals = _PL_diceValues(m);
                 const dicePips = !(opts.length) && diceVals.length === 6;
-                input = `<div class="var-dice" data-dice-vals="${escapeAttr(JSON.stringify(diceVals))}" data-dice-pips="${dicePips ? '1' : '0'}">
+                // the shared 3D dice (static/vartypes-3d.js) when it loaded, else the built in die below
+                const dice3d = window.PL_MOTION && window.PL_MOTION.control && window.PL_MOTION.control('diceroll', v, { options: opts, faces: m.faces }, def);
+                input = dice3d || `<div class="var-dice" data-dice-vals="${escapeAttr(JSON.stringify(diceVals))}" data-dice-pips="${dicePips ? '1' : '0'}">
         <div class="var-dice-scene"><div class="var-die">${_PL_dieHTML(diceVals, dicePips)}</div></div>
         <div class="var-dice-side">
           <div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
@@ -1790,7 +1805,9 @@
       </div>`;
             } else if (_PL_RANDOM_DEFAULTS[type]) {
                 const rollOpts = opts.length ? optTitles : _PL_RANDOM_DEFAULTS[type];
-                input = `<div class="var-random-block"><div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
+                // the shared slot machine drums (static/vartypes-3d.js) when they loaded, else the text reel below
+                const drum3d = window.PL_MOTION && window.PL_MOTION.control && window.PL_MOTION.control(type, v, { options: opts.length ? optTitles : [] }, def);
+                input = drum3d || `<div class="var-random-block"><div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
         <button type="button" class="btn btn-sm" data-roll-kind="${type}" data-roll-options="${escapeAttr(JSON.stringify(rollOpts))}" onclick="window._PL_rollChoice(this)">${_PL_RANDOM_LABELS[type]}</button>
         <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
@@ -2030,7 +2047,7 @@
         if (!vals.length) return;
         const die = block.querySelector('.var-die'), out = block.querySelector('[data-roll-result]'), hidden = block.querySelector('input.var-input');
         const pips = block.dataset.dicePips === '1';
-        const result = vals[Math.floor(Math.random() * vals.length)];
+        const result = vals[_PL_rand(vals.length)];
         let slot;
         if (pips) {
             slot = parseInt(result, 10) - 1;
@@ -2094,7 +2111,7 @@
         if (!all.length) return;
         if (!deck._left || !deck._left.length) deck._left = all.slice();
         const face = deck.querySelector('[data-deck-face]'), hidden = deck.querySelector('input.var-input'), count = deck.querySelector('[data-deck-left]');
-        const pick = deck._left.splice(Math.floor(Math.random() * deck._left.length), 1)[0];
+        const pick = deck._left.splice(_PL_rand(deck._left.length), 1)[0];
         const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
         const done = () => {
             deck._busy = false; btn.disabled = false;
