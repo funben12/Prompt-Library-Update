@@ -11,7 +11,7 @@
 
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/app.css?v=26f2c6f6-plx">
+<link rel="stylesheet" href="/static/app.css?v=1594708d-plx">
 </head>
 <body>
 
@@ -316,6 +316,9 @@
           </button>
           <button class="icon-btn" id="panelForkBtn" title="Fork this prompt">
             <span class="material-symbols-outlined">call_split</span>
+          </button>
+          <button class="icon-btn premium-locked" id="panelPinBtn" data-premium="true" title="Save to a board">
+            <span class="material-symbols-outlined">push_pin</span>
           </button>
           <button class="icon-btn premium-locked" id="panelDuplicateBtn" data-premium="true" title="Duplicate">
             <span class="material-symbols-outlined">content_copy</span>
@@ -1062,12 +1065,18 @@
         <div class="config-api-row">
           <input type="password" id="configApiKeyInput" class="form-input" placeholder="Paste your API key…" autocomplete="off" />
         </div>
-        <div id="configModelRow" style="display:none;">
+        <div id="configModelRow">
           <div class="config-section-label" style="margin-top:var(--sp-3);">Model</div>
           <div class="config-api-row">
-            <input type="text" id="configModelInput" class="form-input" placeholder="e.g. openai/gpt-4o-mini" autocomplete="off" />
+            <input type="text" id="configModelInput" class="form-input" placeholder="Model name" autocomplete="off" spellcheck="false" />
           </div>
+          <p class="config-hint" id="configModelHint"></p>
         </div>
+        <label class="config-switch-row" id="configAdvisorRow" style="display:none;">
+          <input type="checkbox" id="configAdvisorToggle" />
+          <span class="config-switch-text"><strong>Second opinion <em>Beta</em></strong>
+            <small>A stronger Claude model advises the larger rewrites before they finish. Slower and costs more.</small></span>
+        </label>
         <div id="configBaseUrlRow" style="display:none;">
           <div class="config-section-label" style="margin-top:var(--sp-3);">Endpoint URL</div>
           <div class="config-api-row">
@@ -4421,13 +4430,12 @@
       <span class="material-symbols-outlined ws-header-icon">dashboard_customize</span>
       <div>
         <h2 class="ws-title">Prompt Board</h2>
-        <p class="ws-subtitle">Pin prompts into curated boards &mdash; browse, search and organise your whole library.</p>
       </div>
     </div>
     <div class="ws-header-actions">
       <div class="pmb-search-wrap">
         <span class="material-symbols-outlined pmb-search-icon">search</span>
-        <input type="text" id="pmbSearchInput" class="pmb-search-input" placeholder="Search prompts, tags, boards&hellip;" autocomplete="off" spellcheck="false" aria-label="Search prompts">
+        <input type="text" id="pmbSearchInput" class="pmb-search-input" placeholder="Search your prompts" autocomplete="off" spellcheck="false" aria-label="Search prompts">
         <button id="pmbSearchClear" class="pmb-search-clear" aria-label="Clear search"><span class="material-symbols-outlined">close</span></button>
       </div>
       <button class="btn btn-accent" id="pmbAddPromptBtn"><span class="material-symbols-outlined">add</span> Add prompt</button>
@@ -4991,7 +4999,7 @@
 
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
-<script defer src="/static/app.js?v=64175566"></script>
+<script defer src="/static/app.js?v=f30d71f3"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

@@ -980,6 +980,9 @@
         <button class="icon-btn" onclick="window.PL_useFromCard(${p.id})" title="Copy to clipboard">
           <span class="material-symbols-outlined">content_copy</span>
         </button>
+        <button class="icon-btn" onclick="window.PL_pinToBoard(${p.id}, this)" title="Save to a board">
+          <span class="material-symbols-outlined">push_pin</span>
+        </button>
         <button class="icon-btn" onclick="window.PL_sendNearby(${p.id})" title="Send to a nearby device">
           <span class="material-symbols-outlined">send</span>
         </button>
@@ -5276,6 +5279,7 @@ Here are my prompts:
         $('#closeDetailPanel')?.addEventListener('click', closeDetailPanel);
         $('#panelFavBtn')?.addEventListener('click', () => state.detailId && toggleFav(state.detailId));
         $('#panelForkBtn')?.addEventListener('click', () => state.detailId && window.openPromptForkingWorkspace(state.detailId));
+        $('#panelPinBtn')?.addEventListener('click', e => state.detailId && window.PL_pinToBoard(state.detailId, e.currentTarget));
         $('#panelEditBtn')?.addEventListener('click', () => state.detailId && editPrompt(state.detailId));
         $('#panelDeleteBtn')?.addEventListener('click', () => state.detailId && deletePromptById(state.detailId));
         $('#panelDuplicateBtn')?.addEventListener('click', () => state.detailId && duplicatePrompt(state.detailId));
@@ -6575,6 +6579,14 @@ Here are my prompts:
                     api('/settings/ai-providers').catch(() => [])
                 ]);
                 (customProviders || []).forEach(cp => _addProviderTab(cp.slug, cp.label));
+                const dbModels = await api('/settings/ai-models').catch(() => ({}));
+                Object.keys(dbModels || {}).forEach(slug => {
+                    if (slug === 'second_opinion') localStorage.setItem('pl_ai_advisor', dbModels[slug]);
+                    else if (slug === 'active_provider') {
+                        if (!localStorage.getItem('pl_ai_provider')) localStorage.setItem('pl_ai_provider', dbModels[slug]);
+                    }
+                    else localStorage.setItem(_aiModelKey(slug), dbModels[slug]);
+                });
                 const presetSlugs = $$('.config-provider-tab').map(t => t.dataset.provider);
                 for (const p of presetSlugs) {
                     const local = localStorage.getItem(`pl_api_key_${p}`) || '';
@@ -6633,13 +6645,7 @@ Here are my prompts:
             const input = $('#configApiKeyInput');
             if (input) input.value = saved;
             const needsEndpoint = !['openai','anthropic','gemini','openrouter','mistral','groq','deepseek','xai','cohere','perplexity'].includes(provider);
-            const modelRow = $('#configModelRow');
-            const modelInput = $('#configModelInput');
-            modelRow && (modelRow.style.display = (provider === 'openrouter' || needsEndpoint) ? '' : 'none');
-            if (modelInput) {
-                if (provider === 'openrouter') modelInput.value = localStorage.getItem('pl_openrouter_model') || '';
-                else if (needsEndpoint) modelInput.value = localStorage.getItem(`pl_model_${provider}`) || '';
-            }
+            _configSyncModelRow(provider);
             const baseUrlRow = $('#configBaseUrlRow');
             const baseUrlInput = $('#configBaseUrlInput');
             baseUrlRow && (baseUrlRow.style.display = needsEndpoint ? '' : 'none');
@@ -6690,14 +6696,16 @@ Here are my prompts:
                 const provider = ($$('.config-provider-tab.active')[0]?.dataset.provider) || 'openai';
                 const key = $('#configApiKeyInput')?.value?.trim() || '';
                 const needsEndpoint = !['openai','anthropic','gemini','openrouter','mistral','groq','deepseek','xai','cohere','perplexity'].includes(provider);
-                if (provider === 'openrouter') {
-                    const model = $('#configModelInput')?.value?.trim() || '';
-                    if (model) localStorage.setItem('pl_openrouter_model', model);
-                    else localStorage.removeItem('pl_openrouter_model');
-                } else if (needsEndpoint) {
-                    const model = $('#configModelInput')?.value?.trim() || '';
-                    if (model) localStorage.setItem(`pl_model_${provider}`, model);
-                    else localStorage.removeItem(`pl_model_${provider}`);
+                const model = $('#configModelInput')?.value?.trim() || '';
+                if (model) localStorage.setItem(_aiModelKey(provider), model);
+                else localStorage.removeItem(_aiModelKey(provider));
+                _aiSaveSetting(provider, model);
+                if (provider === 'anthropic') {
+                    const advisorOn = $('#configAdvisorToggle')?.checked ? '1' : '';
+                    localStorage.setItem('pl_ai_advisor', advisorOn);
+                    _aiSaveSetting('second_opinion', advisorOn);
+                }
+                if (needsEndpoint) {
                     const url = $('#configBaseUrlInput')?.value?.trim() || '';
                     if (url) localStorage.setItem(`pl_base_url_${provider}`, url);
                     else localStorage.removeItem(`pl_base_url_${provider}`);
@@ -6712,6 +6720,7 @@ Here are my prompts:
                 if (key) {
                     localStorage.setItem(`pl_api_key_${provider}`, key);
                     localStorage.setItem('pl_ai_provider', provider);
+                    _aiSaveSetting('active_provider', provider);
                     api('/settings/ai-keys', {
                         method: 'POST',
                         body: {
@@ -6754,6 +6763,22 @@ Here are my prompts:
         });
     }
 
+    // Fill the model field and Second opinion switch for the chosen provider
+    function _configSyncModelRow(provider) {
+        const input = $('#configModelInput');
+        const def = _aiDefaultModel(provider);
+        if (input) {
+            input.value = localStorage.getItem(_aiModelKey(provider)) || '';
+            input.placeholder = def || 'Model name';
+        }
+        const hint = $('#configModelHint');
+        if (hint) hint.textContent = def ? 'Leave blank to use ' + def + '.' : 'Use the model name your endpoint expects.';
+        const advRow = $('#configAdvisorRow');
+        if (advRow) advRow.style.display = provider === 'anthropic' ? '' : 'none';
+        const advToggle = $('#configAdvisorToggle');
+        if (advToggle) advToggle.checked = localStorage.getItem('pl_ai_advisor') === '1';
+    }
+
     function loadConfigSettings() {
         const provider = localStorage.getItem('pl_ai_provider') || 'openai';
         $$('.config-provider-tab').forEach(t => {
@@ -6763,13 +6788,7 @@ Here are my prompts:
         const input = $('#configApiKeyInput');
         if (input) input.value = key;
         const needsEndpoint = !['openai','anthropic','gemini','openrouter','mistral','groq','deepseek','xai','cohere','perplexity'].includes(provider);
-        const modelRow = $('#configModelRow');
-        const modelInput = $('#configModelInput');
-        modelRow && (modelRow.style.display = (provider === 'openrouter' || needsEndpoint) ? '' : 'none');
-        if (modelInput) {
-            if (provider === 'openrouter') modelInput.value = localStorage.getItem('pl_openrouter_model') || '';
-            else if (needsEndpoint) modelInput.value = localStorage.getItem(`pl_model_${provider}`) || '';
-        }
+        _configSyncModelRow(provider);
         const baseUrlRow = $('#configBaseUrlRow');
         const baseUrlInput = $('#configBaseUrlInput');
         baseUrlRow && (baseUrlRow.style.display = needsEndpoint ? '' : 'none');
@@ -6886,103 +6905,7 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
         try {
             let responseText = '';
 
-            if (provider === 'openai') {
-                const res = await _aiFetch('https://api.openai.com/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: 'gpt-5.4-mini',
-                        response_format: {
-                            type: 'json_object'
-                        },
-                        messages: [{
-                            role: 'system',
-                            content: systemPrompt
-                        }, {
-                            role: 'user',
-                            content: userMsg
-                        }],
-                        max_tokens: 4000
-                    }),
-                });
-                const data = await res.json();
-                if (data.error) throw new Error(data.error.message);
-                if (data.choices?.[0]?.finish_reason === 'length') throw new Error('Reply hit the token limit — try again');
-                responseText = data.choices?.[0]?.message?.content?.trim() || '';
-
-            } else if (provider === 'anthropic') {
-                const res = await _aiFetch('https://api.anthropic.com/v1/messages', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-key': apiKey,
-                        'anthropic-version': '2023-06-01',
-                        'anthropic-dangerous-direct-browser-access': 'true'
-                    },
-                    body: JSON.stringify({
-                        model: 'claude-haiku-4-5-20251001',
-                        system: systemPrompt,
-                        messages: [{
-                            role: 'user',
-                            content: userMsg
-                        }],
-                        max_tokens: 4000
-                    }),
-                });
-                const data = await res.json();
-                if (data.error) throw new Error(data.error.message || data.error);
-                if (data.stop_reason === 'max_tokens') throw new Error('Reply hit the token limit — try again');
-                responseText = data.content?.[0]?.text?.trim() || '';
-
-            } else if (provider === 'gemini') {
-                const res = await _aiFetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{
-                                text: systemPrompt + '\n\n' + userMsg
-                            }]
-                        }],
-                        generationConfig: {
-                            maxOutputTokens: 4000,
-                            responseMimeType: 'application/json'
-                        }
-                    }),
-                });
-                const data = await res.json();
-                if (data.error) throw new Error(data.error.message);
-                responseText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-
-            } else if (provider === 'openrouter') {
-                const model = localStorage.getItem('pl_openrouter_model') || 'openai/gpt-5.4-mini';
-                const res = await _aiFetch('https://openrouter.ai/api/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`
-                    },
-                    body: JSON.stringify({
-                        model,
-                        messages: [{
-                            role: 'system',
-                            content: systemPrompt
-                        }, {
-                            role: 'user',
-                            content: userMsg
-                        }],
-                        max_tokens: 4000
-                    }),
-                });
-                const data = await res.json();
-                if (data.error) throw new Error(data.error.message);
-                responseText = data.choices?.[0]?.message?.content?.trim() || '';
-            }
+            responseText = await callAI(systemPrompt, userMsg, 4000, { json: true });
 
             if (!responseText) {
                 toast('No response from AI', 'error');
@@ -15306,7 +15229,7 @@ Must avoid: [Anything sensitive or previously declined]`
 
     /* ============================================================================
        PROMPT BOARD WORKSPACE  ("Promptboard")
-       Pinterest-style board/pin system: masonry feed, boards, favorites, tags.
+       Pinterest-style board/pin system: masonry feed, boards, favourites, tags.
        Boards live server-side (boards + board_pins tables); prompts are the
        full real prompt records from /api/prompts -- this workspace is a
        browsing/organising skin over the same data every other view uses.
@@ -15349,10 +15272,12 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     let _pmbState = {
-        view: 'feed',       // feed | boards | board | favorites | tags
+        view: 'feed',       // feed | boards | board | favourites | tags
         boards: [],
         prompts: [],
         boardPins: [],
+        pinMap: {},
+        detailId: null,
         boardId: null,
         activeTag: null,
         search: '',
@@ -15362,14 +15287,50 @@ Must avoid: [Anything sensitive or previously declined]`
     async function _pmbLoadAll() {
         try {
             const [boards, prompts] = await Promise.all([api('/boards'), api('/prompts')]);
+            const pins = await Promise.all(boards.map(b => api('/boards/' + b.id + '/pins').catch(() => [])));
             _pmbState.boards = boards;
             _pmbState.prompts = prompts;
+            _pmbState.pinMap = {};
+            boards.forEach((b, i) => { _pmbState.pinMap[b.id] = pins[i].map(x => x.id); });
         } catch {
             toast('Could not load Prompt Board', 'error');
         }
     }
 
     const _pmbBoardById = id => _pmbState.boards.find(b => b.id === id);
+    const _pmbPinnedOn = (boardId, promptId) => (_pmbState.pinMap[boardId] || []).includes(promptId);
+    const _pmbPins = n => n + ' pin' + (n === 1 ? '' : 's');
+
+    // The board a quick Save goes to: the last one used, else the first
+    function _pmbLastBoard() {
+        return _pmbBoardById(Number(localStorage.getItem('pl_pmb_last_board'))) || _pmbState.boards[0] || null;
+    }
+
+    async function _pmbPinTo(boardId, promptId) {
+        try {
+            await api('/boards/' + boardId + '/pins', { method: 'POST', body: { prompt_id: promptId } });
+            const b = _pmbBoardById(boardId);
+            const ids = _pmbState.pinMap[boardId] || (_pmbState.pinMap[boardId] = []);
+            if (!ids.includes(promptId)) {
+                ids.unshift(promptId);
+                if (b) b.pin_count = (b.pin_count || 0) + 1;
+            }
+            localStorage.setItem('pl_pmb_last_board', String(boardId));
+            toast('Saved to ' + (b ? b.name : 'board'), 'success');
+            return true;
+        } catch {
+            toast('Could not save to board', 'error');
+            return false;
+        }
+    }
+
+    // Board chip plus Save pill, shared by the pin hover and the close up
+    function _pmbSaveControls(p) {
+        const board = _pmbLastBoard();
+        const saved = !!board && _pmbPinnedOn(board.id, p.id);
+        return '<button class="pmb-pin-board" data-pmb="add-to-board" data-prompt-id="' + p.id + '" title="Choose a board"><span>' + escapeHtml(board ? board.name : 'Choose board') + '</span><span class="material-symbols-outlined">expand_more</span></button>' +
+            '<button class="pmb-pin-save-pill' + (saved ? ' saved' : '') + '" data-pmb="quick-save" data-prompt-id="' + p.id + '">' + (saved ? 'Saved' : 'Save') + '</button>';
+    }
 
     function _pmbAllTags() {
         const map = new Map();
@@ -15408,28 +15369,18 @@ Must avoid: [Anything sensitive or previously declined]`
     function _pmbRenderSidebar() {
         const el = $('#pmbSidebar');
         if (!el) return;
-        const favCount = _pmbState.prompts.filter(p => p.is_favorite).length;
+        const v = _pmbState.view;
+        const item = (action, icon, label, active) =>
+            '<button class="pmb-nav-item' + (active ? ' active' : '') + '" data-pmb="' + action + '" title="' + label + '">' +
+                '<span class="material-symbols-outlined">' + icon + '</span><span>' + label + '</span></button>';
         el.innerHTML =
-            '<nav class="pmb-nav" aria-label="Primary">' +
-                '<button class="pmb-nav-item' + (_pmbState.view === 'feed' ? ' active' : '') + '" data-pmb="go-feed">' +
-                    '<span class="material-symbols-outlined">home</span><span>Feed</span><span class="pmb-nav-count">' + _pmbState.prompts.length + '</span></button>' +
-                '<button class="pmb-nav-item' + (_pmbState.view === 'boards' || _pmbState.view === 'board' ? ' active' : '') + '" data-pmb="go-boards">' +
-                    '<span class="material-symbols-outlined">grid_view</span><span>Boards</span><span class="pmb-nav-count">' + _pmbState.boards.length + '</span></button>' +
-                '<button class="pmb-nav-item' + (_pmbState.view === 'favorites' ? ' active' : '') + '" data-pmb="go-favorites">' +
-                    '<span class="material-symbols-outlined">star</span><span>Favorites</span><span class="pmb-nav-count">' + favCount + '</span></button>' +
-                '<button class="pmb-nav-item' + (_pmbState.view === 'tags' ? ' active' : '') + '" data-pmb="go-tags">' +
-                    '<span class="material-symbols-outlined">sell</span><span>Tags</span><span class="pmb-nav-count">' + _pmbAllTags().length + '</span></button>' +
-            '</nav>' +
-            '<div class="pmb-sidebar-divider"></div>' +
-            '<div class="pmb-sidebar-head"><h3>Your boards</h3>' +
-                '<button data-pmb="open-add-board" aria-label="New board"><span class="material-symbols-outlined">add</span></button></div>' +
-            '<nav class="pmb-nav" aria-label="Boards">' +
-                _pmbState.boards.map(b =>
-                    '<button class="pmb-board-nav-item' + (_pmbState.view === 'board' && _pmbState.boardId === b.id ? ' active' : '') + '" data-pmb="go-board" data-board-id="' + b.id + '">' +
-                        '<span class="pmb-board-dot" style="background:' + _pmbColor(b) + '"></span>' +
-                        '<span>' + escapeHtml(b.name) + '</span>' +
-                        '<span class="pmb-board-count">' + (b.pin_count || 0) + '</span></button>'
-                ).join('') +
+            '<nav class="pmb-nav" aria-label="Prompt Board">' +
+                item('go-feed', 'home', 'Home', v === 'feed') +
+                item('go-boards', 'grid_view', 'Boards', v === 'boards' || v === 'board') +
+                item('go-favorites', 'star', 'Favourites', v === 'favorites') +
+                item('go-tags', 'sell', 'Tags', v === 'tags') +
+                '<span class="pmb-sidebar-divider"></span>' +
+                item('open-add-board', 'add', 'New board', false) +
             '</nav>';
         el.querySelectorAll('[data-pmb]').forEach(_pmbBind);
     }
@@ -15440,36 +15391,37 @@ Must avoid: [Anything sensitive or previously declined]`
         if (_pmbState.view === 'feed') return _pmbViewFeed(main);
         if (_pmbState.view === 'boards') return _pmbViewBoards(main);
         if (_pmbState.view === 'board') return _pmbViewBoard(main);
-        if (_pmbState.view === 'favorites') return _pmbViewFavorites(main);
+        if (_pmbState.view === 'favorites') return _pmbViewFavourites(main);
         if (_pmbState.view === 'tags') return _pmbViewTags(main);
     }
 
-    function _pmbPinCard(p) {
-        const preview = (p.content || '').replace(/\s+/g, ' ').trim().slice(0, 200);
-        const tags = (p.tags || []).slice(0, 2);
-        const isFork = !!p.parent_id;
-        const showUsage = (p.use_count || 0) >= 5;
-        const hasFooter = tags.length || isFork || showUsage;
+    function _pmbPinCard(p, opts) {
+        const preview = (p.content || '').replace(/[ \t]+/g, ' ').replace(/\n{2,}/g, '\n').trim().slice(0, 520);
+        const lines = Math.min(13, Math.max(4, Math.ceil(preview.length / 34)));
+        const unpin = !!(opts && opts.unpin === true);
+        const foot = [
+            p.is_favorite ? '<span class="pmb-pin-fav-badge" title="Favourite"><span class="material-symbols-outlined">star</span></span>' : '',
+            p.parent_id ? '<span>Fork</span>' : '',
+            (p.use_count || 0) >= 5 ? '<span>Used ' + p.use_count + '&times;</span>' : ''
+        ].join('');
         return (
-            '<article class="pmb-pin" style="--tint:' + _pmbColor(p) + ';--tint-solid:' + _pmbSolidColor(p) + '" data-pmb-pin="' + p.id + '" tabindex="0" role="button" aria-label="' + escapeHtml(p.title || 'Untitled') + '">' +
-                '<div class="pmb-pin-save-wrap"><button class="pmb-pin-save-pill" data-pmb="add-to-board" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined" style="font-size:14px;">push_pin</span> Save</button></div>' +
-                '<div class="pmb-pin-overlay">' +
-                    '<button class="pmb-pin-action' + (p.is_favorite ? ' fav' : '') + '" data-pmb="toggle-fav" data-prompt-id="' + p.id + '" aria-label="Favorite" title="Favorite"><span class="material-symbols-outlined">star</span></button>' +
-                    '<button class="pmb-pin-action" data-pmb="copy-prompt" data-prompt-id="' + p.id + '" aria-label="Copy prompt" title="Copy"><span class="material-symbols-outlined">content_copy</span></button>' +
+            '<article class="pmb-pin" data-pmb-pin="' + p.id + '" tabindex="0" role="button" aria-label="' + escapeHtml(p.title || 'Prompt') + '">' +
+                '<div class="pmb-pin-tile" style="--tint:' + _pmbColor(p) + ';--lines:' + lines + '">' +
+                    '<span class="pmb-pin-cat">' + (p.categories && p.categories[0] ? escapeHtml(p.categories[0]) : 'Unsorted') + '</span>' +
+                    '<p class="pmb-pin-preview">' + escapeHtml(preview) + '</p>' +
+                    '<div class="pmb-pin-overlay">' + _pmbSaveControls(p) +
+                        '<div class="pmb-pin-tools">' +
+                            (unpin ? '<button class="pmb-pin-action" data-pmb="unpin" data-prompt-id="' + p.id + '" aria-label="Remove from board" title="Remove from board"><span class="material-symbols-outlined">close</span></button>' : '') +
+                            '<button class="pmb-pin-action' + (p.is_favorite ? ' fav' : '') + '" data-pmb="toggle-fav" data-prompt-id="' + p.id + '" aria-label="Favourite" title="Favourite"><span class="material-symbols-outlined">star</span></button>' +
+                            '<button class="pmb-pin-action" data-pmb="copy-prompt" data-prompt-id="' + p.id + '" aria-label="Copy prompt" title="Copy"><span class="material-symbols-outlined">content_copy</span></button>' +
+                        '</div>' +
+                    '</div>' +
                 '</div>' +
-                '<div class="pmb-pin-body">' +
-                    '<div class="pmb-pin-cat"><span>' + (p.categories && p.categories[0] ? escapeHtml(p.categories[0]) : 'Unsorted') + '</span>' +
-                        (p.is_favorite ? '<span class="pmb-pin-fav-badge"><span class="material-symbols-outlined">star</span></span>' : '') + '</div>' +
+                '<div class="pmb-pin-meta">' +
                     '<h3 class="pmb-pin-title">' + escapeHtml(p.title || 'Untitled') + '</h3>' +
                     (p.description ? '<p class="pmb-pin-outcome">' + escapeHtml(p.description) + '</p>' : '') +
-                    '<p class="pmb-pin-preview">' + escapeHtml(preview) + '</p>' +
+                    (foot ? '<div class="pmb-pin-foot">' + foot + '</div>' : '') +
                 '</div>' +
-                (hasFooter ?
-                    '<div class="pmb-pin-foot">' +
-                        (isFork ? '<span class="pmb-pin-variant-badge"><span class="material-symbols-outlined" style="font-size:12px;">call_split</span>Fork</span>' : '') +
-                        tags.map(t => '<span class="pmb-pin-tag">#' + escapeHtml(t) + '</span>').join('') +
-                        (showUsage ? '<span class="pmb-pin-usage">Used ' + p.use_count + '&times;</span>' : '') +
-                    '</div>' : '') +
             '</article>'
         );
     }
@@ -15493,14 +15445,16 @@ Must avoid: [Anything sensitive or previously declined]`
 
     function _pmbBoardCard(b) {
         const count = b.pin_count || 0;
-        const sub = b.description ? escapeHtml(b.description) : (count + ' prompt' + (count === 1 ? '' : 's'));
+        const ids = (_pmbState.pinMap[b.id] || []).slice(0, 3);
+        const tiles = [0, 1, 2].map(i => {
+            const p = _pmbState.prompts.find(x => x.id === ids[i]);
+            return '<div class="pmb-cover-tile"' + (p ? ' style="--tint:' + _pmbColor(p) + '"' : '') + '>' + (p ? escapeHtml(p.title || 'Untitled') : '') + '</div>';
+        }).join('');
         return (
             '<button class="pmb-board-card" data-pmb="go-board" data-board-id="' + b.id + '">' +
-                '<div class="pmb-board-cover" style="--tint:' + _pmbColor(b) + ';--tint-solid:' + _pmbSolidColor(b) + '">' +
-                    '<div class="pmb-board-cover-count">' + count + ' prompt' + (count === 1 ? '' : 's') + '</div>' +
-                    '<div class="pmb-board-cover-name">' + escapeHtml(b.name) + '</div>' +
-                '</div>' +
-                '<div class="pmb-board-meta"><div class="pmb-board-name">' + escapeHtml(b.name) + '</div><div class="pmb-board-sub">' + sub + '</div></div>' +
+                '<div class="pmb-board-cover">' + tiles + '</div>' +
+                '<div class="pmb-board-meta"><div class="pmb-board-name">' + escapeHtml(b.name) + '</div>' +
+                '<div class="pmb-board-sub">' + _pmbPins(count) + (b.description ? ' &middot; ' + escapeHtml(b.description) : '') + '</div></div>' +
             '</button>'
         );
     }
@@ -15519,10 +15473,8 @@ Must avoid: [Anything sensitive or previously declined]`
 
     function _pmbViewFeed(main) {
         const list = _pmbFiltered();
-        const tags = _pmbAllTags().slice(0, 8);
-        let html = '<div class="pmb-page-head"><div><h1 class="pmb-page-title">Your prompt feed</h1>' +
-            '<p class="pmb-page-sub">Everything in your library, most recent first.</p></div>' +
-            '<div class="pmb-page-head-actions"><button class="pmb-chip" data-pmb="cycle-sort"><span class="material-symbols-outlined" style="font-size:14px;">sort</span><span>' + _pmbSortLabel(_pmbState.sort) + '</span></button></div></div>';
+        const tags = _pmbAllTags().slice(0, 12);
+        let html = '';
         if (_pmbState.search && !list.length) {
             main.innerHTML = html + _pmbEmpty('search', 'No prompts match that search', 'Nothing matches &ldquo;' + escapeHtml(_pmbState.search) + '&rdquo;. Try another word.', [{ label: 'Clear search', action: 'clear-search', cls: 'btn-accent' }]);
             _pmbBindMain(main); return;
@@ -15531,11 +15483,10 @@ Must avoid: [Anything sensitive or previously declined]`
             main.innerHTML = html + _pmbEmpty('inbox', 'Your feed is empty', 'Add your first prompt to get started.', [{ label: 'Add a prompt', action: 'open-add-prompt', cls: 'btn-accent' }]);
             _pmbBindMain(main); return;
         }
-        if (tags.length) {
-            html += '<div class="pmb-chip-row"><button class="pmb-chip' + (!_pmbState.activeTag ? ' active' : '') + '" data-pmb="filter-tag" data-tag="">All</button>' +
-                tags.map(([t, c]) => '<button class="pmb-chip' + (_pmbState.activeTag === t ? ' active' : '') + '" data-pmb="filter-tag" data-tag="' + escapeHtml(t) + '">#' + escapeHtml(t) + ' <span style="opacity:.55">' + c + '</span></button>').join('') +
-                '</div>';
-        }
+        html += '<div class="pmb-chip-row"><button class="pmb-chip' + (!_pmbState.activeTag ? ' active' : '') + '" data-pmb="filter-tag" data-tag="">All</button>' +
+            tags.map(([t]) => '<button class="pmb-chip' + (_pmbState.activeTag === t ? ' active' : '') + '" data-pmb="filter-tag" data-tag="' + escapeHtml(t) + '">' + escapeHtml(t) + '</button>').join('') +
+            '<button class="pmb-chip pmb-chip-sort" data-pmb="cycle-sort" title="Change sort order"><span class="material-symbols-outlined">sort</span><span>' + _pmbSortLabel(_pmbState.sort) + '</span></button>' +
+            '</div>';
         html += '<div class="pmb-masonry">' + list.map(_pmbPinCard).join('') + '</div>';
         main.innerHTML = html;
         _pmbBindMain(main);
@@ -15561,6 +15512,7 @@ Must avoid: [Anything sensitive or previously declined]`
         _pmbRender();
         try {
             _pmbState.boardPins = await api('/boards/' + id + '/pins');
+            _pmbState.pinMap[id] = _pmbState.boardPins.map(x => x.id);
         } catch {
             toast('Could not load board', 'error');
         }
@@ -15574,9 +15526,8 @@ Must avoid: [Anything sensitive or previously declined]`
         const list = _pmbFiltered();
         let html = '<button class="pmb-back-btn" data-pmb="go-boards"><span class="material-symbols-outlined" style="font-size:16px;">chevron_left</span> All boards</button>' +
             '<div class="pmb-board-header">' +
-                '<div class="pmb-board-header-cover" style="--tint:' + _pmbColor(b) + ';--tint-solid:' + _pmbSolidColor(b) + '">' + escapeHtml((b.name || '?').slice(0, 1).toUpperCase()) + '</div>' +
                 '<div class="pmb-board-header-info"><h1>' + escapeHtml(b.name) + '</h1>' +
-                '<p>' + escapeHtml(b.description || '') + (b.description ? ' &middot; ' : '') + list.length + ' prompt' + (list.length === 1 ? '' : 's') + '</p>' +
+                '<p>' + escapeHtml(b.description || '') + (b.description ? ' &middot; ' : '') + _pmbPins(list.length) + '</p>' +
                 '<div class="pmb-pin-picker-row">' +
                     '<select id="pmbPinPicker" class="forge-input pmb-select"><option value="">Pin an existing prompt&hellip;</option></select>' +
                     '<button class="btn btn-ghost" id="pmbPinExistingBtn">Pin</button>' +
@@ -15591,7 +15542,7 @@ Must avoid: [Anything sensitive or previously declined]`
         if (!list.length) {
             html += _pmbEmpty('inbox', 'Nothing pinned yet', 'Pin an existing prompt above, or create a new one for this board.', [{ label: 'New prompt', action: 'open-add-prompt', cls: 'btn-accent', boardId: b.id }]);
         } else {
-            html += '<div class="pmb-masonry">' + list.map(p => _pmbPinCard(p).replace('<div class="pmb-pin-overlay">', '<div class="pmb-pin-overlay"><button class="pmb-pin-action" data-pmb="unpin" data-prompt-id="' + p.id + '" aria-label="Remove from board" title="Remove from board"><span class="material-symbols-outlined">close</span></button>')).join('') + '</div>';
+            html += '<div class="pmb-masonry">' + list.map(p => _pmbPinCard(p, { unpin: true })).join('') + '</div>';
         }
         main.innerHTML = html;
         _pmbBindMain(main);
@@ -15612,11 +15563,11 @@ Must avoid: [Anything sensitive or previously declined]`
         }
     }
 
-    function _pmbViewFavorites(main) {
+    function _pmbViewFavourites(main) {
         const list = _pmbFiltered();
-        let html = '<div class="pmb-page-head"><div><h1 class="pmb-page-title">Favorites</h1><p class="pmb-page-sub">The prompts you reach for most.</p></div></div>';
+        let html = '<div class="pmb-page-head"><div><h1 class="pmb-page-title">Favourites</h1><p class="pmb-page-sub">The prompts you reach for most.</p></div></div>';
         if (!list.length) {
-            html += _pmbEmpty('star', 'No favorites yet', 'Star any prompt to pin it here for quick access.', [{ label: 'Browse your feed', action: 'go-feed', cls: 'btn-accent' }]);
+            html += _pmbEmpty('star', 'No favourites yet', 'Star any prompt to pin it here for quick access.', [{ label: 'Browse your feed', action: 'go-feed', cls: 'btn-accent' }]);
         } else {
             html += '<div class="pmb-masonry">' + list.map(_pmbPinCard).join('') + '</div>';
         }
@@ -15651,10 +15602,13 @@ Must avoid: [Anything sensitive or previously declined]`
         });
     }
 
-    function _pmbOpenModal(html) {
+    function _pmbOpenModal(html, wide) {
         const modal = $('#pmbModal');
         const card = $('#pmbModalCard');
         if (!modal || !card) return;
+        _pmbState.detailId = null;
+        card.classList.toggle('wide', !!wide);
+        card.scrollTop = 0;
         card.innerHTML = html;
         modal.hidden = false;
         document.body.style.overflow = 'hidden';
@@ -15666,6 +15620,7 @@ Must avoid: [Anything sensitive or previously declined]`
         const modal = $('#pmbModal');
         if (!modal) return;
         modal.hidden = true;
+        _pmbState.detailId = null;
         $('#pmbModalCard').innerHTML = '';
         document.body.style.overflow = '';
     }
@@ -15678,34 +15633,38 @@ Must avoid: [Anything sensitive or previously declined]`
         if (p.created_at) meta.push('Added ' + new Date(p.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
         const related = _pmbRelated(p);
         const pmbVars = detectVariables(p.content);
+        const icon = (action, glyph, label, cls) =>
+            '<button class="icon-btn' + (cls ? ' ' + cls : '') + '" data-pmb="' + action + '" data-prompt-id="' + p.id + '" title="' + label + '" aria-label="' + label + '"><span class="material-symbols-outlined">' + glyph + '</span></button>';
         _pmbOpenModal(
-            '<div class="pmb-modal-head"><h2>Prompt</h2><button class="icon-btn" data-pmb-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></div>' +
-            '<div class="pmb-modal-body">' +
-                '<div class="pmb-prompt-hero" style="--tint:' + _pmbColor(p) + '">' +
+            '<button class="icon-btn pmb-closeup-close" data-pmb-close aria-label="Close"><span class="material-symbols-outlined">close</span></button>' +
+            '<div class="pmb-closeup">' +
+                '<div class="pmb-closeup-tile" style="--tint:' + _pmbColor(p) + '">' +
+                    '<div class="pmb-prompt-block" id="pmbPromptBlock">' + escapeHtml(p.content || '') + '</div>' +
+                '</div>' +
+                '<div class="pmb-closeup-side">' +
+                    '<div class="pmb-closeup-bar">' +
+                        icon('toggle-fav', 'star', p.is_favorite ? 'Remove from favourites' : 'Add to favourites', p.is_favorite ? 'on' : '') +
+                        icon('fork-prompt', 'call_split', 'Fork') +
+                        icon('edit-prompt', 'edit', 'Edit') +
+                        icon('delete-prompt', 'delete', 'Delete', 'danger') +
+                        '<span class="pmb-closeup-save">' + _pmbSaveControls(p) + '</span>' +
+                    '</div>' +
                     '<div class="pmb-prompt-hero-cat">' + (p.categories && p.categories[0] ? escapeHtml(p.categories[0]) : 'Unsorted') + (p.parent_id ? ' &middot; Fork' : '') + '</div>' +
-                    '<h2>' + escapeHtml(p.title || 'Untitled') + '</h2>' +
+                    '<h2 class="pmb-closeup-title">' + escapeHtml(p.title || 'Untitled') + '</h2>' +
                     (p.description ? '<p class="pmb-prompt-hero-outcome">' + escapeHtml(p.description) + '</p>' : '') +
                     '<div class="pmb-prompt-hero-meta">' + meta.map((m, i) => (i > 0 ? '<span class="pmb-dot"></span>' : '') + '<span>' + escapeHtml(m) + '</span>').join('') + '</div>' +
-                    '<div class="pmb-prompt-hero-tags">' + (p.tags || []).map(t => '<span class="pmb-pin-tag">#' + escapeHtml(t) + '</span>').join('') + '</div>' +
-                '</div>' +
-                (pmbVars.length ?
-                    '<div class="pmb-var-panel" id="pmbVarPanel"><h3 class="pmb-related-title">Fill in variables</h3><div class="pmb-var-grid">' +
-                        pmbVars.map(v => '<div class="pmb-var-field"><label>' + escapeHtml(v) + '</label><input type="text" class="forge-input pmb-var-input" data-pmb-var="' + escapeAttr(v) + '" placeholder="' + escapeAttr(v) + '"></div>').join('') +
-                    '</div></div>' : '') +
-                '<div class="pmb-prompt-block" id="pmbPromptBlock">' + escapeHtml(p.content || '') + '</div>' +
-                '<div class="pmb-prompt-actions">' +
+                    ((p.tags || []).length ? '<div class="pmb-prompt-hero-tags">' + p.tags.map(t => '<span class="pmb-pin-tag">' + escapeHtml(t) + '</span>').join('') + '</div>' : '') +
                     (pmbVars.length ?
-                        '<button class="btn btn-accent" data-pmb="copy-filled" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined">content_copy</span> Copy filled</button>' :
-                        '<button class="btn btn-accent" data-pmb="copy-prompt" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined">content_copy</span> Copy</button>') +
-                    '<button class="btn btn-ghost" data-pmb="toggle-fav" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined">star</span> ' + (p.is_favorite ? 'Favorited' : 'Favorite') + '</button>' +
-                    '<button class="btn btn-ghost" data-pmb="fork-prompt" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined">call_split</span> Fork</button>' +
-                    '<button class="btn btn-ghost" data-pmb="add-to-board" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined">push_pin</span> Add to board</button>' +
-                    '<button class="btn btn-ghost" data-pmb="edit-prompt" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined">edit</span> Edit</button>' +
-                    '<button class="btn btn-danger" data-pmb="delete-prompt" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined">delete</span> Delete</button>' +
+                        '<div class="pmb-var-panel" id="pmbVarPanel"><h3 class="pmb-related-title">Fill in variables</h3><div class="pmb-var-grid">' +
+                            pmbVars.map(v => '<div class="pmb-var-field"><label>' + escapeHtml(v) + '</label><input type="text" class="forge-input pmb-var-input" data-pmb-var="' + escapeAttr(v) + '" placeholder="' + escapeAttr(v) + '"></div>').join('') +
+                        '</div></div>' : '') +
+                    '<button class="btn btn-accent pmb-closeup-cta" data-pmb="' + (pmbVars.length ? 'copy-filled' : 'copy-prompt') + '" data-prompt-id="' + p.id + '"><span class="material-symbols-outlined">content_copy</span> ' + (pmbVars.length ? 'Copy filled prompt' : 'Copy prompt') + '</button>' +
                 '</div>' +
-                (related.length ? '<div class="pmb-related"><h3 class="pmb-related-title">More like this</h3><div class="pmb-related-feed">' + related.map(_pmbPinCard).join('') + '</div></div>' : '') +
-            '</div>'
+            '</div>' +
+            (related.length ? '<div class="pmb-related"><h3 class="pmb-related-title">More like this</h3><div class="pmb-masonry pmb-related-feed">' + related.map(_pmbPinCard).join('') + '</div></div>' : ''),
+            true
         );
+        _pmbState.detailId = id;
         $('#pmbModalCard')?.querySelectorAll('[data-pmb-pin]').forEach(card => {
             card.addEventListener('click', e => {
                 if (e.target.closest('[data-pmb]')) return;
@@ -15817,14 +15776,15 @@ Must avoid: [Anything sensitive or previously declined]`
         const p = _pmbState.prompts.find(x => x.id === promptId);
         if (!p) return;
         _pmbOpenModal(
-            '<div class="pmb-modal-head"><h2>Add to board</h2><button class="icon-btn" data-pmb-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></div>' +
+            '<div class="pmb-modal-head"><h2>Save to board</h2><button class="icon-btn" data-pmb-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></div>' +
             '<div class="pmb-modal-body">' +
                 (_pmbState.boards.length ?
                     '<div class="pmb-board-picker">' + _pmbState.boards.map(b =>
                         '<button class="pmb-board-pick-item" data-pmb="assign-board" data-prompt-id="' + p.id + '" data-board-id="' + b.id + '">' +
                             '<span class="pmb-board-pick-dot" style="background:' + _pmbColor(b) + '"></span>' +
                             '<span class="pmb-board-pick-info"><span class="pmb-board-pick-name">' + escapeHtml(b.name) + '</span>' +
-                            '<span class="pmb-board-pick-meta">' + (b.pin_count || 0) + ' prompt' + ((b.pin_count || 0) === 1 ? '' : 's') + '</span></span>' +
+                            '<span class="pmb-board-pick-meta">' + _pmbPins(b.pin_count || 0) + '</span></span>' +
+                            (_pmbPinnedOn(b.id, p.id) ? '<span class="pmb-board-pick-saved">Saved</span>' : '') +
                         '</button>'
                     ).join('') + '</div>'
                     : '<p class="pmb-hint">No boards yet.</p>') +
@@ -15906,9 +15866,10 @@ Must avoid: [Anything sensitive or previously declined]`
                         if (p) p.is_favorite = res.is_favorite;
                         const bp = _pmbState.boardPins.find(x => x.id === promptId);
                         if (bp) bp.is_favorite = res.is_favorite;
-                        toast(res.is_favorite ? 'Added to favorites' : 'Removed from favorites', 'success');
-                        if ($('#pmbModal') && !$('#pmbModal').hidden) _pmbOpenPinDetail(promptId);
-                        _pmbRenderMain(); _pmbRenderSidebar();
+                        toast(res.is_favorite ? 'Added to favourites' : 'Removed from favourites', 'success');
+                        const openId = _pmbState.detailId;
+                        _pmbRenderMain();
+                        if (openId) _pmbOpenPinDetail(openId);
                     } catch { toast('Could not update favorite', 'error'); }
                     break;
                 }
@@ -15941,20 +15902,28 @@ Must avoid: [Anything sensitive or previously declined]`
                 case 'add-to-board': _pmbOpenBoardPicker(promptId); break;
                 case 'open-add-board-from-picker': _pmbCloseModal(); setTimeout(() => _pmbOpenBoardSheet(), 160); break;
                 case 'assign-board': {
-                    try {
-                        await api('/boards/' + boardId + '/pins', { method: 'POST', body: { prompt_id: promptId } });
-                        const b = _pmbBoardById(boardId);
-                        toast('Added to ' + (b ? b.name : 'board'), 'success');
-                        if (b) b.pin_count = (b.pin_count || 0) + 1;
+                    if (await _pmbPinTo(boardId, promptId)) {
                         _pmbCloseModal();
-                        _pmbRenderSidebar();
-                    } catch { toast('Could not add to board', 'error'); }
+                        _pmbRender();
+                    }
+                    break;
+                }
+                case 'quick-save': {
+                    const target = _pmbLastBoard();
+                    if (!target) { _pmbOpenBoardSheet(); break; }
+                    if (_pmbPinnedOn(target.id, promptId)) { toast('Already saved to ' + target.name, 'info'); break; }
+                    const openId = _pmbState.detailId;
+                    if (await _pmbPinTo(target.id, promptId)) {
+                        _pmbRenderMain();
+                        if (openId) _pmbOpenPinDetail(openId);
+                    }
                     break;
                 }
                 case 'unpin': {
                     try {
                         await api('/boards/' + _pmbState.boardId + '/pins/' + promptId, { method: 'DELETE' });
                         _pmbState.boardPins = _pmbState.boardPins.filter(p => p.id !== promptId);
+                        _pmbState.pinMap[_pmbState.boardId] = _pmbState.boardPins.map(x => x.id);
                         const b = _pmbBoardById(_pmbState.boardId);
                         if (b) b.pin_count = Math.max(0, (b.pin_count || 1) - 1);
                         toast('Removed from board', 'success');
@@ -15993,6 +15962,80 @@ Must avoid: [Anything sensitive or previously declined]`
         _pmbState.view = 'feed'; _pmbState.boardId = null; _pmbState.activeTag = null; _pmbState.search = '';
         const input = $('#pmbSearchInput'); if (input) input.value = '';
         _pmbLoadAll().then(_pmbRender);
+    };
+
+    // Save a prompt to a board from any screen: a small popover on the clicked button
+    window.PL_pinToBoard = async function(promptId, anchor) {
+        if (!state.isPremium) {
+            showPremiumModal();
+            return;
+        }
+        document.getElementById('pinPop')?.remove();
+        let boards = [];
+        try {
+            boards = await api('/boards');
+        } catch {
+            toast('Could not load boards', 'error');
+            return;
+        }
+        const pop = document.createElement('div');
+        pop.id = 'pinPop';
+        pop.className = 'pin-pop';
+        pop.setAttribute('role', 'dialog');
+        pop.setAttribute('aria-label', 'Save to board');
+        pop.innerHTML = '<div class="pin-pop-head">Save to board</div>' +
+            '<div class="pin-pop-list">' + (boards.length ? boards.map(b =>
+                '<button type="button" class="pin-pop-item" data-board-id="' + b.id + '"><span class="pin-pop-dot" style="background:' + _pmbColor(b) + '"></span>' +
+                '<span class="pin-pop-name">' + escapeHtml(b.name) + '</span><span class="pin-pop-count">' + (b.pin_count || 0) + '</span></button>'
+            ).join('') : '<p class="pin-pop-empty">No boards yet. Name your first one below.</p>') + '</div>' +
+            '<form class="pin-pop-new"><input type="text" class="form-input" placeholder="New board name" maxlength="80" aria-label="New board name"><button type="submit" class="btn btn-accent">Create</button></form>';
+        document.body.appendChild(pop);
+        const r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : { left: innerWidth / 2, bottom: innerHeight / 3, top: innerHeight / 3 };
+        const left = Math.max(12, Math.min(r.left, innerWidth - pop.offsetWidth - 12));
+        const below = r.bottom + 6 + pop.offsetHeight <= innerHeight - 12;
+        pop.style.left = left + 'px';
+        pop.style.top = Math.max(12, below ? r.bottom + 6 : r.top - pop.offsetHeight - 6) + 'px';
+        const close = () => {
+            pop.remove();
+            document.removeEventListener('mousedown', outside, true);
+            document.removeEventListener('keydown', onKey, true);
+        };
+        const outside = e => { if (!pop.contains(e.target)) close(); };
+        const onKey = e => {
+            if (e.key !== 'Escape') return;
+            e.stopPropagation();
+            close();
+        };
+        setTimeout(() => {
+            document.addEventListener('mousedown', outside, true);
+            document.addEventListener('keydown', onKey, true);
+        }, 0);
+        const save = async (boardId, name) => {
+            try {
+                await api('/boards/' + boardId + '/pins', { method: 'POST', body: { prompt_id: promptId } });
+                localStorage.setItem('pl_pmb_last_board', String(boardId));
+                toast('Saved to ' + name, 'success');
+            } catch {
+                toast('Could not save to board', 'error');
+            }
+            close();
+        };
+        pop.querySelector('.pin-pop-list').addEventListener('click', e => {
+            const it = e.target.closest('.pin-pop-item');
+            if (it) save(Number(it.dataset.boardId), it.querySelector('.pin-pop-name').textContent);
+        });
+        pop.querySelector('.pin-pop-new').addEventListener('submit', async e => {
+            e.preventDefault();
+            const name = pop.querySelector('.pin-pop-new input').value.trim();
+            if (!name) return;
+            try {
+                const res = await api('/boards', { method: 'POST', body: { name, description: '', colour_label: '' } });
+                if (res && res.id) save(res.id, name);
+            } catch {
+                toast('Could not create board', 'error');
+            }
+        });
+        (boards.length ? pop.querySelector('.pin-pop-item') : pop.querySelector('.pin-pop-new input')).focus();
     };
 
     function closeBoardWorkspace() {
@@ -20532,14 +20575,49 @@ Must avoid: [Anything sensitive or previously declined]`
     /* ============================================================================
        SHARED AI CALLER
        Supports OpenAI, Anthropic, Gemini. Reads provider + key from localStorage.
-       callAI(systemPrompt, userMsg, maxTokens?) → Promise<string>
+       callAI(systemPrompt, userMsg, maxTokens?, { json }?) → Promise<string>
        ============================================================================ */
+    // Default model per built-in provider; a saved choice in Settings wins
+    function _aiDefaultModel(provider) {
+        return ({
+            openai: 'gpt-5.4-mini',
+            anthropic: 'claude-haiku-4-5-20251001',
+            gemini: 'gemini-2.5-flash',
+            openrouter: 'openai/gpt-5.4-mini',
+            cohere: 'command-a-03-2025',
+            mistral: 'mistral-small-latest',
+            groq: 'openai/gpt-oss-120b',
+            deepseek: 'deepseek-chat',
+            xai: 'grok-4-latest',
+            perplexity: 'sonar'
+        })[provider] || '';
+    }
+
+    function _aiModelKey(provider) {
+        return provider === 'openrouter' ? 'pl_openrouter_model' : 'pl_model_' + provider;
+    }
+
+    function _aiModel(provider) {
+        return localStorage.getItem(_aiModelKey(provider)) || _aiDefaultModel(provider);
+    }
+
+    // Keep a model choice in the DB file, WebView storage can reset
+    function _aiSaveSetting(slug, value) {
+        api('/settings/ai-models', {
+            method: 'POST',
+            body: {
+                provider: slug,
+                model: value
+            }
+        }).catch(() => {});
+    }
+
     const AI_OPENAI_COMPAT = {
-        mistral:    { url: 'https://api.mistral.ai/v1/chat/completions', model: 'mistral-small-latest' },
-        groq:       { url: 'https://api.groq.com/openai/v1/chat/completions', model: 'openai/gpt-oss-120b' },
-        deepseek:   { url: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat' },
-        xai:        { url: 'https://api.x.ai/v1/chat/completions', model: 'grok-4-latest' },
-        perplexity: { url: 'https://api.perplexity.ai/chat/completions', model: 'sonar' },
+        mistral:    { url: 'https://api.mistral.ai/v1/chat/completions' },
+        groq:       { url: 'https://api.groq.com/openai/v1/chat/completions' },
+        deepseek:   { url: 'https://api.deepseek.com/chat/completions' },
+        xai:        { url: 'https://api.x.ai/v1/chat/completions' },
+        perplexity: { url: 'https://api.perplexity.ai/chat/completions' },
     };
 
     // Shared network guard for every AI provider call in this file. Fixes two
@@ -20572,11 +20650,67 @@ Must avoid: [Anything sensitive or previously declined]`
         }
     }
 
-    async function callAI(systemPrompt, userMsg, maxTokens) {
+    // Anthropic advisor tool: the chosen model writes, a stronger model advises once
+    async function _aiAnthropicAdvised(apiKey, model, systemPrompt, userMsg, maxTokens) {
+        const messages = [{
+            role: 'user',
+            content: userMsg
+        }];
+        for (let hop = 0; hop < 4; hop++) {
+            const res = await _aiFetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01',
+                    'anthropic-beta': 'advisor-tool-2026-03-01',
+                    'anthropic-dangerous-direct-browser-access': 'true'
+                },
+                body: JSON.stringify({
+                    model,
+                    system: systemPrompt + '\n\nBefore you write the final answer, call the advisor tool once and apply its guidance. Output only the final answer.',
+                    messages,
+                    max_tokens: maxTokens,
+                    tools: [{
+                        type: 'advisor_20260301',
+                        name: 'advisor',
+                        model: localStorage.getItem('pl_ai_advisor_model') || 'claude-opus-4-8',
+                        max_uses: 1,
+                        max_tokens: 2048
+                    }]
+                }),
+            }, 120000);
+            const data = await res.json();
+            if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+            const blocks = data.content || [];
+            if (data.stop_reason === 'pause_turn') {
+                messages.push({
+                    role: 'assistant',
+                    content: blocks
+                });
+                continue;
+            }
+            let from = 0;
+            blocks.forEach((b, i) => {
+                if (b.type === 'advisor_tool_result') from = i + 1;
+            });
+            const text = blocks.slice(from).filter(b => b.type === 'text').map(b => b.text || '').join('').trim();
+            if (!text) throw new Error('empty reply');
+            return text;
+        }
+        throw new Error('advisor did not finish');
+    }
+
+    async function callAI(systemPrompt, userMsg, maxTokens, opts) {
         maxTokens = maxTokens || 1200;
+        opts = opts || {};
         const provider = localStorage.getItem('pl_ai_provider') || 'openai';
         const apiKey = localStorage.getItem('pl_api_key_' + provider) || '';
         if (!apiKey) throw new Error('No API key — add one in Settings (⚙ bottom left)');
+        const model = _aiModel(provider);
+        const cutOff = () => {
+            throw new Error('Reply hit the token limit — try again');
+        };
 
         if (provider === 'openai') {
             const res = await _aiFetch('https://api.openai.com/v1/chat/completions', {
@@ -20586,7 +20720,8 @@ Must avoid: [Anything sensitive or previously declined]`
                     'Authorization': 'Bearer ' + apiKey
                 },
                 body: JSON.stringify({
-                    model: 'gpt-5.4-mini',
+                    model,
+                    ...(opts.json ? { response_format: { type: 'json_object' } } : {}),
                     messages: [{
                         role: 'system',
                         content: systemPrompt
@@ -20599,9 +20734,17 @@ Must avoid: [Anything sensitive or previously declined]`
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error.message);
+            if (opts.json && data.choices?.[0]?.finish_reason === 'length') cutOff();
             return (data.choices?.[0]?.message?.content || '').trim();
 
         } else if (provider === 'anthropic') {
+            if (localStorage.getItem('pl_ai_advisor') === '1' && maxTokens >= 1500) {
+                try {
+                    return await _aiAnthropicAdvised(apiKey, model, systemPrompt, userMsg, maxTokens);
+                } catch (e) {
+                    console.warn('Second opinion unavailable, using a normal call:', e.message);
+                }
+            }
             const res = await _aiFetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
                 headers: {
@@ -20611,7 +20754,7 @@ Must avoid: [Anything sensitive or previously declined]`
                     'anthropic-dangerous-direct-browser-access': 'true'
                 },
                 body: JSON.stringify({
-                    model: 'claude-haiku-4-5-20251001',
+                    model,
                     system: systemPrompt,
                     messages: [{
                         role: 'user',
@@ -20622,10 +20765,11 @@ Must avoid: [Anything sensitive or previously declined]`
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-            return (data.content?.[0]?.text || '').trim();
+            if (opts.json && data.stop_reason === 'max_tokens') cutOff();
+            return (data.content || []).filter(b => b.type === 'text').map(b => b.text || '').join('').trim();
 
         } else if (provider === 'gemini') {
-            const res = await _aiFetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey, {
+            const res = await _aiFetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent?key=' + apiKey, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -20637,7 +20781,8 @@ Must avoid: [Anything sensitive or previously declined]`
                         }]
                     }],
                     generationConfig: {
-                        maxOutputTokens: 2000
+                        maxOutputTokens: Math.max(maxTokens, 2000),
+                        ...(opts.json ? { responseMimeType: 'application/json' } : {})
                     }
                 }),
             });
@@ -20646,7 +20791,6 @@ Must avoid: [Anything sensitive or previously declined]`
             return (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
 
         } else if (provider === 'openrouter') {
-            const model = localStorage.getItem('pl_openrouter_model') || 'openai/gpt-5.4-mini';
             const res = await _aiFetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
                 headers: {
@@ -20677,7 +20821,7 @@ Must avoid: [Anything sensitive or previously declined]`
                     'Authorization': 'Bearer ' + apiKey
                 },
                 body: JSON.stringify({
-                    model: 'command-a-03-2025',
+                    model,
                     messages: [{
                         role: 'system',
                         content: systemPrompt
@@ -20702,7 +20846,7 @@ Must avoid: [Anything sensitive or previously declined]`
                     'Authorization': 'Bearer ' + apiKey
                 },
                 body: JSON.stringify({
-                    model: cfg.model,
+                    model,
                     messages: [{
                         role: 'system',
                         content: systemPrompt
@@ -20728,7 +20872,6 @@ Must avoid: [Anything sensitive or previously declined]`
             };
             if (isAzure) headers['api-key'] = apiKey;
             else headers['Authorization'] = 'Bearer ' + apiKey;
-            const model = localStorage.getItem('pl_model_' + provider) || '';
             const res = await _aiFetch(baseUrl, {
                 method: 'POST',
                 headers,

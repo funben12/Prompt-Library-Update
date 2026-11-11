@@ -3682,6 +3682,37 @@ def save_ai_key():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/settings/ai-models', methods=['GET'])
+def get_ai_models():
+    """Return stored model choices, keyed by provider slug."""
+    try:
+        with get_db() as con:
+            rows = con.execute(
+                "SELECT key, value FROM settings WHERE key LIKE 'ai_model_%'"
+            ).fetchall()
+        return jsonify({r['key'][len('ai_model_'):]: r['value'] for r in rows})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/ai-models', methods=['POST'])
+def save_ai_model():
+    """Store or clear one provider's model choice in the DB file."""
+    data = _json_body()
+    provider = data.get('provider') or ''
+    model = (data.get('model') or '').strip()[:200]
+    if not re.match(r'^[a-z0-9_]{1,40}$', provider):
+        return jsonify({'error': 'unknown provider'}), 400
+    try:
+        with get_db() as con:
+            if model:
+                con.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                            ('ai_model_' + provider, model))
+            else:
+                con.execute("DELETE FROM settings WHERE key = ?", ('ai_model_' + provider,))
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/settings/ai-baseurls', methods=['GET'])
 def get_ai_baseurls():
     """Return stored custom base URLs, keyed by provider slug."""
