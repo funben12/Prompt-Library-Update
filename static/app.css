@@ -2476,6 +2476,9 @@
   }
   .premium-locked .nav-lock,
   .premium-locked .lock { display: inline-flex; }
+  /* important: the icon font sets display outside the layers */
+  body.is-premium .nav-lock,
+  body.is-premium .lock { display: none !important; }
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }

@@ -6,7 +6,7 @@
 - [x] PRD written (`docs/prd-component-workspace.md`)
 - [x] Quick visual wins landed: font loading + focus rings (`b0f61bd`). Breakpoints dropped — finding retracted, layout already fluid
 - [x] Data model shipped: `component_blocks`, `compositions`, `composition_blocks` + `/api/*` routes (`fe14f95`)
-- [ ] Compositions save, reopen and restore canvas exactly
+- [ ] Compositions save, reopen and restore canvas exactly (2026-11-11: the node canvas saves and reloads its graph through `/api/compositions/.../graph` in `static/prompt-components-node.js`. Exact restore not clicked through, so left open)
 - [ ] Named multi-draft support with surfaced save failures
 - [ ] User-authored blocks: create, fork-on-edit, delete with reference count
 - [ ] Full keyboard interaction model verified end to end
@@ -19,14 +19,14 @@
 **Goal:** Library screen (list + grid view) uses full available width cleanly and stays responsive, matching the provided mockup (`Prompt Library.dc.html`), with no regressions on narrow viewports.
 
 - [x] 920px row cap removed from list-view (`96e537f`)
-- [ ] List-view row layout confirmed against mockup at full width in running app
-- [ ] Grid-view cards confirmed filling width responsively across sizes
+- [x] List-view rows fill the width at 1440 px in the running app (2026-11-11, `showcase/light/01-library-list.jpg`). Not compared against the mockup file
+- [x] Grid-view cards fill the width: 3 columns of 356 px in a 1096 px container at 1440 px (2026-11-11)
 - [ ] Narrow/mobile breakpoints re-checked, no overflow
-- [ ] Screenshot proof captured in preview
+- [x] Screenshot proof captured (`showcase/`, 2026-11-11)
 - [ ] Syntax checks + `update_hash.py` run if app.js/app.css touched
 
-**Status:** cap-removal fix already committed; verifying it live now.
-**Last updated:** 2026-08-12
+**Status:** list and grid verified at 1440 px. Narrow widths not re-checked.
+**Last updated:** 2026-11-11
 
 ## Prompt Board — Pinterest-inspired MVP — opened 2026-08-12
 
@@ -35,13 +35,13 @@
 Pinterest pillar → local equivalent: Clipper → pin-from-anywhere; Board architecture → boards (shipped); Public feed → single-user "All Pins" stream, tag-sorted.
 
 - [x] Boards + pins data model and `/api/boards*` routes (already shipped)
-- [ ] Pin-from-anywhere: pin control on library cards + prompt detail, board-picker popover, no trip into the workspace
-- [ ] Masonry pin grid replaces the flat card list — variable-height cards, deterministic cover treatment, hover-reveal actions
-- [ ] Board sidebar rows become visual board objects (mosaic cover from top pins + count)
-- [ ] "All Pins" feed: chronological stream across every board, tag-chip filter, lazy render
-- [ ] Verified live in preview with screenshot proof; `node --check`, `update_hash.py` run
+- [x] Pin-from-anywhere: pin button on library cards and the detail panel opens a Save to board popover (`window.PL_pinToBoard`), with new board creation inline
+- [x] Masonry pin grid: 236 px columns, height follows prompt length, colour tile from the prompt's label, hover shows board chip, Save, favourite and copy
+- [x] Boards are visual objects: collage cover from the first three pins plus pin count. The board list moved out of the sidebar, which is now an icon rail
+- [ ] "All Pins" feed: the Home feed streams every prompt with tag chips and a sort chip. Lazy render not built, not needed until libraries reach hundreds of prompts
+- [x] Verified in headless Chromium with screenshots in `showcase/`; `node --check`, `update_hash.py` run
 
 **Cut for MVP (explicit):** sharing/export of boards, collaborative boards, recommendation/related-prompt logic, any monetisation surface.
 
-**Status:** backend done, UI v0 exists as list+dropdown. Next: pillar 1 (pin-from-anywhere).
-**Last updated:** 2026-08-12
+**Status:** Pinterest style rework shipped 2026-11-11. Left: lazy render for very large libraries.
+**Last updated:** 2026-11-11

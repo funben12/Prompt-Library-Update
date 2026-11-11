@@ -2,4 +2,4 @@
 
 Lessons true for every topic. The Planner reads this on every run.
 
-* (empty, the Improver fills this)
+* In a patch script that edits several files, run every replace and assertion in memory first and write the files last: a late failure left two files half patched.
