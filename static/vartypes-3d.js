@@ -208,8 +208,9 @@
     geom(sides).faces.forEach(f => f.pts.forEach(p => { m = Math.max(m, Math.hypot(1, p[0], p[1])); }));
     return sides === 4 ? m * 0.6 : m;
   }
-  // One die: tossed in low from one side of the table, bounces with a squash, rolls a little, settles on the chosen face.
-  // Start height, start x and touchdown height come from the room the stage really has, so the whole die stays in view in every frame
+  // One die: picked up off its resting spot and swept to one side, thrown in an arc, three bouncing hits with a held squash,
+  // a short roll, then it rocks still on the chosen face. Heights and x come from the room the stage really has, so the whole
+  // die stays in view in every frame, and the first frame is exactly the resting pose, so nothing jumps at the click
   function throwDie(cell, faceIdx, sides, delay, D, amp) {
     const g = geom(sides), cube = cell.querySelector('.vd3-cube'), fly = cell.querySelector('.vd3-fly'), sh = cell.querySelector('.vd3-shadow');
     const cs = getComputedStyle(cell), R = parseFloat(cs.getPropertyValue('--R')) || 34, cy = parseFloat(cs.getPropertyValue('--cy')) || 2.7 * R;
@@ -218,34 +219,45 @@
     // corners nearer the camera look bigger (640px cell perspective, origin at 50% 30%), so test a corner tipped through 0 to 90 degrees
     const rho = reach(sides) * R, ox = cr.width / 2, oy = cr.height * 0.3, m = 3, ct = cr.top - sr.top, cl = cr.left - sr.left;
     const most = fn => { let v = -1e9; for (let i = 0; i <= 12; i++) { const t = i * Math.PI / 24; v = Math.max(v, fn(rho * Math.cos(t), 640 / (640 - rho * Math.sin(t)))); } return v; };
-    // L0: how high a tumbling die must touch down so no corner dips under the stage; Hm: highest point of the arc
+    // L0: how high a tumbling die must touch down so no corner dips under the stage; Hm: top of the arc
     const L0 = Math.max(0, cy - oy + most((c, k) => c - (sr.height - ct - m - oy) / k));
-    const Hm = Math.max(L0, Math.min(cy - oy - most((c, k) => (m - ct - oy) / k + c), L0 + 1.5 * R));
+    const Hm = Math.max(L0, Math.min(cy - oy - most((c, k) => (m - ct - oy) / k + c), L0 + 2.6 * R)), pk = Hm - L0;
     const xmin = most((c, k) => (m - cl - ox) / k + c), xmax = -most((c, k) => c - (sr.width - cl - m - ox) / k);
-    // every die of one roll leaves the same hand, from the side roll() picked; with several, far dice start a little way in so they do not stack
-    const side = st._side || (Math.random() < 0.5 ? -1 : 1), many = st.querySelectorAll('.vd3-cell').length > 1;
-    const xE = side < 0 ? xmin : xmax, dE = Math.abs(xE), mag = Math.max(0, dE - (many ? 0.5 * Math.max(0, dE - 1.2 * R) : 0) - Math.random() * 0.3 * R);
-    const x0 = xmin > xmax ? 0 : clamp(Math.sign(xE) * mag, xmin, xmax), h0 = 0.4 + Math.random() * 0.3;
+    // every die of one roll is swept towards the same side, the one roll() picked; a short throw sweeps less
+    const side = st._side || (Math.random() < 0.5 ? -1 : 1), q = clamp(D / 1900, 0.4, 1);
+    const xE = side < 0 ? xmin : xmax, mag = Math.max(0, Math.min(Math.abs(xE), 2 * R) * q - Math.random() * 0.3 * R);
+    const x0 = xmin > xmax ? 0 : clamp(Math.sign(xE) * mag, xmin, xmax);
+    // hop heights above the touchdown line: the first two stay over 0.4 of the die's height on screen
+    const b1 = Math.min(1.6 * R, 0.8 * pk), b2 = Math.min(1.25 * R, 0.62 * pk), b3 = Math.min(0.4 * R, 0.3 * pk);
     // spin axis leans into the screen so the tumble reads as rolling the way the die travels
     const dir = x0 > 0 ? -1 : 1;
     let A = unit([(Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 1.2, -0.9 * dir]);
     if (!isFinite(A[0])) A = [0, 0, 1];
     const spin = (1.5 + Math.random() * 0.6) * 2 * Math.PI * (0.6 + 0.4 * amp);
-    // keys: offset, x share of x0, height share from L0 up to Hm, squash, share of the spin left
-    // arc in, hit, hop, hit, hop, hit, hop, hit, roll, rock, rest
+    // the first key must be the pose on screen now: rotate3d(A, spin) times M0 equals it, so M0 is the pose turned back by spin
+    let now = getComputedStyle(cube).transform;
+    if (!now || now === 'none') now = IDLE;
+    let M0 = now;
+    try { M0 = new DOMMatrix().rotateAxisAngle(A[0], A[1], A[2], -spin * 180 / Math.PI).multiply(new DOMMatrix(now)).toString(); } catch (_) {}
+    // keys: time weight of the step before it (H is a held squash, about 80 ms), x share of x0, height, squash, share of the spin left, easing out
+    const H = -1, FALL = 'cubic-bezier(.55,.085,.68,.53)', RISE = 'cubic-bezier(.25,.46,.45,.94)', LIFT = 'cubic-bezier(.4,0,.3,1)', THROW = 'cubic-bezier(.35,.4,.45,1)', HOLD = 'linear';
     const K = [
-      [0, 1, h0, 0, 1], [0.07, 0.86, 1, 0, 0.8], [0.17, 0.64, 0, 0.11, 0.55],
-      [0.24, 0.5, 0.75, 0, 0.4], [0.31, 0.38, 0, 0.08, 0.28], [0.36, 0.31, 0.38, 0, 0.2],
-      [0.41, 0.24, 0, 0.05, 0.14], [0.44, 0.21, 0.13, 0, 0.1], [0.47, 0.18, 0, 0.03, 0.07],
-      [0.78, 0, 0, 0, 0.008], [0.88, 0, 0, 0, -0.005], [1, 0, 0, 0, 0]];
-    const FALL = 'cubic-bezier(.5,0,.9,.6)', RISE = 'cubic-bezier(.1,.5,.4,1)', ROLL = 'cubic-bezier(.2,.6,.35,1)';
-    const ease = i => i >= 8 ? (i === 8 ? ROLL : 'ease-in-out') : K[i][2] > K[i + 1][2] ? FALL : RISE;
-    const hOf = (k, i) => i > 8 ? 0 : L0 + (Hm - L0) * k[2];
-    const flyKf = K.map((k, i) => ({ offset: k[0], transform: `translate(${f4(x0 * k[1])}px,${f4(-hOf(k, i))}px) scale(${f4(1 + k[3])},${f4(1 - k[3])})`, easing: ease(i) }));
-    const shKf = K.map((k, i) => { const h = hOf(k, i); return { offset: k[0], transform: `translateX(${f4(x0 * k[1])}px) scale(${f4(1 / (1 + h / (2.2 * R)))})`, opacity: f4(0.5 / (1 + h / (1.5 * R))), easing: ease(i) }; });
-    const cubeKf = K.map((k, i) => ({ offset: k[0], transform: `rotate3d(${f4(A[0])},${f4(A[1])},${f4(A[2])},${f4(spin * k[4])}rad) ${fin}`, easing: i < 8 ? 'linear' : ease(i) }));
-    // all dice leave the hand at the click; a later die flies a little longer, so they still land one after another
-    const opt = { duration: D + delay, fill: 'both' };
+      [0, 0, 0, 0, 1, LIFT], [300, 1, L0 + 0.5 * pk, 0, 0.95, THROW], [180, 0.86, Hm, 0, 0.84, FALL],
+      [240, 0.66, L0, 0.14, 0.62, HOLD], [H, 0.62, L0, 0.11, 0.57, RISE], [165, 0.5, L0 + b1, 0, 0.46, FALL],
+      [165, 0.38, L0, 0.12, 0.35, HOLD], [H, 0.35, L0, 0.09, 0.31, RISE], [140, 0.27, L0 + b2, 0, 0.24, FALL],
+      [140, 0.19, L0, 0.09, 0.17, HOLD], [H, 0.17, L0, 0.06, 0.15, RISE], [65, 0.13, L0 + b3, 0, 0.12, FALL],
+      [65, 0.1, L0, 0.04, 0.09, 'cubic-bezier(.2,.6,.35,1)'], [170, 0, 0, 0, 0.008, 'ease-in-out'], [90, 0, 0, 0, -0.005, 'ease-in-out'], [40, 0, 0, 0, 0, 'linear']];
+    // a held squash lasts 80 ms of this die's run at most 6% of it; the other steps share what is left
+    const T = D + delay, hf = Math.min(0.06, 80 / T), holds = K.filter(k => k[0] === H).length;
+    const free = K.reduce((s, k) => s + (k[0] > 0 ? k[0] : 0), 0), unitF = (1 - holds * hf) / free;
+    let o = 0;
+    const off = K.map((k, i) => (o = i ? Math.min(1, o + (k[0] === H ? hf : k[0] * unitF)) : 0));
+    off[off.length - 1] = 1;
+    const flyKf = K.map((k, i) => ({ offset: off[i], transform: `translate(${f4(x0 * k[1])}px,${f4(-k[2])}px) scale(${f4(1 + k[3])},${f4(1 - k[3])})`, easing: k[5] }));
+    const shKf = K.map((k, i) => ({ offset: off[i], transform: `translateX(${f4(x0 * k[1])}px) scale(${f4(1 / (1 + k[2] / (2.2 * R)))})`, opacity: f4(0.5 / (1 + k[2] / (1.5 * R))), easing: k[5] }));
+    const cubeKf = K.map((k, i) => ({ offset: off[i], transform: `rotate3d(${f4(A[0])},${f4(A[1])},${f4(A[2])},${f4(spin * k[4])}rad) ${i ? fin : M0}`, easing: i < 12 ? 'linear' : k[5] }));
+    // all dice leave together at the click; a later die flies a little longer, so they still land one after another
+    const opt = { duration: T, fill: 'both' };
     return [fly.animate(flyKf, opt), sh.animate(shKf, opt), cube.animate(cubeKf, opt)];
   }
   function roll(g) {
@@ -311,6 +323,7 @@
 .vd-out{order:3}
 .vd-stage{display:flex;flex-direction:column;align-items:center;overflow:hidden;border-radius:var(--r-md);background:var(--surface)}
 .vd3-row{position:relative;display:flex;justify-content:center;width:100%}
+.vd3-row:first-child{margin-top:calc(var(--rowty,0px) * .5)}
 .vd3-row::before{content:'';position:absolute;left:0;right:0;bottom:0;top:calc(var(--rowty,0px));background:var(--surface-3);border-top:1px solid var(--line)}
 .vd3-cell{position:relative;display:block;flex:none;perspective:640px;perspective-origin:50% 30%}
 .vd3-fly{position:absolute;inset:0;transform-style:preserve-3d;transform-origin:50% 75%}
@@ -383,7 +396,7 @@
         { transform: at(from, 0, i, 0) },
         { transform: at(mx, left ? -4 : -lift, j, left ? tilt * 0.5 : -tilt * 0.5), offset: 0.45 },
         { transform: sidePose(left, j) }], { duration: 340 / S, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' });
-    }), 900);
+    }), 340 / S + 600);
     if (!live()) return;
     order.forEach((c, i) => { const left = i < half; lay(c, sidePose(left, left ? i : i - half)); });
     // riffle: the top card of each half drops in turn, alternating sides, onto one stack in the centre
@@ -404,7 +417,7 @@
         { transform: at(x0 + (P.C - x0) * 0.55, -lift, k, (left ? tilt : -tilt) * 0.3), zIndex: z, offset: 0.5, easing: 'ease-in' },
         { transform: at(P.C + jit[k][0], 0, k, jit[k][1]), zIndex: z }], { duration: 240 / S, delay: k * 80 / S, easing: 'ease-out', fill: 'forwards' });
     });
-    await all(anims, 2600);
+    await all(anims, (DECK * 80 + 240) / S + 600);
     if (!live()) return;
     next.forEach((c, k) => lay(c, at(P.C + jit[k][0], 0, k, jit[k][1]), k + 1));
     cards.length = 0; next.forEach(c => cards.push(c));
@@ -412,13 +425,13 @@
     await all(cards.map((c, k) => c.animate([
       { transform: at(P.C + jit[k][0], 0, k, jit[k][1]) },
       { transform: at(P.C, 3, k, 0) + ' scale(1.03,.96)', offset: 0.5 },
-      { transform: at(P.C, 0, k, 0) }], { duration: 220 / S, easing: 'ease-in-out', fill: 'forwards' })), 700);
+      { transform: at(P.C, 0, k, 0) }], { duration: 220 / S, easing: 'ease-in-out', fill: 'forwards' })), 220 / S + 600);
     if (!live()) return;
     cards.forEach((c, k) => lay(c, at(P.C, 0, k, 0)));
   }
   // slide the squared stack from the table centre back to the deck's home spot
   async function gather(cards, S, live, from) {
-    await all(cards.map((c, k) => c.animate([{ transform: at(from, 0, k, 0) }, { transform: at(0, 0, k, 0) }], { duration: 260 / S, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' })), 700);
+    await all(cards.map((c, k) => c.animate([{ transform: at(from, 0, k, 0) }, { transform: at(0, 0, k, 0) }], { duration: 260 / S, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' })), 260 / S + 600);
     if (!live()) return;
     cards.forEach((c, k) => lay(c, base(k)));
   }
@@ -453,11 +466,14 @@
     g._busy = true; btn.disabled = true;
     g.classList.remove('drawn', 'dealing'); g.classList.add('shuffling');
     cards.forEach(x => { x.style.visibility = ''; });
+    // how long this draw should take: one pass is cut, riffle and square up, then the gather and the deal;
+    // the watchdog waits half as long again plus a second, so it only ever lands a draw that has stalled
+    const pass = 340 + DECK * 80 + 240 + 220, plan = (md === 'full' ? pass + pass / 1.15 : pass) / S + (260 + 950) / S;
     // a tap on the table skips to the dealt card; the watchdog lands it if anything stalls
     let skipped = false;
     const live = () => !skipped;
     g._skip = () => { skipped = true; done(); };
-    g._watch = setTimeout(done, 7000);
+    g._watch = setTimeout(done, Math.max(7000, plan * 1.5 + 1000));
     try {
       const P = spots(g, amp);
       await riffle(cards, S, amp, live, P, 0);
@@ -477,7 +493,7 @@
         { transform: `translate(${f4(dx + 6)}px,${f4(dy - 18)}px) scale(1.07) rotateY(0deg)`, offset: 0.16, easing: 'ease-in-out' },
         { transform: 'translate(0px,-16px) scale(1.07) rotateY(0deg)', offset: 0.58, easing: 'ease-in-out' },
         { transform: 'translate(0px,-8px) scale(1.04) rotateY(90deg)', offset: 0.8, easing: 'ease-out' },
-        { transform: 'translate(0px,0px) scale(1) rotateY(180deg)', offset: 1 }], { duration: 950 / S, fill: 'forwards' })], 1800);
+        { transform: 'translate(0px,0px) scale(1) rotateY(180deg)', offset: 1 }], { duration: 950 / S, fill: 'forwards' })], 950 / S + 600);
     } catch (e) { /* fall through: the result still lands */ }
     done();
   }
