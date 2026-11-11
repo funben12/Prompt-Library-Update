@@ -1,8 +1,8 @@
 /* Randomiser motion for the desktop app.
    This file is the desktop's PL_MOTION layer. The shared vartypes-3d.js (copied byte for byte from the phone app,
    AI-App-Factory apps/app-003-prompt-library-mobile/source/app/src/main/assets/vartypes-3d.js) plugs into it and draws
-   the real 3D dice and the card deck that cuts, riffles and deals. This file also gives Random pick and Random number
-   a reel, and adds "Dice and card motion" to Settings.
+   the real 3D dice, the card deck that cuts, riffles and deals, and the slot machine drums for Random pick and
+   Random number. This file keeps a text reel for those two as the fallback, and adds "Randomiser motion" to Settings.
 
    RANDOMISER MOTION CONTRACT (keep in step with the phone's vartypes-motion.js):
    1. The result is chosen first, with rand(), from the system's secure random source. The animation only reveals it.
@@ -10,10 +10,10 @@
       prefers-reduced-motion. That gate is what kept turning the dice and deck into a still flip whenever Windows
       "Animation effects" was off. Do not put it back.
    3. Motion is Web Animations API (element.animate), so the global reduced motion rule in app.css cannot flatten it.
-   4. A click on the moving dice, deck or reel skips straight to the result, and a watchdog always lands the result.
+   4. A click on the moving dice, deck, drums or reel skips straight to the result, and a watchdog always lands the result.
 
    Load order in index.html: app.js, then this file, then vartypes-3d.js, all with defer.
-   If this file or vartypes-3d.js fails to load, app.js draws its own dice, deck and random pick as before. */
+   If this file or vartypes-3d.js fails to load, app.js draws its own dice, deck and random pick and number as before. */
 (function () {
   'use strict';
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -193,16 +193,16 @@
     if (wrap._busy && wrap._skip) wrap._skip();
   }));
 
-  // ---- Settings: Dice and card motion ----
+  // ---- Settings: Randomiser motion ----
   function addSetting() {
     const body = document.querySelector('#configPanel .config-panel-body');
     if (!body || body.querySelector('.pl-rm-setting')) return;
     const box = document.createElement('div');
     box.className = 'pl-rm-setting';
     const m = mode(), opt = (v, label) => `<button type="button" class="pl-rm-tab${m === v ? ' active' : ''}" data-rmode-set="${v}" aria-pressed="${m === v}">${label}</button>`;
-    box.innerHTML = `<div class="config-section-label">Dice and card motion</div>
-      <div class="pl-rm-tabs" role="group" aria-label="Dice and card motion">${opt('full', 'Full')}${opt('short', 'Short')}${opt('off', 'Off')}</div>
-      <p class="pl-rm-hint">For dice, card decks and random picks. Click while it moves to skip to the result.</p>`;
+    box.innerHTML = `<div class="config-section-label">Randomiser motion</div>
+      <div class="pl-rm-tabs" role="group" aria-label="Randomiser motion">${opt('full', 'Full')}${opt('short', 'Short')}${opt('off', 'Off')}</div>
+      <p class="pl-rm-hint">For dice, card decks, random picks and random numbers. Click while it moves to skip to the result.</p>`;
     body.appendChild(box);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', safe('setting', addSetting)); else safe('setting', addSetting)();

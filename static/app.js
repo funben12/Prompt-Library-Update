@@ -1805,7 +1805,9 @@
       </div>`;
             } else if (_PL_RANDOM_DEFAULTS[type]) {
                 const rollOpts = opts.length ? optTitles : _PL_RANDOM_DEFAULTS[type];
-                input = `<div class="var-random-block"><div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
+                // the shared slot machine drums (static/vartypes-3d.js) when they loaded, else the text reel below
+                const drum3d = window.PL_MOTION && window.PL_MOTION.control && window.PL_MOTION.control(type, v, { options: opts.length ? optTitles : [] }, def);
+                input = drum3d || `<div class="var-random-block"><div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
         <button type="button" class="btn btn-sm" data-roll-kind="${type}" data-roll-options="${escapeAttr(JSON.stringify(rollOpts))}" onclick="window._PL_rollChoice(this)">${_PL_RANDOM_LABELS[type]}</button>
         <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;

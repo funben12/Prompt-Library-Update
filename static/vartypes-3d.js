@@ -1,7 +1,8 @@
-/* Variable 3D: a real N sided die that drops, bounces and settles on a table, and a card deck that cuts,
-   riffles and deals. Registers the diceroll and carddeck controls with PL_MOTION (vartypes-motion.js).
+/* Variable 3D: a real N sided die that drops, bounces and settles on a table, a card deck that cuts,
+   riffles and deals, and slot machine drums for random pick and random number.
+   Registers the diceroll, carddeck, randompick and randomnumber controls with PL_MOTION (vartypes-motion.js).
    Everything is DOM and CSS 3D driven by the Web Animations API, no canvas, no library.
-   If this file fails to load, vartypes.js draws its own dice and deck as before. */
+   If this file fails to load, vartypes.js draws its own dice, deck and text reel as before. */
 (function () {
   const M = window.PL_MOTION;
   if (!M || !M.register) return;
@@ -438,6 +439,178 @@
 .vc-row button{min-height:44px;padding:8px 14px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--on-accent);font-weight:700}
 .vc-row button:disabled{opacity:.6}
 .vc-row small{color:var(--ink-3);font-size:var(--t-meta)}
+`);
+  // ---- random pick and random number: slot machine drums ----
+  // Random pick is one 3D drum of option slats that winds back, spins and clunks onto the chosen option.
+  // Random number is one drum per digit; every drum starts together and they stop left to right.
+  // The result is chosen first with rand(); the drums only travel to it.
+  const PICK_N = 16, PICK_H = 52, DIG_N = 10, DIG_H = 56, MAX_DIGITS = 9;
+  const PICK_DEFAULT = ['Option A', 'Option B', 'Option C'];
+  const radius = (n, h) => f4((h / 2) / Math.tan(Math.PI / n));
+  const turn = deg => `rotateX(${f4(deg)}deg)`;
+  const norm360 = d => ((d % 360) + 360) % 360;
+  function drumHtml(n, h, labels, at, cls) {
+    const a = 360 / n, r = radius(n, h);
+    const faces = labels.map((t, i) => `<span class="vr-f" data-i="${i}" style="height:${h}px;margin-top:${-h / 2}px;transform:rotateX(${f4(-i * a)}deg) translateZ(${r}px)"><span class="vr-t">${esc(t)}</span></span>`).join('');
+    return `<div class="vr-win ${cls}" style="--h:${h}px"><div class="vr-drum" data-at="${at}" style="transform:${turn(at * a)}">${faces}</div></div>`;
+  }
+  // Spin a drum down to face t: a short wind back, a fast spin that slows, a small overshoot, then the clunk
+  function spinTo(drum, n, t, spins, dur, delay) {
+    const a = 360 / n, cur = drum._ang != null ? drum._ang : (+drum.dataset.at || 0) * a, base = t * a;
+    const k = Math.ceil((base - cur + spins * 360) / 360 - 1e-9), fin = base - 360 * k;
+    drum._fin = norm360(base);
+    return drum.animate([
+      { transform: turn(cur), offset: 0, easing: 'ease-in-out' },
+      { transform: turn(cur + a * 0.35), offset: 0.08, easing: 'cubic-bezier(.2,.7,.25,1)' },
+      { transform: turn(fin - a * 0.3), offset: 0.86, easing: 'cubic-bezier(.3,0,.45,1)' },
+      { transform: turn(fin), offset: 1 }], { duration: dur, delay, fill: 'forwards' });
+  }
+  function rest(drum, n, t) {
+    if (drum._fin == null) drum._fin = norm360(t * 360 / n);
+    drum.getAnimations().forEach(x => x.cancel());
+    drum._ang = drum._fin; drum.dataset.at = t;
+    drum.style.transform = turn(drum._fin);
+  }
+  const blur = (win, dur, delay) => win.animate([{ filter: 'blur(0)' }, { filter: 'blur(1.6px)', offset: 0.18 }, { filter: 'blur(1.2px)', offset: 0.55 }, { filter: 'blur(0)' }], { duration: dur, delay, easing: 'ease-out' });
+  const clunk = el => el.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.035,.94)', offset: 0.35 }, { transform: 'scale(1)' }], { duration: 220, easing: 'ease-out' });
+  function report(g, value) {
+    const hidden = g.querySelector('input[data-var]'), out = g.querySelector('.vr-out');
+    if (out) out.textContent = value;
+    if (hidden) hidden.value = value;
+    if (window.PL_VARS && window.PL_VARS.onChange) window.PL_VARS.onChange(g.dataset.vr, value);
+  }
+  function numRange(m) {
+    const o = m.options || [];
+    let lo = parseInt(o[0], 10), hi = parseInt(o[1], 10);
+    if (isNaN(lo)) lo = 1;
+    if (isNaN(hi)) hi = 100;
+    if (lo > hi) [lo, hi] = [hi, lo];
+    return [lo, hi];
+  }
+
+  M.register('randompick', function (v, m, val) {
+    const opts = (m.options || []).map(o => String(o).split('|')[0].trim()).filter(Boolean), list = opts.length ? opts : PICK_DEFAULT;
+    // face 0 holds the current value; the slats below and above continue through the options in order
+    const vi = list.indexOf(val), start = vi < 0 ? 0 : vi;
+    const labels = Array.from({ length: PICK_N }, (_, i) => i === 0 ? (val || 'Ready to spin') : list[(start + (vi < 0 ? i - 1 : i) + list.length * PICK_N) % list.length]);
+    return `<div class="vr vr-pick" data-vr="${esc(v)}" data-kind="randompick" data-options="${esc(JSON.stringify(list))}">
+      <div class="vr-stage">${drumHtml(PICK_N, PICK_H, labels, 0, 'vr-pw')}<i class="vr-pay" aria-hidden="true"></i></div>
+      <div class="vr-row"><button type="button" data-vrgo>Pick at random</button><small>${list.length} option${list.length === 1 ? '' : 's'}</small>${modeButton()}</div>
+      <output class="vr-out" aria-live="polite">${esc(val)}</output><input type="hidden" data-var="${esc(v)}" value="${esc(val)}"></div>`;
+  });
+  M.register('randomnumber', function (v, m, val) {
+    const [lo, hi] = numRange(m), D = Math.max(String(Math.abs(lo)).length, String(Math.abs(hi)).length);
+    // very long numbers keep the host's own text reel
+    if (D > MAX_DIGITS || hi - lo + 1 > 4294967295) return null;
+    const n = parseInt(val, 10), has = !isNaN(n), digits = String(Math.abs(has ? n : 0)).padStart(D, '0').slice(-D).split('').map(Number);
+    const nz = digits.findIndex(d => d !== 0), first = nz < 0 ? D - 1 : nz;
+    const digitLabels = Array.from({ length: DIG_N }, (_, i) => String(i));
+    return `<div class="vr vr-num${has ? '' : ' idle'}" data-vr="${esc(v)}" data-kind="randomnumber" data-lo="${lo}" data-hi="${hi}">
+      <div class="vr-stage"><div class="vr-digits">${lo < 0 ? `<b class="vr-sign">${has && n < 0 ? '-' : ''}</b>` : ''}${digits.map((d, i) => drumHtml(DIG_N, DIG_H, digitLabels, d, 'vr-dw' + (has && i < first ? ' lead' : ''))).join('')}</div><i class="vr-pay" aria-hidden="true"></i></div>
+      <div class="vr-row"><button type="button" data-vrgo>Generate number</button><small>${lo} to ${hi}</small>${modeButton()}</div>
+      <output class="vr-out" aria-live="polite">${esc(val)}</output><input type="hidden" data-var="${esc(v)}" value="${esc(val)}"></div>`;
+  });
+  function markLeading(g) {
+    const ws = Array.from(g.querySelectorAll('.vr-dw'));
+    let lead = true;
+    ws.forEach((w, i) => { const d = +w.querySelector('.vr-drum').dataset.at; if (d !== 0 || i === ws.length - 1) lead = false; w.classList.toggle('lead', lead); });
+  }
+  function spinDrums(g) {
+    const kind = g.dataset.kind, md = mode(), stage = g.querySelector('.vr-stage'), go = g.querySelector('[data-vrgo]');
+    let value = '', jobs = [];
+    if (kind === 'randompick') {
+      let list = [];
+      try { list = JSON.parse(g.dataset.options || '[]'); } catch (_) {}
+      if (!list.length) return report(g, 'No valid options');
+      const pi = rand(list.length);
+      value = list[pi];
+      const drum = g.querySelector('.vr-drum'), a = 360 / PICK_N;
+      const front = Math.round(norm360(drum._ang != null ? drum._ang : (+drum.dataset.at || 0) * a) / a) % PICK_N, t = (front + PICK_N / 2) % PICK_N;
+      // relabel every slat out of sight; the chosen option sits on the far side and its neighbours follow the list
+      drum.querySelectorAll('.vr-f').forEach((f, i) => {
+        const fromFront = Math.min((i - front + PICK_N) % PICK_N, (front - i + PICK_N) % PICK_N);
+        if (fromFront <= 2) return;
+        const off = ((i - t + PICK_N + PICK_N / 2) % PICK_N) - PICK_N / 2;
+        f.querySelector('.vr-t').textContent = list[((pi + off) % list.length + list.length) % list.length];
+        f.classList.remove('win');
+      });
+      jobs.push({ drum, n: PICK_N, t, spins: md === 'short' ? 2 : 4, dur: md === 'short' ? 950 : 2000, delay: 0 });
+    } else {
+      const lo = +g.dataset.lo, hi = +g.dataset.hi, n = lo + rand(hi - lo + 1);
+      value = String(n);
+      const drums = Array.from(g.querySelectorAll('.vr-dw .vr-drum')), D = drums.length;
+      const digits = String(Math.abs(n)).padStart(D, '0').slice(-D).split('').map(Number);
+      drums.forEach((drum, j) => jobs.push({ drum, n: DIG_N, t: digits[j], spins: md === 'short' ? 1 : 2 + j, dur: md === 'short' ? 600 + j * 160 : 1050 + j * 380, delay: 0 }));
+      g._sign = n < 0 ? '-' : '';
+    }
+    let ended = false;
+    const land = () => {
+      if (ended) return; ended = true;
+      clearTimeout(g._watch); g._end = null;
+      stage.getAnimations({ subtree: true }).forEach(x => x.cancel());
+      jobs.forEach(j => {
+        rest(j.drum, j.n, j.t);
+        j.drum.querySelectorAll('.vr-f').forEach(f => f.classList.toggle('win', +f.dataset.i === j.t));
+      });
+      const sign = g.querySelector('.vr-sign');
+      if (sign) sign.textContent = g._sign || '';
+      if (kind === 'randomnumber') markLeading(g);
+      g._busy = false; go.disabled = false;
+      g.classList.remove('spinning', 'idle'); g.classList.add('landed');
+      report(g, value);
+      if (md !== 'off') stage.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.05)', offset: 0.4 }, { transform: 'scale(1)' }], { duration: 300, easing: 'cubic-bezier(.2,.9,.3,1.2)' });
+    };
+    if (md === 'off') return land();
+    g._busy = true; go.disabled = true;
+    g.classList.remove('landed', 'idle'); g.classList.add('spinning');
+    g.querySelectorAll('.vr-f.win').forEach(f => f.classList.remove('win'));
+    g.querySelectorAll('.vr-dw.lead').forEach(w => w.classList.remove('lead'));
+    const sign = g.querySelector('.vr-sign');
+    if (sign) sign.textContent = '';
+    let longest = 0, lastAnim = null;
+    jobs.forEach(j => {
+      const an = spinTo(j.drum, j.n, j.t, j.spins, j.dur, j.delay), win = j.drum.parentNode;
+      blur(win, j.dur * 0.9, j.delay);
+      // each drum clunks as it stops, so a number lands digit by digit
+      an.finished.then(() => { if (!ended) { rest(j.drum, j.n, j.t); clunk(win); } }, () => {});
+      if (j.dur + j.delay >= longest) { longest = j.dur + j.delay; lastAnim = an; }
+    });
+    g._end = land;
+    if (lastAnim) lastAnim.finished.then(() => setTimeout(land, 180), land);
+    g._watch = setTimeout(land, longest + 1500);
+  }
+  document.addEventListener('click', safe('drums', e => {
+    const g = e.target.closest && e.target.closest('.vr');
+    if (!g) return;
+    // a tap on the drums while they spin skips straight to the result; preventDefault keeps a host <label> from starting a new spin
+    if (g._busy) { if (g._end && e.target.closest('.vr-stage')) { e.preventDefault(); g._end(); } return; }
+    if (e.target.closest('[data-vrgo]')) spinDrums(g);
+  }));
+  CSS.push(`
+.vr{display:flex;flex-direction:column;gap:10px;padding-top:6px}
+.vr-stage{position:relative;display:flex;justify-content:center;padding:12px;border-radius:var(--r-md);background:var(--surface-3);border:1px solid var(--line);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.vr-win{position:relative;height:calc(var(--h) * 1.9);perspective:520px;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:var(--surface);-webkit-mask-image:linear-gradient(transparent,#000 24%,#000 76%,transparent);mask-image:linear-gradient(transparent,#000 24%,#000 76%,transparent)}
+.vr-pw{flex:1;max-width:320px}
+.vr-drum{position:absolute;left:0;right:0;top:50%;height:0;transform-style:preserve-3d;will-change:transform}
+.vr-f{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:0 14px;background:var(--surface-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.vr-t{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-align:center;font:700 15px/1.25 var(--ff-sans);color:var(--ink);overflow-wrap:anywhere}
+.vr-f.win{background:var(--surface)}
+.vr-f.win .vr-t{color:var(--accent)}
+.vr-pay{position:absolute;left:4px;right:4px;top:50%;height:0;pointer-events:none}
+.vr-pay::before,.vr-pay::after{content:'';position:absolute;top:-7px;border:7px solid transparent}
+.vr-pay::before{left:0;border-left-color:var(--accent)}
+.vr-pay::after{right:0;border-right-color:var(--accent)}
+.vr-digits{display:flex;align-items:center;gap:6px}
+.vr-dw{width:44px;flex:none}
+.vr-dw .vr-f{padding:0}
+.vr-dw .vr-t{font:700 30px/1 var(--ff-mono)}
+.vr-dw.lead .vr-t,.vr-num.idle .vr-t{color:var(--ink-3);opacity:.45}
+.vr-sign{min-width:18px;text-align:center;font:700 30px/1 var(--ff-mono);color:var(--accent)}
+.vr-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.vr-row button[data-vrgo]{min-height:44px;padding:8px 14px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--on-accent);font-weight:700}
+.vr-row button:disabled{opacity:.6}
+.vr-row small{color:var(--ink-3);font-size:var(--t-meta)}
+.vr-out{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 `);
   const style = document.createElement('style');
   style.textContent = CSS.join('\n');

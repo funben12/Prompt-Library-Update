@@ -242,9 +242,9 @@ Recent fixes also include:
 These have broken into a still flip more than once after updates. Rules that keep them moving:
 
 - The result is picked first with `_PL_rand` (crypto, rejection sampling). The animation only reveals it.
-- How much motion plays is the app's own setting (Settings, Dice and card motion: Full, Short or Off, localStorage `pl.randomMotion`, default Full). Never gate it on `prefers-reduced-motion` again: Windows "Animation effects" off was what flattened it.
+- How much motion plays is the app's own setting (Settings, Randomiser motion: Full, Short or Off, localStorage `pl.randomMotion`, default Full). Never gate it on `prefers-reduced-motion` again: Windows "Animation effects" off was what flattened it.
 - Motion is Web Animations API in `static/vartypes-3d.js` and `static/randomiser-motion.js`, so the global reduced motion rule in `app.css` cannot kill it. Do not move it back to CSS transitions.
-- Load order is app.js, randomiser-motion.js, vartypes-3d.js, all `defer`, all cache-busted by `update_hash.py`. If either file fails, app.js still draws its own dice and deck.
+- Load order is app.js, randomiser-motion.js, vartypes-3d.js, all `defer`, all cache-busted by `update_hash.py`. If either file fails, app.js still draws its own dice, deck and text reel.
 - Run `tests/randomiser` after touching any of this.
 
 ### Working principle
@@ -263,7 +263,7 @@ The phone app lives in the separate repo `funben12/AI-App-Factory`, folder `apps
   - `static/forge-frameworks.js` is copied to the phone as `forge-frameworks.js`.
   - `variable_meta` (type, default, options, visible, multi, wrap) and nearby share (`share_server.py`, `/api/share/send`) carry variable types both ways. Changing either needs the phone's `vartypes.js` and `MainActivity.java` checked.
   - The Gauntlet Loop text is shared word for word with the phone (`_gauntTemplate` here, `tools-build.js` there).
-  - `static/vartypes-3d.js` (3D dice and card deck) is the phone's `assets/vartypes-3d.js` byte for byte. Edit it on the phone side, copy it here, then run `python3 update_hash.py`. `tests/randomiser` fails if the two differ (set `PHONE_ASSETS`).
+  - `static/vartypes-3d.js` (3D dice, card deck, and the random pick and random number drums) is the phone's `assets/vartypes-3d.js` byte for byte. Edit it on the phone side, copy it here, then run `python3 update_hash.py`. `tests/randomiser` fails if the two differ (set `PHONE_ASSETS`).
 - **Baseline (2026-10-09):** current main of both repos, after the 2026-10-09 variable type PR merges, is the version Eugene uses. Clean up starts from it. Do not compare against the APKs uploaded or committed so far: both are older, pre-cleanup builds. The reference phone build is the latest "Build Prompt Library Mobile APK" release from AI-App-Factory main. See MEMORY.md, BASELINE.
 - **Phone-side gotchas:** the Android WebView has no Material Symbols font, so icons are inline SVG. Phone data is in IndexedDB (`prompt-library`, prompts only) and localStorage (boards, drafts, custom frameworks). Library Organizer deletes by writing IndexedDB directly. Backup restore keeps a safety copy in IndexedDB `prompt-library-safety`.
 - **Verification:** headless Chromium at 390 x 844 against the phone's `assets/index.html`. It has not been run on a physical phone yet.

@@ -1,4 +1,4 @@
-# Randomiser motion guard: the dice, card deck and random pick must keep real motion after every update.
+# Randomiser motion guard: the dice, card deck, random pick and random number must keep real motion after every update.
 # Starts the real app on a throwaway data folder, seeds one prompt and drives it in headless Chromium.
 #   pip install flask flask-cors waitress playwright
 #   CHROME=<path to chrome> python -m unittest discover tests/randomiser
@@ -22,6 +22,7 @@ META = {
     'd': {'type': 'diceroll', 'faces': 6, 'visible': True},
     'c': {'type': 'carddeck', 'options': ['Ace', 'King', 'Queen'], 'visible': True},
     'p': {'type': 'randompick', 'options': ['Red', 'Green', 'Blue'], 'visible': True},
+    'n': {'type': 'randomnumber', 'options': ['1', '500'], 'visible': True},
 }
 SERVER = r'''
 import os, sys
@@ -51,7 +52,7 @@ class Randomiser(unittest.TestCase):
             except Exception:
                 time.sleep(0.2)
         req = urllib.request.Request(base + '/api/prompts', method='POST', headers={'Content-Type': 'application/json'},
-                                     data=json.dumps({'title': 'Motion', 'content': 'Roll {{d}} draw {{c}} pick {{p}}', 'category': 'Test', 'variable_meta': META}).encode())
+                                     data=json.dumps({'title': 'Motion', 'content': 'Roll {{d}} draw {{c}} pick {{p}} number {{n}}', 'category': 'Test', 'variable_meta': META}).encode())
         cls.pid = json.loads(_opener.open(req, timeout=10).read())['id']
         cls.base = base
         cls.pw = sync_playwright().start()
@@ -103,14 +104,38 @@ class Randomiser(unittest.TestCase):
         page.wait_for_selector('#variableFields .vc.drawn', timeout=9000)
         self.assertIn(page.input_value('#variableFields .pl-r3d[data-vtype=carddeck] input.var-input'), ['Ace', 'King', 'Queen'])
 
-    def test_3_random_pick_reels_then_lands(self):
-        page = self.open()
+    def test_3_random_pick_drum_spins_then_lands(self):
+        page = self.open(reduced=True)
+        page.click('#variableFields .vr-pick [data-vrgo]')
+        page.wait_for_timeout(250)
+        self.assertGreaterEqual(self.anims(page, '#variableFields .vr-pick'), 2)
+        page.wait_for_selector('#variableFields .vr-pick.landed', timeout=5000)
+        out = page.input_value('#variableFields .pl-r3d[data-vtype=randompick] input.var-input')
+        self.assertIn(out, ['Red', 'Green', 'Blue'])
+        self.assertEqual(page.text_content('#variableFields .vr-pick .vr-f.win'), out)
+        self.assertIn(out, page.text_content('#varPreviewBox'))
+
+    def test_3b_random_number_drums_stop_left_to_right(self):
+        page = self.open(reduced=True)
+        self.assertEqual(page.locator('#variableFields .vr-num .vr-dw').count(), 3)
+        page.click('#variableFields .vr-num [data-vrgo]')
+        page.wait_for_timeout(250)
+        self.assertGreaterEqual(self.anims(page, '#variableFields .vr-num'), 3)
+        page.wait_for_selector('#variableFields .vr-num.landed', timeout=5000)
+        value = page.input_value('#variableFields .pl-r3d[data-vtype=randomnumber] input.var-input')
+        self.assertTrue(1 <= int(value) <= 500)
+        shown = ''.join(page.eval_on_selector_all('#variableFields .vr-num .vr-f.win', 'fs => fs.map(f => f.textContent)'))
+        self.assertEqual(int(shown), int(value))
+        self.assertIn(value, page.text_content('#varPreviewBox'))
+        self.assertEqual(page.errors, [])
+
+    def test_3c_the_text_reel_still_works_without_the_shared_file(self):
+        page = self.open(block='vartypes-3d.js')
         page.click('#variableFields button[data-roll-kind=randompick]')
         page.wait_for_selector('#variableFields .vm-reeling', timeout=1000)
-        page.wait_for_selector('#variableFields .var-random-block:not(:has(.vm-reeling))', timeout=4000)
-        out = page.text_content('#variableFields .var-random-block [data-roll-result]')
-        self.assertIn(out, ['Red', 'Green', 'Blue'])
-        self.assertIn(out, page.text_content('#varPreviewBox'))
+        block = '#variableFields .var-random-block:has(button[data-roll-kind=randompick])'
+        page.wait_for_selector(block + ':not(:has(.vm-reeling))', timeout=4000)
+        self.assertIn(page.text_content(block + ' [data-roll-result]'), ['Red', 'Green', 'Blue'])
 
     def test_4_motion_off_gives_the_result_at_once(self):
         page = self.open(motion='off')
@@ -126,6 +151,11 @@ class Randomiser(unittest.TestCase):
         self.assertEqual(page.locator('#variableFields .vc.drawn').count(), 1)
         page.wait_for_timeout(800)
         self.assertEqual(self.anims(page, '#variableFields .vc'), 0)
+        page.click('#variableFields .vr-num [data-vrgo]')
+        page.wait_for_timeout(200)
+        page.click('#variableFields .vr-num .vr-stage', force=True)
+        self.assertEqual(page.locator('#variableFields .vr-num.landed').count(), 1)
+        self.assertNotEqual(page.input_value('#variableFields .pl-r3d[data-vtype=randomnumber] input.var-input'), '')
 
     def test_6_settings_has_the_motion_choice(self):
         page = self.open()
