@@ -18,6 +18,7 @@
 | Inno Setup for installer | Distribution pipeline: build.bat → build_installer.bat → single .exe via Inno Setup. ~50MB installer with Start Menu/Desktop shortcuts, Add/Remove Programs registration, optional DB cleanup on uninstall. | Prior |
 | No cloud, no accounts | Fully local app. SQLite DB in user data directory. No internet required. | Prior |
 | Onboarding tour — no video | Interactive spotlight tour only. Video-based onboarding was explicitly rejected. If onboarding is ever extended, do not add video. | 2026-06-04 |
+| Randomiser motion follows the app's own setting, not the OS | Dice and card deck kept turning into a still flip because both apps skipped the motion whenever Windows or Android had reduced animations on. Desktop now uses the phone's 3D dice and riffle deck (shared `static/vartypes-3d.js`), random pick and number get a reel, results come from crypto, and Settings has Dice and card motion (Full, Short, Off). Guarded by `tests/randomiser`. | 2026-11-11 |
 | Build.bat Error 5 / Access Denied | Fixed: (1) `taskkill /F /IM PromptLibrary.exe /T >nul 2>&1` + 2s wait before clean step; (2) `--noupx` on pyinstaller command — UPX triggers Windows Defender mid-build. Both fixes live in Build.bat. | 2026-05-18 |
 
 ## Architecture
