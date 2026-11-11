@@ -5,7 +5,7 @@
 1. AI engine. Every AI tool now calls one shared function. API settings has a model field for each provider. Anthropic gains an optional Second opinion switch, off by default.
 2. Prompt Board. Icon rail, centred search, masonry pins with hover Save, two column close up, collage board covers. A pin button on library cards and in the detail panel saves a prompt to a board from anywhere.
 3. Open goals. `GOALS.md` ticked where the browser run showed the work is live.
-4. Screens folder. `showcase/` holds 52 screens in light and dark, plus a gallery page.
+4. Screens folder. `showcase/` holds 50 screens in light and dark, plus a gallery page.
 
 ## Not done
 
