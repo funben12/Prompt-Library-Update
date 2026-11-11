@@ -435,7 +435,7 @@
 .vc-face{padding:8px;background:var(--surface);border:1px solid var(--accent);transform:rotateY(180deg);font:700 14px/1.25 var(--ff-sans);text-align:center;color:var(--ink);overflow:hidden;overflow-wrap:anywhere}
 .vc.drawn .vc-card{opacity:1;transform:rotateY(180deg)}
 .vc.dealing .vc-card{opacity:1}
-.vc-row{display:flex;align-items:center;gap:12px;padding-top:8px}
+.vc-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding-top:8px}
 .vc-row button{min-height:44px;padding:8px 14px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--on-accent);font-weight:700}
 .vc-row button:disabled{opacity:.6}
 .vc-row small{color:var(--ink-3);font-size:var(--t-meta)}
