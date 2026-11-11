@@ -118,7 +118,7 @@
   const scaleFor = c => (c <= 2 ? 1 : c === 3 ? 0.9 : 0.8);
   function dims(sides, count) {
     const R = Math.round(baseR(sides) * scaleFor(count) * 10) / 10;
-    return { R, cw: Math.round(2.6 * R + 8), ch: Math.round(4.6 * R), cy: 2.7 * R, ty: 3.7 * R };
+    return { R, cw: Math.round(2.6 * R + 8), ch: Math.round(4.6 * R), cy: (sides === 4 ? 3.05 : 2.7) * R, ty: 3.7 * R };
   }
   function faceSvg(g, i, text, R, pips) {
     const f = g.faces[i], W = Math.ceil(2 * f.ext * R) + 6, h = W / 2, rr = f.r * R;
@@ -141,7 +141,9 @@
   // labels: the text for each value index; pose: a transform string for the cube
   function cubeHtml(sides, labels, d, pose, pips) {
     const g = geom(sides);
-    return `<div class="vd3-cube" data-faces="${g.count}" data-sides="${sides}" style="transform:${pose}">${g.faces.map((_, i) => faceSvg(g, i, labels[g.label[i]], d.R, pips)).join('')}</div>`;
+    // a d4's corners reach three times its inner radius, so its body is drawn smaller to sit on the table like the others
+    const R = sides === 4 ? d.R * 0.6 : d.R;
+    return `<div class="vd3-cube" data-faces="${g.count}" data-sides="${sides}" style="transform:${pose}">${g.faces.map((_, i) => faceSvg(g, i, labels[g.label[i]], R, pips)).join('')}</div>`;
   }
   function cellHtml(sides, labels, d, k, pips) {
     return `<span class="vd-die vd3-cell" style="--k:${k};width:${d.cw}px;height:${d.ch}px;--cy:${f4(d.cy)}px;--ty:${f4(d.ty)}px;--R:${d.R}px"><i class="vd3-shadow"></i><span class="vd3-fly">${cubeHtml(sides, labels, d, IDLE, pips)}</span></span>`;
