@@ -35,6 +35,10 @@ def devices(inst):
     return h.call('GET', inst['main'] + '/api/share/devices', timeout=30)[1].get('devices', [])
 
 
+def quick(inst):
+    return h.call('GET', inst['main'] + '/api/share/devices?quick=1', timeout=30)[1]
+
+
 def send(inst, ip, pid):
     return h.call('POST', inst['main'] + '/api/share/send', {'ip': ip, 'prompt_id': pid})
 
@@ -48,6 +52,20 @@ class DesktopToDesktop(unittest.TestCase):
         self.assertTrue(a_sees['Desk B']['receiving'])
         self.assertIn('Desk A', b_sees, b_sees)
         self.assertNotIn('Desk A', a_sees, 'a device must not list itself')
+
+    def test_01b_quick_discovery_both_ways(self):
+        import time
+        t = time.time()
+        a = quick(A)
+        took = time.time() - t
+        names = {d['name']: d for d in a['devices']}
+        self.assertTrue(a.get('quick'))
+        self.assertIn('Desk B', names, a)
+        self.assertEqual(names['Desk B']['ip'], B['ip'])
+        self.assertIn('Pixel Test', names, a)
+        self.assertNotIn('Desk A', names, 'a device must not list itself')
+        self.assertLess(took, 3.0, 'quick discovery should answer in about a second')
+        self.assertIn('Desk A', {d['name'] for d in quick(B)['devices']})
 
     def test_02_discovery_finds_the_phone(self):
         self.assertIn('Pixel Test', {d['name']: d['type'] for d in devices(A)})
