@@ -1765,6 +1765,8 @@ def share_devices():
             return jsonify({'devices': [], 'error': 'Use the address shown on the phone, like 192.168.1.23'})
         d = share_server.probe(ip, timeout=2.5)
         return jsonify({'devices': [d] if d else [], 'error': None if d else 'Nothing answered at ' + ip + '. Keep Prompt Library open on that device.'})
+    if request.args.get('quick'):
+        return jsonify(share_server.quick_scan())
     return jsonify(share_server.scan())
 
 
