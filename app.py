@@ -3713,6 +3713,36 @@ def save_ai_model():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/settings/context-bank', methods=['GET'])
+def get_context_bank():
+    """Return the saved copy of the Context Bank blocks."""
+    try:
+        with get_db() as con:
+            row = con.execute("SELECT value FROM settings WHERE key = 'context_bank_blocks'").fetchone()
+        blocks = json.loads(row['value']) if row else None
+        if not isinstance(blocks, list):
+            return jsonify({'exists': False, 'blocks': []})
+        return jsonify({'exists': True, 'blocks': blocks})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/context-bank', methods=['POST'])
+def save_context_bank():
+    """Store the Context Bank blocks so they survive a WebView storage reset."""
+    blocks = _json_body().get('blocks')
+    if not isinstance(blocks, list) or len(blocks) > 5000:
+        return jsonify({'error': 'blocks must be a list'}), 400
+    payload = json.dumps([b for b in blocks if isinstance(b, dict)], ensure_ascii=False)
+    if len(payload) > 5000000:
+        return jsonify({'error': 'context bank too large'}), 400
+    try:
+        with get_db() as con:
+            con.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                        ('context_bank_blocks', payload))
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/settings/ai-baseurls', methods=['GET'])
 def get_ai_baseurls():
     """Return stored custom base URLs, keyed by provider slug."""

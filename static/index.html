@@ -11,7 +11,7 @@
 
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/app.css?v=1594708d-plx">
+<link rel="stylesheet" href="/static/app.css?v=1dd0ffbf-plx">
 </head>
 <body>
 
@@ -1113,6 +1113,10 @@
           <span class="material-symbols-outlined">extension</span>
           Components
         </button>
+        <button type="button" class="panel-toggle-btn" id="ctxPanelToggleBtn" title="Context Bank: insert a saved context block at the cursor">
+          <span class="material-symbols-outlined">database</span>
+          Context
+        </button>
         <button type="button" class="panel-toggle-btn" id="snipPanelToggleBtn" title="Snippets — insert a saved snippet at the cursor">
           <span class="material-symbols-outlined">bolt</span>
           Snippets
@@ -1403,39 +1407,28 @@
         </button>
       </div>
       <div class="ctx-panel-search">
-        <input type="search" id="ctxPanelSearch" class="form-input" placeholder="Search blocks…" />
+        <input type="search" id="ctxPanelSearch" class="form-input" placeholder="Search blocks" aria-label="Search blocks" />
       </div>
-      <div class="ctx-panel-cats" id="ctxPanelCats">
-        <button class="chip active" data-cpf="all">All</button>
-        <button class="chip" data-cpf="Persona">Persona</button>
-        <button class="chip" data-cpf="Company">Company</button>
-        <button class="chip" data-cpf="Audience">Audience</button>
-        <button class="chip" data-cpf="Style">Style</button>
-        <button class="chip" data-cpf="Other">Other</button>
-      </div>
-      <div class="ctx-panel-list" id="ctxPanelList">
-        <div class="ctx-panel-empty">
-          <span class="material-symbols-outlined" style="font-size:32px">database</span>
-          <span>Loading blocks…</span>
-        </div>
-      </div>
+      <div class="ctx-panel-cats" id="ctxPanelCats"></div>
+      <label class="ctx-panel-wrap">
+        <span>Insert as</span>
+        <select id="ctxPanelWrap" class="form-input">
+          <option value="plain">Plain</option>
+          <option value="labelled">Labelled</option>
+          <option value="xml">XML tags</option>
+        </select>
+      </label>
+      <div class="ctx-panel-list" id="ctxPanelList"></div>
       <div class="ctx-panel-add-row">
         <details id="ctxPanelAddDetails">
           <summary class="btn btn-ghost btn-sm" style="list-style:none; cursor:pointer; display:inline-flex; gap:4px; align-items:center;">
             <span class="material-symbols-outlined" style="font-size:14px">add</span>
-            Quick-add block
+            Quick add block
           </summary>
           <div style="margin-top:var(--sp-3); display:flex; flex-direction:column; gap:var(--sp-2);">
             <input type="text" id="ctxPanelNewTitle" class="form-input" placeholder="Block title" />
-            <select id="ctxPanelNewCat" class="form-input">
-              <option>Persona</option>
-              <option>Company</option>
-              <option>Audience</option>
-              <option>Product</option>
-              <option>Style</option>
-              <option>Other</option>
-            </select>
-            <textarea id="ctxPanelNewContent" class="form-textarea" rows="4" placeholder="Context content…" style="resize:vertical"></textarea>
+            <select id="ctxPanelNewCat" class="form-input" aria-label="Category"></select>
+            <textarea id="ctxPanelNewContent" class="form-textarea" rows="4" placeholder="Context content" style="resize:vertical"></textarea>
             <button type="button" class="btn btn-accent btn-sm" id="ctxPanelSaveBtn" style="width:100%;">
               <span class="material-symbols-outlined" style="font-size:14px">save</span> Save block
             </button>
@@ -2752,16 +2745,23 @@
      Reusable context blocks — personas, company info, style guides.
      data-view="contextBank"
      ============================================================ -->
-<div id="contextBankWorkspace" role="dialog" aria-modal="true" aria-label="Context Bank">
+<div id="contextBankWorkspace" role="dialog" aria-modal="true" aria-label="Context Bank" tabindex="-1">
   <div class="ws-header">
     <div class="ws-header-left">
       <span class="material-symbols-outlined ws-header-icon">database</span>
       <div>
         <h2 class="ws-title">Context Bank</h2>
-        <p class="ws-subtitle">Reusable context blocks — paste into any prompt instantly.</p>
+        <p class="ws-subtitle">Context you write once and drop into any prompt.</p>
       </div>
     </div>
     <div class="ws-header-actions">
+      <button class="btn btn-ghost" id="ctxImportBtn" title="Add blocks from a Context Bank file">
+        <span class="material-symbols-outlined">upload</span> Import
+      </button>
+      <button class="btn btn-ghost" id="ctxExportBtn" title="Save every block to a file">
+        <span class="material-symbols-outlined">download</span> Export
+      </button>
+      <input type="file" id="ctxImportFile" accept=".json,application/json" hidden />
       <button class="btn btn-accent" id="ctxNewBtn">
         <span class="material-symbols-outlined">add</span> New block
       </button>
@@ -2771,96 +2771,99 @@
     </div>
   </div>
 
-  <div class="ws-body ctx-body">
+  <div class="ws-body ctxb-body">
 
-    <!-- Left: list panel -->
-    <div class="ctx-list-panel">
-      <!-- Search -->
-      <div class="ctx-search-row">
-        <span class="material-symbols-outlined ctx-search-icon">search</span>
-        <input type="search" id="ctxSearch" class="ctx-search-input" placeholder="Search blocks…" autocomplete="off" />
+    <!-- Find: search, category pills, sort -->
+    <div class="ctxb-toolbar">
+      <div class="ctxb-search">
+        <span class="material-symbols-outlined">search</span>
+        <input type="search" id="ctxSearch" placeholder="Search titles and content" autocomplete="off" aria-label="Search blocks" />
       </div>
-
-      <!-- Category pills -->
-      <div class="ctx-cat-row" id="ctxCategoryRow">
-        <button class="ctx-pill active" data-ctx-filter="all">All</button>
-        <button class="ctx-pill" data-ctx-filter="Persona">Persona</button>
-        <button class="ctx-pill" data-ctx-filter="Company">Company</button>
-        <button class="ctx-pill" data-ctx-filter="Audience">Audience</button>
-        <button class="ctx-pill" data-ctx-filter="Product">Product</button>
-        <button class="ctx-pill" data-ctx-filter="Style">Style</button>
-        <button class="ctx-pill" data-ctx-filter="Other">Other</button>
-      </div>
-
-      <!-- Stats row -->
-      <div class="ctx-meta-row">
-        <span class="ctx-meta-stat"><span id="ctxStatBlocks">0</span> blocks</span>
-        <span class="ctx-meta-sep">·</span>
-        <span class="ctx-meta-stat"><span id="ctxStatCats">0</span> categories</span>
-      </div>
-
-      <!-- Block list -->
-      <div class="ctx-list" id="ctxList">
-        <div class="ctx-empty" id="ctxEmptyHint">
-          <span class="material-symbols-outlined">inventory_2</span>
-          <p>No blocks yet.<br>Click <strong>New block</strong> to start.</p>
-        </div>
-      </div>
+      <div class="ctxb-pills" id="ctxCategoryRow" aria-label="Categories"></div>
+      <label class="ctxb-sort">
+        <span>Sort</span>
+        <select id="ctxSort" aria-label="Sort blocks">
+          <option value="recent">Recent</option>
+          <option value="name">Name</option>
+        </select>
+      </label>
     </div>
 
-    <!-- Right: editor panel -->
-    <div class="ctx-editor-panel" id="ctxEditorPanel">
-      <!-- Empty state -->
-      <div class="ctx-editor-empty" id="ctxEditorEmpty">
-        <span class="material-symbols-outlined">touch_app</span>
-        <p>Select a block to edit<br>or click <strong>New block</strong></p>
+    <div class="ctxb-main">
+
+      <!-- Left: block list -->
+      <div class="ctxb-list-panel">
+        <div class="ctxb-list-head" id="ctxListCount">0 blocks</div>
+        <div class="ctxb-list" id="ctxList"></div>
       </div>
 
-      <!-- Form -->
-      <div class="ctx-editor-form" id="ctxEditorForm" hidden>
-        <div class="ctx-editor-top">
-          <span class="ctx-editor-eyebrow" id="ctxEditorHeading">New block</span>
+      <!-- Right: editor -->
+      <div class="ctxb-editor" id="ctxEditorPanel">
+        <div class="ctxb-empty" id="ctxEditorEmpty">
+          <h3>Your bank is empty</h3>
+          <p>A block is a piece of context you reuse: who you are, who you write for, how it should sound. Write it once, then drop it into any prompt.</p>
+          <button class="btn btn-accent" id="ctxEmptyNewBtn">
+            <span class="material-symbols-outlined">add</span> New block
+          </button>
         </div>
-        <div class="ctx-editor-scroll">
-          <div class="ctx-field">
-            <label class="ctx-label">Title <span class="ctx-req">*</span></label>
-            <input type="text" id="ctxTitle" class="ctx-input" placeholder="e.g. ACME Corp — Company Overview" />
+
+        <div class="ctxb-form" id="ctxEditorForm" hidden>
+          <div class="ctxb-guard" id="ctxGuard" role="alert" hidden>
+            <span>You have unsaved changes.</span>
+            <button class="btn btn-accent btn-sm" id="ctxGuardSave">Save</button>
+            <button class="btn btn-ghost btn-sm" id="ctxGuardDiscard">Discard</button>
+            <button class="btn btn-ghost btn-sm" id="ctxGuardKeep">Keep editing</button>
           </div>
-          <div class="ctx-field">
-            <label class="ctx-label">Category</label>
-            <select id="ctxCategory" class="ctx-input ctx-select">
-              <option>Persona</option>
-              <option>Company</option>
-              <option>Audience</option>
-              <option>Product</option>
-              <option>Style</option>
-              <option>Other</option>
-            </select>
+          <div class="ctxb-form-top">
+            <span class="ctxb-eyebrow" id="ctxEditorHeading">New block</span>
+            <span class="ctxb-status" id="ctxStatus"></span>
+            <button class="icon-btn ctxb-pin" id="ctxPinBtn" aria-label="Pin to top" title="Pin to top" aria-pressed="false">
+              <span class="material-symbols-outlined">push_pin</span>
+            </button>
+            <button class="icon-btn ctxb-delete" id="ctxDeleteBtn" aria-label="Delete block" title="Delete block">
+              <span class="material-symbols-outlined">delete</span>
+            </button>
           </div>
-          <div class="ctx-field ctx-field-grow">
-            <label class="ctx-label">
-              Content <span class="ctx-req">*</span>
-              <span class="ctx-label-hint">This text gets copied into your prompt</span>
-            </label>
-            <textarea id="ctxContent" class="ctx-textarea" rows="14"
-              placeholder="Write your reusable context block here…&#10;&#10;e.g.&#10;Company: ACME Corp&#10;Industry: SaaS — B2B project management&#10;Tone: Professional but approachable&#10;Audience: Non-technical SMB owners aged 30–55&#10;Key differentiator: Simplicity over feature depth"></textarea>
+          <div class="ctxb-form-scroll">
+            <input type="text" id="ctxTitle" class="ctxb-title" placeholder="Block title" aria-label="Block title" maxlength="200" />
+            <div class="ctxb-field-row">
+              <label class="ctxb-label" for="ctxCategory">Category</label>
+              <select id="ctxCategory" class="ctxb-select"></select>
+              <input type="text" id="ctxCategoryNew" class="ctxb-select" placeholder="Name the new category" aria-label="New category name" maxlength="40" hidden />
+            </div>
+            <textarea id="ctxContent" class="ctxb-content" aria-label="Block content"
+              placeholder="Write the context here.&#10;&#10;Company: ACME Corp&#10;Industry: B2B project management software&#10;Tone: professional but approachable&#10;Audience: small business owners with no technical background"></textarea>
+            <div class="ctxb-form-foot">
+              <div class="ctxb-meta"><b id="ctxWords">0</b> words, about <b id="ctxTokens">0</b> tokens</div>
+              <div class="ctxb-wrap">
+                <span class="ctxb-label">Insert as</span>
+                <div class="ctxb-seg" id="ctxWrapSeg" role="group" aria-label="How a block is wrapped when copied or inserted">
+                  <button type="button" data-ctx-wrap="plain">Plain</button>
+                  <button type="button" data-ctx-wrap="labelled">Labelled</button>
+                  <button type="button" data-ctx-wrap="xml">XML tags</button>
+                </div>
+              </div>
+              <code class="ctxb-wrap-hint" id="ctxWrapHint"></code>
+            </div>
           </div>
-          <div class="ctx-save-confirm" id="ctxSaveConfirm">&#10003; Saved</div>
-        </div>
-        <div class="ctx-editor-footer">
-          <button class="btn btn-accent" id="ctxSaveBtn">
-            <span class="material-symbols-outlined">save</span> Save
-          </button>
-          <button class="btn btn-ghost" id="ctxCopyBtn">
-            <span class="material-symbols-outlined">content_copy</span> Copy
-          </button>
-          <button class="btn btn-ghost ctx-delete-btn" id="ctxDeleteBtn" style="margin-left:auto">
-            <span class="material-symbols-outlined">delete</span>
-          </button>
+          <div class="ctxb-actions">
+            <button class="btn btn-accent" id="ctxSaveBtn" title="Save (Ctrl+S)">
+              <span class="material-symbols-outlined">save</span> Save
+            </button>
+            <button class="btn btn-ghost" id="ctxInsertBtn" title="Start a new prompt with this block in it">
+              <span class="material-symbols-outlined">note_add</span> Use in new prompt
+            </button>
+            <button class="btn btn-ghost" id="ctxCopyBtn">
+              <span class="material-symbols-outlined">content_copy</span> Copy
+            </button>
+            <button class="btn btn-ghost" id="ctxDuplicateBtn">
+              <span class="material-symbols-outlined">library_add</span> Duplicate
+            </button>
+          </div>
         </div>
       </div>
+
     </div>
-
   </div>
 </div>
 
@@ -4524,6 +4527,14 @@
       </span>
         <span class="launcher-card-pro">PRO</span>
       </button>
+      <button class="launcher-card" data-open="openContextBankWorkspace" data-premium="true">
+        <span class="material-symbols-outlined launcher-card-icon">database</span>
+        <span class="launcher-card-text">
+        <span class="launcher-card-title">Context Bank</span>
+        <span class="launcher-card-desc">Reusable context blocks you drop into any prompt</span>
+      </span>
+        <span class="launcher-card-pro">PRO</span>
+      </button>
       <button class="launcher-card" data-open="openChainWorkspace" data-premium="true">
         <span class="material-symbols-outlined launcher-card-icon">account_tree</span>
         <span class="launcher-card-text">
@@ -4999,7 +5010,7 @@
 
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
-<script defer src="/static/app.js?v=f30d71f3"></script>
+<script defer src="/static/app.js?v=14932b27"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

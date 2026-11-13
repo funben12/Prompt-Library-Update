@@ -7523,7 +7523,8 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
     /* ============================================================================
        CONTEXT BANK WORKSPACE
        localStorage-backed reusable context blocks.
-       ls key: pl_ctx_blocks  →  [{id, title, category, content, created}]
+       ls key: pl_ctx_blocks  →  [{id, title, category, content, created, updated, pinned}]
+       Saved copy: settings table through /api/settings/context-bank
        data-view="contextBank" | openContextBankWorkspace() | initContextBankWorkspace()
        ============================================================================ */
 
@@ -7542,6 +7543,53 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
 
     function _ctxSave() {
         localStorage.setItem(CTX_LS_KEY, JSON.stringify(_ctxBlocks));
+        _ctxPush();
+    }
+
+    // ── Saved copy in the settings table ─────────────────────────────────────────
+    let _ctxPushTimer = null;
+    let _ctxReady = null;
+    let _ctxCopyUnread = false;
+
+    function _ctxPush() {
+        if (_ctxCopyUnread) return;
+        clearTimeout(_ctxPushTimer);
+        _ctxPushTimer = setTimeout(() => {
+            api('/settings/context-bank', {
+                method: 'POST',
+                body: {
+                    blocks: _ctxBlocks
+                }
+            }).catch(() => {});
+        }, 300);
+    }
+
+    // Restore the saved copy when localStorage came back empty, else refresh the copy.
+    function _ctxSync() {
+        if (_ctxReady) return _ctxReady;
+        _ctxReady = (async () => {
+            try {
+                const saved = await api('/settings/context-bank');
+                _ctxCopyUnread = false;
+                const local = localStorage.getItem(CTX_LS_KEY);
+                if (local === null) {
+                    if (saved && saved.exists && Array.isArray(saved.blocks)) {
+                        _ctxBlocks = saved.blocks;
+                        localStorage.setItem(CTX_LS_KEY, JSON.stringify(_ctxBlocks));
+                        localStorage.setItem('pl_ctx_seeded', '1');
+                    }
+                } else {
+                    _ctxLoad();
+                    const flat = list => JSON.stringify((list || []).map(b => Object.keys(b).sort().map(k => [k, b[k]])));
+                    if (!saved || !saved.exists || flat(saved.blocks) !== flat(_ctxBlocks)) _ctxPush();
+                }
+            } catch {
+                // Read failed: try again next time, and leave the saved copy alone until then.
+                _ctxCopyUnread = true;
+                _ctxReady = null;
+            }
+        })();
+        return _ctxReady;
     }
 
     function _ctxUID() {
@@ -8043,210 +8091,586 @@ Must avoid: [Anything sensitive or previously declined]`
 
     function _ctxSeedTemplates() {
         const seeded = localStorage.getItem('pl_ctx_seeded');
-        if (seeded) return;
-        _ctxBlocks = CTX_TEMPLATES.map((t, i) => ({
+        if (seeded || _ctxCopyUnread) return;
+        // Keep blocks added from the side panel before the first visit.
+        _ctxLoad();
+        _ctxBlocks = _ctxBlocks.concat(CTX_TEMPLATES.map((t, i) => ({
             id: 'tpl_' + i + '_' + Math.random().toString(36).slice(2, 6),
             title: t.title,
             category: t.category,
             content: t.content,
             created: new Date().toISOString(),
-        }));
+        })));
         _ctxSave();
         localStorage.setItem('pl_ctx_seeded', '1');
     }
 
 
 
-    // ── Stats ────────────────────────────────────────────────────────────────────
-    function _ctxUpdateStats() {
-        const cats = new Set(_ctxBlocks.map(b => b.category));
-        const elB = $('#ctxStatBlocks');
-        if (elB) elB.textContent = _ctxBlocks.length;
-        const elC = $('#ctxStatCats');
-        if (elC) elC.textContent = cats.size;
+    // ── Categories, sort and wrap ────────────────────────────────────────────────
+    const CTX_CAT_ORDER = ['Persona', 'Company', 'Audience', 'Product', 'Style', 'Writing', 'Business', 'Marketing', 'Coding', 'Meta', 'Other'];
+    const CTX_WRAP_KEY = 'pl_ctx_wrap';
+    const CTX_NEW_CAT = '__new';
+    let _ctxSort = 'recent';
+    let _ctxSnap = null;
+    let _ctxPending = null;
+    let _ctxPanelCat = 'all';
+
+    function _ctxCat(b) {
+        return (b.category || '').trim() || 'Other';
     }
 
-    // ── List render ──────────────────────────────────────────────────────────────
+    // Categories that hold at least one block, known ones first, Other last.
+    function _ctxCategories() {
+        const counts = {};
+        _ctxBlocks.forEach(b => {
+            const c = _ctxCat(b);
+            counts[c] = (counts[c] || 0) + 1;
+        });
+        const rank = c => {
+            if (c === 'Other') return 1000;
+            const i = CTX_CAT_ORDER.indexOf(c);
+            return i === -1 ? 500 : i;
+        };
+        return Object.keys(counts)
+            .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
+            .map(name => ({
+                name,
+                count: counts[name]
+            }));
+    }
+
+    function _ctxCategoryOptions(selected, withNew) {
+        const names = CTX_CAT_ORDER.slice(0, -1);
+        _ctxCategories().forEach(c => {
+            if (!names.includes(c.name) && c.name !== 'Other') names.push(c.name);
+        });
+        if (selected && !names.includes(selected) && selected !== 'Other') names.push(selected);
+        names.push('Other');
+        return names.map(n => '<option value="' + escapeAttr(n) + '"' + (n === selected ? ' selected' : '') + '>' + escapeHtml(n) + '</option>').join('') +
+            (withNew ? '<option value="' + CTX_NEW_CAT + '">New category…</option>' : '');
+    }
+
+    function _ctxWrapStyle() {
+        const v = localStorage.getItem(CTX_WRAP_KEY);
+        return ['plain', 'labelled', 'xml'].includes(v) ? v : 'labelled';
+    }
+
+    function _ctxWrapOpen(title, style) {
+        if (style === 'xml') {
+            const name = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, "'");
+            return '<context name="' + name + '">';
+        }
+        if (style === 'labelled') return '--- Context: ' + title + ' ---';
+        return '';
+    }
+
+    function _ctxWrapText(block) {
+        const body = (block.content || '').trim();
+        const title = (block.title || 'Untitled').trim();
+        const style = _ctxWrapStyle();
+        if (style === 'xml') return _ctxWrapOpen(title, style) + '\n' + body + '\n</context>';
+        if (style === 'labelled') return _ctxWrapOpen(title, style) + '\n' + body;
+        return body;
+    }
+
+    // Pinned first, then recently edited or by name. Untouched blocks keep stored order.
+    function _ctxSorted(list) {
+        return list.map((b, i) => ({
+            b,
+            i
+        })).sort((x, y) => {
+            if (!!x.b.pinned !== !!y.b.pinned) return x.b.pinned ? -1 : 1;
+            if (_ctxSort === 'name') {
+                return (x.b.title || '').localeCompare(y.b.title || '', undefined, {
+                    sensitivity: 'base'
+                }) || x.i - y.i;
+            }
+            return (y.b.updated || '').localeCompare(x.b.updated || '') || x.i - y.i;
+        }).map(o => o.b);
+    }
+
+    function _ctxMatches(b, cat, query) {
+        if (cat !== 'all' && _ctxCat(b) !== cat) return false;
+        if (!query) return true;
+        return (b.title || '').toLowerCase().includes(query) || (b.content || '').toLowerCase().includes(query);
+    }
+
+    function _ctxVisible() {
+        const query = ($('#ctxSearch')?.value || '').trim().toLowerCase();
+        return _ctxSorted(_ctxBlocks.filter(b => _ctxMatches(b, _ctxFilter, query)));
+    }
+
+    // ── Pills and list ───────────────────────────────────────────────────────────
+    function _ctxRenderPills() {
+        const row = $('#ctxCategoryRow');
+        if (!row) return;
+        const cats = _ctxCategories();
+        if (_ctxFilter !== 'all' && !cats.some(c => c.name === _ctxFilter)) _ctxFilter = 'all';
+        const pill = (key, label, count) =>
+            '<button type="button" class="ctxb-pill' + (key === _ctxFilter ? ' active' : '') + '" data-ctx-filter="' + escapeAttr(key) + '">' +
+            escapeHtml(label) + '<span class="ctxb-pill-count">' + count + '</span></button>';
+        row.innerHTML = pill('all', 'All', _ctxBlocks.length) + cats.map(c => pill(c.name, c.name, c.count)).join('');
+    }
+
     function _ctxRenderList() {
         const list = $('#ctxList');
-        const empty = $('#ctxEmptyHint');
         if (!list) return;
+        const rows = _ctxVisible();
+        const count = $('#ctxListCount');
+        if (count) {
+            count.textContent = rows.length === _ctxBlocks.length ?
+                rows.length + (rows.length === 1 ? ' block' : ' blocks') :
+                rows.length + ' of ' + _ctxBlocks.length + ' blocks';
+        }
 
-        const query = ($('#ctxSearch')?.value || '').toLowerCase();
-        let filtered = _ctxBlocks.slice();
-        if (_ctxFilter !== 'all') filtered = filtered.filter(b => b.category === _ctxFilter);
-        if (query) filtered = filtered.filter(b =>
-            (b.title || '').toLowerCase().includes(query) ||
-            (b.content || '').toLowerCase().includes(query)
-        );
-
-        _ctxUpdateStats();
-
-        if (!filtered.length) {
-            list.innerHTML = '';
-            if (empty) empty.style.display = '';
+        if (!rows.length) {
+            list.innerHTML = _ctxBlocks.length ?
+                '<div class="ctxb-list-empty">No blocks match.<br><button type="button" class="ctxb-link" data-ctx-act="clear">Clear search and filter</button></div>' :
+                '<div class="ctxb-list-empty">No blocks yet.</div>';
             return;
         }
-        if (empty) empty.style.display = 'none';
 
-        list.innerHTML = filtered.map(b => {
-            const active = b.id === _ctxActiveId ? ' active' : '';
-            const preview = (b.content || '').slice(0, 80).replace(/</g, '&lt;');
-            return '<div class="ctx-block-item' + active + '" data-ctx-id="' + escapeAttr(b.id) + '">' +
-                '<div class="ctx-block-item-header">' +
-                '<span class="ctx-block-item-title">' + escapeHtml(b.title || 'Untitled') + '</span>' +
-                '<span class="ctx-cat-tag">' + escapeHtml(b.category || 'Other') + '</span>' +
-                '</div>' +
-                '<div class="ctx-block-item-preview">' + preview + (b.content && b.content.length > 80 ? '…' : '') + '</div>' +
-                '</div>';
-        }).join('');
-
-        list.querySelectorAll('[data-ctx-id]').forEach(item => {
-            item.addEventListener('click', () => _ctxOpenBlock(item.dataset.ctxId));
-        });
+        list.innerHTML = rows.map(b =>
+            '<div class="ctxb-item' + (b.id === _ctxActiveId ? ' active' : '') + '" data-ctx-id="' + escapeAttr(b.id) + '" role="button" tabindex="0">' +
+            '<div class="ctxb-item-top">' +
+            '<span class="ctxb-item-title">' + escapeHtml(b.title || 'Untitled') + '</span>' +
+            (b.pinned ? '<span class="material-symbols-outlined ctxb-item-pin" title="Pinned">push_pin</span>' : '') +
+            '</div>' +
+            '<div class="ctxb-item-preview">' + escapeHtml((b.content || '').slice(0, 160)) + '</div>' +
+            '<div class="ctxb-item-foot">' +
+            '<span class="ctxb-tag">' + escapeHtml(_ctxCat(b)) + '</span>' +
+            '<span class="ctxb-item-actions">' +
+            '<button type="button" class="ctxb-mini" data-ctx-act="copy" title="Copy" aria-label="Copy block"><span class="material-symbols-outlined">content_copy</span></button>' +
+            '<button type="button" class="ctxb-mini" data-ctx-act="insert" title="Use in new prompt" aria-label="Use in new prompt"><span class="material-symbols-outlined">note_add</span></button>' +
+            '</span>' +
+            '</div>' +
+            '</div>'
+        ).join('');
     }
 
-    // ── Block open/editor ────────────────────────────────────────────────────────
-    function _ctxOpenBlock(id) {
-        _ctxActiveId = id || null;
-        const block = id ? _ctxBlocks.find(b => b.id === id) : null;
-        const empty = $('#ctxEditorEmpty');
+    function _ctxRenderAll() {
+        _ctxRenderPills();
+        _ctxRenderList();
+    }
+
+    // ── Editor ───────────────────────────────────────────────────────────────────
+    function _ctxFormVals() {
+        const sel = $('#ctxCategory')?.value || 'Other';
+        const category = sel === CTX_NEW_CAT ? ($('#ctxCategoryNew')?.value || '').trim() || 'Other' : sel;
+        return {
+            title: ($('#ctxTitle')?.value || '').trim(),
+            category,
+            content: ($('#ctxContent')?.value || '').trim()
+        };
+    }
+
+    function _ctxIsDirty() {
         const form = $('#ctxEditorForm');
-        const heading = $('#ctxEditorHeading');
-        const delBtn = $('#ctxDeleteBtn');
-        const confirm = $('#ctxSaveConfirm');
+        if (!form || form.hidden || !_ctxSnap) return false;
+        const v = _ctxFormVals();
+        return v.title !== _ctxSnap.title || v.category !== _ctxSnap.category || v.content !== _ctxSnap.content;
+    }
 
+    function _ctxUpdateMeta() {
+        const text = $('#ctxContent')?.value || '';
+        const words = (text.trim().match(/\S+/g) || []).length;
+        const elW = $('#ctxWords');
+        if (elW) elW.textContent = words.toLocaleString('en-GB');
+        const elT = $('#ctxTokens');
+        if (elT) elT.textContent = _wsEstTokens(text).toLocaleString('en-GB');
+        const status = $('#ctxStatus');
+        if (status) {
+            const dirty = _ctxIsDirty();
+            status.classList.toggle('dirty', dirty);
+            status.textContent = dirty ? 'Unsaved changes' : (_ctxActiveId ? 'Saved' : '');
+        }
+        _ctxUpdateWrap();
+    }
+
+    function _ctxUpdateWrap() {
+        const style = _ctxWrapStyle();
+        $$('#ctxWrapSeg [data-ctx-wrap]').forEach(b => b.classList.toggle('active', b.dataset.ctxWrap === style));
+        const hint = $('#ctxWrapHint');
+        if (hint) {
+            const title = ($('#ctxTitle')?.value || '').trim() || 'Block title';
+            hint.textContent = style === 'plain' ? 'Content only, nothing added' : 'Starts with ' + _ctxWrapOpen(title, style);
+        }
+        const sel = $('#ctxPanelWrap');
+        if (sel) sel.value = style;
+    }
+
+    // Keep focus inside the workspace so Escape and Ctrl+S keep working.
+    function _ctxKeepFocus() {
+        const ws = $('#contextBankWorkspace');
+        const el = document.activeElement;
+        if (ws && ws.classList.contains('open') && (!ws.contains(el) || el.closest('[hidden]'))) ws.focus();
+    }
+
+    function _ctxHideGuard() {
+        _ctxPending = null;
+        const guard = $('#ctxGuard');
+        if (guard) guard.hidden = true;
+        _ctxKeepFocus();
+    }
+
+    // Run next() now, or hold it behind the unsaved changes bar.
+    function _ctxGuard(next) {
+        if (!_ctxIsDirty()) {
+            next();
+            return;
+        }
+        _ctxPending = next;
+        const guard = $('#ctxGuard');
+        if (guard) guard.hidden = false;
+        $('#ctxGuardSave')?.focus();
+    }
+
+    function _ctxRunPending() {
+        const next = _ctxPending;
+        _ctxHideGuard();
+        if (next) next();
+    }
+
+    // Show a block in the editor, or a blank form when id is null. No guard here.
+    function _ctxShowBlock(id, focusTitle) {
+        const block = id ? _ctxBlocks.find(b => b.id === id) : null;
+        const form = $('#ctxEditorForm');
         if (!form) return;
+        _ctxActiveId = block ? block.id : null;
+        _ctxHideGuard();
 
-        if (block) {
-            if (heading) heading.textContent = 'Editing block';
-            const set = (sel, val) => {
-                const el = $(sel);
-                if (el) el.value = val;
-            };
-            set('#ctxTitle', block.title || '');
-            set('#ctxCategory', block.category || 'Other');
-            set('#ctxContent', block.content || '');
-            if (delBtn) delBtn.style.display = '';
-        } else {
-            if (heading) heading.textContent = 'New block';
-            ['#ctxTitle', '#ctxContent'].forEach(s => {
-                const el = $(s);
-                if (el) el.value = '';
-            });
-            const cat = $('#ctxCategory');
-            if (cat) cat.value = 'Other';
-            if (delBtn) delBtn.style.display = 'none';
+        const title = block ? block.title || '' : '';
+        const category = block ? _ctxCat(block) : (_ctxFilter !== 'all' ? _ctxFilter : 'Other');
+        const content = block ? block.content || '' : '';
+        $('#ctxTitle').value = title;
+        $('#ctxContent').value = content;
+        $('#ctxCategory').innerHTML = _ctxCategoryOptions(category, true);
+        const newCat = $('#ctxCategoryNew');
+        if (newCat) {
+            newCat.value = '';
+            newCat.hidden = true;
+        }
+        _ctxSnap = {
+            title: title.trim(),
+            category,
+            content: content.trim()
+        };
+
+        $('#ctxEditorHeading').textContent = block ? 'Editing block' : 'New block';
+        ['#ctxDeleteBtn', '#ctxDuplicateBtn', '#ctxPinBtn'].forEach(sel => {
+            const el = $(sel);
+            if (el) el.hidden = !block;
+        });
+        const pin = $('#ctxPinBtn');
+        if (pin) {
+            pin.setAttribute('aria-pressed', block && block.pinned ? 'true' : 'false');
+            pin.title = block && block.pinned ? 'Unpin' : 'Pin to top';
+            pin.setAttribute('aria-label', pin.title);
         }
 
-        if (confirm) confirm.style.display = 'none';
-        if (empty) empty.style.display = 'none';
+        $('#ctxEditorEmpty').hidden = true;
         form.hidden = false;
-
+        _ctxUpdateMeta();
         _ctxRenderList();
-        setTimeout(() => {
-            $('#ctxTitle')?.focus();
-        }, 60);
+        _ctxKeepFocus();
+        if (focusTitle) setTimeout(() => $('#ctxTitle')?.focus(), 60);
+    }
+
+    function _ctxShowEmpty() {
+        _ctxActiveId = null;
+        _ctxSnap = null;
+        _ctxHideGuard();
+        const form = $('#ctxEditorForm');
+        if (form) form.hidden = true;
+        const empty = $('#ctxEditorEmpty');
+        if (empty) empty.hidden = false;
+        _ctxRenderList();
+        _ctxKeepFocus();
+    }
+
+    // Keep the editor filled: first visible block, or the empty state when the bank is empty.
+    function _ctxSelectFirst() {
+        const first = _ctxVisible()[0] || _ctxSorted(_ctxBlocks)[0];
+        if (first) _ctxShowBlock(first.id);
+        else _ctxShowEmpty();
+    }
+
+    function _ctxOpenBlock(id) {
+        if (id && id === _ctxActiveId) return;
+        _ctxGuard(() => _ctxShowBlock(id, !id));
     }
 
     function _ctxNewBlock() {
-        _ctxOpenBlock(null);
+        _ctxGuard(() => _ctxShowBlock(null, true));
     }
 
     // ── CRUD ─────────────────────────────────────────────────────────────────────
     function _ctxSaveBlock() {
-        const title = $('#ctxTitle')?.value.trim();
-        const category = $('#ctxCategory')?.value || 'Other';
-        const content = $('#ctxContent')?.value.trim();
-
-        if (!title) {
+        const v = _ctxFormVals();
+        if (!v.title) {
+            toast('Give the block a title', 'warning');
             $('#ctxTitle')?.focus();
-            return;
+            return false;
         }
-
-        if (_ctxActiveId) {
-            const idx = _ctxBlocks.findIndex(b => b.id === _ctxActiveId);
-            if (idx !== -1) Object.assign(_ctxBlocks[idx], {
-                title,
-                category,
-                content
+        if (!v.content) {
+            toast('Add some content first', 'warning');
+            $('#ctxContent')?.focus();
+            return false;
+        }
+        const now = new Date().toISOString();
+        const existing = _ctxActiveId ? _ctxBlocks.find(b => b.id === _ctxActiveId) : null;
+        if (existing) {
+            Object.assign(existing, v, {
+                updated: now
             });
         } else {
             _ctxActiveId = _ctxUID();
-            _ctxBlocks.unshift({
-                id: _ctxActiveId,
-                title,
-                category,
-                content,
-                created: new Date().toISOString()
-            });
-            const delBtn = $('#ctxDeleteBtn');
-            if (delBtn) delBtn.style.display = '';
-            const heading = $('#ctxEditorHeading');
-            if (heading) heading.textContent = 'Editing block';
+            _ctxBlocks.unshift(Object.assign({
+                id: _ctxActiveId
+            }, v, {
+                created: now,
+                updated: now
+            }));
         }
-
         _ctxSave();
-        _ctxRenderList();
+        _ctxRenderPills();
+        _ctxShowBlock(_ctxActiveId);
+        return true;
+    }
 
-        const confirm = $('#ctxSaveConfirm');
-        if (confirm) {
-            confirm.style.display = '';
-            setTimeout(() => {
-                confirm.style.display = 'none';
-            }, 1800);
-        }
+    function _ctxUndoToast(msg, undo) {
+        const root = $('#toastContainer');
+        if (!root) return;
+        const el = document.createElement('div');
+        el.className = 'toast info';
+        el.innerHTML = '<span class="material-symbols-outlined">delete</span><span>' + escapeHtml(msg) + '</span>' +
+            '<button type="button" class="ctxb-undo-btn">Undo</button>';
+        root.appendChild(el);
+        const timer = setTimeout(() => el.remove(), 7000);
+        el.querySelector('button').addEventListener('click', () => {
+            clearTimeout(timer);
+            el.remove();
+            undo();
+        });
     }
 
     function _ctxDeleteBlock() {
-        if (!_ctxActiveId) return;
-        _ctxBlocks = _ctxBlocks.filter(b => b.id !== _ctxActiveId);
+        const idx = _ctxBlocks.findIndex(b => b.id === _ctxActiveId);
+        if (idx === -1) return;
+        const removed = _ctxBlocks.splice(idx, 1)[0];
         _ctxSave();
         _ctxActiveId = null;
+        _ctxSnap = null;
+        _ctxRenderPills();
+        _ctxSelectFirst();
+        _ctxUndoToast('Deleted "' + (removed.title || 'Untitled') + '"', () => {
+            _ctxLoad();
+            _ctxBlocks.splice(Math.min(idx, _ctxBlocks.length), 0, removed);
+            _ctxSave();
+            if (!_ctxVisible().some(b => b.id === removed.id)) {
+                _ctxFilter = 'all';
+                const search = $('#ctxSearch');
+                if (search) search.value = '';
+            }
+            _ctxRenderPills();
+            if ($('#contextBankWorkspace')?.classList.contains('open') && !_ctxIsDirty()) _ctxShowBlock(removed.id);
+            else _ctxRenderList();
+        });
+    }
 
-        // Return to empty editor state
-        const form = $('#ctxEditorForm');
-        const empty = $('#ctxEditorEmpty');
-        if (form) form.hidden = true;
-        if (empty) empty.style.display = '';
+    function _ctxDuplicateBlock() {
+        _ctxGuard(() => {
+            const idx = _ctxBlocks.findIndex(b => b.id === _ctxActiveId);
+            if (idx === -1) return;
+            const now = new Date().toISOString();
+            const copy = Object.assign({}, _ctxBlocks[idx], {
+                id: _ctxUID(),
+                title: (_ctxBlocks[idx].title || 'Untitled') + ' copy',
+                pinned: false,
+                created: now,
+                updated: now
+            });
+            _ctxBlocks.splice(idx, 0, copy);
+            _ctxSave();
+            _ctxRenderPills();
+            _ctxShowBlock(copy.id, true);
+            toast('Block duplicated', 'success');
+        });
+    }
+
+    function _ctxTogglePin() {
+        const block = _ctxBlocks.find(b => b.id === _ctxActiveId);
+        if (!block) return;
+        block.pinned = !block.pinned;
+        _ctxSave();
+        const pin = $('#ctxPinBtn');
+        if (pin) {
+            pin.setAttribute('aria-pressed', block.pinned ? 'true' : 'false');
+            pin.title = block.pinned ? 'Unpin' : 'Pin to top';
+            pin.setAttribute('aria-label', pin.title);
+        }
         _ctxRenderList();
     }
 
-    async function _ctxCopyBlock() {
-        const block = _ctxBlocks.find(b => b.id === _ctxActiveId);
+    // The editor's block as typed, so Copy and Use match what is on screen.
+    function _ctxEditorBlock() {
+        const v = _ctxFormVals();
+        return v.content ? v : null;
+    }
+
+    async function _ctxCopy(block) {
         if (!block) {
-            if (typeof toast === 'function') toast('Select a block first', 'warning');
+            toast('Nothing to copy yet', 'warning');
             return;
         }
-        const ok = typeof copyToClipboard === 'function' ? await copyToClipboard(block.content || '') : false;
-        if (typeof toast === 'function') toast(ok ? 'Block copied' : 'Copy failed', ok ? 'success' : 'error');
+        const ok = await copyToClipboard(_ctxWrapText(block));
+        if (ok) toast('Block copied', 'success');
+    }
+
+    // Put text into a textarea at the cursor, on its own lines.
+    function _ctxInsertAt(ta, text) {
+        const pos = ta.selectionStart ?? ta.value.length;
+        const before = ta.value.slice(0, pos);
+        const after = ta.value.slice(ta.selectionEnd ?? pos);
+        const lead = !before || before.endsWith('\n\n') ? '' : (before.endsWith('\n') ? '\n' : '\n\n');
+        const ins = lead + text + '\n';
+        ta.value = before + ins + after;
+        ta.selectionStart = ta.selectionEnd = before.length + ins.length;
+        ta.dispatchEvent(new Event('input', {
+            bubbles: true
+        }));
+        ta.focus();
+    }
+
+    function _ctxUseInNewPrompt(block) {
+        if (!block) {
+            toast('Nothing to use yet', 'warning');
+            return;
+        }
+        _ctxGuard(() => {
+            _ctxCloseNow();
+            openNewPromptModal();
+            const ta = $('#promptContent');
+            if (ta) _ctxInsertAt(ta, _ctxWrapText(block));
+            toast('Block added to a new prompt', 'success');
+        });
+    }
+
+    // ── Export and import ────────────────────────────────────────────────────────
+    async function _ctxExport() {
+        if (!_ctxBlocks.length) {
+            toast('No blocks to export', 'warning');
+            return;
+        }
+        const d = new Date();
+        const two = n => String(n).padStart(2, '0');
+        const filename = 'context-bank-' + two(d.getDate()) + '-' + two(d.getMonth() + 1) + '-' + d.getFullYear() + '.json';
+        const content = JSON.stringify({
+            type: 'prompt-library-context-bank',
+            version: 1,
+            exported: d.toISOString(),
+            blocks: _ctxBlocks
+        }, null, 2);
+        try {
+            const res = await fetch('/api/save-file', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    filename,
+                    content,
+                    mime: 'application/json'
+                }),
+            });
+            const result = await res.json();
+            if (result.error) throw new Error(result.error);
+            if (result.saved) toast('Saved to ' + result.path, 'success');
+        } catch {
+            triggerDownload(new Blob([content], {
+                type: 'application/json'
+            }), filename);
+            toast('Exported ' + _ctxBlocks.length + ' blocks', 'success');
+        }
+    }
+
+    async function _ctxImport(file) {
+        let incoming = null;
+        try {
+            const data = JSON.parse(await file.text());
+            incoming = Array.isArray(data) ? data : (data && Array.isArray(data.blocks) ? data.blocks : null);
+        } catch {}
+        if (!incoming) {
+            toast('That file is not a Context Bank export', 'error');
+            return;
+        }
+        const key = (t, c) => t.toLowerCase() + '\n' + c;
+        const seen = new Set(_ctxBlocks.map(b => key((b.title || '').trim(), (b.content || '').trim())));
+        const now = new Date().toISOString();
+        const fresh = [];
+        let skipped = 0;
+        incoming.forEach(raw => {
+            const title = raw && typeof raw === 'object' ? String(raw.title || '').trim().slice(0, 200) : '';
+            const content = title ? String(raw.content || '').trim() : '';
+            if (!title || !content || seen.has(key(title, content))) {
+                skipped++;
+                return;
+            }
+            seen.add(key(title, content));
+            fresh.push({
+                id: _ctxUID(),
+                title,
+                category: String(raw.category || '').trim().slice(0, 40) || 'Other',
+                content,
+                pinned: !!raw.pinned,
+                created: now,
+                updated: now
+            });
+        });
+        if (fresh.length) {
+            _ctxBlocks = fresh.concat(_ctxBlocks);
+            _ctxSave();
+            _ctxRenderAll();
+            if (!_ctxIsDirty()) _ctxShowBlock(fresh[0].id);
+        }
+        toast('Imported ' + fresh.length + (fresh.length === 1 ? ' block' : ' blocks') +
+            (skipped ? ', skipped ' + skipped + ' already here or empty' : ''), fresh.length ? 'success' : 'info');
     }
 
     // ── Workspace open/close ─────────────────────────────────────────────────────
     window.openContextBankWorkspace = function() {
-        _ctxSeedTemplates();
-        _ctxLoad();
         const ws = $('#contextBankWorkspace');
         if (!ws) return;
         ws.classList.add('open');
         document.body.style.overflow = 'hidden';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'contextBank'));
         _ctxFilter = 'all';
-        $$('[data-ctx-filter]').forEach(b => b.classList.toggle('active', b.dataset.ctxFilter === 'all'));
-        _ctxActiveId = null;
-        const form = $('#ctxEditorForm');
-        const empty = $('#ctxEditorEmpty');
-        if (form) form.hidden = true;
-        if (empty) empty.style.display = '';
-        _ctxRenderList();
+        const search = $('#ctxSearch');
+        if (search) search.value = '';
+        _ctxSync().then(() => {
+            _ctxSeedTemplates();
+            _ctxLoad();
+            _ctxActiveId = null;
+            _ctxSnap = null;
+            _ctxRenderPills();
+            _ctxSelectFirst();
+            search?.focus();
+        });
     };
 
-    function _ctxClose() {
+    function _ctxCloseNow() {
         const ws = $('#contextBankWorkspace');
         if (!ws) return;
+        _ctxSnap = null;
+        _ctxHideGuard();
         ws.classList.remove('open');
         document.body.style.overflow = '';
-        $$$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    function _ctxClose() {
+        _ctxGuard(_ctxCloseNow);
     }
 
     // Expose for modal side-panel + panel refresh compatibility
@@ -8257,24 +8681,99 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function initContextBankWorkspace() {
+        _ctxSync();
         $('#closeContextBankBtn')?.addEventListener('click', _ctxClose);
         $('#ctxNewBtn')?.addEventListener('click', _ctxNewBlock);
+        $('#ctxEmptyNewBtn')?.addEventListener('click', _ctxNewBlock);
         $('#ctxSaveBtn')?.addEventListener('click', _ctxSaveBlock);
         $('#ctxDeleteBtn')?.addEventListener('click', _ctxDeleteBlock);
-        $('#ctxCopyBtn')?.addEventListener('click', _ctxCopyBlock);
-        $('#ctxSearch')?.addEventListener('input', _ctxRenderList);
-
-        $$('[data-ctx-filter]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                _ctxFilter = btn.dataset.ctxFilter;
-                $$('[data-ctx-filter]').forEach(b => b.classList.toggle('active', b === btn));
-                _ctxRenderList();
-            });
+        $('#ctxDuplicateBtn')?.addEventListener('click', _ctxDuplicateBlock);
+        $('#ctxPinBtn')?.addEventListener('click', _ctxTogglePin);
+        $('#ctxCopyBtn')?.addEventListener('click', () => _ctxCopy(_ctxEditorBlock()));
+        $('#ctxInsertBtn')?.addEventListener('click', () => _ctxUseInNewPrompt(_ctxEditorBlock()));
+        $('#ctxExportBtn')?.addEventListener('click', _ctxExport);
+        $('#ctxImportBtn')?.addEventListener('click', () => $('#ctxImportFile')?.click());
+        $('#ctxImportFile')?.addEventListener('change', e => {
+            const file = e.target.files && e.target.files[0];
+            e.target.value = '';
+            if (file) _ctxImport(file);
         });
+        $('#ctxSearch')?.addEventListener('input', _ctxRenderList);
+        $('#ctxSort')?.addEventListener('change', e => {
+            _ctxSort = e.target.value === 'name' ? 'name' : 'recent';
+            _ctxRenderList();
+        });
+
+        $('#ctxCategoryRow')?.addEventListener('click', e => {
+            const btn = e.target.closest('[data-ctx-filter]');
+            if (!btn) return;
+            _ctxFilter = btn.dataset.ctxFilter;
+            _ctxRenderAll();
+        });
+
+        const list = $('#ctxList');
+        const onListPick = e => {
+            const act = e.target.closest('[data-ctx-act]');
+            if (act && act.dataset.ctxAct === 'clear') {
+                _ctxFilter = 'all';
+                const search = $('#ctxSearch');
+                if (search) search.value = '';
+                _ctxRenderAll();
+                return;
+            }
+            const item = e.target.closest('[data-ctx-id]');
+            if (!item) return;
+            const block = _ctxBlocks.find(b => b.id === item.dataset.ctxId);
+            if (act && act.dataset.ctxAct === 'copy') _ctxCopy(block);
+            else if (act && act.dataset.ctxAct === 'insert') _ctxUseInNewPrompt(block);
+            else _ctxOpenBlock(item.dataset.ctxId);
+        };
+        list?.addEventListener('click', onListPick);
+        list?.addEventListener('keydown', e => {
+            if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-ctx-id]')) {
+                e.preventDefault();
+                onListPick(e);
+            }
+        });
+
+        ['#ctxTitle', '#ctxContent', '#ctxCategoryNew'].forEach(sel => $(sel)?.addEventListener('input', _ctxUpdateMeta));
+        $('#ctxCategory')?.addEventListener('change', e => {
+            const newCat = $('#ctxCategoryNew');
+            if (newCat) {
+                newCat.hidden = e.target.value !== CTX_NEW_CAT;
+                if (!newCat.hidden) newCat.focus();
+            }
+            _ctxUpdateMeta();
+        });
+
+        $('#ctxWrapSeg')?.addEventListener('click', e => {
+            const btn = e.target.closest('[data-ctx-wrap]');
+            if (!btn) return;
+            localStorage.setItem(CTX_WRAP_KEY, btn.dataset.ctxWrap);
+            _ctxUpdateWrap();
+        });
+
+        $('#ctxGuardSave')?.addEventListener('click', () => {
+            const next = _ctxPending;
+            if (!_ctxSaveBlock()) return;
+            if (next) next();
+        });
+        $('#ctxGuardDiscard')?.addEventListener('click', () => {
+            _ctxSnap = null;
+            _ctxRunPending();
+        });
+        $('#ctxGuardKeep')?.addEventListener('click', _ctxHideGuard);
 
         const ws = $('#contextBankWorkspace');
         if (ws) ws.addEventListener('keydown', e => {
-            if (e.key === 'Escape') _ctxClose();
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                if ($('#ctxGuard') && !$('#ctxGuard').hidden) _ctxHideGuard();
+                else _ctxClose();
+            } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                if (!$('#ctxEditorForm')?.hidden) _ctxSaveBlock();
+            }
         });
     }
 
@@ -8304,45 +8803,47 @@ Must avoid: [Anything sensitive or previously declined]`
     function _ctxPanelRefresh() {
         const list = $('#ctxPanelList');
         if (!list) return;
-        _ctxLoad();
-        const query = ($('#ctxPanelSearch')?.value || '').toLowerCase();
-        const catBtn = document.querySelector('#ctxPanelCats .chip.active');
-        const cat = catBtn?.dataset?.cpf || 'all';
+        _ctxSync().then(() => {
+            _ctxSeedTemplates();
+            _ctxLoad();
 
-        let blocks = _ctxBlocks;
-        if (cat !== 'all') blocks = blocks.filter(b => b.category === cat);
-        if (query) blocks = blocks.filter(b =>
-            (b.title || '').toLowerCase().includes(query) ||
-            (b.content || '').toLowerCase().includes(query));
+            const cats = _ctxCategories();
+            if (_ctxPanelCat !== 'all' && !cats.some(c => c.name === _ctxPanelCat)) _ctxPanelCat = 'all';
+            const chips = $('#ctxPanelCats');
+            if (chips) {
+                chips.innerHTML = [{
+                    name: 'all'
+                }].concat(cats).map(c =>
+                    '<button type="button" class="chip' + (c.name === _ctxPanelCat ? ' active' : '') + '" data-cpf="' + escapeAttr(c.name) + '">' +
+                    escapeHtml(c.name === 'all' ? 'All' : c.name) + '</button>'
+                ).join('');
+            }
+            const newCat = $('#ctxPanelNewCat');
+            if (newCat) newCat.innerHTML = _ctxCategoryOptions(newCat.value || 'Other', false);
+            _ctxUpdateWrap();
 
-        if (!blocks.length) {
-            list.innerHTML = '<div style="color:var(--ink-3);font-size:var(--fs-sm);padding:var(--sp-3);text-align:center;">No blocks found.<br>Create one in the Context Bank workspace.</div>';
-            return;
-        }
-
-        list.innerHTML = blocks.map(b =>
-            '<div class="ctx-panel-item" data-cpid="' + escapeAttr(b.id) + '" ' +
-            'style="padding:8px var(--sp-3);cursor:pointer;border-bottom:1px solid var(--border,#374151);">' +
-            '<div style="font-size:var(--fs-sm);font-weight:600;">' + escapeHtml(b.title) + '</div>' +
-            '<div style="font-size:11px;color:var(--ink-3);">' + escapeHtml(b.category || 'Other') + '</div>' +
-            '</div>'
-        ).join('');
-
-        list.querySelectorAll('[data-cpid]').forEach(item => {
-            item.addEventListener('click', () => {
-                const block = _ctxBlocks.find(b => b.id === item.dataset.cpid);
-                if (!block) return;
-                const ta = $('#promptContent');
-                if (ta) {
-                    const ins = '\n\n--- Context: ' + block.title + ' ---\n' + block.content + '\n';
-                    const pos = ta.selectionStart ?? ta.value.length;
-                    ta.value = ta.value.slice(0, pos) + ins + ta.value.slice(pos);
-                    ta.selectionStart = ta.selectionEnd = pos + ins.length;
-                    ta.dispatchEvent(new Event('input'));
-                }
-                toast('Context block inserted', 'success');
-            });
+            const query = ($('#ctxPanelSearch')?.value || '').trim().toLowerCase();
+            const blocks = _ctxSorted(_ctxBlocks.filter(b => _ctxMatches(b, _ctxPanelCat, query)));
+            if (!blocks.length) {
+                list.innerHTML = '<div class="ctx-panel-empty"><span>No blocks match.</span></div>';
+                return;
+            }
+            list.innerHTML = blocks.map(b =>
+                '<div class="ctx-panel-block" data-cpid="' + escapeAttr(b.id) + '" role="button" tabindex="0" title="Insert at the cursor">' +
+                '<div class="ctx-panel-block-title">' + escapeHtml(b.title || 'Untitled') + '</div>' +
+                '<div class="ctx-panel-block-cat">' + escapeHtml(_ctxCat(b)) + '</div>' +
+                '<div class="ctx-panel-block-preview">' + escapeHtml((b.content || '').slice(0, 140)) + '</div>' +
+                '</div>'
+            ).join('');
         });
+    }
+
+    function _ctxPanelInsert(id) {
+        const block = _ctxBlocks.find(b => b.id === id);
+        const ta = $('#promptContent');
+        if (!block || !ta) return;
+        _ctxInsertAt(ta, _ctxWrapText(block));
+        toast('Context block inserted', 'success');
     }
 
     function _ctxPanelSaveNew() {
@@ -8358,12 +8859,14 @@ Must avoid: [Anything sensitive or previously declined]`
             return;
         }
         _ctxLoad();
+        const now = new Date().toISOString();
         _ctxBlocks.unshift({
             id: _ctxUID(),
             title,
             category,
             content,
-            created: new Date().toISOString()
+            created: now,
+            updated: now
         });
         _ctxSave();
         if ($('#ctxPanelNewTitle')) $('#ctxPanelNewTitle').value = '';
@@ -8409,12 +8912,26 @@ Must avoid: [Anything sensitive or previously declined]`
         // Context panel search + category filter
         $('#ctxPanelSearch')?.addEventListener('input', _ctxPanelRefresh);
 
-        $$('#ctxPanelCats .chip[data-cpf]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                $$('#ctxPanelCats .chip').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                _ctxPanelRefresh();
-            });
+        $('#ctxPanelCats')?.addEventListener('click', e => {
+            const btn = e.target.closest('.chip[data-cpf]');
+            if (!btn) return;
+            _ctxPanelCat = btn.dataset.cpf;
+            _ctxPanelRefresh();
+        });
+        $('#ctxPanelWrap')?.addEventListener('change', e => {
+            localStorage.setItem(CTX_WRAP_KEY, e.target.value);
+            _ctxUpdateWrap();
+        });
+        const ctxPanelPick = e => {
+            const item = e.target.closest('[data-cpid]');
+            if (item) _ctxPanelInsert(item.dataset.cpid);
+        };
+        $('#ctxPanelList')?.addEventListener('click', ctxPanelPick);
+        $('#ctxPanelList')?.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                ctxPanelPick(e);
+            }
         });
 
         // Snippets panel search + category filter
