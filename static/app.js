@@ -7577,7 +7577,8 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
                     }
                 } else {
                     _ctxLoad();
-                    if (!saved || !saved.exists || JSON.stringify(saved.blocks) !== JSON.stringify(_ctxBlocks)) _ctxPush();
+                    const flat = list => JSON.stringify((list || []).map(b => Object.keys(b).sort().map(k => [k, b[k]])));
+                    if (!saved || !saved.exists || flat(saved.blocks) !== flat(_ctxBlocks)) _ctxPush();
                 }
             } catch {}
         })();
@@ -8149,7 +8150,10 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     function _ctxWrapOpen(title, style) {
-        if (style === 'xml') return '<context name="' + title.replace(/"/g, "'") + '">';
+        if (style === 'xml') {
+            const name = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, "'");
+            return '<context name="' + name + '">';
+        }
         if (style === 'labelled') return '--- Context: ' + title + ' ---';
         return '';
     }
@@ -8457,6 +8461,11 @@ Must avoid: [Anything sensitive or previously declined]`
             _ctxLoad();
             _ctxBlocks.splice(Math.min(idx, _ctxBlocks.length), 0, removed);
             _ctxSave();
+            if (!_ctxVisible().some(b => b.id === removed.id)) {
+                _ctxFilter = 'all';
+                const search = $('#ctxSearch');
+                if (search) search.value = '';
+            }
             _ctxRenderPills();
             if ($('#contextBankWorkspace')?.classList.contains('open') && !_ctxIsDirty()) _ctxShowBlock(removed.id);
             else _ctxRenderList();

@@ -5042,7 +5042,7 @@
   background: var(--surface-2);
   flex-shrink: 0;
 }
-.ctxb-delete { margin-left: auto; color: var(--danger); }
+.ctxb-delete { color: var(--danger); }
 .ctxb-delete:hover { background: var(--danger-soft); border-color: var(--danger); }
 
 /* Undo toast */

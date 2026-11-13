@@ -11,7 +11,7 @@
 
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/app.css?v=6eb85ae7-plx">
+<link rel="stylesheet" href="/static/app.css?v=efc0fe22-plx">
 </head>
 <body>
 
@@ -2820,6 +2820,9 @@
             <button class="icon-btn ctxb-pin" id="ctxPinBtn" aria-label="Pin to top" title="Pin to top" aria-pressed="false">
               <span class="material-symbols-outlined">push_pin</span>
             </button>
+            <button class="icon-btn ctxb-delete" id="ctxDeleteBtn" aria-label="Delete block" title="Delete block">
+              <span class="material-symbols-outlined">delete</span>
+            </button>
           </div>
           <div class="ctxb-form-scroll">
             <input type="text" id="ctxTitle" class="ctxb-title" placeholder="Block title" aria-label="Block title" maxlength="200" />
@@ -2855,9 +2858,6 @@
             </button>
             <button class="btn btn-ghost" id="ctxDuplicateBtn">
               <span class="material-symbols-outlined">library_add</span> Duplicate
-            </button>
-            <button class="btn btn-ghost ctxb-delete" id="ctxDeleteBtn" aria-label="Delete block" title="Delete block">
-              <span class="material-symbols-outlined">delete</span>
             </button>
           </div>
         </div>
@@ -5010,7 +5010,7 @@
 
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
-<script defer src="/static/app.js?v=caff622e"></script>
+<script defer src="/static/app.js?v=30514f37"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>
