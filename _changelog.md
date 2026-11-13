@@ -332,3 +332,10 @@ HASH — app.js — cache-bust hash updated to f98a0f86
 [13-11-2026] MODIFIED — static/index.html — builder files version value 20261113a to 20261113b
 [13-11-2026] RUN — update_hash.py — app.js a3479174, app.css 4b571e7a
 [13-11-2026] MODIFIED — MEMORY.md — new section: Component Library connection and Workshop
+
+[13-11-2026] SNAPSHOT — _rollbacks/* v-pre-phase5.* (builder-pro.js, builder-pro.css, index.html, MEMORY.md, _changelog.md, CLAUDE.md) — saved before handover phase 5
+[13-11-2026] MODIFIED — static/builder-pro.js — Sidebars collapse independently (rail buttons, prompt-builder-pro.panes.v1); Export menu with Text, Markdown, JSON and XML (JSON and XML parsed before saving, XML has one root and escaped text); five step quick tour on first run with a replay button (prompt-builder-pro.tour.v1)
+[13-11-2026] MODIFIED — static/builder-pro.css — Rail, export menu and tour styles; pane widths moved to --pbp-left and --pbp-right
+[13-11-2026] MODIFIED — static/index.html — builder files version value 20261113b to 20261113c
+[13-11-2026] MODIFIED — MEMORY.md — phase 5 section, stale phase notes superseded
+[13-11-2026] MODIFIED — CLAUDE.md — new Prompt Builder Pro section, script tag count corrected from 3 to 5

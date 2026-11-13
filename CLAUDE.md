@@ -144,7 +144,7 @@ in `_shared/shared.css` -- grep both before concluding something isn't styled.
 - **Frozen vs dev paths differ.** `get_data_dir()` / `get_static_dir()` in app.py branch on PyInstaller frozen state -- don't hardcode paths relative to the source tree.
 - **Flask/PyWebView startup race.** Main.py polls the socket to confirm Flask is up before WebView loads the page -- don't remove that wait.
 - **Async loaders need try/catch around every render call inside them,** or a failed fetch silently blanks the UI with no error surfaced.
-- **NUL bytes and truncation have hit this file before.** Before trusting static/index.html or app.js, sanity check: `grep -c "<script" static/index.html` should be 3; `node --check static/app.js` should pass and end in `})();`.
+- **NUL bytes and truncation have hit this file before.** Before trusting static/index.html or app.js, sanity check: `grep -c "<script" static/index.html` should be 5; `node --check static/app.js` should pass and end in `})();`.
 - **PromptLibrary.db and PromptLibrary.db-journal are live SQLite files in the repo root** -- don't blindly overwrite/delete, the journal implies an interrupted write.
 - **licence_api.py / licence_ui.js are a separate system from the main prompt CRUD** -- don't conflate premium-gating logic with licence validation logic.
 - **`.chain-step` / `.chain-step-num` / `.chain-step-body` are already taken.** An unrelated chain-search picker elsewhere in `app.css` (~line 1479) uses these exact class names with `display: grid; grid-template-columns: 32px 1fr auto`, which silently breaks any other feature that reuses them (missing `display` overrides leak straight through the cascade). The Prompt Chain workspace uses `chainw-step` / `chainw-step-num` / `chainw-step-body` instead -- grep for a class before reusing it, don't assume `chain-` prefixed names are free.
@@ -153,7 +153,7 @@ in `_shared/shared.css` -- grep both before concluding something isn't styled.
 
 ## Triage: "prompts not showing"
 
-1. `grep -c "<script" static/index.html` -> must be 3, else file truncated
+1. `grep -c "<script" static/index.html` -> must be 5, else file truncated
 2. `node --check static/app.js` -> JS syntax error
 3. `python3 -m py_compile app.py` -> Flask startup error
 4. Check render calls inside async loaders are wrapped in try/catch
@@ -256,3 +256,35 @@ The phone app lives in the separate repo `funben12/AI-App-Factory`, folder `apps
 - **Baseline (2026-10-09):** current main of both repos, after the 2026-10-09 variable type PR merges, is the version Eugene uses. Clean up starts from it. Do not compare against the APKs uploaded or committed so far: both are older, pre-cleanup builds. The reference phone build is the latest "Build Prompt Library Mobile APK" release from AI-App-Factory main. See MEMORY.md, BASELINE.
 - **Phone-side gotchas:** the Android WebView has no Material Symbols font, so icons are inline SVG. Phone data is in IndexedDB (`prompt-library`, prompts only) and localStorage (boards, drafts, custom frameworks). Library Organizer deletes by writing IndexedDB directly. Backup restore keeps a safety copy in IndexedDB `prompt-library-safety`.
 - **Verification:** headless Chromium at 390 x 844 against the phone's `assets/index.html`. It has not been run on a physical phone yet.
+
+---
+
+## Prompt Builder Pro (added 2026-11-13)
+
+A Pro workspace opened from the launcher's My Favorites list. It is a node canvas that wires blocks and agent teams into one compiled prompt. All five phases of its handover are built. Details are in MEMORY.md, the source file and handover are in `docs/prompt-builder-pro/`.
+
+**It does not live in `app.js`.** Three files own it:
+
+- `static/builder-pro-engine.js` -- compile engine and templates, lifted unchanged from the standalone tool, no DOM. Exposes `window.PLBuilder`. Do not edit it to add features, extend from `builder-pro.js`.
+- `static/builder-pro.js` -- the interface. Exposes `window.openBuilderProWorkspace`, `window.PL_closeBuilderPro`, `window.__pb` (for tests).
+- `static/builder-pro.css` -- all its styles.
+
+`index.html` only holds the empty root `<div id="builderProWorkspace">`, one stylesheet link, and one loader line in the inline script.
+
+**Rules for this workspace:**
+
+1. Every id and class is prefixed `pbp-`, and every CSS rule sits under `#builderProWorkspace`.
+2. Colours come from `app.css` tokens only. No hex values, no blur. Icons are Material Symbols.
+3. Listeners go on the workspace root. The one `document` keydown listener must keep returning at once while the workspace is closed.
+4. **Cache busting is separate.** `update_hash.py` does not touch these files. They carry a hand-set `?v=` value in `index.html` (two places). Bump it whenever one of the three files changes.
+5. Saved state is localStorage only (`prompt-builder-pro.v5`, `.workshop.v1`, `.panes.v1`, `.tour.v1`). No database, no schema change.
+6. It shares the Component Library with Prompt Components through `window.PL_galleryBorrow` in `app.js`. Never build a second component dataset, and never edit `static/components-data.js` for this workspace.
+7. Free users are refused by a `body.is-premium` check, because `state` and `showPremiumModal` are private to the `app.js` IIFE.
+
+**Launcher:** list headers are buttons that collapse their list (`pl_ws_collapsed` in localStorage). A new launcher list needs an icon colour rule beside the others in `app.css`.
+
+**Corrections to older notes in this file (checked 2026-11-13):**
+
+- `grep -c "<script" static/index.html` is **5**, not 3. Use 5 in the truncation check and the triage list.
+- `Prompt Library Interface Files/` is not in this git repository. It may exist only on Eugene's machine. If it is missing, work from the live files in `static/`.
+- Browser checks in cloud sessions have been run with scripted Playwright (the `playwright` Node library with headless Chromium) against a disposable data folder, because the Playwright MCP tools cannot reach a server inside the cloud container.

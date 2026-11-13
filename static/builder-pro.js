@@ -58,6 +58,15 @@
        through the existing gallery and is never copied or changed. One block type per prompt
        section, so moving a component to another section is a change of type. */
     const WORKSHOP_STORE = 'prompt-builder-pro.workshop.v1';
+    const PANES_STORE = 'prompt-builder-pro.panes.v1';
+    const TOUR_STORE = 'prompt-builder-pro.tour.v1';
+    const TOUR_STEPS = [
+        { target: '#pbp-pane-left', side: 'right', title: 'Pick your blocks', text: 'The Block library holds every building block. Select one to add it, or drag it onto the canvas.' },
+        { target: '.pbp-workshop', side: 'right', title: 'Bring in components', text: 'Open library to browse the Component Library. What you select lands here in the Workshop, ready to drag onto the canvas.' },
+        { target: '#pbp-canvas', side: 'inside', title: 'Wire the flow', text: 'Drag from the dot on one block to another block to connect them. Select a block to edit its text. Blocks that are not wired in are left out of the prompt.' },
+        { target: '#pbp-pane-right', side: 'left', title: 'Read the live prompt', text: 'The prompt compiles as you build. Checks lists anything to fix. When the badge says Ready to copy, copy it or use Export.' },
+        { target: '#pbp-template-select', side: 'below', title: 'Start from a template', text: 'Templates load a working flow, including ready-made agent teams. Guide explains teams and loops. The tour button beside it replays these steps.' }
+    ];
     const COMPONENT = 'component_';
     const COMPONENT_SECTIONS = ['system', 'role', 'audience', 'context', 'knowledge', 'task', 'instructions', 'approach', 'examples', 'constraints', 'tone', 'output', 'quality', 'success'];
     const sectionTitle = id => (PE.SECTIONS.find(x => x.id === id) || {}).title || id;
@@ -124,6 +133,7 @@
   <div class="ws-header-actions">
     <input id="pbp-workflow-title" class="form-input pbp-title-input" aria-label="Workflow title" placeholder="Untitled prompt" autocomplete="off">
     <select id="pbp-template-select" class="form-input pbp-template-select" aria-label="Load a template"></select>
+    <button class="icon-btn" data-act="startTour" aria-label="Show the quick tour" title="Quick tour">${ms('tour')}</button>
     <button class="btn btn-ghost" data-act="openGuide" title="Agent blocks, team shapes and how loops work">${ms('help')}<span>Guide</span></button>
     <details class="pbp-menu" id="pbp-workflow-menu">
       <summary class="btn"><span>Workflow</span>${ms('expand_more')}</summary>
@@ -144,7 +154,7 @@
 </div>
 
 <div class="ws-body pbp-body">
-  <aside class="pbp-pane pbp-pane-left" aria-label="Workshop and block library">
+  <aside class="pbp-pane pbp-pane-left" id="pbp-pane-left" aria-label="Workshop and block library">
     <section class="pbp-workshop" aria-label="Workshop">
       <div class="pbp-pane-head-row">
         <span class="pbp-label">Workshop <span class="pbp-mono pbp-count" id="pbp-ws-count">0</span></span>
@@ -159,6 +169,7 @@
     </div>
     <div class="pbp-library" id="pbp-library"></div>
   </aside>
+  <button class="pbp-rail pbp-rail-left" id="pbp-rail-left" data-act="toggleLeft" aria-controls="pbp-pane-left" aria-expanded="true">${ms('chevron_left')}</button>
 
   <div class="pbp-canvas" id="pbp-canvas" role="region" aria-label="Workflow canvas">
     <div id="pbp-viewport">
@@ -179,7 +190,8 @@
     <section class="pbp-inspector" id="pbp-inspector" aria-label="Block settings" hidden></section>
   </div>
 
-  <aside class="pbp-pane pbp-pane-right" aria-label="Live prompt">
+  <button class="pbp-rail pbp-rail-right" id="pbp-rail-right" data-act="toggleRight" aria-controls="pbp-pane-right" aria-expanded="true">${ms('chevron_right')}</button>
+  <aside class="pbp-pane pbp-pane-right" id="pbp-pane-right" aria-label="Live prompt">
     <div class="pbp-pane-head">
       <div class="pbp-pane-head-row">
         <div class="pbp-tabs" role="tablist" id="pbp-right-tabs">
@@ -224,8 +236,15 @@
     <div class="pbp-pane-foot">
       <span><b class="pbp-mono" id="pbp-count-tokens">0</b> tokens, <b class="pbp-mono" id="pbp-count-chars">0</b> chars</span>
       <span class="pbp-foot-actions">
-        <button class="btn btn-ghost pbp-btn-xs" data-act="downloadTxt">.txt</button>
-        <button class="btn btn-ghost pbp-btn-xs" data-act="downloadJson">.json</button>
+        <details class="pbp-menu pbp-menu-up" id="pbp-export-menu">
+          <summary class="btn btn-ghost pbp-btn-xs">${ms('download')}<span>Export</span></summary>
+          <div class="pbp-menu-list" role="menu">
+            <button class="pbp-menu-item" role="menuitem" data-export="txt">${ms('notes')}<span>Text (.txt)</span></button>
+            <button class="pbp-menu-item" role="menuitem" data-export="md">${ms('markdown')}<span>Markdown (.md)</span></button>
+            <button class="pbp-menu-item" role="menuitem" data-export="json">${ms('data_object')}<span>JSON (.json)</span></button>
+            <button class="pbp-menu-item" role="menuitem" data-export="xml">${ms('code')}<span>XML (.xml)</span></button>
+          </div>
+        </details>
         <button class="btn pbp-btn-xs" data-act="copy" id="pbp-copy-foot"><span class="pbp-btn-label">Copy</span></button>
       </span>
     </div>
@@ -291,7 +310,21 @@
     </ul>
   </div>
   <div class="pbp-dlg-foot"><button class="btn" id="pbp-guide-load-example">Load the Writer and Critic loop</button><button class="btn btn-ghost" data-close>Close</button></div>
-</dialog>`;
+</dialog>
+
+<div class="pbp-tour" id="pbp-tour" hidden>
+  <div class="pbp-tour-ring" id="pbp-tour-ring"></div>
+  <div class="pbp-tour-card" id="pbp-tour-card" role="dialog" aria-labelledby="pbp-tour-title" aria-describedby="pbp-tour-text">
+    <span class="pbp-label">Quick tour <span class="pbp-mono" id="pbp-tour-step"></span></span>
+    <b id="pbp-tour-title"></b>
+    <p id="pbp-tour-text"></p>
+    <div class="pbp-tour-foot">
+      <button class="btn btn-ghost pbp-btn-xs pbp-push-left" data-act="tourSkip">Skip</button>
+      <button class="btn pbp-btn-xs" data-act="tourBack" id="pbp-tour-back">Back</button>
+      <button class="btn btn-accent pbp-btn-xs" data-act="tourNext" id="pbp-tour-next">Next</button>
+    </div>
+  </div>
+</div>`;
 
     let api = null;
 
@@ -932,16 +965,123 @@
                 setTimeout(() => { label.textContent = label.dataset.old; delete label.dataset.old; }, 1400);
             }
         }
-        function download(ext) {
+        // Four export formats, each built from the compiled prompt. JSON and XML are parsed before saving.
+        const xmlEsc = v => String(v).replace(/[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        function buildExport(kind) {
+            const opts = { order: state.order, sample: state.sample, title: state.title };
+            const md = PE.compilePrompt(compileNodes(), state.edges, { ...opts, format: 'markdown' });
+            if (kind === 'md') return md.text;
+            if (kind === 'txt') return md.text.replace(/^##\s+(.*)$/gm, (m, t) => t.toUpperCase()).replace(/^#{1,6}\s+/gm, '');
+            if (kind === 'json') {
+                const text = PE.compilePrompt(compileNodes(), state.edges, { ...opts, format: 'json' }).text;
+                JSON.parse(text);
+                return text;
+            }
+            // XML: one root element, one child per prompt section, text escaped.
+            const body = md.sections.map(sec => {
+                const tag = (PE.SECTIONS.find(x => x.id === sec.id) || {}).tag || 'section';
+                const tight = sec.id === 'inputs' || sec.id === 'workflow';
+                const inner = [sec.lead, sec.parts.map(part => part.text).join(tight ? '\n' : '\n\n')].filter(Boolean).join('\n');
+                return `  <${tag}>\n${xmlEsc(inner)}\n  </${tag}>`;
+            }).join('\n');
+            const text = `<?xml version="1.0" encoding="UTF-8"?>\n<prompt title="${xmlEsc(state.title || 'Untitled prompt').replace(/"/g, '&quot;')}">\n${body}\n</prompt>\n`;
+            const doc = new DOMParser().parseFromString(text, 'application/xml');
+            if (doc.querySelector('parsererror') || doc.documentElement.nodeName !== 'prompt') throw new Error('xml');
+            return text;
+        }
+        function exportAs(kind) {
             if (!result.text.trim()) return toast('Wire some blocks together first', 'warning');
+            let text;
+            try { text = buildExport(kind); } catch (e) { return toast(`The ${kind.toUpperCase()} export did not pass its check, so nothing was saved.`, 'error'); }
             const slug = (state.title || 'prompt').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'prompt';
-            const text = ext === 'json' ? PE.compilePrompt(compileNodes(), state.edges, { ...state, format: 'json' }).text : result.text;
+            const mime = { txt: 'text/plain', md: 'text/markdown', json: 'application/json', xml: 'application/xml' }[kind];
             const a = document.createElement('a');
-            a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
-            a.download = `${slug}.${ext}`;
+            a.href = URL.createObjectURL(new Blob([text], { type: mime + ';charset=utf-8' }));
+            a.download = `${slug}.${kind}`;
             a.click();
             URL.revokeObjectURL(a.href);
-            toast(`Saved ${slug}.${ext}`, 'success');
+            toast(`Saved ${slug}.${kind}`, 'success');
+        }
+
+        /* ---------- sidebars collapse on their own ---------- */
+        let panes = { left: true, right: true };
+        function applyPanes() {
+            for (const side of ['left', 'right']) {
+                const open = panes[side];
+                root.toggleAttribute(`data-pbp-${side}-closed`, !open);
+                const rail = $(`#pbp-rail-${side}`);
+                const what = side === 'left' ? 'block library' : 'prompt panel';
+                rail.setAttribute('aria-expanded', String(open));
+                rail.setAttribute('aria-label', `${open ? 'Collapse' : 'Show'} the ${what}`);
+                rail.title = `${open ? 'Collapse' : 'Show'} the ${what}`;
+                rail.firstElementChild.textContent = (side === 'left') === open ? 'chevron_left' : 'chevron_right';
+            }
+        }
+        function togglePane(side, keep) {
+            panes[side] = !panes[side];
+            applyPanes();
+            if (keep !== false) { try { localStorage.setItem(PANES_STORE, JSON.stringify(panes)); } catch (e) { /* still works this session */ } }
+        }
+        try {
+            const saved = JSON.parse(localStorage.getItem(PANES_STORE) || 'null');
+            if (saved) panes = { left: saved.left !== false, right: saved.right !== false };
+        } catch (e) { /* default: both open */ }
+        applyPanes();
+
+        /* ---------- first run tutorial, replayed from the tour button ---------- */
+        let tourAt = -1, tourPanes = null;
+        const tourOn = () => tourAt >= 0;
+        const tourSeen = () => { try { return localStorage.getItem(TOUR_STORE) === '1'; } catch (e) { return true; } };
+        function placeTour() {
+            if (!tourOn()) return;
+            const step = TOUR_STEPS[tourAt];
+            const target = $(step.target);
+            const card = $('#pbp-tour-card'), ring = $('#pbp-tour-ring');
+            const rr = root.getBoundingClientRect();
+            const r = target ? target.getBoundingClientRect() : rr;
+            const box = { left: r.left - rr.left, top: r.top - rr.top, width: r.width, height: r.height };
+            Object.assign(ring.style, { left: box.left + 4 + 'px', top: box.top + 4 + 'px', width: Math.max(0, box.width - 8) + 'px', height: Math.max(0, box.height - 8) + 'px' });
+            const cw = card.offsetWidth, ch = card.offsetHeight, gap = 14;
+            let left, top;
+            if (step.side === 'right') { left = box.left + box.width + gap; top = box.top + gap; }
+            else if (step.side === 'left') { left = box.left - cw - gap; top = box.top + gap; }
+            else if (step.side === 'below') { left = box.left; top = box.top + box.height + gap; }
+            else { left = box.left + (box.width - cw) / 2; top = box.top + (box.height - ch) / 2; }
+            card.style.left = Math.max(12, Math.min(left, rr.width - cw - 12)) + 'px';
+            card.style.top = Math.max(12, Math.min(top, rr.height - ch - 12)) + 'px';
+        }
+        function showTourStep(i) {
+            tourAt = i;
+            const step = TOUR_STEPS[i];
+            $('#pbp-tour-step').textContent = `${i + 1} of ${TOUR_STEPS.length}`;
+            $('#pbp-tour-title').textContent = step.title;
+            $('#pbp-tour-text').textContent = step.text;
+            $('#pbp-tour-back').disabled = i === 0;
+            $('#pbp-tour-next').textContent = i === TOUR_STEPS.length - 1 ? 'Done' : 'Next';
+            placeTour();
+            $('#pbp-tour-next').focus();
+        }
+        function startTour() {
+            if (tourOn() || libraryOpen()) return;
+            $$('dialog[open]').forEach(d => d.close());
+            select(null);
+            // The tour points at both sidebars, so it opens them and puts them back afterwards.
+            tourPanes = { ...panes };
+            if (!panes.left) togglePane('left', false);
+            if (!panes.right) togglePane('right', false);
+            $('#pbp-tour').hidden = false;
+            showTourStep(0);
+        }
+        function endTour() {
+            if (!tourOn()) return;
+            tourAt = -1;
+            $('#pbp-tour').hidden = true;
+            try { localStorage.setItem(TOUR_STORE, '1'); } catch (e) { /* it will simply show again next time */ }
+            if (tourPanes) {
+                if (panes.left !== tourPanes.left) togglePane('left', false);
+                if (panes.right !== tourPanes.right) togglePane('right', false);
+                tourPanes = null;
+            }
         }
         let jsonMode = 'export';
         const MD_EXAMPLE = `## Role\nYou are a senior support agent for a software company.\n\n## Task\nAnswer {{customer_message}} in under 120 words.\n\n## Constraints\n- Never promise a refund.\n\n## Output format\nPlain text, no headings.`;
@@ -1205,18 +1345,15 @@
             openLibrary,
             importJson: () => openJson('import'),
             exportJson: () => openJson('export'),
-            exportMd: () => {
-                const keep = state.format;
-                state.format = 'markdown';
-                compile();
-                download('md');
-                state.format = keep;
-                compile();
-            },
+            exportMd: () => exportAs('md'),
+            toggleLeft: () => togglePane('left'),
+            toggleRight: () => togglePane('right'),
+            startTour,
+            tourSkip: endTour,
+            tourBack: () => tourAt > 0 && showTourStep(tourAt - 1),
+            tourNext: () => (tourAt < TOUR_STEPS.length - 1 ? showTourStep(tourAt + 1) : endTour()),
             clear: () => (state.nodes.length ? $('#pbp-confirm-dialog').showModal() : toast('The canvas is already empty')),
             copy: btn => copyPrompt(btn),
-            downloadTxt: () => download(state.format === 'markdown' ? 'md' : 'txt'),
-            downloadJson: () => download('json'),
             zoomIn: () => zoomBy(.1),
             zoomOut: () => zoomBy(-.1),
             deselect: () => select(null),
@@ -1241,11 +1378,11 @@
         };
 
         root.addEventListener('click', e => {
-            const menu = $('#pbp-workflow-menu');
-            if (menu.open && !e.target.closest('#pbp-workflow-menu summary')) menu.open = false;
+            $$('.pbp-menu[open]').forEach(m => { if (!m.querySelector('summary').contains(e.target)) m.open = false; });
             if (libraryOpen() && e.target.closest('#pcwGallery')) return;
-            const t = e.target.closest('[data-ws-add], [data-ws-remove], [data-template], [data-act], [data-add], [data-del], [data-goto], [data-edge], [data-tab], [data-format], [data-cat-chip], [data-close], .pbp-part, .pbp-node-body');
+            const t = e.target.closest('[data-export], [data-ws-add], [data-ws-remove], [data-template], [data-act], [data-add], [data-del], [data-goto], [data-edge], [data-tab], [data-format], [data-cat-chip], [data-close], .pbp-part, .pbp-node-body');
             if (!t) return;
+            if (t.dataset.export) return exportAs(t.dataset.export);
             if (t.dataset.wsAdd) return addComponent(workshop[+t.dataset.wsAdd]);
             if (t.dataset.wsRemove) return removeFromWorkshop(+t.dataset.wsRemove);
             if (t.dataset.template) { t.closest('dialog')?.close(); return loadTemplate(t.dataset.template); }
@@ -1311,12 +1448,19 @@
                 if (e.key === 'Escape') returnGallery();
                 return;
             }
+            // While the tour is up, Escape skips it and the arrow keys step through it.
+            if (tourOn()) {
+                if (e.key === 'Escape') endTour();
+                else if (e.key === 'ArrowRight') actions.tourNext();
+                else if (e.key === 'ArrowLeft') actions.tourBack();
+                return;
+            }
             const typing = /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
             if (e.key === 'Enter' && e.target.classList?.contains('pbp-part')) return select(e.target.dataset.node);
             if ($('dialog[open]')) return;
             if (e.key === 'Escape') {
-                const menu = $('#pbp-workflow-menu');
-                if (menu.open) menu.open = false;
+                const menus = $$('.pbp-menu[open]');
+                if (menus.length) menus.forEach(m => { m.open = false; });
                 else if (state.selected) select(null);
                 else if (typing) e.target.blur();
                 else closeWorkspace();
@@ -1374,7 +1518,7 @@
             $('#pbp-guide-dialog').close();
         });
 
-        window.addEventListener('resize', () => { if (isOpen()) requestAnimationFrame(renderWires); });
+        window.addEventListener('resize', () => { if (isOpen()) requestAnimationFrame(() => { renderWires(); placeTour(); }); });
 
         /* ---------- static content ---------- */
         const optionsFor = group => Object.entries(TEMPLATES).filter(([, t]) => (t.group || 'prompt') === group).map(([k, t]) => `<option value="${k}">${esc(t.title.replace(/^Team: /, ''))}</option>`).join('');
@@ -1406,17 +1550,20 @@
                 if (restored) { render(); fit(); }
                 else loadTemplate('default', true);
                 document.fonts?.ready.then(() => { if (isOpen()) renderWires(); });
+                // First run only. The tour button in the header replays it.
+                if (!tourSeen()) setTimeout(() => { if (isOpen()) startTour(); }, 350);
             } else {
                 renderWires();
             }
         }
         function closeDialogs() {
             returnGallery();
+            endTour();
             $$('dialog[open]').forEach(d => d.close());
-            $('#pbp-workflow-menu').open = false;
+            $$('.pbp-menu[open]').forEach(m => { m.open = false; });
         }
 
-        return { state, get result() { return result; }, get workshop() { return workshop; }, render, connect, addNode, loadTemplate, select, show, closeDialogs };
+        return { state, get result() { return result; }, get workshop() { return workshop; }, get panes() { return panes; }, buildExport, render, connect, addNode, loadTemplate, select, show, closeDialogs };
     }
 
     function ensure() {

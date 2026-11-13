@@ -95,11 +95,40 @@
 
 /* ---------- three pane body ---------- */
 #builderProWorkspace .pbp-body {
+  --pbp-left: 280px;
+  --pbp-right: 432px;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 432px;
+  grid-template-columns: var(--pbp-left) 14px minmax(0, 1fr) 14px var(--pbp-right);
   min-height: 0;
   position: relative;
 }
+#builderProWorkspace .pbp-body > * { grid-row: 1; }
+#builderProWorkspace .pbp-pane-left { grid-column: 1; }
+#builderProWorkspace .pbp-rail-left { grid-column: 2; }
+#builderProWorkspace .pbp-canvas { grid-column: 3; }
+#builderProWorkspace .pbp-rail-right { grid-column: 4; }
+#builderProWorkspace .pbp-pane-right { grid-column: 5; }
+#builderProWorkspace[data-pbp-left-closed] .pbp-body { --pbp-left: 0px; }
+#builderProWorkspace[data-pbp-right-closed] .pbp-body { --pbp-right: 0px; }
+#builderProWorkspace[data-pbp-left-closed] .pbp-pane-left,
+#builderProWorkspace[data-pbp-right-closed] .pbp-pane-right { display: none; }
+
+/* The strip between a sidebar and the canvas collapses or shows that sidebar. */
+#builderProWorkspace .pbp-rail {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: var(--surface-2);
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+#builderProWorkspace .pbp-rail-left { border-right: 1px solid var(--line); }
+#builderProWorkspace .pbp-rail-right { border-left: 1px solid var(--line); }
+#builderProWorkspace .pbp-rail .material-symbols-outlined { font-size: 16px; }
+#builderProWorkspace .pbp-rail:hover { background: var(--accent-soft); color: var(--accent); }
+#builderProWorkspace .pbp-rail:focus-visible { box-shadow: inset var(--ring); }
 #builderProWorkspace .pbp-pane {
   display: flex;
   flex-direction: column;
@@ -107,8 +136,6 @@
   min-width: 0;
   background: var(--surface-2);
 }
-#builderProWorkspace .pbp-pane-left { border-right: 1px solid var(--line); }
-#builderProWorkspace .pbp-pane-right { border-left: 1px solid var(--line); }
 #builderProWorkspace .pbp-pane-head {
   padding: var(--sp-4) var(--sp-4) var(--sp-3);
   display: grid;
@@ -889,11 +916,11 @@
 
 /* ---------- narrower windows ---------- */
 @media (max-width: 1500px) {
-  #builderProWorkspace .pbp-body { grid-template-columns: 256px minmax(0, 1fr) 384px; }
+  #builderProWorkspace .pbp-body { --pbp-left: 256px; --pbp-right: 384px; }
   #builderProWorkspace .pbp-header .ws-subtitle { display: none; }
 }
 @media (max-width: 1320px) {
-  #builderProWorkspace .pbp-body { grid-template-columns: 236px minmax(0, 1fr) 340px; }
+  #builderProWorkspace .pbp-body { --pbp-left: 236px; --pbp-right: 340px; }
   #builderProWorkspace .pbp-title-input { flex-basis: 170px; }
   #builderProWorkspace .pbp-template-select { flex-basis: 150px; }
 }
@@ -970,3 +997,51 @@
 #builderProWorkspace .pbp-ws-empty li .pbp-mono { color: var(--accent); font-weight: 600; }
 /* The borrowed gallery keeps the look it has in Prompt Components. */
 #builderProWorkspace > .pcw-gallery { font-size: 1rem; line-height: 1.55; }
+
+/* ---------- export menu opens upwards from the footer ---------- */
+#builderProWorkspace .pbp-menu-up .pbp-menu-list {
+  top: auto;
+  bottom: calc(100% + 6px);
+  min-width: 190px;
+}
+#builderProWorkspace .pbp-menu > summary.btn { display: inline-flex; }
+
+/* ---------- quick tour ---------- */
+#builderProWorkspace .pbp-tour {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  overflow: hidden;
+}
+#builderProWorkspace .pbp-tour[hidden] { display: none; }
+#builderProWorkspace .pbp-tour-ring {
+  position: absolute;
+  border: 2px solid var(--accent);
+  border-radius: var(--r-lg);
+  box-shadow: 0 0 0 200vmax color-mix(in oklch, var(--ink) 38%, transparent);
+  pointer-events: none;
+  transition: left var(--t-base) var(--ease-out-quart), top var(--t-base) var(--ease-out-quart),
+              width var(--t-base) var(--ease-out-quart), height var(--t-base) var(--ease-out-quart);
+}
+#builderProWorkspace .pbp-tour-card {
+  position: absolute;
+  width: 320px;
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  transition: left var(--t-base) var(--ease-out-quart), top var(--t-base) var(--ease-out-quart);
+}
+#builderProWorkspace .pbp-tour-card .pbp-mono { margin-left: var(--sp-1); letter-spacing: 0; }
+#builderProWorkspace .pbp-tour-card b {
+  font-family: var(--ff-display);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+#builderProWorkspace .pbp-tour-card p { margin: 0; color: var(--ink-2); line-height: 1.55; }
+#builderProWorkspace .pbp-tour-foot { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-2); }
