@@ -287,4 +287,4 @@ A Pro workspace opened from the launcher's My Favorites list. It is a node canva
 
 - `grep -c "<script" static/index.html` is **5**, not 3. Use 5 in the truncation check and the triage list.
 - `Prompt Library Interface Files/` is not in this git repository. It may exist only on Eugene's machine. If it is missing, work from the live files in `static/`.
-- Browser checks in cloud sessions have been run with scripted Playwright (the `playwright` Node library with headless Chromium) against a disposable data folder, because the Playwright MCP tools cannot reach a server inside the cloud container.
+- Browser checks in cloud sessions have been run with scripted Playwright (the `playwright` Node library with headless Chromium) against a disposable data folder. The Playwright MCP tools were not tried there, so the rule above still stands for local sessions.
