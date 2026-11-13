@@ -4990,7 +4990,7 @@ Here are my prompts:
             '#costWorkspace', '#pulseWorkspace', '#xrayWorkspace', '#spliceWorkspace', '#forkWorkstation',
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
             '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace', '#gauntletWorkspace',
-            '#promptIdeWorkspace', '#promptForkingWorkspace',
+            '#promptIdeWorkspace', '#promptForkingWorkspace', '#builderProWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -11983,6 +11983,21 @@ Must avoid: [Anything sensitive or previously declined]`
         }
         window.PL_openComponentGallery = _galOpen;
 
+        // Another workspace can borrow the gallery: it gets its own kit and its own checkout.
+        var _galHost = null;
+        var _galSpareKit = [];
+        window.PL_galleryBorrow = function(host) {
+            if (!!host !== !!_galHost) {
+                var kit = _galCart;
+                _galCart = _galSpareKit;
+                _galSpareKit = kit;
+            }
+            _galHost = host || null;
+            var go = $('#pcwGalCartGoBtn');
+            if (go && go.lastChild) go.lastChild.textContent = ' Add all to ' + (_galHost ? _galHost.label : 'canvas');
+            _galUpdateCart();
+        };
+
         /* ---- Cart ---- */
         function _galCartAdd(item) {
             _galCart.push(item);
@@ -12016,6 +12031,13 @@ Must avoid: [Anything sensitive or previously declined]`
 
         function _galCheckout() {
             if (!_galCart.length) return;
+            if (_galHost) {
+                var hostKit = _galCart;
+                _galCart = [];
+                _galUpdateCart();
+                _galHost.onCheckout(hostKit);
+                return;
+            }
             var base = _pcwNextPos();
             _galCart.forEach(function(it, i) {
                 _canvasBlocks.push({
@@ -12169,7 +12191,7 @@ Must avoid: [Anything sensitive or previously declined]`
                         '<div class="pcw-cart-actions">' +
                         '<button type="button" class="btn btn-accent" data-cart-checkout="1">' +
                         '<span class="material-symbols-outlined">arrow_forward</span> Add ' + _galCart.length +
-                        ' component' + (_galCart.length !== 1 ? 's' : '') + ' to canvas</button></div>';
+                        ' component' + (_galCart.length !== 1 ? 's' : '') + ' to ' + (_galHost ? _galHost.label : 'canvas') + '</button></div>';
                 }
 
             } else if (v.mode === 'preview') {
@@ -18620,11 +18642,30 @@ Must avoid: [Anything sensitive or previously declined]`
         wrap.hidden = false;
     }
 
+    // Collapsed launcher lists, saved per list. Default is every list open.
+    function _launcherCollapsed() {
+        try {
+            return JSON.parse(localStorage.getItem('pl_ws_collapsed') || '{}') || {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function _applyLauncherCollapse() {
+        const map = _launcherCollapsed();
+        $$('#launcherGrid .launcher-group').forEach(group => {
+            const shut = !!map[group.dataset.group];
+            group.classList.toggle('is-collapsed', shut);
+            group.querySelector('.launcher-group-toggle')?.setAttribute('aria-expanded', String(!shut));
+        });
+    }
+
     window.openWorkspacesLauncher = function() {
         $('#workspacesLauncher')?.classList.add('open');
         $$('.nav-item[data-view]').forEach(el =>
             el.classList.toggle('active', el.dataset.view === 'workspaces'));
         _renderLauncherRecent();
+        _applyLauncherCollapse();
         const s = $('#launcherSearch');
         if (s) {
             s.value = '';
@@ -18676,10 +18717,26 @@ Must avoid: [Anything sensitive or previously declined]`
             if (e.key === 'Escape') closeWorkspacesLauncher();
         });
 
+        // List headers collapse and reopen their own list.
+        $('#launcherGrid')?.addEventListener('click', e => {
+            const group = e.target.closest('.launcher-group-toggle')?.closest('.launcher-group');
+            if (!group) return;
+            const map = _launcherCollapsed();
+            if (map[group.dataset.group]) delete map[group.dataset.group];
+            else map[group.dataset.group] = 1;
+            try {
+                localStorage.setItem('pl_ws_collapsed', JSON.stringify(map));
+            } catch (err) { /* collapse still works for this session */ }
+            _applyLauncherCollapse();
+        });
+        _applyLauncherCollapse();
+
         // Search filter — hides cards, then any group left empty
         $('#launcherSearch')?.addEventListener('input', e => {
             const q = e.target.value.trim().toLowerCase();
             let anyVisible = false;
+            // Searching shows matches inside collapsed lists too.
+            $('#launcherGrid')?.classList.toggle('is-searching', !!q);
             $$('#launcherGrid .launcher-card').forEach(card => {
                 const show = !q || card.textContent.toLowerCase().includes(q);
                 card.style.display = show ? '' : 'none';
