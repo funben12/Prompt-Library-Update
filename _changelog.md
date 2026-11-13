@@ -324,3 +324,11 @@ HASH — app.js — cache-bust hash updated to f98a0f86
 [13-11-2026] ADD — docs/prompt-builder-pro/ — source builder HTML and the Cowork handover, for reference
 [13-11-2026] RUN — update_hash.py — app.js ed4185ff, app.css 4b571e7a
 [13-11-2026] MODIFIED — MEMORY.md — new section: Prompt Builder Pro workspace and launcher lists
+
+[13-11-2026] SNAPSHOT — _rollbacks/app v-pre-workshop.js, index v-pre-workshop.html, builder-pro v-pre-workshop.js, builder-pro v-pre-workshop.css, MEMORY v-pre-workshop.md, _changelog v-pre-workshop.md — saved before the Component Library connection
+[13-11-2026] MODIFIED — static/app.js — Gallery can be borrowed by another workspace: window.PL_galleryBorrow(host), spare kit, _galCheckout hands the kit to the host, kit view button names the destination (24 lines)
+[13-11-2026] MODIFIED — static/builder-pro.js — Workshop sidebar section, Open library (borrows and moves #pcwGallery, hands it back on close), component_<section> block types, section guess, Prompt section picker, own-label strip at compile time, Workshop saved in localStorage prompt-builder-pro.workshop.v1
+[13-11-2026] MODIFIED — static/builder-pro.css — Workshop styles, gallery font reset while borrowed
+[13-11-2026] MODIFIED — static/index.html — builder files version value 20261113a to 20261113b
+[13-11-2026] RUN — update_hash.py — app.js a3479174, app.css 4b571e7a
+[13-11-2026] MODIFIED — MEMORY.md — new section: Component Library connection and Workshop

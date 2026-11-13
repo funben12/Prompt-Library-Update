@@ -906,3 +906,67 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- workshop: components picked in the Component Library ---------- */
+#builderProWorkspace .pbp-workshop {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 42%;
+  flex-shrink: 0;
+  padding: var(--sp-4) var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+#builderProWorkspace .pbp-workshop .pbp-pane-head-row { padding: 0 var(--sp-2) var(--sp-2); }
+#builderProWorkspace .pbp-workshop .pbp-count { margin-left: var(--sp-1); letter-spacing: 0; }
+#builderProWorkspace .pbp-ws-list { overflow-y: auto; min-height: 0; }
+#builderProWorkspace .pbp-ws-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  cursor: grab;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+#builderProWorkspace .pbp-ws-item:hover { background: var(--surface-2); border-color: var(--line); }
+#builderProWorkspace .pbp-ws-item .pbp-lib-text { flex: 1; }
+#builderProWorkspace .pbp-ws-item .pbp-lib-text b,
+#builderProWorkspace .pbp-ws-item .pbp-lib-text span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#builderProWorkspace .pbp-ws-btn {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+#builderProWorkspace .pbp-ws-btn .material-symbols-outlined { font-size: 17px; }
+#builderProWorkspace .pbp-ws-btn:hover { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+#builderProWorkspace .pbp-ws-btn:active { transform: scale(0.98); }
+#builderProWorkspace .pbp-ws-remove:hover { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+#builderProWorkspace .pbp-ws-empty {
+  margin: 0 var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px dashed var(--line);
+  border-radius: var(--r-md);
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+#builderProWorkspace .pbp-ws-empty b { display: block; margin-bottom: var(--sp-2); color: var(--ink); font-weight: 600; }
+#builderProWorkspace .pbp-ws-empty ol { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-1); }
+#builderProWorkspace .pbp-ws-empty li { display: flex; gap: var(--sp-2); line-height: 1.45; }
+#builderProWorkspace .pbp-ws-empty li .pbp-mono { color: var(--accent); font-weight: 600; }
+/* The borrowed gallery keeps the look it has in Prompt Components. */
+#builderProWorkspace > .pcw-gallery { font-size: 1rem; line-height: 1.55; }

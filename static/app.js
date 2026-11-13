@@ -11983,6 +11983,21 @@ Must avoid: [Anything sensitive or previously declined]`
         }
         window.PL_openComponentGallery = _galOpen;
 
+        // Another workspace can borrow the gallery: it gets its own kit and its own checkout.
+        var _galHost = null;
+        var _galSpareKit = [];
+        window.PL_galleryBorrow = function(host) {
+            if (!!host !== !!_galHost) {
+                var kit = _galCart;
+                _galCart = _galSpareKit;
+                _galSpareKit = kit;
+            }
+            _galHost = host || null;
+            var go = $('#pcwGalCartGoBtn');
+            if (go && go.lastChild) go.lastChild.textContent = ' Add all to ' + (_galHost ? _galHost.label : 'canvas');
+            _galUpdateCart();
+        };
+
         /* ---- Cart ---- */
         function _galCartAdd(item) {
             _galCart.push(item);
@@ -12016,6 +12031,13 @@ Must avoid: [Anything sensitive or previously declined]`
 
         function _galCheckout() {
             if (!_galCart.length) return;
+            if (_galHost) {
+                var hostKit = _galCart;
+                _galCart = [];
+                _galUpdateCart();
+                _galHost.onCheckout(hostKit);
+                return;
+            }
             var base = _pcwNextPos();
             _galCart.forEach(function(it, i) {
                 _canvasBlocks.push({
@@ -12169,7 +12191,7 @@ Must avoid: [Anything sensitive or previously declined]`
                         '<div class="pcw-cart-actions">' +
                         '<button type="button" class="btn btn-accent" data-cart-checkout="1">' +
                         '<span class="material-symbols-outlined">arrow_forward</span> Add ' + _galCart.length +
-                        ' component' + (_galCart.length !== 1 ? 's' : '') + ' to canvas</button></div>';
+                        ' component' + (_galCart.length !== 1 ? 's' : '') + ' to ' + (_galHost ? _galHost.label : 'canvas') + '</button></div>';
                 }
 
             } else if (v.mode === 'preview') {

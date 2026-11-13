@@ -50,7 +50,67 @@
         compliance: 'policy',
         rubric_scoring: 'scoreboard', feedback_format: 'comment', quality_metrics: 'speed', ab_testing: 'compare_arrows'
     };
-    const glyph = type => `<span class="pbp-glyph material-symbols-outlined" aria-hidden="true">${ICONS[type] || 'widgets'}</span>`;
+    const iconName = v => (/^[a-z0-9_]+$/.test(String(v || '')) ? v : '');
+    const glyph = (type, n) => `<span class="pbp-glyph material-symbols-outlined" aria-hidden="true">${iconName(n && n.config && n.config.source && n.config.source.icon) || ICONS[type] || 'widgets'}</span>`;
+
+    /* ---------- Component Library link ----------
+       Records from the Prompt Components dataset become a generic block. The dataset is read
+       through the existing gallery and is never copied or changed. One block type per prompt
+       section, so moving a component to another section is a change of type. */
+    const WORKSHOP_STORE = 'prompt-builder-pro.workshop.v1';
+    const COMPONENT = 'component_';
+    const COMPONENT_SECTIONS = ['system', 'role', 'audience', 'context', 'knowledge', 'task', 'instructions', 'approach', 'examples', 'constraints', 'tone', 'output', 'quality', 'success'];
+    const sectionTitle = id => (PE.SECTIONS.find(x => x.id === id) || {}).title || id;
+    COMPONENT_SECTIONS.forEach(id => {
+        BLOCKS[COMPONENT + id] = {
+            inputs: true, outputs: BLOCKS.context.outputs, type: COMPONENT + id,
+            label: 'Component', hint: 'From the Component Library', category: 'component', glyph: '', section: id,
+            fields: [{ key: 'content', label: 'Text', type: 'textarea', rows: 9, placeholder: '' }],
+            defaults: { title: 'Component', content: '' },
+            about: 'A component from the Component Library. It is printed under the prompt section chosen below.',
+            use: ['Fill in the [blanks] in the text.', 'Change the prompt section if the guess is wrong.', 'Wire it into any block, including an agent input.']
+        };
+    });
+    const isComponent = n => !!n && String(n.type).startsWith(COMPONENT);
+    const sectionOf = n => String(n.type).slice(COMPONENT.length);
+
+    // Label first, then category. The user can change the section in the block settings.
+    const SECTION_BY_LABEL = [
+        [/\bsystem\b/, 'system'],
+        [/\b(role|persona|identity|act as)\b/, 'role'],
+        [/\b(audience|reader|readers|recipient)\b/, 'audience'],
+        [/\b(context|background|scenario|situation)\b/, 'context'],
+        [/\b(examples?|few.shot|samples?)\b/, 'examples'],
+        [/\b(constraints?|rules?|guardrails?|limits?|boundar(y|ies)|restrictions?|safety|avoid|never)\b/, 'constraints'],
+        [/\b(tone|style|voice|register)\b/, 'tone'],
+        [/\b(output|format|structure|template|schema|layout|length)\b/, 'output'],
+        [/\b(success|criteria|definition of done)\b/, 'success'],
+        [/\b(checks?|verify|verification|review|critique|quality|validat(e|ion)|self.check)\b/, 'quality'],
+        [/\b(task|goal|objective|request)\b/, 'task'],
+        [/\b(steps?|instructions?|process|procedure)\b/, 'instructions'],
+        [/\b(reason(ing)?|think(ing)?|chain|approach|method|methods|strategy)\b/, 'approach'],
+        [/\b(knowledge|references?|sources?|facts)\b/, 'knowledge']
+    ];
+    const SECTION_BY_CAT = {
+        core: 'instructions', reasoning: 'approach', analysis: 'approach', ideation: 'approach',
+        control: 'instructions', agentic: 'instructions', meta: 'instructions',
+        output: 'output', guardrails: 'constraints', personas: 'role'
+    };
+    function guessSection(item) {
+        const label = String(item.label || '').toLowerCase();
+        const hit = SECTION_BY_LABEL.find(([re]) => re.test(label));
+        if (hit) return hit[1];
+        return SECTION_BY_CAT[item.cat] || 'task';
+    }
+    // A record that opens with its own label, or its section heading, would print that word twice.
+    function stripOwnLabel(n) {
+        const text = String(n.config.content || '');
+        const names = [n.config.source && n.config.source.label, n.config.title, sectionTitle(sectionOf(n)), sectionOf(n)]
+            .filter(Boolean).map(x => String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        const cut = text.replace(new RegExp('^\\s*(?:' + names.join('|') + ')\\s*:\\s*', 'i'), '');
+        return cut.trim() ? cut : text;
+    }
+    const categoryName = item => item.badge || !item.cat ? 'Framework' : ((window._pcwCATEGORIES || []).find(c => c.id === item.cat) || {}).label || item.cat;
 
     const MARKUP = `
 <div class="ws-header pbp-header">
@@ -84,7 +144,14 @@
 </div>
 
 <div class="ws-body pbp-body">
-  <aside class="pbp-pane pbp-pane-left" aria-label="Block library">
+  <aside class="pbp-pane pbp-pane-left" aria-label="Workshop and block library">
+    <section class="pbp-workshop" aria-label="Workshop">
+      <div class="pbp-pane-head-row">
+        <span class="pbp-label">Workshop <span class="pbp-mono pbp-count" id="pbp-ws-count">0</span></span>
+        <button class="btn pbp-btn-xs" data-act="openLibrary" title="Browse the Component Library">${ms('storefront')}<span>Open library</span></button>
+      </div>
+      <div class="pbp-ws-list" id="pbp-ws-list"></div>
+    </section>
     <div class="pbp-pane-head">
       <div class="pbp-pane-head-row"><span class="pbp-label">Block library</span><span class="pbp-mono pbp-count" id="pbp-lib-count"></span></div>
       <input id="pbp-block-search" class="form-input" type="search" placeholder="Search blocks" aria-label="Search blocks" autocomplete="off">
@@ -243,6 +310,7 @@
         };
         let result = PE.compilePrompt([], [], state);
         let importNotes = [];
+        let workshop = [];
         const els = {
             canvas: $('#pbp-canvas'), viewport: $('#pbp-viewport'), nodes: $('#pbp-nodes'),
             wires: $('#pbp-wire-layer'), temp: $('#pbp-temp-wire'), inspector: $('#pbp-inspector')
@@ -348,8 +416,8 @@
                     ${multiOut ? '' : `<span class="pbp-port pbp-port-out" data-port="${d.outputs[0].id}" data-dir="out" title="Drag to connect"></span>`}
                     ${inHtml}
                     <div class="pbp-node-head" data-drag>
-                        ${glyph(n.type)}
-                        <div class="pbp-node-meta"><div class="pbp-node-title">${esc(PE.titleOf(n))}</div><div class="pbp-node-type">${esc(d.label)}</div></div>
+                        ${glyph(n.type, n)}
+                        <div class="pbp-node-meta"><div class="pbp-node-title">${esc(PE.titleOf(n))}</div><div class="pbp-node-type">${esc(isComponent(n) ? 'Component, ' + sectionTitle(sectionOf(n)) : d.label)}</div></div>
                         <button class="pbp-node-x" data-del="${n.id}" aria-label="Delete ${esc(PE.titleOf(n))}">${ms('close')}</button>
                     </div>
                     <p class="pbp-node-body">${esc(summary(n))}</p>
@@ -486,8 +554,8 @@
             const missing = d.kind === 'coordinator' ? missingAgents(n).length : 0;
             box.innerHTML = `
                 <div class="pbp-insp-head">
-                    ${glyph(n.type)}
-                    <div class="pbp-node-meta"><div class="pbp-node-title">${esc(d.label)}</div><div class="pbp-insp-hint">${esc(d.hint)}</div></div>
+                    ${glyph(n.type, n)}
+                    <div class="pbp-node-meta"><div class="pbp-node-title">${esc(d.label)}</div><div class="pbp-insp-hint">${esc(isComponent(n) && n.config.source ? 'From ' + categoryName(n.config.source) : d.hint)}</div></div>
                     <button class="icon-btn" data-act="deselect" aria-label="Close settings">${ms('close')}</button>
                 </div>
                 <div class="pbp-insp-body">
@@ -495,6 +563,7 @@
                     ${missing ? `<button class="btn btn-accent btn-sm" data-act="addAgents">Add its ${missing === 1 ? 'missing agent' : missing + ' agents'} and wire them</button>` : ''}
                     ${Array.isArray(d.inputs) ? `<div class="pbp-ports"><div><span class="pbp-label">Takes in</span>${d.inputs.map(p => `<span>${esc(p.label)}</span>`).join('')}</div><div><span class="pbp-label">Hands out</span>${d.outputs.map(p => `<span>${esc(p.label)}</span>`).join('')}</div></div>` : ''}
                     <div class="pbp-field"><label for="pbp-f-title">Block name</label><input class="form-input" id="pbp-f-title" data-field="title" value="${esc(n.config.title || '')}" autocomplete="off"></div>
+                    ${isComponent(n) ? `<div class="pbp-field"><label for="pbp-f-section">Prompt section</label><select class="form-input" id="pbp-f-section" data-section>${COMPONENT_SECTIONS.map(id => `<option value="${id}" ${id === sectionOf(n) ? 'selected' : ''}>${esc(sectionTitle(id))}</option>`).join('')}</select></div>` : ''}
                     ${fields}
                     <button class="btn btn-ghost pbp-btn-xs pbp-start" data-act="resetText">Restore default text</button>
                 </div>
@@ -527,10 +596,16 @@
         }
 
         /* ---------- render pipeline ---------- */
+        // Components are compiled from a copy, so the stored text is never changed.
+        const compileNodes = () => state.nodes.map(n => isComponent(n) ? { ...n, config: { ...n.config, content: stripOwnLabel(n) } } : n);
         function compile() {
-            result = PE.compilePrompt(state.nodes, state.edges, {
+            result = PE.compilePrompt(compileNodes(), state.edges, {
                 format: state.format, order: state.order, sample: state.sample, title: state.title
             });
+            // A component in the Role, Task or Output section counts as that part of the prompt.
+            const covers = { role: ['role', 'system'], task: ['task', 'instructions'], output: ['output'] };
+            const active = new Set(result.activeIds);
+            result.missing = result.missing.filter(m => !state.nodes.some(n => isComponent(n) && active.has(n.id) && covers[m].includes(sectionOf(n))));
         }
         function render({ inspector = true } = {}) {
             compile();
@@ -590,6 +665,98 @@
             $$('#pbp-right-tabs [data-tab]').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t));
             ['prompt', 'checks', 'trace'].forEach(p => { $(`#pbp-panel-${p}`).hidden = p !== t; });
             $('#pbp-prompt-toolbar').hidden = t !== 'prompt';
+        }
+
+        /* ---------- workshop: components picked in the Component Library ---------- */
+        const wsKey = it => `${it.badge || ''}|${it.cat || ''}|${it.label}|${it.text}`;
+        function saveWorkshop() {
+            try { localStorage.setItem(WORKSHOP_STORE, JSON.stringify(workshop)); } catch (e) { /* the list still works for this session */ }
+        }
+        function loadWorkshop() {
+            try {
+                const raw = JSON.parse(localStorage.getItem(WORKSHOP_STORE) || '[]');
+                workshop = (Array.isArray(raw) ? raw : []).filter(it => it && typeof it.label === 'string' && typeof it.text === 'string')
+                    .map(it => ({ label: it.label, text: it.text, cat: it.cat || null, icon: iconName(it.icon) || 'extension', badge: it.badge || '' }));
+            } catch (e) { workshop = []; }
+        }
+        function renderWorkshop() {
+            $('#pbp-ws-count').textContent = workshop.length;
+            $('#pbp-ws-list').innerHTML = workshop.length ? workshop.map((it, i) => `
+                <div class="pbp-ws-item" draggable="true" data-ws="${i}" title="${esc(String(it.text).replace(/\s+/g, ' ').slice(0, 220))}">
+                    <span class="pbp-glyph material-symbols-outlined" aria-hidden="true">${it.icon}</span>
+                    <span class="pbp-lib-text"><b>${esc(it.label)}</b><span>${esc(categoryName(it))}</span></span>
+                    <button class="pbp-ws-btn" data-ws-add="${i}" aria-label="Add ${esc(it.label)} to canvas" title="Add to canvas">${ms('add')}</button>
+                    <button class="pbp-ws-btn pbp-ws-remove" data-ws-remove="${i}" aria-label="Remove ${esc(it.label)} from Workshop" title="Remove from Workshop">${ms('close')}</button>
+                </div>`).join('') : `
+                <div class="pbp-ws-empty">
+                    <b>Your Workshop is empty</b>
+                    <ol><li><span class="pbp-mono">1</span>Browse the Component Library.</li><li><span class="pbp-mono">2</span>Select the components you want.</li><li><span class="pbp-mono">3</span>Add them here, then drag each one onto the canvas.</li></ol>
+                </div>`;
+        }
+        function addToWorkshop(kit) {
+            const have = new Set(workshop.map(wsKey));
+            let added = 0, skipped = 0;
+            (kit || []).forEach(raw => {
+                const it = { label: String(raw.label || 'Component'), text: String(raw.text || ''), cat: raw.cat || null, icon: iconName(raw.icon) || 'extension', badge: raw.badge || '' };
+                if (have.has(wsKey(it))) { skipped++; return; }
+                have.add(wsKey(it));
+                workshop.push(it);
+                added++;
+            });
+            saveWorkshop();
+            renderWorkshop();
+            const dup = skipped ? ` ${skipped} already there, skipped.` : '';
+            toast(added ? `${added} component${added === 1 ? '' : 's'} added to the Workshop.${dup}` : `Nothing new.${dup}`, added ? 'success' : 'info');
+        }
+        function removeFromWorkshop(i) {
+            workshop.splice(i, 1);
+            saveWorkshop();
+            renderWorkshop();
+        }
+        // The Workshop item stays where it is. The canvas gets its own block built from the record.
+        function addComponent(it, x, y) {
+            if (!it) return;
+            const before = state.nodes.length;
+            addNode(COMPONENT + guessSection(it), x, y);
+            const n = node(state.selected);
+            if (!n || state.nodes.length === before) return;
+            n.config = { title: it.label, content: it.text, original: it.text, source: { label: it.label, cat: it.cat, icon: it.icon, badge: it.badge } };
+            render();
+        }
+
+        // Borrow the gallery that Prompt Components owns. It goes back the moment it closes.
+        let galleryHome = null, galleryWatch = null;
+        const libraryOpen = () => !!galleryHome;
+        function returnGallery() {
+            if (!galleryHome) return;
+            const gal = document.getElementById('pcwGallery');
+            galleryWatch.disconnect();
+            if (gal) {
+                gal.hidden = true;
+                galleryHome.parent.insertBefore(gal, galleryHome.next);
+            }
+            galleryHome = null;
+            window.PL_galleryBorrow(null);
+        }
+        function openLibrary() {
+            if (libraryOpen()) return;
+            const gal = document.getElementById('pcwGallery');
+            const owner = document.getElementById('componentsWorkspace');
+            if (!gal || !owner || !window.PL_galleryBorrow || !window.PL_openComponentGallery || !window.openComponentsWorkspace) return toast('The Component Library is not available.', 'error');
+            if (!Array.isArray(window._pcwBLOCKS) || !window._pcwBLOCKS.length) return toast('The component dataset could not be read.', 'error');
+            // The gallery wires its buttons the first time Prompt Components opens. Do that once, unseen.
+            if (!owner._pcwWired) {
+                window.openComponentsWorkspace();
+                owner.classList.remove('open');
+                document.querySelectorAll('.nav-item[data-view]').forEach(el => el.classList.remove('active'));
+            }
+            galleryHome = { parent: gal.parentNode, next: gal.nextSibling };
+            root.appendChild(gal);
+            window.PL_galleryBorrow({ label: 'Workshop', onCheckout: kit => { addToWorkshop(kit); gal.hidden = true; } });
+            window.PL_openComponentGallery({ mode: 'home' });
+            galleryWatch = new MutationObserver(() => { if (gal.hidden || !isOpen()) returnGallery(); });
+            galleryWatch.observe(gal, { attributes: true, attributeFilter: ['hidden'] });
+            galleryWatch.observe(root, { attributes: true, attributeFilter: ['class'] });
         }
 
         /* ---------- graph actions ---------- */
@@ -768,7 +935,7 @@
         function download(ext) {
             if (!result.text.trim()) return toast('Wire some blocks together first', 'warning');
             const slug = (state.title || 'prompt').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'prompt';
-            const text = ext === 'json' ? PE.compilePrompt(state.nodes, state.edges, { ...state, format: 'json' }).text : result.text;
+            const text = ext === 'json' ? PE.compilePrompt(compileNodes(), state.edges, { ...state, format: 'json' }).text : result.text;
             const a = document.createElement('a');
             a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
             a.download = `${slug}.${ext}`;
@@ -1018,10 +1185,9 @@
         els.canvas.addEventListener('drop', e => {
             e.preventDefault();
             const t = e.dataTransfer.getData('text/plain');
-            if (BLOCKS[t]) {
-                const p = toCanvas(e);
-                addNode(t, p.x - NODE_W / 2, p.y - 24);
-            }
+            const p = toCanvas(e);
+            if (t.startsWith('workshop:')) addComponent(workshop[+t.slice(9)], p.x - NODE_W / 2, p.y - 24);
+            else if (BLOCKS[t]) addNode(t, p.x - NODE_W / 2, p.y - 24);
         });
         els.canvas.addEventListener('pointerover', e => {
             const n = e.target.closest('.pbp-node');
@@ -1036,6 +1202,7 @@
         const actions = {
             autoLayout: () => autoLayout(), autoWire, fit, trace: runTrace, addAgents,
             close: () => closeWorkspace(),
+            openLibrary,
             importJson: () => openJson('import'),
             exportJson: () => openJson('export'),
             exportMd: () => {
@@ -1065,7 +1232,8 @@
             resetText: () => {
                 const n = node(state.selected);
                 if (!n) return;
-                n.config = { ...JSON.parse(JSON.stringify(BLOCKS[n.type].defaults)), title: n.config.title };
+                if (isComponent(n)) n.config = { ...n.config, content: n.config.original || '' };
+                else n.config = { ...JSON.parse(JSON.stringify(BLOCKS[n.type].defaults)), title: n.config.title };
                 render();
                 toast('Default text restored', 'success');
             },
@@ -1075,8 +1243,11 @@
         root.addEventListener('click', e => {
             const menu = $('#pbp-workflow-menu');
             if (menu.open && !e.target.closest('#pbp-workflow-menu summary')) menu.open = false;
-            const t = e.target.closest('[data-template], [data-act], [data-add], [data-del], [data-goto], [data-edge], [data-tab], [data-format], [data-cat-chip], [data-close], .pbp-part, .pbp-node-body');
+            if (libraryOpen() && e.target.closest('#pcwGallery')) return;
+            const t = e.target.closest('[data-ws-add], [data-ws-remove], [data-template], [data-act], [data-add], [data-del], [data-goto], [data-edge], [data-tab], [data-format], [data-cat-chip], [data-close], .pbp-part, .pbp-node-body');
             if (!t) return;
+            if (t.dataset.wsAdd) return addComponent(workshop[+t.dataset.wsAdd]);
+            if (t.dataset.wsRemove) return removeFromWorkshop(+t.dataset.wsRemove);
             if (t.dataset.template) { t.closest('dialog')?.close(); return loadTemplate(t.dataset.template); }
             if (t.dataset.act) return actions[t.dataset.act]?.(t);
             if (t.dataset.add) return addNode(t.dataset.add);
@@ -1117,9 +1288,16 @@
                 loadTemplate(e.target.value);
                 e.target.value = '';
             }
+            // Moving a component to another prompt section keeps its wires, every section shares the same ports.
+            if (e.target.hasAttribute('data-section') && isComponent(node(state.selected))) {
+                node(state.selected).type = COMPONENT + e.target.value;
+                render();
+            }
         });
 
         root.addEventListener('dragstart', e => {
+            const w = e.target.closest?.('[data-ws]');
+            if (w) return e.dataTransfer.setData('text/plain', 'workshop:' + w.dataset.ws);
             const t = e.target.closest?.('[data-add]');
             if (t) e.dataTransfer.setData('text/plain', t.dataset.add);
         });
@@ -1128,6 +1306,11 @@
         document.addEventListener('keydown', e => {
             if (!isOpen()) return;
             if (e.target !== document.body && !root.contains(e.target)) return;
+            // While the library covers the workspace, keys belong to it. Escape with no focus closes it.
+            if (libraryOpen()) {
+                if (e.key === 'Escape') returnGallery();
+                return;
+            }
             const typing = /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
             if (e.key === 'Enter' && e.target.classList?.contains('pbp-part')) return select(e.target.dataset.node);
             if ($('dialog[open]')) return;
@@ -1204,6 +1387,8 @@
         }</tbody></table>`;
         renderChips();
         renderLibrary();
+        loadWorkshop();
+        renderWorkshop();
         setTab('prompt');
         const restored = restore();
         if (restored) {
@@ -1226,11 +1411,12 @@
             }
         }
         function closeDialogs() {
+            returnGallery();
             $$('dialog[open]').forEach(d => d.close());
             $('#pbp-workflow-menu').open = false;
         }
 
-        return { state, get result() { return result; }, render, connect, addNode, loadTemplate, select, show, closeDialogs };
+        return { state, get result() { return result; }, get workshop() { return workshop; }, render, connect, addNode, loadTemplate, select, show, closeDialogs };
     }
 
     function ensure() {
