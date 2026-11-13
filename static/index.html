@@ -12,6 +12,7 @@
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
 <link rel="stylesheet" href="/static/app.css?v=4b571e7a-plx">
+<link rel="stylesheet" href="/static/builder-pro.css?v=20261113a">
 </head>
 <body>
 
@@ -4453,6 +4454,12 @@
 </div>
 
 <!-- ============================================================
+     WORKSPACE: Prompt Builder Pro  [PRO]
+     Opened from the launcher. Markup is built by /static/builder-pro.js
+     ============================================================ -->
+<div id="builderProWorkspace" role="dialog" aria-modal="true" aria-label="Prompt Builder Pro"></div>
+
+<!-- ============================================================
      WORKSPACE: Workspaces Launcher
      data-view="workspaces"
      ============================================================ -->
@@ -5032,6 +5039,7 @@
   if (typeof window.createFolderInline !== 'function') window.createFolderInline = function () {};
   if (typeof window.clearAllFilters    !== 'function') window.clearAllFilters    = function () {};
   (function(){ var s=document.createElement("script"); s.src="/static/gauntlet-suite.js?v=20261005b"; s.defer=true; document.head.appendChild(s); })();
+  ["builder-pro-engine.js", "builder-pro.js"].forEach(function(f){ var s=document.createElement("script"); s.src="/static/"+f+"?v=20261113a"; s.async=false; document.head.appendChild(s); });
 </script>
 
 </body>
