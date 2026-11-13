@@ -11,7 +11,7 @@
 
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/app.css?v=1594708d-plx">
+<link rel="stylesheet" href="/static/app.css?v=4b571e7a-plx">
 </head>
 <body>
 
@@ -4486,12 +4486,31 @@
     </section>
 
     <div id="launcherGrid">
+      <div class="launcher-group" data-group="favorites">
+        <button type="button" class="launcher-group-label launcher-group-toggle" aria-expanded="true">
+          <span class="material-symbols-outlined">bookmark_heart</span>
+          <span>My Favorites</span>
+          <span class="launcher-group-hint">Your go-to tools, one click away</span>
+          <span class="material-symbols-outlined launcher-group-chevron" aria-hidden="true">expand_more</span>
+        </button>
+        <div class="launcher-grid">
+      <button class="launcher-card" data-open="openBuilderProWorkspace" data-premium="true">
+        <span class="material-symbols-outlined launcher-card-icon">schema</span>
+        <span class="launcher-card-text">
+        <span class="launcher-card-title">Prompt Builder Pro</span>
+        <span class="launcher-card-desc">Wire blocks and agent teams into one compiled prompt</span>
+      </span>
+        <span class="launcher-card-pro">PRO</span>
+      </button>
+        </div>
+      </div>
       <div class="launcher-group" data-group="build">
-        <div class="launcher-group-label">
+        <button type="button" class="launcher-group-label launcher-group-toggle" aria-expanded="true">
           <span class="material-symbols-outlined">construction</span>
           <span>Build</span>
           <span class="launcher-group-hint">Create new prompts from scratch</span>
-        </div>
+          <span class="material-symbols-outlined launcher-group-chevron" aria-hidden="true">expand_more</span>
+        </button>
         <div class="launcher-grid">
       <button class="launcher-card" data-open="openGenWorkspace" data-premium="true">
         <span class="material-symbols-outlined launcher-card-icon">bolt</span>
@@ -4550,11 +4569,12 @@
         </div>
       </div>
       <div class="launcher-group" data-group="refine">
-        <div class="launcher-group-label">
+        <button type="button" class="launcher-group-label launcher-group-toggle" aria-expanded="true">
           <span class="material-symbols-outlined">auto_fix_high</span>
           <span>Refine</span>
           <span class="launcher-group-hint">Improve and rework existing prompts</span>
-        </div>
+          <span class="material-symbols-outlined launcher-group-chevron" aria-hidden="true">expand_more</span>
+        </button>
         <div class="launcher-grid">
       <button class="launcher-card" data-open="openOptimizerWorkspace" data-premium="true">
         <span class="material-symbols-outlined launcher-card-icon">rocket_launch</span>
@@ -4655,11 +4675,12 @@
       <button class="launcher-card" data-open="openPlRedTeamWorkspace" data-premium="true"><span class="material-symbols-outlined launcher-card-icon">security</span><span class="launcher-card-text"><span class="launcher-card-title">Prompt Red Team</span><span class="launcher-card-desc">Attack prompts with adversarial inputs, failure modes, conflicts and edge cases</span></span><span class="launcher-card-pro">PRO</span></button>        </div>
       </div>
       <div class="launcher-group" data-group="inspect">
-        <div class="launcher-group-label">
+        <button type="button" class="launcher-group-label launcher-group-toggle" aria-expanded="true">
           <span class="material-symbols-outlined">search</span>
           <span>Inspect</span>
           <span class="launcher-group-hint">Analyse quality, cost and structure</span>
-        </div>
+          <span class="material-symbols-outlined launcher-group-chevron" aria-hidden="true">expand_more</span>
+        </button>
         <div class="launcher-grid">
       <button class="launcher-card" data-open="openAuditWorkspace" data-premium="true">
         <span class="material-symbols-outlined launcher-card-icon">fact_check</span>
@@ -4703,11 +4724,12 @@
         </div>
       </div>
       <div class="launcher-group" data-group="run">
-        <div class="launcher-group-label">
+        <button type="button" class="launcher-group-label launcher-group-toggle" aria-expanded="true">
           <span class="material-symbols-outlined">play_arrow</span>
           <span>Run</span>
           <span class="launcher-group-hint">Use your prompts day to day</span>
-        </div>
+          <span class="material-symbols-outlined launcher-group-chevron" aria-hidden="true">expand_more</span>
+        </button>
         <div class="launcher-grid">
       <button class="launcher-card" data-open="openFillWorkspace" data-premium="true">
         <span class="material-symbols-outlined launcher-card-icon">dynamic_form</span>
@@ -4759,11 +4781,12 @@
         </div>
       </div>
       <div class="launcher-group" data-group="protect">
-        <div class="launcher-group-label">
+        <button type="button" class="launcher-group-label launcher-group-toggle" aria-expanded="true">
           <span class="material-symbols-outlined">shield</span>
           <span>Protect</span>
           <span class="launcher-group-hint">Safeguard your whole library</span>
-        </div>
+          <span class="material-symbols-outlined launcher-group-chevron" aria-hidden="true">expand_more</span>
+        </button>
         <div class="launcher-grid">
       <button class="launcher-card" data-open="openBackupWorkspace">
         <span class="material-symbols-outlined launcher-card-icon">restore</span>
@@ -4999,7 +5022,7 @@
 
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
-<script defer src="/static/app.js?v=f30d71f3"></script>
+<script defer src="/static/app.js?v=ed4185ff"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

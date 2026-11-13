@@ -8528,6 +8528,41 @@
 .launcher-group[data-group="inspect"]  .launcher-group-label .material-symbols-outlined { color: var(--c-orange); }
 .launcher-group[data-group="run"]      .launcher-group-label .material-symbols-outlined { color: var(--c-green); }
 .launcher-group[data-group="organize"] .launcher-group-label .material-symbols-outlined { color: var(--c-teal); }
+.launcher-group[data-group="favorites"] .launcher-card-icon { color: var(--c-pink); }
+.launcher-group[data-group="favorites"] .launcher-group-label .material-symbols-outlined { color: var(--c-pink); }
+
+/* Collapsible lists: the label is a button, the chevron turns when shut. */
+.launcher-group-toggle {
+  width: 100%;
+  padding: 2px 0;
+  background: none;
+  border: 0;
+  border-radius: var(--r-sm);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--t-fast);
+}
+.launcher-group-toggle:hover { color: var(--ink); }
+.launcher-group-toggle:focus-visible { outline: none; box-shadow: var(--ring); }
+.launcher-group-toggle .launcher-group-hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#launcherGrid .launcher-group-chevron {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 18px;
+  color: var(--ink-4);
+  transition: transform var(--t-base) var(--ease-out-quart);
+}
+.launcher-group.is-collapsed .launcher-group-chevron { transform: rotate(-90deg); }
+.launcher-group.is-collapsed .launcher-group-toggle { margin-bottom: 0; }
+.launcher-group.is-collapsed .launcher-grid { display: none; }
+#launcherGrid.is-searching .launcher-group.is-collapsed .launcher-grid { display: flex; }
 
 /* Jump back in */
 #launcherRecent { margin-bottom: var(--sp-6); }
