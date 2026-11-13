@@ -10261,7 +10261,6 @@
 /* focus-visible re-assert */
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible,
 .pcw-block-tile:focus-visible,
-.ctx-search-input:focus-visible,
 .pcw-palette-search:focus-visible,
 .sc-slider:focus-visible {
   outline: 2px solid var(--accent);

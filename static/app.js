@@ -7549,8 +7549,10 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
     // ── Saved copy in the settings table ─────────────────────────────────────────
     let _ctxPushTimer = null;
     let _ctxReady = null;
+    let _ctxCopyUnread = false;
 
     function _ctxPush() {
+        if (_ctxCopyUnread) return;
         clearTimeout(_ctxPushTimer);
         _ctxPushTimer = setTimeout(() => {
             api('/settings/context-bank', {
@@ -7568,6 +7570,7 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
         _ctxReady = (async () => {
             try {
                 const saved = await api('/settings/context-bank');
+                _ctxCopyUnread = false;
                 const local = localStorage.getItem(CTX_LS_KEY);
                 if (local === null) {
                     if (saved && saved.exists && Array.isArray(saved.blocks)) {
@@ -7580,7 +7583,11 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
                     const flat = list => JSON.stringify((list || []).map(b => Object.keys(b).sort().map(k => [k, b[k]])));
                     if (!saved || !saved.exists || flat(saved.blocks) !== flat(_ctxBlocks)) _ctxPush();
                 }
-            } catch {}
+            } catch {
+                // Read failed: try again next time, and leave the saved copy alone until then.
+                _ctxCopyUnread = true;
+                _ctxReady = null;
+            }
         })();
         return _ctxReady;
     }
@@ -8084,7 +8091,7 @@ Must avoid: [Anything sensitive or previously declined]`
 
     function _ctxSeedTemplates() {
         const seeded = localStorage.getItem('pl_ctx_seeded');
-        if (seeded) return;
+        if (seeded || _ctxCopyUnread) return;
         // Keep blocks added from the side panel before the first visit.
         _ctxLoad();
         _ctxBlocks = _ctxBlocks.concat(CTX_TEMPLATES.map((t, i) => ({
