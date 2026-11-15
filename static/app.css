@@ -820,12 +820,23 @@
     display: grid; place-items: center;
     border-radius: var(--r-sm);
     color: var(--ink-2);
-    background: transparent;
-    border: 1px solid transparent;
-    transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: var(--btn-rest);
+    transition: transform var(--btn-spring), box-shadow var(--t-fast), background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
   }
-  .icon-btn:hover { background: var(--surface-2); color: var(--ink); border-color: var(--line); }
+  .icon-btn:hover { background: var(--surface-2); color: var(--ink); border-color: var(--line-strong); transform: translateY(var(--btn-lift)); box-shadow: var(--btn-hover); }
+  .icon-btn:active { transform: translateY(var(--btn-sink)); box-shadow: var(--btn-down); }
+  .icon-btn:focus-visible { outline: none; box-shadow: var(--btn-rest), var(--ring); }
+  .icon-btn:disabled { transform: none; box-shadow: none; opacity: 0.5; }
   .icon-btn.danger:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
+  @media (prefers-reduced-motion: reduce) {
+    .icon-btn, .icon-btn:hover, .icon-btn:active,
+    .chip, .chip:hover, .chip:active,
+    .panel-toggle-btn, .panel-toggle-btn:hover, .panel-toggle-btn:active,
+    .header-controls select:hover, .header-controls select:active,
+    .forge-format-tab:active { transform: none !important; }
+  }
   .icon-btn .material-symbols-outlined { font-size: 18px; }
 
   /* Library front page only: flat shadcn-style controls (rest of app stays neumorphic). */
@@ -891,14 +902,17 @@
     color: var(--ink-2);
     background: var(--surface-2);
     border: 1px solid var(--line);
+    box-shadow: var(--btn-rest);
     transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
     white-space: nowrap;
   }
-  .chip:hover { background: var(--surface-3); color: var(--ink); }
+  .chip:hover { background: var(--surface-3); color: var(--ink); transform: translateY(var(--btn-lift)); box-shadow: var(--btn-hover); }
+  .chip:focus-visible { outline: none; box-shadow: var(--btn-rest), var(--ring); }
   .chip.active {
     background: var(--ink);
     color: var(--bg);
     border-color: var(--ink);
+    box-shadow: var(--btn-down);
   }
   .chip .material-symbols-outlined { font-size: 14px; }
 
@@ -993,8 +1007,12 @@
     color: var(--ink);
     font-size: var(--fs-sm);
     cursor: pointer;
+    box-shadow: var(--btn-rest);
+    transition: transform var(--btn-spring), box-shadow var(--t-fast), border-color var(--t-fast);
   }
-  .header-controls select:hover { border-color: var(--line-strong); }
+  .header-controls select:hover { border-color: var(--line-strong); transform: translateY(var(--btn-lift)); box-shadow: var(--btn-hover); }
+  .header-controls select:active { transform: translateY(var(--btn-sink)); box-shadow: var(--btn-down); }
+  .header-controls select:focus-visible { outline: none; box-shadow: var(--btn-rest), var(--ring); }
 
   .view-toggle {
     display: inline-flex;
@@ -1008,10 +1026,13 @@
     width: 28px; height: 26px;
     border-radius: 4px;
     color: var(--ink-3);
-    transition: background var(--t-fast), color var(--t-fast);
+    transition: background var(--t-fast), color var(--t-fast), box-shadow var(--t-fast), transform var(--btn-spring);
   }
   .view-toggle button:hover { color: var(--ink); }
-  .view-toggle button.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+  .view-toggle button:active { transform: translateY(var(--btn-sink)); }
+  .view-toggle button:focus-visible { outline: none; box-shadow: var(--ring); }
+  .view-toggle button.active { background: var(--surface); color: var(--ink); box-shadow: var(--btn-rest); }
+  @media (prefers-reduced-motion: reduce) { .view-toggle button:active { transform: none; } }
   .view-toggle .material-symbols-outlined { font-size: 14px; }
 
   #viewCount { color: var(--ink-3); }
@@ -1199,7 +1220,7 @@
     border-bottom: 1px solid var(--line);
     flex-shrink: 0;
   }
-  .detail-actions { display: flex; gap: 2px; }
+  .detail-actions { display: flex; gap: 4px; }
   .detail-tabs {
     display: flex;
     border-bottom: 1px solid var(--line);
@@ -1224,6 +1245,7 @@
     transition: color var(--t-fast), border-color var(--t-fast);
   }
   .detail-tab:hover { color: var(--ink); }
+  .detail-tab:focus-visible { outline: none; color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent), var(--ring); border-radius: var(--r-sm) var(--r-sm) 0 0; }
   .detail-tab.active { color: var(--ink); border-color: var(--accent); font-weight: 600; }
   .detail-tab .lock { font-size: 12px; opacity: 0.6; margin-left: 4px; vertical-align: -2px; }
 
@@ -3800,13 +3822,15 @@
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  transition: all var(--t-fast);
+  transition: color var(--t-fast), background var(--t-fast), box-shadow var(--t-fast), transform var(--btn-spring);
 }
 .forge-format-tab:hover { color: var(--ink); }
+.forge-format-tab:active { transform: translateY(var(--btn-sink)); }
+.forge-format-tab:focus-visible { outline: none; box-shadow: var(--ring); }
 .forge-format-tab.active {
   background: var(--surface);
   color: var(--accent);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--btn-rest);
 }
 
 
@@ -6192,15 +6216,19 @@
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
+  box-shadow: var(--btn-rest);
+  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast), box-shadow var(--t-fast), transform var(--btn-spring);
   white-space: nowrap;
 }
 .panel-toggle-btn .material-symbols-outlined { font-size: 14px; }
-.panel-toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
+.panel-toggle-btn:hover { border-color: var(--accent); color: var(--accent); transform: translateY(var(--btn-lift)); box-shadow: var(--btn-hover); }
+.panel-toggle-btn:active { transform: translateY(var(--btn-sink)); box-shadow: var(--btn-down); }
+.panel-toggle-btn:focus-visible { outline: none; box-shadow: var(--btn-rest), var(--ring); }
 .panel-toggle-btn.active {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent);
+  box-shadow: var(--btn-down);
 }
 
 /* ---------- Prompt modal header — panel toggle layout ---------- */
@@ -6352,9 +6380,9 @@
 /* ── Chip select micro-feedback ─────────────────────────────────────────── */
 .chip {
   transition: background var(--t-fast), color var(--t-fast),
-              border-color var(--t-fast), transform var(--t-fast) !important;
+              border-color var(--t-fast), box-shadow var(--t-fast), transform var(--btn-spring) !important;
 }
-.chip:active { transform: scale(0.93) !important; }
+.chip:active { transform: translateY(var(--btn-sink)) !important; box-shadow: var(--btn-down); }
 
 /* ── Button press micro-feedback ────────────────────────────────────────── */
 .btn:active:not(:disabled) { transform: scale(0.96); }
