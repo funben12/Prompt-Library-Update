@@ -1682,9 +1682,10 @@
   .pmb-cp-clear {
     flex-shrink: 0; border: 1px solid var(--line); background: var(--surface); color: var(--ink-3);
     font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
-    border-radius: 8px; padding: 8px 10px; cursor: pointer; transition: all var(--t-fast);
+    border-radius: 8px; padding: 8px 10px; cursor: pointer; box-shadow: var(--btn-rest); transition: color var(--t-fast), background var(--t-fast), border-color var(--t-fast), box-shadow var(--t-fast), transform var(--btn-spring);
   }
-  .pmb-cp-clear:hover { color: var(--ink); border-color: var(--ink-3); }
+  .pmb-cp-clear:hover { color: var(--ink); border-color: var(--ink-3); transform: translateY(var(--btn-lift)); box-shadow: var(--btn-hover); }
+  .pmb-cp-clear:active { transform: translateY(var(--btn-sink)); box-shadow: var(--btn-down); }
   .pmb-cp-clear.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .pmb-cp-rgb { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
   .pmb-cp-rgb label { display: flex; flex-direction: column; gap: 3px; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
@@ -1697,9 +1698,10 @@
   .pmb-cp-presets { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 12px; }
   .pmb-cp-preset {
     width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;
-    padding: 0; position: relative; transition: transform var(--t-fast), border-color var(--t-fast);
+    padding: 0; position: relative; box-shadow: var(--btn-rest); transition: transform var(--btn-spring), border-color var(--t-fast), box-shadow var(--t-fast);
   }
-  .pmb-cp-preset:hover { transform: scale(1.15); }
+  .pmb-cp-preset:hover { transform: translateY(var(--btn-lift)); box-shadow: var(--btn-hover); }
+  .pmb-cp-preset:active { transform: translateY(var(--btn-sink)); box-shadow: var(--btn-down); }
   .pmb-cp-preset.active { border-color: var(--ink); box-shadow: 0 0 0 2px var(--surface-2); }
   .pmb-cp-msg { min-height: 14px; font-size: 11px; color: var(--ink-3); margin: 6px 0 0; }
   .pmb-cp-msg.pmb-cp-err { color: var(--danger); }
@@ -9841,9 +9843,10 @@
 /* chips */
 #boardWorkspace .pmb-chip {
   display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px; border-radius: var(--pmb-radius-full);
-  background: var(--pmb-surface-card); color: var(--pmb-ink-soft); font-family: var(--ff-sans); font-size: 13px; font-weight: 700; white-space: nowrap; flex-shrink: 0; transition: background .15s;
+  background: var(--pmb-surface-card); color: var(--pmb-ink-soft); font-family: var(--ff-sans); font-size: 13px; font-weight: 700; white-space: nowrap; flex-shrink: 0; box-shadow: var(--btn-rest); transition: background .15s, color .15s, box-shadow .15s, transform var(--btn-spring);
 }
-#boardWorkspace .pmb-chip:hover { background: var(--pmb-hairline-soft); }
+#boardWorkspace .pmb-chip:hover { background: var(--pmb-hairline-soft); transform: translateY(var(--btn-lift)); box-shadow: var(--btn-hover); }
+#boardWorkspace .pmb-chip:active { transform: translateY(var(--btn-sink)); box-shadow: var(--btn-down); }
 #boardWorkspace .pmb-chip.active { background: var(--accent-soft); color: var(--accent); }
 
 /* masonry pins */
@@ -9859,7 +9862,9 @@
 
 /* board detail header */
 #boardWorkspace .pmb-back-btn { display: inline-flex; align-items: center; gap: 4px; font-family: var(--ff-sans); font-size: 14px; font-weight: 700; color: var(--pmb-ink-soft); margin-bottom: var(--sp-4); border-radius: var(--r-sm); padding: 6px 12px 6px 8px; }
-#boardWorkspace .pmb-back-btn:hover { background: var(--pmb-surface-card); }
+#boardWorkspace .pmb-back-btn { transition: background .15s, box-shadow .15s, transform var(--btn-spring); }
+#boardWorkspace .pmb-back-btn:hover { background: var(--pmb-surface-card); transform: translateY(var(--btn-lift)); box-shadow: var(--btn-hover); }
+#boardWorkspace .pmb-back-btn:active { transform: translateY(var(--btn-sink)); box-shadow: var(--btn-down); }
 #boardWorkspace .pmb-board-header-info h1 { font-family: var(--ff-display); font-size: 34px; font-weight: 600; letter-spacing: -0.01em; color: var(--pmb-ink-soft); }
 #boardWorkspace .pmb-board-header-info p { margin-top: 6px; font-family: var(--ff-sans); font-size: 15px; color: var(--pmb-mute); }
 #boardWorkspace .pmb-select { flex: 1; height: 40px; border-radius: var(--pmb-radius-md); border: 1px solid var(--pmb-ash); background: var(--pmb-canvas); font-family: var(--ff-sans); font-size: 13px; padding: 0 12px; }
@@ -9940,10 +9945,13 @@
 #boardWorkspace .pmb-nav-item {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   width: 100%; height: 58px; border-radius: var(--r-lg); border: none; background: transparent;
-  font-family: var(--ff-sans); font-size: 10.5px; font-weight: 600; color: var(--pmb-mute); transition: background .15s, color .15s;
+  font-family: var(--ff-sans); font-size: 10.5px; font-weight: 600; color: var(--pmb-mute); transition: background .15s, color .15s, box-shadow .15s, transform var(--btn-spring);
 }
 #boardWorkspace .pmb-nav-item .material-symbols-outlined { font-size: 22px; }
-#boardWorkspace .pmb-nav-item:hover { background: var(--pmb-surface-card); color: var(--pmb-ink-soft); }
+#boardWorkspace .pmb-nav-item:hover { background: var(--pmb-surface-card); color: var(--pmb-ink-soft); transform: translateY(var(--btn-lift)); box-shadow: var(--btn-hover); }
+#boardWorkspace .pmb-nav-item:active { transform: translateY(var(--btn-sink)); box-shadow: var(--btn-down); }
+#boardWorkspace .pmb-nav-item:focus-visible { outline: none; box-shadow: var(--ring); }
+#boardWorkspace .pmb-nav-item.active { box-shadow: var(--btn-rest); }
 #boardWorkspace .pmb-nav-item.active .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
 #boardWorkspace .pmb-sidebar-divider { display: block; height: 1px; background: var(--pmb-hairline); margin: var(--sp-2) 10px; }
 
@@ -9986,13 +9994,21 @@
 #boardWorkspace .pmb-pin-overlay .pmb-pin-board:hover { background: oklch(100% 0 0 / 0.18); }
 #boardWorkspace .pmb-pin-save-pill {
   grid-area: save; height: 40px; padding: 0 16px; border: none; border-radius: var(--pmb-radius-full); background: var(--accent); color: white;
-  font-family: var(--ff-sans); font-size: 14px; font-weight: 700; cursor: pointer; transition: background .15s;
+  font-family: var(--ff-sans); font-size: 14px; font-weight: 700; cursor: pointer;
+  --pmb-edge: color-mix(in oklch, var(--accent) 62%, black);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 32%, transparent), 0 2px 0 var(--pmb-edge), 0 3px 6px -2px color-mix(in oklch, var(--ink) 30%, transparent);
+  transition: background .15s, color .15s, box-shadow .15s, transform var(--btn-spring);
 }
-#boardWorkspace .pmb-pin-save-pill:hover { background: var(--accent-hover); }
-#boardWorkspace .pmb-pin-save-pill.saved { background: var(--ink); color: var(--bg); }
+#boardWorkspace .pmb-pin-save-pill:hover { background: var(--accent-hover); transform: translateY(var(--btn-lift)); box-shadow: inset 0 1px 0 color-mix(in oklch, white 38%, transparent), 0 3px 0 var(--pmb-edge), 0 8px 12px -5px color-mix(in oklch, var(--ink) 35%, transparent); }
+#boardWorkspace .pmb-pin-save-pill:active { transform: translateY(var(--btn-sink)); box-shadow: inset 0 1px 3px color-mix(in oklch, black 30%, transparent), 0 0 0 var(--pmb-edge); }
+#boardWorkspace .pmb-pin-save-pill:focus-visible { outline: none; box-shadow: var(--ring); }
+#boardWorkspace .pmb-pin-save-pill.saved { background: var(--ink); color: var(--bg); --pmb-edge: color-mix(in oklch, var(--ink) 60%, black); }
 #boardWorkspace .pmb-pin-tools { grid-area: tools; align-self: end; justify-self: end; display: flex; gap: 6px; }
-#boardWorkspace .pmb-pin-action { width: 34px; height: 34px; border-radius: 50%; background: var(--pmb-canvas); color: var(--pmb-ink-soft); display: grid; place-items: center; transition: background .15s; }
-#boardWorkspace .pmb-pin-action:hover { background: var(--pmb-surface-card); }
+#boardWorkspace .pmb-pin-action { width: 34px; height: 34px; border-radius: 50%; background: var(--pmb-canvas); color: var(--pmb-ink-soft); display: grid; place-items: center; box-shadow: var(--btn-rest); transition: background .15s, color .15s, box-shadow .15s, transform var(--btn-spring); }
+#boardWorkspace .pmb-pin-action:hover { background: var(--pmb-surface-card); transform: translateY(var(--btn-lift)); box-shadow: var(--btn-hover); }
+#boardWorkspace .pmb-pin-action:active { transform: translateY(var(--btn-sink)); box-shadow: var(--btn-down); }
+#boardWorkspace .pmb-pin-action:focus-visible { outline: none; box-shadow: var(--ring); }
+@media (prefers-reduced-motion: reduce) { #boardWorkspace :is(.pmb-chip, .pmb-nav-item, .pmb-pin-save-pill, .pmb-pin-action, .pmb-back-btn):is(:hover, :active), .pmb-cp-clear:is(:hover, :active), .pmb-cp-preset:is(:hover, :active) { transform: none; } }
 #boardWorkspace .pmb-pin-action .material-symbols-outlined { font-size: 17px; }
 #boardWorkspace .pmb-pin-meta { padding: 8px 6px 2px; }
 #boardWorkspace .pmb-pin-title { font-family: var(--ff-sans); font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--pmb-ink-soft); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

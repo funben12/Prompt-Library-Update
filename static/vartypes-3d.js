@@ -415,15 +415,22 @@
 .vd-step{display:flex;align-items:center;gap:10px}
 .vd-lab{flex:1;font:600 13px var(--ff-sans);color:var(--ink-3)}
 .vd-step b{min-width:34px;text-align:center;font:700 16px var(--ff-mono);color:var(--ink)}
-.vd-step button{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:0;border-radius:var(--r-md);background:var(--surface-3);color:var(--ink)}
-.vd-step button:disabled{opacity:.4}
+.vd-step button{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:0;border-radius:var(--r-md);background:var(--surface-3);color:var(--ink);box-shadow:var(--btn-rest);transition:transform var(--btn-spring),box-shadow .15s,background .15s}
+.vd-step button:not(:disabled):hover{transform:translateY(var(--btn-lift));box-shadow:var(--btn-hover)}
+.vd-step button:not(:disabled):active{transform:translateY(var(--btn-sink));box-shadow:var(--btn-down)}
+.vd-step button:disabled{opacity:.4;box-shadow:none}
 .vd-presets{display:flex;flex-wrap:wrap;gap:6px}
-.vd-pre{min-width:40px;min-height:44px;padding:6px 8px;border:0;border-radius:999px;background:var(--surface-3);color:var(--ink-2);font:600 13px var(--ff-mono)}
-.vd-pre.on{background:var(--accent);color:var(--on-accent)}
+.vd-pre{min-width:40px;min-height:44px;padding:6px 8px;border:0;border-radius:999px;background:var(--surface-3);color:var(--ink-2);font:600 13px var(--ff-mono);box-shadow:var(--btn-rest);transition:transform var(--btn-spring),box-shadow .15s,background .15s}
+.vd-pre:hover{transform:translateY(var(--btn-lift));box-shadow:var(--btn-hover)}
+.vd-pre:active{transform:translateY(var(--btn-sink));box-shadow:var(--btn-down)}
+.vd-pre.on{background:var(--accent);color:var(--on-accent);--rb-edge:color-mix(in oklch,var(--accent) 62%,black);box-shadow:inset 0 1px 0 color-mix(in oklch,white 32%,transparent),0 2px 0 var(--rb-edge)}
 .vd-out{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 .vd-out output{font-family:var(--ff-mono);flex:1;min-width:100px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;font-weight:700}
-.vd-out button{min-height:44px;padding:8px 16px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--on-accent);font-weight:700}
-.vd-out button:disabled{opacity:.6}
+.vd-out button{--rb-edge:color-mix(in oklch,var(--accent) 62%,black);min-height:44px;padding:8px 16px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--on-accent);font-weight:700}
+.vd-out button:not(:disabled){box-shadow:inset 0 1px 0 color-mix(in oklch,white 32%,transparent),0 2px 0 var(--rb-edge),0 3px 6px -2px color-mix(in oklch,var(--ink) 28%,transparent);transition:transform var(--btn-spring),box-shadow .15s,background .15s,border-color .15s}
+.vd-out button:not(:disabled):hover{transform:translateY(var(--btn-lift));box-shadow:inset 0 1px 0 color-mix(in oklch,white 38%,transparent),0 3px 0 var(--rb-edge),0 8px 12px -5px color-mix(in oklch,var(--ink) 35%,transparent)}
+.vd-out button:not(:disabled):active{transform:translateY(var(--btn-sink));box-shadow:inset 0 1px 3px color-mix(in oklch,black 30%,transparent),0 0 0 var(--rb-edge)}
+.vd-out button:disabled{opacity:.6;box-shadow:none}
 .vd-morph .vd3-cube{animation:vd-morph calc(.26s / var(--vm-s,1)) var(--ease) both}
 @keyframes vd-morph{0%{opacity:0;scale:.7}100%{opacity:1;scale:1}}
 .vd-fade{animation:vd-fade .12s linear}
@@ -685,8 +692,11 @@
 .vc.drawn .vc-card{opacity:1;transform:rotateY(180deg)}
 .vc.dealing .vc-card{opacity:1}
 .vc-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding-top:12px}
-.vc-row button{min-height:44px;padding:8px 14px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--on-accent);font-weight:700}
-.vc-row button:disabled{opacity:.6}
+.vc-row button{--rb-edge:color-mix(in oklch,var(--accent) 62%,black);min-height:44px;padding:8px 14px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--on-accent);font-weight:700}
+.vc-row button:not(:disabled){box-shadow:inset 0 1px 0 color-mix(in oklch,white 32%,transparent),0 2px 0 var(--rb-edge),0 3px 6px -2px color-mix(in oklch,var(--ink) 28%,transparent);transition:transform var(--btn-spring),box-shadow .15s,background .15s,border-color .15s}
+.vc-row button:not(:disabled):hover{transform:translateY(var(--btn-lift));box-shadow:inset 0 1px 0 color-mix(in oklch,white 38%,transparent),0 3px 0 var(--rb-edge),0 8px 12px -5px color-mix(in oklch,var(--ink) 35%,transparent)}
+.vc-row button:not(:disabled):active{transform:translateY(var(--btn-sink));box-shadow:inset 0 1px 3px color-mix(in oklch,black 30%,transparent),0 0 0 var(--rb-edge)}
+.vc-row button:disabled{opacity:.6;box-shadow:none}
 .vc-row small{color:var(--ink-3);font-size:var(--t-meta)}
 `);
   // ---- random pick and random number: slot machine drums ----
@@ -856,8 +866,12 @@
 .vr-dw.lead .vr-t,.vr-num.idle .vr-t{color:var(--ink-3);opacity:.45}
 .vr-sign{min-width:18px;text-align:center;font:700 30px/1 var(--ff-mono);color:var(--accent)}
 .vr-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
-.vr-row button[data-vrgo]{min-height:44px;padding:8px 14px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--on-accent);font-weight:700}
-.vr-row button:disabled{opacity:.6}
+.vr-row button[data-vrgo]{--rb-edge:color-mix(in oklch,var(--accent) 62%,black);min-height:44px;padding:8px 14px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--on-accent);font-weight:700}
+.vr-row button[data-vrgo]:not(:disabled){box-shadow:inset 0 1px 0 color-mix(in oklch,white 32%,transparent),0 2px 0 var(--rb-edge),0 3px 6px -2px color-mix(in oklch,var(--ink) 28%,transparent);transition:transform var(--btn-spring),box-shadow .15s,background .15s,border-color .15s}
+.vr-row button[data-vrgo]:not(:disabled):hover{transform:translateY(var(--btn-lift));box-shadow:inset 0 1px 0 color-mix(in oklch,white 38%,transparent),0 3px 0 var(--rb-edge),0 8px 12px -5px color-mix(in oklch,var(--ink) 35%,transparent)}
+.vr-row button[data-vrgo]:not(:disabled):active{transform:translateY(var(--btn-sink));box-shadow:inset 0 1px 3px color-mix(in oklch,black 30%,transparent),0 0 0 var(--rb-edge)}
+.vr-row button:disabled{opacity:.6;box-shadow:none}
+@media (prefers-reduced-motion:reduce){.vd-step button,.vd-pre,.vd-out button,.vc-row button,.vr-row button[data-vrgo],.vm-rmode,.pl-rm-tab{transform:none!important}}
 .vr-row small{color:var(--ink-3);font-size:var(--t-meta)}
 .vr-out{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 `);
