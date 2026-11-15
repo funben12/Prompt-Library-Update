@@ -572,3 +572,9 @@ Handover phase 5, done. All five phases of the Prompt Builder Pro handover are n
 
 - Claude must say which git branch it is on in every reply that touches the repo, taken from `git branch --show-current` at the time, never from memory. Eugene works across many branches and needs to know which version he is looking at.
 - Current working branch for this combine work: `ccr-e4605b92-9rygdj` (draft PR 70 into `main`). `main` has not been changed.
+
+### Working rule: name branches by purpose (2026-11-15)
+
+- New branches get a name that says what they hold, for example `agents-builder-pro` or `context-bank-categories`, not a random id. Eugene should be able to read the branch list and know what each one contains.
+- Format: lowercase, words joined by hyphens, feature first. One purpose per branch.
+- Cloud sessions are told to develop on a fixed branch (currently `ccr-e4605b92-9rygdj`) and that name cannot be changed by Claude. When the session branch is fixed, say so and suggest the purpose name for the PR title instead.
