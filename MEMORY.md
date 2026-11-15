@@ -578,3 +578,11 @@ Handover phase 5, done. All five phases of the Prompt Builder Pro handover are n
 - New branches get a name that says what they hold, for example `agents-builder-pro` or `context-bank-categories`, not a random id. Eugene should be able to read the branch list and know what each one contains.
 - Format: lowercase, words joined by hyphens, feature first. One purpose per branch.
 - Cloud sessions are told to develop on a fixed branch (currently `ccr-e4605b92-9rygdj`) and that name cannot be changed by Claude. When the session branch is fixed, say so and suggest the purpose name for the PR title instead.
+
+### Nested sessions and direction change (2026-11-15)
+
+- The 7 agents (lead, reviewer, coder, web search, monitor, migrator, verifier) and their feature blocks for Prompt Builder Pro are DROPPED by Eugene for now. Nothing was built.
+- Two nested sessions were started from the combine session:
+  - Desktop: "Desktop: verify combined features on Builder Pro", starts from `ccr-e4605b92-9rygdj`, pushes to `desktop-combine-verify`, draft PR into main. Scope: prove Pinterest board, X-Ray layouts, nearby share and Context Bank work on top of Prompt Builder Pro, fix defects only, no UI changes, writes `outputs/15-11-2026-desktop-verification.md`.
+  - Mobile: "Mobile: audit phone branches for combine and new APK", in AI-App-Factory (apps/app-003-prompt-library-mobile), pushes to `phone-branch-audit`. Read only audit of the phone branches plus desktop sync checks (vartypes-3d.js, xray-views.js, forge-frameworks.js, variable_meta, nearby share). No UI or code changes, no merges. Writes `apps/app-003-prompt-library-mobile/outputs/15-11-2026-phone-branch-audit.md`.
+- Phone main is at versionName 0.7.2. Newer phone work (0.8.x, 0.9.0 nearby share) lives on unmerged AI-App-Factory branches. Goal: combine them on a purpose named integration branch, then build a new APK. Not started.
