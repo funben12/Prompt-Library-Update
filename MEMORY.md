@@ -432,3 +432,12 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - Known bug, not fixed: the full screen prompt viewer never opens. Its IIFE reads `window.state.prompts`, which is never set.
 - Stray files seen in `static/`, not touched: `accounts.js` (17 KB, account layer was removed) and `app` (1.1 MB, no extension). Neither is loaded by `index.html`.
 - Verified in headless Chromium only, not in the PyWebView window. Backups: `_rollbacks/* v-pre-desktop-upgrade.*`.
+
+### Library scope bar: favourites and folders above the list (2026-11-15)
+
+- Eugene found the Library one long list. Favourites sat inside the Filters popover and the sidebar Folders section starts collapsed and sits under the licence panel, so folders were easy to miss.
+- New row of chips above the list (`#libraryScopeBar`, `renderScopeBar()` in app.js, `.scope-*` rules in app.css): All, Favourites, then every folder A to Z with its count. A chip calls `PL_setView`, so it is the same view as the sidebar (title, breadcrumb, New in folder, Rename, Delete folder). Empty folders show faded. One line that scrolls sideways (mouse wheel works), the active chip scrolls into view. Hidden in local library (vault) mode and outside the Library views.
+- `renderScopeBar()` runs from `updateCounts()` and `renderFolders()`, so stars, moves and new folders refresh it.
+- `#contentHeader` got `min-width: 0` so a wide row can never push the page wider than the window.
+- Known, not fixed: below about 500 px wide the library cards squash to a narrow column (card actions take the width). Same before this change.
+- Verified in headless Chromium against a disposable database (160 prompts, 9 folders, 14 favourites) at 1366 and 390 px wide. Not checked in the PyWebView window. Backups: `_rollbacks/* v-pre-scope-bar.*`.
