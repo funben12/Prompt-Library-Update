@@ -116,9 +116,10 @@
   const baseR = n => (n <= 8 ? 34 : n <= 20 ? 38 : n <= 50 ? 42 : 46);
   const ROWS = { 1: [1], 2: [2], 3: [3], 4: [2, 2], 5: [3, 2], 6: [3, 3] };
   const scaleFor = c => (c <= 2 ? 1 : c === 3 ? 0.9 : 0.8);
-  function dims(sides, count) {
-    const R = Math.round(baseR(sides) * scaleFor(count) * 10) / 10;
-    return { R, cw: Math.round(2.6 * R + 8), ch: Math.round(4.6 * R), cy: (sides === 4 ? 3.05 : 2.7) * R, ty: 3.7 * R };
+  // a d4 sits low with a corner pointing down, so its row is a little taller and the corner never touches the table's edge
+  function dims(sides, count, R) {
+    if (!R) R = Math.round(baseR(sides) * scaleFor(count) * 10) / 10;
+    return { R, cw: Math.round(2.6 * R + 8), ch: Math.round((sides === 4 ? 5 : 4.6) * R), cy: (sides === 4 ? 3.05 : 2.7) * R, ty: 3.7 * R };
   }
   function faceSvg(g, i, text, R, pips) {
     const f = g.faces[i], W = Math.ceil(2 * f.ext * R) + 6, h = W / 2, rr = f.r * R;
@@ -148,10 +149,42 @@
   function cellHtml(sides, labels, d, k, pips) {
     return `<span class="vd-die vd3-cell" style="--k:${k};width:${d.cw}px;height:${d.ch}px;--cy:${f4(d.cy)}px;--ty:${f4(d.ty)}px;--R:${d.R}px"><i class="vd3-shadow"></i><span class="vd3-fly">${cubeHtml(sides, labels, d, IDLE, pips)}</span></span>`;
   }
-  function stageHtml(sides, labels, count, pips) {
-    const d = dims(sides, count), rows = ROWS[count] || [count];
+  // How far a solid's corners reach from its centre, in R (a d4 is drawn at 0.6 R, see cubeHtml)
+  const reaches = {};
+  function reach(sides) {
+    if (reaches[sides]) return reaches[sides];
+    let m = 1;
+    geom(sides).faces.forEach(f => f.pts.forEach(p => { m = Math.max(m, Math.hypot(1, p[0], p[1])); }));
+    return (reaches[sides] = sides === 4 ? m * 0.6 : m);
+  }
+  // Widest a die of radius R can look side to side in any pose, corners nearer the camera drawn bigger (640px perspective)
+  function span(sides, R) {
+    const rho = reach(sides) * R;
+    let v = 0;
+    for (let i = 0; i <= 12; i++) { const t = i * Math.PI / 24; v = Math.max(v, rho * Math.cos(t) * 640 / (640 - rho * Math.sin(t))); }
+    return 2 * v;
+  }
+  // Several dice: each one gets a lane wide enough to tumble in without touching its neighbour, and the row keeps room to
+  // be swept sideways together. On a narrow table that means fewer dice per row (and more rows) before the dice shrink
+  const GAP = 8;
+  function layout(sides, count, W) {
+    const base = baseR(sides) * scaleFor(count), cols0 = (ROWS[count] || [count])[0];
+    if (count < 2 || !(W > 0)) return { R: Math.round(base * 10) / 10, rows: ROWS[count] || [count], lane: 0 };
+    const unitSpan = span(sides, 1), travel = 0.8;
+    const fit = c => (W - GAP * c) / (c * unitSpan + 2 * travel);
+    let cols = 0, R = 0;
+    for (let c = cols0; c >= 1; c--) { const r = Math.min(base, fit(c)); if (r >= base * 0.85 || c === 1) { cols = c; R = r; break; } }
+    R = Math.floor(R * 10) / 10;
+    const rows = [];
+    for (let left = count; left > 0; left -= cols) rows.push(Math.min(cols, left));
+    return { R, rows, lane: Math.ceil(span(sides, R) + GAP) };
+  }
+  function stageHtml(sides, labels, count, pips, W) {
+    const L = layout(sides, count, W), d = dims(sides, count, L.R);
+    if (L.lane > d.cw) d.cw = L.lane;
     let k = 0;
-    return rows.map(n => `<div class="vd3-row" style="height:${d.ch}px;--rowty:${f4(d.ty)}px">${Array.from({ length: n }, () => cellHtml(sides, labels, d, k++, pips)).join('')}</div>`).join('');
+    // rows under the first get extra headroom, because each row's dice stay in their own band and never fly into the row above
+    return `<div class="vd3-rows" data-layout="${L.rows.join('-')}@${L.R}">` + L.rows.map((n, r) => `<div class="vd3-row" style="height:${d.ch}px;--rowty:${f4(d.ty)}px${r ? `;margin-top:${f4(1.4 * d.R)}px` : ''}">${Array.from({ length: n }, () => cellHtml(sides, labels, d, k++, pips)).join('')}</div>`).join('') + '</div>';
   }
 
   // ---- dice control ----
@@ -194,39 +227,62 @@
     });
     g.querySelectorAll('[data-vdsides]').forEach(b => b.classList.toggle('on', +b.dataset.vdsides === sides));
   }
-  function redraw(g) {
+  function redraw(g, quiet) {
     const st = g.querySelector('.vd-stage');
-    st.innerHTML = stageHtml(+g.dataset.sides, faceValues(g), +g.dataset.count, usePips(g));
-    flash(st, 'vd-morph', 260);
+    st.innerHTML = stageHtml(+g.dataset.sides, faceValues(g), +g.dataset.count, usePips(g), st.clientWidth);
+    if (!quiet) flash(st, 'vd-morph', 260);
+  }
+  // the table may have changed width since the dice were laid out (window resized, panel opened), so check before a throw
+  function relayout(g) {
+    const st = g.querySelector('.vd-stage'), box = st.querySelector('.vd3-rows'), n = +g.dataset.count;
+    if (n < 2 || !box) return;
+    const L = layout(+g.dataset.sides, n, st.clientWidth);
+    if (box.dataset.layout !== `${L.rows.join('-')}@${L.R}`) redraw(g, true);
   }
   function setSides(g, n) { if (g.dataset.custom === '1') return; g.dataset.sides = clamp(n, 2, 100); syncUi(g); redraw(g); }
   function setCount(g, n) { g.dataset.count = clamp(n, 1, 6); syncUi(g); redraw(g); }
 
-  // How far a solid's corners reach from its centre, in R (a d4 is drawn at 0.6 R, see cubeHtml)
-  function reach(sides) {
-    let m = 1;
-    geom(sides).faces.forEach(f => f.pts.forEach(p => { m = Math.max(m, Math.hypot(1, p[0], p[1])); }));
-    return sides === 4 ? m * 0.6 : m;
+  // The room one die has on the table: how low it may touch down (L0), the top of its arc (Hm) and how far it may move
+  // side to side (xmin, xmax). A die on a row with rows above or below keeps to its own row's band, so rows never meet
+  function room(cell, sides) {
+    const cs = getComputedStyle(cell), R = parseFloat(cs.getPropertyValue('--R')) || 34, cy = parseFloat(cs.getPropertyValue('--cy')) || 2.7 * R;
+    const st = cell.closest('.vd-stage'), row = cell.closest('.vd3-row');
+    const sr = st.getBoundingClientRect(), cr = cell.getBoundingClientRect();
+    const prev = row && row.previousElementSibling, next = row && row.nextElementSibling;
+    const top = prev ? prev.getBoundingClientRect().bottom - sr.top : 0, bot = next ? row.getBoundingClientRect().bottom - sr.top : sr.height;
+    // corners nearer the camera look bigger (640px cell perspective, origin at 50% 30%), so test a corner tipped through 0 to 90 degrees
+    const rho = reach(sides) * R, ox = cr.width / 2, oy = cr.height * 0.3, m = 3, ct = cr.top - sr.top, cl = cr.left - sr.left;
+    const most = fn => { let v = -1e9; for (let i = 0; i <= 12; i++) { const t = i * Math.PI / 24; v = Math.max(v, fn(rho * Math.cos(t), 640 / (640 - rho * Math.sin(t)))); } return v; };
+    // L0: how high a tumbling die must touch down so no corner dips under its band; Hm: top of the arc
+    const L0 = Math.max(0, cy - oy + most((c, k) => c - (bot - ct - m - oy) / k));
+    const Hm = Math.max(L0, Math.min(cy - oy - most((c, k) => (top + m - ct - oy) / k + c), L0 + 2.6 * R));
+    const xmin = most((c, k) => (m - cl - ox) / k + c), xmax = -most((c, k) => c - (sr.width - cl - m - ox) / k);
+    return { R, L0, Hm, xmin, xmax, row };
+  }
+  // How far each die is swept before the throw. Every die of one roll goes towards the same side, the one roll() picked,
+  // and every die on a row by the same amount, so the row moves as one handful and no die catches up with its neighbour
+  function sweeps(rooms, side, D) {
+    const q = clamp(D / 1900, 0.4, 1), shake = Math.random() * 0.3;
+    const rows = new Map();
+    rooms.forEach(r => { if (!rows.has(r.row)) rows.set(r.row, []); rows.get(r.row).push(r); });
+    const x = new Map();
+    rows.forEach(rs => {
+      const lo = Math.max(...rs.map(r => r.xmin)), hi = Math.min(...rs.map(r => r.xmax)), R = rs[0].R;
+      let v = 0;
+      if (lo <= hi) {
+        const xE = side < 0 ? lo : hi, mag = Math.max(0, Math.min(Math.abs(xE), 2 * R) * q - shake * R);
+        v = clamp(Math.sign(xE) * mag, lo, hi);
+      }
+      rs.forEach(r => x.set(r, v));
+    });
+    return rooms.map(r => x.get(r));
   }
   // One die: picked up off its resting spot and swept to one side, thrown in an arc, three bouncing hits with a held squash,
   // a short roll, then it rocks still on the chosen face. Heights and x come from the room the stage really has, so the whole
   // die stays in view in every frame, and the first frame is exactly the resting pose, so nothing jumps at the click
-  function throwDie(cell, faceIdx, sides, delay, D, amp) {
+  function throwDie(cell, faceIdx, sides, delay, D, amp, rm, x0) {
     const g = geom(sides), cube = cell.querySelector('.vd3-cube'), fly = cell.querySelector('.vd3-fly'), sh = cell.querySelector('.vd3-shadow');
-    const cs = getComputedStyle(cell), R = parseFloat(cs.getPropertyValue('--R')) || 34, cy = parseFloat(cs.getPropertyValue('--cy')) || 2.7 * R;
-    const fin = facing(g.faces[faceIdx].fr), st = cell.closest('.vd-stage');
-    const sr = st.getBoundingClientRect(), cr = cell.getBoundingClientRect();
-    // corners nearer the camera look bigger (640px cell perspective, origin at 50% 30%), so test a corner tipped through 0 to 90 degrees
-    const rho = reach(sides) * R, ox = cr.width / 2, oy = cr.height * 0.3, m = 3, ct = cr.top - sr.top, cl = cr.left - sr.left;
-    const most = fn => { let v = -1e9; for (let i = 0; i <= 12; i++) { const t = i * Math.PI / 24; v = Math.max(v, fn(rho * Math.cos(t), 640 / (640 - rho * Math.sin(t)))); } return v; };
-    // L0: how high a tumbling die must touch down so no corner dips under the stage; Hm: top of the arc
-    const L0 = Math.max(0, cy - oy + most((c, k) => c - (sr.height - ct - m - oy) / k));
-    const Hm = Math.max(L0, Math.min(cy - oy - most((c, k) => (m - ct - oy) / k + c), L0 + 2.6 * R)), pk = Hm - L0;
-    const xmin = most((c, k) => (m - cl - ox) / k + c), xmax = -most((c, k) => c - (sr.width - cl - m - ox) / k);
-    // every die of one roll is swept towards the same side, the one roll() picked; a short throw sweeps less
-    const side = st._side || (Math.random() < 0.5 ? -1 : 1), q = clamp(D / 1900, 0.4, 1);
-    const xE = side < 0 ? xmin : xmax, mag = Math.max(0, Math.min(Math.abs(xE), 2 * R) * q - Math.random() * 0.3 * R);
-    const x0 = xmin > xmax ? 0 : clamp(Math.sign(xE) * mag, xmin, xmax);
+    const fin = facing(g.faces[faceIdx].fr), R = rm.R, L0 = rm.L0, Hm = rm.Hm, pk = Hm - L0;
     // hop heights above the touchdown line: the first two stay over 0.4 of the die's height on screen
     const b1 = Math.min(1.6 * R, 0.8 * pk), b2 = Math.min(1.25 * R, 0.62 * pk), b3 = Math.min(0.4 * R, 0.3 * pk);
     // spin axis leans into the screen so the tumble reads as rolling the way the die travels
@@ -263,6 +319,7 @@
   function roll(g) {
     const vals = faceValues(g);
     if (!vals.length) return;
+    relayout(g);
     const n = +g.dataset.count, sides = +g.dataset.sides, G = geom(sides), pips = usePips(g);
     // the result is chosen here, before any animation, so the motion never decides it
     const ks = Array.from({ length: n }, () => rand(vals.length));
@@ -292,9 +349,10 @@
     st.classList.add('vd-rolling');
     st._side = Math.random() < 0.5 ? -1 : 1;
     let last = null;
-    st.querySelectorAll('.vd3-cell').forEach((cell, i) => {
+    const cells = Array.from(st.querySelectorAll('.vd3-cell')), rooms = cells.map(cell => room(cell, sides)), xs = sweeps(rooms, st._side, D);
+    cells.forEach((cell, i) => {
       // each die is tossed in from the side, inside the stage from the first frame
-      const a = throwDie(cell, faceOf(ks[i]), sides, i * 110 / c.speed, D, md === 'short' ? c.intensity * 0.5 : c.intensity);
+      const a = throwDie(cell, faceOf(ks[i]), sides, i * 110 / c.speed, D, md === 'short' ? c.intensity * 0.5 : c.intensity, rooms[i], xs[i]);
       last = a[0];
     });
     let done = false;
@@ -322,6 +380,7 @@
 .vd-ctl{order:2}
 .vd-out{order:3}
 .vd-stage{display:flex;flex-direction:column;align-items:center;overflow:hidden;border-radius:var(--r-md);background:var(--surface)}
+.vd3-rows{width:100%}
 .vd3-row{position:relative;display:flex;justify-content:center;width:100%}
 .vd3-row:first-child{margin-top:calc(var(--rowty,0px) * .5)}
 .vd3-row::before{content:'';position:absolute;left:0;right:0;bottom:0;top:calc(var(--rowty,0px));background:var(--surface-3);border-top:1px solid var(--line)}
