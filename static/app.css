@@ -117,6 +117,15 @@
     --shadow-lg: 0 20px 50px -16px oklch(18% 0.04 260 / 0.20), 0 6px 14px oklch(18% 0.04 260 / 0.09);
     --ring:      0 0 0 3px oklch(38% 0.14 190 / 0.20);
 
+    /* 3D buttons: a soft top highlight, a short bottom edge and a small drop. Lift on hover, sink on press. */
+    --btn-edge:  oklch(74% 0.022 70);
+    --btn-rest:  inset 0 1px 0 oklch(100% 0 0 / 0.55), 0 2px 0 var(--btn-edge), 0 3px 6px -2px oklch(18% 0.04 260 / 0.16);
+    --btn-hover: inset 0 1px 0 oklch(100% 0 0 / 0.65), 0 3px 0 var(--btn-edge), 0 8px 12px -5px oklch(18% 0.04 260 / 0.22);
+    --btn-down:  inset 0 1px 3px oklch(18% 0.04 260 / 0.22), 0 0 0 var(--btn-edge);
+    --btn-lift:  -1px;
+    --btn-sink:  1px;
+    --btn-spring: 160ms cubic-bezier(0.34, 1.4, 0.64, 1);
+
     /* Neuromorphic shadows — warm light source from top-left */
     --neu-raised:
       5px 5px 10px oklch(83% 0.016 70 / 0.70),
@@ -172,6 +181,11 @@
     --shadow-md: 0 8px 24px -10px oklch(0% 0 0 / 0.65), 0 2px 8px oklch(0% 0 0 / 0.4);
     --shadow-lg: 0 24px 60px -20px oklch(0% 0 0 / 0.80), 0 8px 18px oklch(0% 0 0 / 0.5);
     --ring:      0 0 0 3px oklch(72% 0.14 190 / 0.35);
+
+    --btn-edge:  oklch(10% 0.012 70);
+    --btn-rest:  inset 0 1px 0 oklch(100% 0 0 / 0.07), 0 2px 0 var(--btn-edge), 0 3px 8px -2px oklch(0% 0 0 / 0.55);
+    --btn-hover: inset 0 1px 0 oklch(100% 0 0 / 0.1), 0 3px 0 var(--btn-edge), 0 8px 14px -5px oklch(0% 0 0 / 0.65);
+    --btn-down:  inset 0 1px 4px oklch(0% 0 0 / 0.5), 0 0 0 var(--btn-edge);
 
     /* Neuromorphic shadows — dark mode */
     --neu-raised:
