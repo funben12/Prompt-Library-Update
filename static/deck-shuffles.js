@@ -319,7 +319,7 @@ async function shBCascade(cards, S, amp, live, P, from) {
   next.forEach((c, k) => lay(c, at(P.C, 0, k, 0), k + 1));
   cards.length = 0; next.forEach(c => cards.push(c));
   // bend: the thumbs bow the stack into a tall arch
-  const h = 20 * Math.min(A, 1.1), spread = Math.min(34, (P.R - P.L) / 3 + 10) * A;
+  const h = 10 * Math.min(A, 1.1), spread = Math.min(34, (P.R - P.L) / 3 + 10) * A;
   const arch = (k, t) => { const m = shBMid(k, n), q = 1 - m * m; return at(P.C + m * spread * t, -h * q * t, k, m * 16 * t); };
   await all(cards.map((c, k) => c.animate([{ transform: at(P.C, 0, k, 0) }, { transform: arch(k, 1) }], { duration: 240 / S, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' })), 240 / S + 600);
   if (!live()) return;
@@ -329,7 +329,7 @@ async function shBCascade(cards, S, amp, live, P, from) {
     const m = shBMid(k, n), z = 200 + k;
     return c.animate([
       { transform: arch(k, 1), zIndex: z },
-      { transform: at(P.C + m * spread * 0.5, -h * 0.9 - 8, k, m * 24), zIndex: z, offset: 0.4, easing: 'ease-in' },
+      { transform: at(P.C + m * spread * 0.5, -h * 0.9 - 2, k, m * 16), zIndex: z, offset: 0.4, easing: 'ease-in' },
       { transform: at(P.C, 2, k, 0) + ' scale(1.02,.98)', zIndex: z, offset: 0.85, easing: 'ease-out' },
       { transform: at(P.C, 0, k, 0), zIndex: z }], { duration: 300 / S, delay: k * 46 / S, easing: 'ease-in-out', fill: 'forwards' });
   }), (n * 46 + 300) / S + 600);
@@ -359,7 +359,7 @@ reg('cascade', shBCascade);
     return { xlo: 12 - home, xhi: W - cw - home - 12 };
   };
   async function wash(cards, S, amp, live, P, from) {
-    const n = cards.length, g = geom(cards), cx = (g.xlo + g.xhi) / 2, ax = Math.max(30, (g.xhi - g.xlo) / 2 - 12), ay = 7 + 2.5 * Math.min(amp, 1.4), cy = -1;
+    const n = cards.length, g = geom(cards), cx = (g.xlo + g.xhi) / 2, ax = Math.max(30, (g.xhi - g.xlo) / 2 - 20), ay = 7 + 2.5 * Math.min(amp, 1.4), cy = -1;
     const dir = Math.random() < 0.5 ? 1 : -1, rotMax = 18 + 12 * Math.min(amp, 1.4);
     // each card gets a polar spot on an ellipse, a turn, and a place in the new order
     const spot = cards.map(() => ({ r: 0.3 + Math.random() * 0.7, th: Math.random() * Math.PI * 2, rot: (Math.random() * 2 - 1) * rotMax, sweep: dir * Math.PI * (1.2 + Math.random() * 0.8) * (0.8 + 0.3 * Math.min(amp, 1.4)) }));
@@ -454,7 +454,7 @@ reg('cascade', shBCascade);
 {
   // Mongean: cards are dealt one at a time into a new pile, alternately on top and underneath, so it grows from the middle outwards.
   async function mongean(cards, S, amp, live, P, from) {
-    const n = cards.length, X = from < P.C - 1 ? P.R : P.L, dirn = X > from ? 1 : -1, lift = Math.max(12, 18 * Math.min(amp, 1.4));
+    const n = cards.length, X = from < P.C - 1 ? P.R : P.L, dirn = X > from ? 1 : -1, lift = Math.max(10, 14 * Math.min(amp, 1.4));
     const src = cards.slice().reverse();
     // card d: the first is the base, odd ones go on top (height +1, +2 ...), even ones go underneath (height -1, -2 ...)
     const hOf = d => (d === 0 ? 0 : d % 2 ? (d + 1) / 2 : -d / 2), lo = Math.floor((n - 1) / 2);
