@@ -567,3 +567,8 @@ Handover phase 5, done. All five phases of the Prompt Builder Pro handover are n
 - Verified in headless Chromium (disposable data folder): launcher card present, workspace opens with 60 starter blocks and 12 pills, New prompt Context panel opens, no console errors. Not run in PyWebView, not clicked through block editing, pin or import.
 - Backups: `_rollbacks/*.15-11-2026-pre-dice6` and `*.15-11-2026-pre-ctxbank`.
 - Still unmerged: claude/sharp-ptolemy-1lwhno, feature/prompt-switchboard, three older variable-type branches.
+
+### Working rule: always state the branch (2026-11-15)
+
+- Claude must say which git branch it is on in every reply that touches the repo, taken from `git branch --show-current` at the time, never from memory. Eugene works across many branches and needs to know which version he is looking at.
+- Current working branch for this combine work: `ccr-e4605b92-9rygdj` (draft PR 70 into `main`). `main` has not been changed.
