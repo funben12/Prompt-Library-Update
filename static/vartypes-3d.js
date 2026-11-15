@@ -121,9 +121,12 @@
     if (!R) R = Math.round(baseR(sides) * scaleFor(count) * 10) / 10;
     return { R, cw: Math.round(2.6 * R + 8), ch: Math.round((sides === 4 ? 5 : 4.6) * R), cy: (sides === 4 ? 3.05 : 2.7) * R, ty: 3.7 * R };
   }
+  const ROUND = 0.2;
   function faceSvg(g, i, text, R, pips) {
     const f = g.faces[i], W = Math.ceil(2 * f.ext * R) + 6, h = W / 2, rr = f.r * R;
-    const poly = f.pts.map(p => f4(h + p[0] * R) + ',' + f4(h + p[1] * R)).join(' ');
+    // rounded corners: the face is drawn inset and stroked with a round join, so every corner gets a radius of ROUND * R
+    const sc = Math.max(0.3, (f.r - ROUND) / f.r), rw = f4(2 * ROUND * R);
+    const poly = f.pts.map(p => f4(h + (f.c[0] + (p[0] - f.c[0]) * sc) * R) + ',' + f4(h + (f.c[1] + (p[1] - f.c[1]) * sc) * R)).join(' ');
     const L = unit([-0.5, -0.7, 0.55]), shade = clamp(0.07 * (1 - dot(f.n, L)), 0, 0.14).toFixed(3);
     const cx = h + f.c[0] * R, cy = h + f.c[1] * R;
     let body;
@@ -143,7 +146,7 @@
     }
     const m = f.fr, T = mul(f.n, R);
     const mat = `matrix3d(${[m.u[0], m.u[1], m.u[2], 0, m.d[0], m.d[1], m.d[2], 0, m.n[0], m.n[1], m.n[2], 0, T[0], T[1], T[2], 1].map(f4).join(',')})`;
-    return `<svg class="vd3-f" data-i="${i}" width="${W}" height="${W}" viewBox="0 0 ${W} ${W}" style="left:${-h}px;top:${-h}px;transform:${mat}" aria-hidden="true"><polygon class="vd3-p" points="${poly}"/><polygon class="vd3-s" points="${poly}" opacity="${shade}"/>${body}</svg>`;
+    return `<svg class="vd3-f" data-i="${i}" width="${W}" height="${W}" viewBox="0 0 ${W} ${W}" style="left:${-h}px;top:${-h}px;transform:${mat}" aria-hidden="true"><polygon class="vd3-o" points="${poly}" style="stroke-width:${f4(2 * ROUND * R + 3)}px"/><polygon class="vd3-p" points="${poly}" style="stroke-width:${rw}px"/><polygon class="vd3-s" points="${poly}" style="stroke-width:${rw}px" opacity="${shade}"/>${body}</svg>`;
   }
   // labels: the text for each value index; pose: a transform string for the cube
   function cubeHtml(sides, labels, d, pose, pips) {
@@ -404,11 +407,13 @@
 .vd3-fly{position:absolute;inset:0;transform-style:preserve-3d;transform-origin:50% 75%}
 .vd3-cube{position:absolute;left:50%;top:var(--cy);width:0;height:0;transform-style:preserve-3d}
 .vd3-f{position:absolute;max-width:none;max-height:none;overflow:visible;backface-visibility:hidden;-webkit-backface-visibility:hidden}
-.vd3-p{fill:var(--surface-2);stroke:var(--ink-3);stroke-width:1.5;stroke-linejoin:round;paint-order:stroke}
-.vd3-s{fill:var(--ink);stroke:none}
+.vd3-o{fill:none;stroke:var(--ink-3);stroke-linejoin:round}
+.vd3-p{fill:var(--surface-2);stroke:var(--surface-2);stroke-linejoin:round}
+.vd3-s{fill:var(--ink);stroke:var(--ink);stroke-linejoin:round}
 .vd3-f text{fill:var(--ink);font-family:var(--ff-mono);font-weight:700}
 .vd3-f circle{fill:var(--ink)}
-.vd3-f.win .vd3-p{fill:var(--surface);stroke:var(--accent);stroke-width:2.4}
+.vd3-f.win .vd3-p{fill:var(--surface);stroke:var(--surface)}
+.vd3-f.win .vd3-o{stroke:var(--accent)}
 .vd3-f.win text{fill:var(--accent)}
 .vd3-shadow{position:absolute;left:50%;top:var(--ty);width:calc(var(--R) * 2.4);height:calc(var(--R) * .5);margin:calc(var(--R) * -.1) 0 0 calc(var(--R) * -1.2);border-radius:50%;background:var(--vd-sh);box-shadow:0 0 5px 3px var(--vd-sh);opacity:.4}
 .vd-ctl{display:flex;flex-direction:column;gap:10px}

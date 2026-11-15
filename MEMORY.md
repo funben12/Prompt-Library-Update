@@ -617,3 +617,7 @@ Only the `.vc*` CSS block in `static/vartypes-3d.js` changed (markup, drawCard, 
 - Builder Pro `?v=` bumped to `20261115a` (both places in `index.html`). `update_hash.py` run. Backups: `_rollbacks/15-11-2026-*pre-*`.
 - `static/vartypes-3d.js` has drifted further from the phone's copy (now also button CSS). The phone repo needs the combined patch.
 - Merge note: agents' worktrees were first cut from an old base, so each merged `desktop-combine-verify` before working. Shared scratchpad scripts can be overwritten by agents: use unique names.
+
+### Rounder cube (2026-11-15)
+
+- Dice faces are drawn inset and stroked with a round join, so every cube corner has a radius of `ROUND * R` (`ROUND = 0.2` in `faceSvg`, `static/vartypes-3d.js`). An outline underlay `.vd3-o` carries the edge colour, `.vd3-p` the face, `.vd3-s` the shade. The landed face turns its outline accent. Raise or lower `ROUND` to change the roundness. Phone copy of `vartypes-3d.js` still needs the combined patch. Backup: `_rollbacks/15-11-2026-vartypes-3d-pre-round.js`.
