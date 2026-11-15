@@ -596,3 +596,7 @@ Handover phase 5, done. All five phases of the Prompt Builder Pro handover are n
 - Card shuffle styles: Riffle (default), Overhand, Fan out, Surprise me. Setting is in Settings, Randomiser motion, stored in localStorage `pl.shuffleStyle`.
 - `static/vartypes-3d.js` NO LONGER matches the phone's copy byte for byte. The phone repo (AI-App-Factory, `assets/vartypes-3d.js`) needs the same change, or this file must be reconciled before the next phone sync. `tests/randomiser` only flags the drift when `PHONE_ASSETS` is set. Backups of the pre change files are in `_rollbacks/15-11-2026-*`.
 - Open: Eugene asked (mid session) for a nicer look across all buttons and a replacement for the red glowing Dark mode orb in the sidebar. Not started, waiting on direction.
+
+### Sub-agents for dice and card polish (2026-11-15)
+
+- Added `.claude/agents/dice-polish.md` and `.claude/agents/card-polish.md`. Each owns the look of one randomiser (dice cube, card deck) in `static/vartypes-3d.js` and `static/randomiser-motion.js` only, never behaviour. They carry the fixed decisions (cube only, result chosen first, card fits its text, shuffle styles, no gradients) and require backups, scripted Playwright before and after screenshots, `tests/randomiser`, and a phone drift warning. Neither has been run yet.
