@@ -3041,10 +3041,19 @@ def export_json():
     conn  = get_db()
     try:
         rows  = conn.execute('SELECT * FROM prompts ORDER BY title').fetchall()
+        names = _folder_names(conn)
     finally:
         conn.close()
-    out = [serialize_prompt(r) for r in rows]
+    out = [_with_folder_name(serialize_prompt(r), names) for r in rows]
     return jsonify(out)
+
+def _folder_names(conn):
+    return {r['id']: r['name'] for r in conn.execute('SELECT id, name FROM folders').fetchall()}
+
+# Add the folder's name so the phone app can show folders (it never sees folder ids).
+def _with_folder_name(p, names):
+    p['folder'] = names.get(p.get('folder_id'), '')
+    return p
 
 @app.route('/api/export/markdown', methods=['GET'])
 def export_markdown():
@@ -3109,9 +3118,10 @@ def export_bulk():
     conn = get_db()
     try:
         rows = conn.execute('SELECT * FROM prompts ORDER BY title').fetchall()
+        names = _folder_names(conn)
     finally:
         conn.close()
-    prompts = [serialize_prompt(r) for r in rows]
+    prompts = [_with_folder_name(serialize_prompt(r), names) for r in rows]
 
     # JSON payload
     json_bytes = json.dumps(prompts, indent=2).encode('utf-8')

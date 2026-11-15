@@ -441,3 +441,4 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - `#contentHeader` got `min-width: 0` so a wide row can never push the page wider than the window.
 - Known, not fixed: below about 500 px wide the library cards squash to a narrow column (card actions take the width). Same before this change.
 - Verified in headless Chromium against a disposable database (160 prompts, 9 folders, 14 favourites) at 1366 and 390 px wide. Not checked in the PyWebView window. Backups: `_rollbacks/* v-pre-scope-bar.*`.
+- JSON exports (`/api/export` and the JSON inside `/api/export/bulk`) now carry `folder` (the folder's name, empty when none) beside `folder_id`, so the phone app can show folders. Markdown exports unchanged, because the desktop Markdown importer would read a Folder line as prompt text. Backup: `_rollbacks/app v-pre-export-folder.py`.
