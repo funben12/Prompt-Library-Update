@@ -4723,6 +4723,95 @@
   border-color: var(--accent-line);
   color: var(--accent);
 }
+.ctx-pill-manage {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-style: dashed;
+}
+.ctx-pill-manage .material-symbols-outlined { font-size: 13px; }
+
+/* Own categories: add, rename, remove */
+.ctx-cat-manager {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  flex-shrink: 0;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.ctx-cat-manager[hidden] { display: none; }
+.ctx-catm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-2);
+}
+.ctx-catm-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.ctx-catm-add,
+.ctx-catm-row.editing {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+.ctx-catm-input { flex: 1; min-width: 0; }
+.ctx-catm-add .btn .material-symbols-outlined { font-size: 15px; }
+.ctx-catm-msg {
+  min-height: 16px;
+  margin: 6px 0 4px;
+  font-size: 11px;
+  color: var(--accent);
+}
+.ctx-catm-msg.error { color: var(--danger, #c0392b); }
+.ctx-catm-list { display: flex; flex-direction: column; }
+.ctx-catm-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+  min-height: 40px;
+}
+.ctx-catm-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.ctx-catm-count,
+.ctx-catm-note {
+  font-size: 11px;
+  color: var(--ink-4);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ctx-catm-row .ctx-catm-icon:first-of-type { margin-left: auto; }
+.ctx-catm-icon .material-symbols-outlined { font-size: 17px; }
+.ctx-catm-row.confirming { flex-wrap: wrap; }
+.ctx-catm-q { flex: 1 1 100%; font-size: 12px; color: var(--ink-2); }
+.ctx-catm-row.confirming .btn:first-of-type { margin-left: auto; }
+.ctx-catm-danger {
+  background: var(--danger, #c0392b);
+  border-color: var(--danger, #c0392b);
+  color: #fff;
+}
+.ctx-catm-empty,
+.ctx-catm-hint {
+  font-size: 11px;
+  color: var(--ink-4);
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+.ctx-catm-hint { margin-top: var(--sp-2); }
 
 .ctx-meta-row {
   display: flex;

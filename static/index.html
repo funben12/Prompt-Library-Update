@@ -11,7 +11,7 @@
 
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/app.css?v=1594708d-plx">
+<link rel="stylesheet" href="/static/app.css?v=c4ba10d3-plx">
 </head>
 <body>
 
@@ -2784,13 +2784,10 @@
       <!-- Category pills -->
       <div class="ctx-cat-row" id="ctxCategoryRow">
         <button class="ctx-pill active" data-ctx-filter="all">All</button>
-        <button class="ctx-pill" data-ctx-filter="Persona">Persona</button>
-        <button class="ctx-pill" data-ctx-filter="Company">Company</button>
-        <button class="ctx-pill" data-ctx-filter="Audience">Audience</button>
-        <button class="ctx-pill" data-ctx-filter="Product">Product</button>
-        <button class="ctx-pill" data-ctx-filter="Style">Style</button>
-        <button class="ctx-pill" data-ctx-filter="Other">Other</button>
       </div>
+
+      <!-- Make, rename and remove your own categories (filled by app.js) -->
+      <div class="ctx-cat-manager" id="ctxCatManager" hidden></div>
 
       <!-- Stats row -->
       <div class="ctx-meta-row">
@@ -4999,7 +4996,7 @@
 
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
-<script defer src="/static/app.js?v=f30d71f3"></script>
+<script defer src="/static/app.js?v=dbe9141d"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>
