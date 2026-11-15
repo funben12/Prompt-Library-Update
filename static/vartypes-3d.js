@@ -668,21 +668,23 @@
   // Card backs are solid accent with a thin on accent frame; a light edge on each card shows the stack's thickness
   CSS.push(`
 .vc{display:flex;flex-direction:column}
-.vc-table{position:relative;height:164px;border-radius:var(--r-md);background:var(--surface-3);border:1px solid var(--line);overflow:hidden}
+.vc-table{position:relative;height:164px;border-radius:var(--r-lg);background:var(--surface-3);border:1px solid var(--line-strong);box-shadow:inset 0 1px 3px oklch(18% 0.04 260 / .08);overflow:hidden}
 .vc-deck,.vc-slot{position:absolute;top:36px;width:76px;height:106px}
 .vc-deck{left:44px;z-index:1}
 .vc-slot{left:62px;margin-left:140px;perspective:700px;z-index:2}
 .vc.shuffling .vc-deck{z-index:3}
-.vc-slot::before{content:'';position:absolute;inset:0;border:1px dashed var(--ink);border-radius:8px;opacity:.3}
-.vc-c{position:absolute;inset:0;box-sizing:border-box;border:1px solid var(--surface);border-radius:8px;background:var(--accent);box-shadow:inset 0 0 0 5px var(--accent),inset 0 0 0 6px var(--on-accent);transform:translate(calc(var(--i) * -.4px),calc(var(--i) * -1.4px));z-index:calc(var(--i) + 1)}
+.vc-slot::before{content:'';position:absolute;inset:0;border:1.5px dashed var(--line-strong);border-radius:var(--r-lg);background:var(--surface-sunk);opacity:.9}
+.vc-c{position:absolute;inset:0;box-sizing:border-box;border:1px solid var(--surface);border-radius:var(--r-lg);background:var(--accent);box-shadow:inset 0 0 0 5px var(--accent),inset 0 0 0 6px var(--on-accent),var(--shadow-sm);transform:translate(calc(var(--i) * -.4px),calc(var(--i) * -1.4px));z-index:calc(var(--i) + 1)}
+.vc-c:first-child{box-shadow:inset 0 0 0 5px var(--accent),inset 0 0 0 6px var(--on-accent),var(--shadow-md)}
 .vc-deck{transform-origin:50% 60%}
 .vc-card{position:relative;width:100%;height:100%;opacity:0;transform-style:preserve-3d}
-.vc-back,.vc-face{position:absolute;inset:0;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border-radius:8px;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.vc-back,.vc-face{position:absolute;inset:0;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border-radius:var(--r-lg);backface-visibility:hidden;-webkit-backface-visibility:hidden}
 .vc-back{background:var(--accent);border:1px solid var(--surface);box-shadow:inset 0 0 0 5px var(--accent),inset 0 0 0 6px var(--on-accent)}
-.vc-face{padding:8px;background:var(--surface);border:2px solid var(--accent);transform:rotateY(180deg);font:700 15px/1.25 var(--ff-sans);text-align:center;color:var(--ink);overflow:hidden;overflow-wrap:break-word;word-break:normal}
+.vc-face{padding:12px 11px;background:var(--surface);border:2px solid var(--accent);box-shadow:var(--shadow-md);transform:rotateY(180deg);font:700 16px/1.25 var(--ff-sans);letter-spacing:-.005em;text-align:center;color:var(--ink);overflow:hidden;overflow-wrap:break-word;word-break:normal}
+.vc-face::before{content:'';position:absolute;inset:4px;border:1px solid var(--accent-line);border-radius:calc(var(--r-lg) - 4px);pointer-events:none}
 .vc.drawn .vc-card{opacity:1;transform:rotateY(180deg)}
 .vc.dealing .vc-card{opacity:1}
-.vc-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding-top:8px}
+.vc-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding-top:12px}
 .vc-row button{min-height:44px;padding:8px 14px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--on-accent);font-weight:700}
 .vc-row button:disabled{opacity:.6}
 .vc-row small{color:var(--ink-3);font-size:var(--t-meta)}
