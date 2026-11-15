@@ -10965,3 +10965,6 @@ body.plx-workspace-open{overflow:hidden}
 /* The hidden attribute always wins. Without this, any rule that sets display
    (chips, badges, grids) kept hidden elements on screen. */
 [hidden] { display: none !important; }
+
+/* Dice are always six sided: hide the sides stepper and presets */
+.vd [data-vdk="sides"], .vd .vd-presets { display: none !important; }

@@ -1665,7 +1665,7 @@
     // Dice: faces come from the options box (words or numbers), else 1..faces
     function _PL_diceValues(m) {
         if (m.options && m.options.length) return m.options.map(o => String(o).trim()).filter(Boolean);
-        const n = Math.max(2, Math.min(100, parseInt(m.faces, 10) || 6));
+        const n = 6; // dice are always six sided
         return Array.from({ length: n }, (_, i) => String(i + 1));
     }
     const _DIE_ROT = [[0, 0], [0, -90], [-90, 0], [90, 0], [0, 90], [0, 180]];
@@ -1792,7 +1792,7 @@
                 const diceVals = _PL_diceValues(m);
                 const dicePips = !(opts.length) && diceVals.length === 6;
                 // the shared 3D dice (static/vartypes-3d.js) when it loaded, else the built in die below
-                const dice3d = window.PL_MOTION && window.PL_MOTION.control && window.PL_MOTION.control('diceroll', v, { options: opts, faces: m.faces }, def);
+                const dice3d = window.PL_MOTION && window.PL_MOTION.control && window.PL_MOTION.control('diceroll', v, { options: opts, faces: 6 }, def);
                 input = dice3d || `<div class="var-dice" data-dice-vals="${escapeAttr(JSON.stringify(diceVals))}" data-dice-pips="${dicePips ? '1' : '0'}">
         <div class="var-dice-scene"><div class="var-die">${_PL_dieHTML(diceVals, dicePips)}</div></div>
         <div class="var-dice-side">
@@ -3286,7 +3286,7 @@ STYLE/THEME: [[reserved for future use]]`;
             Allow multiple selections
           </label>
         </div>
-        <div class="dice-faces" style="display: ${type === 'diceroll' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
+        <div class="dice-faces" style="display: none; gap: 8px; align-items: center; margin-top: 4px;">
           <span style="font-size: 11px; color: var(--ink-3);">Sides:</span>
           <input type="number" data-field="faces" min="2" max="100" value="${escapeAttr(m.faces || 6)}" style="width: 72px; font-size: 12px; padding: 4px 8px;" />
           <span style="font-size: 11px; color: var(--ink-3);">or type your own faces below</span>
@@ -3317,7 +3317,7 @@ STYLE/THEME: [[reserved for future use]]`;
         show('.dropdown-options', _PL_OPTION_TYPES.includes(type), 'block');
         show('.paragraph-size', type === 'paragraph');
         show('.choice-multi', type === 'choicechips' || type === 'choicecards');
-        show('.dice-faces', type === 'diceroll');
+        show('.dice-faces', false);
         show('.var-wrap-row', !isRandom);
         show('[data-field="default"]', !isRandom, 'block');
         const ta = row.querySelector('[data-field="options"]');
@@ -3350,11 +3350,6 @@ STYLE/THEME: [[reserved for future use]]`;
             };
             if (type === 'paragraph' && sizeEl) entry.size = sizeEl.value;
             if ((type === 'choicechips' || type === 'choicecards') && multiEl && multiEl.checked) entry.multi = true;
-            const facesEl = row.querySelector('[data-field="faces"]');
-            if (type === 'diceroll' && facesEl) {
-                const n = parseInt(facesEl.value, 10);
-                if (n >= 2 && n <= 100 && n !== 6) entry.faces = n;
-            }
             const wrapEl = row.querySelector('[data-field="wrap"]');
             if (wrapEl && wrapEl.value && !isRandom) entry.wrap = wrapEl.value;
             meta[v] = entry;
