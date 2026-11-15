@@ -124,15 +124,15 @@
   function faceSvg(g, i, text, R, pips) {
     const f = g.faces[i], W = Math.ceil(2 * f.ext * R) + 6, h = W / 2, rr = f.r * R;
     const poly = f.pts.map(p => f4(h + p[0] * R) + ',' + f4(h + p[1] * R)).join(' ');
-    const L = unit([-0.5, -0.7, 0.55]), shade = clamp(0.1 * (1 - dot(f.n, L)), 0, 0.2).toFixed(3);
+    const L = unit([-0.5, -0.7, 0.55]), shade = clamp(0.07 * (1 - dot(f.n, L)), 0, 0.14).toFixed(3);
     const cx = h + f.c[0] * R, cy = h + f.c[1] * R;
     let body;
-    if (pips) body = (PIPS[+text] || []).map(k => `<circle cx="${f4(cx + ((k % 3) - 1) * 0.5 * R)}" cy="${f4(cy + (Math.floor(k / 3) - 1) * 0.5 * R)}" r="${f4(0.13 * R)}"/>`).join('');
+    if (pips) body = (PIPS[+text] || []).map(k => `<circle cx="${f4(cx + ((k % 3) - 1) * 0.5 * R)}" cy="${f4(cy + (Math.floor(k / 3) - 1) * 0.5 * R)}" r="${f4(0.125 * R)}"/>`).join('');
     else {
       const t = String(text == null ? '' : text).trim();
       // wrap onto up to three lines at spaces, with the largest type that fits the face
-      const box = 1.8 * rr, wrapAt = n => { const out = []; let cur = ''; t.split(/\s+/).forEach(w => { if (cur && (cur + ' ' + w).length > n) { out.push(cur); cur = w; } else cur = cur ? cur + ' ' + w : w; }); if (cur) out.push(cur); return out; };
-      let fs = Math.min(rr * 1.1, 24), lines = [t];
+      const box = 1.5 * rr, wrapAt = n => { const out = []; let cur = ''; t.split(/\s+/).forEach(w => { if (cur && (cur + ' ' + w).length > n) { out.push(cur); cur = w; } else cur = cur ? cur + ' ' + w : w; }); if (cur) out.push(cur); return out; };
+      let fs = Math.min(rr * 0.95, 22), lines = [t];
       for (; fs >= 7; fs -= 0.5) {
         const n = Math.max(1, Math.floor(box / (0.62 * fs))), l = wrapAt(n);
         if (l.length <= 3 && l.every(x => x.length <= n) && l.length * fs * 1.15 <= box) { lines = l; break; }
@@ -404,13 +404,13 @@
 .vd3-fly{position:absolute;inset:0;transform-style:preserve-3d;transform-origin:50% 75%}
 .vd3-cube{position:absolute;left:50%;top:var(--cy);width:0;height:0;transform-style:preserve-3d}
 .vd3-f{position:absolute;max-width:none;max-height:none;overflow:visible;backface-visibility:hidden;-webkit-backface-visibility:hidden}
-.vd3-p{fill:var(--surface-2);stroke:var(--ink-3);stroke-width:1.4;stroke-linejoin:round}
+.vd3-p{fill:var(--surface-2);stroke:var(--ink-3);stroke-width:1.5;stroke-linejoin:round;paint-order:stroke}
 .vd3-s{fill:var(--ink);stroke:none}
 .vd3-f text{fill:var(--ink);font-family:var(--ff-mono);font-weight:700}
 .vd3-f circle{fill:var(--ink)}
 .vd3-f.win .vd3-p{fill:var(--surface);stroke:var(--accent);stroke-width:2.4}
 .vd3-f.win text{fill:var(--accent)}
-.vd3-shadow{position:absolute;left:50%;top:var(--ty);width:calc(var(--R) * 2.4);height:calc(var(--R) * .5);margin:calc(var(--R) * -.1) 0 0 calc(var(--R) * -1.2);border-radius:50%;background:var(--vd-sh);opacity:.5}
+.vd3-shadow{position:absolute;left:50%;top:var(--ty);width:calc(var(--R) * 2.4);height:calc(var(--R) * .5);margin:calc(var(--R) * -.1) 0 0 calc(var(--R) * -1.2);border-radius:50%;background:var(--vd-sh);box-shadow:0 0 5px 3px var(--vd-sh);opacity:.4}
 .vd-ctl{display:flex;flex-direction:column;gap:10px}
 .vd-step{display:flex;align-items:center;gap:10px}
 .vd-lab{flex:1;font:600 13px var(--ff-sans);color:var(--ink-3)}

@@ -491,6 +491,10 @@ Handover phase 5, done. All five phases of the Prompt Builder Pro handover are n
 - Verified in headless Chromium: all four sidebar combinations with wires still on their ports, keyboard toggles, state across a restart, the four exports including text with `&`, `<`, quotes, `]]>` and emoji, the tour by button and keys in light and dark and at 1280 wide, plus every earlier suite. Not run in the PyWebView window. File download from inside PyWebView is the part most worth checking by hand.
 - Backups: `_rollbacks/* v-pre-phase5.*`.
 
+### Dice cleanup: calmer cube (2026-11-15, branch desktop-combine-verify)
+
+Only `static/vartypes-3d.js` dice section changed (card deck, drums, roll logic untouched). Dice stay a six faced cube. Changes: face shading lowered (max opacity 0.14, was 0.2), face stroke 1.5 with `paint-order:stroke` for even edges, pip radius 0.125 R on the same 3 by 3 grid, face text box 1.5 x inner radius with max size 22 (was 1.8 and 24) so words have padding, ground shadow softened with a small box-shadow spread at opacity 0.4. Backups: `_rollbacks/15-11-2026-vartypes-3d-pre-cleancube.js`, `-randomiser-motion-pre-cleancube.js`, `15-11-2026-MEMORY-pre-cleancube.md`. `static/vartypes-3d.js` now differs further from the phone's `assets/vartypes-3d.js`: copy it there too. Rolled result checked against the landed face (15 rolls, plain, 3 and 20 option lists). `tests/randomiser` passes.
+
 ### Library scope bar: favourites and folders above the list (2026-11-15)
 
 - Eugene found the Library one long list. Favourites sat inside the Filters popover and the sidebar Folders section starts collapsed and sits under the licence panel, so folders were easy to miss.
