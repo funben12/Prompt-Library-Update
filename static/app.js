@@ -1615,10 +1615,14 @@
     const _PL_DECK_STYLES = [['overhand', 'Overhand shuffle'], ['riffle', 'Riffle shuffle'], ['hindu', 'Hindu shuffle'], ['strip', 'Strip shuffle (running cut)'], ['wash', 'Wash shuffle (scramble)'], ['faro', 'Faro shuffle'], ['mongean', 'Mongean shuffle'], ['pile', 'Pile shuffle'], ['charlier', 'Charlier shuffle (one hand cut)'], ['cascade', 'Cascade (bridge)'], ['cut', 'Cut the deck'], ['fan', 'Fan and sweep']];
     const _PL_DECK_TYPES = ['carddeck'].concat(_PL_DECK_STYLES.map(d => 'deck_' + d[0]));
     const _PL_isDeck = t => _PL_DECK_TYPES.includes(t);
-    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'].concat(_PL_DECK_TYPES.slice(1));
+    // One dice variable type per roll style (animations live in static/dice-rolls.js)
+    const _PL_DICE_STYLES = [['tumble', 'Tumble'], ['drop', 'Drop and bounce'], ['cup', 'Cup shake and pour'], ['spin', 'Spin like a top'], ['throw', 'Hard throw'], ['tray', 'Dice tray with walls'], ['flip', 'End over end flip'], ['float', 'Float and drop']];
+    const _PL_DICE_TYPES = ['diceroll'].concat(_PL_DICE_STYLES.map(d => 'dice_' + d[0]));
+    const _PL_isDice = t => _PL_DICE_TYPES.includes(t);
+    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'].concat(_PL_DECK_TYPES.slice(1), _PL_DICE_TYPES.slice(1));
     const _PL_LEGACY_TYPE_MAP = { radio: 'choicechips', segmented: 'choicechips', yesno: 'choicechips', multiselect: 'checkbox', togglegroup: 'checkbox', boolean: 'choicechips' };
-    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'diceroll', 'weightedmix', 'randompick', 'randomnumber'].concat(_PL_DECK_TYPES);
-    const _PL_RANDOM_TYPES = ['diceroll', 'weightedmix', 'randompick', 'randomnumber'].concat(_PL_DECK_TYPES);
+    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'diceroll', 'weightedmix', 'randompick', 'randomnumber'].concat(_PL_DECK_TYPES, _PL_DICE_TYPES.slice(1));
+    const _PL_RANDOM_TYPES = ['diceroll', 'weightedmix', 'randompick', 'randomnumber'].concat(_PL_DECK_TYPES, _PL_DICE_TYPES.slice(1));
     function _PL_normMeta(m) {
         const out = Object.assign({}, m);
         const t = m.type || 'text';
@@ -1762,7 +1766,7 @@
             const def = m.default || '';
             const opts = m.options || [];
             const optTitles = opts.map(o => _PL_splitOpt(o).t);
-            const icon = typeIcon[type] || (_PL_isDeck(type) ? 'style' : 'abc');
+            const icon = typeIcon[type] || (_PL_isDeck(type) ? 'style' : _PL_isDice(type) ? 'casino' : 'abc');
             let input = '';
             if (type === 'choicechips' || type === 'choicecards') {
                 const isMulti = !!m.multi;
@@ -1792,11 +1796,11 @@
         <div class="var-deck-actions"><button type="button" class="btn btn-sm" onclick="window._PL_drawCard(this)">Shuffle and draw</button><span class="var-deck-left" data-deck-left>${deckOpts.length} cards in the deck</span></div>
         <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
-            } else if (type === 'diceroll') {
+            } else if (_PL_isDice(type)) {
                 const diceVals = _PL_diceValues(m);
                 const dicePips = !(opts.length) && diceVals.length === 6;
                 // the shared 3D dice (static/vartypes-3d.js) when it loaded, else the built in die below
-                const dice3d = window.PL_MOTION && window.PL_MOTION.control && window.PL_MOTION.control('diceroll', v, { options: opts, faces: 6 }, def);
+                const dice3d = window.PL_MOTION && window.PL_MOTION.control && window.PL_MOTION.control(type, v, { options: opts, faces: 6 }, def);
                 input = dice3d || `<div class="var-dice" data-dice-vals="${escapeAttr(JSON.stringify(diceVals))}" data-dice-pips="${dicePips ? '1' : '0'}">
         <div class="var-dice-scene"><div class="var-die">${_PL_dieHTML(diceVals, dicePips)}</div></div>
         <div class="var-dice-side">
@@ -3264,6 +3268,9 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="randompick" ${type === 'randompick' ? 'selected' : ''}>Random Pick</option>
             <option value="randomnumber" ${type === 'randomnumber' ? 'selected' : ''}>Random Number</option>
             </optgroup>
+            <optgroup label="Dice rolls (one style each)">
+            ${_PL_DICE_STYLES.slice(1).map(d => `<option value="dice_${d[0]}" ${type === 'dice_' + d[0] ? 'selected' : ''}>Dice Roll: ${d[1]}</option>`).join('')}
+            </optgroup>
             <optgroup label="Card decks (one shuffle each)">
             ${_PL_DECK_STYLES.map(d => `<option value="deck_${d[0]}" ${type === 'deck_' + d[0] ? 'selected' : ''}>Card Deck: ${d[1]}</option>`).join('')}
             </optgroup>
@@ -3316,7 +3323,7 @@ STYLE/THEME: [[reserved for future use]]`;
             randompick: 'Options, comma separated',
             stepslider: 'Steps in order, comma separated (at least 2)',
             choicecards: 'One card per line: Title | short description'
-        })[_PL_isDeck(type) ? 'carddeck' : type] || 'Comma separated options';
+        })[_PL_isDeck(type) ? 'carddeck' : _PL_isDice(type) ? 'diceroll' : type] || 'Comma separated options';
     }
     function _PL_applyVarTypeUI(row, type) {
         const show = (sel, on, disp) => { const el = row.querySelector(sel); if (el) el.style.display = on ? (disp || 'flex') : 'none'; };

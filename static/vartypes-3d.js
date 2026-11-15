@@ -213,11 +213,13 @@
   function stepHtml(kind, label, value, less, more, lo, hi) {
     return `<div class="vd-step" data-vdk="${kind}"><span class="vd-lab">${label}</span><button type="button" data-vdstep="-1" aria-label="${less}"${value <= lo ? ' disabled' : ''}>${MINUS}</button><b>${value}</b><button type="button" data-vdstep="1" aria-label="${more}"${value >= hi ? ' disabled' : ''}>${PLUS}</button></div>`;
   }
-  M.register('diceroll', function (v, m, val) {
+  // one dice type per roll style: 'diceroll' is the tumble, each 'dice_<id>' always rolls its own way (see static/dice-rolls.js)
+  const DICE_STYLES = ['tumble', 'drop', 'cup', 'spin', 'throw', 'tray', 'flip', 'float'];
+  function diceHtml(v, m, val, style) {
     const opts = (m.options || []).map(o => String(o).trim()).filter(Boolean), custom = opts.length > 0;
     const sides = 6; // desktop: always a cube, a long option list is written onto the face that lands
     const labels = custom ? opts : Array.from({ length: sides }, (_, i) => String(i + 1));
-    return `<div class="vd" data-vd="${esc(v)}" data-custom="${custom ? 1 : 0}" data-sides="${sides}" data-count="1" data-opts="${esc(JSON.stringify(opts))}">
+    return `<div class="vd" data-vd="${esc(v)}"${style ? ` data-rollstyle="${style}"` : ''} data-custom="${custom ? 1 : 0}" data-sides="${sides}" data-count="1" data-opts="${esc(JSON.stringify(opts))}">
       <div class="vd-out"><output aria-live="polite">${esc(val || 'Ready to roll')}</output><button type="button" data-vdgo>Roll dice</button>${modeButton()}</div>
       <div class="vd-stage" aria-hidden="true">${stageHtml(sides, labels, 1, !custom && sides === 6)}</div>
       <div class="vd-ctl">
@@ -225,7 +227,9 @@
         ${stepHtml('count', 'Dice', 1, 'Fewer dice', 'More dice', 1, 6)}
       </div>
       <input type="hidden" data-var="${esc(v)}" value="${esc(val)}"></div>`;
-  });
+  }
+  M.register('diceroll', (v, m, val) => diceHtml(v, m, val, ''));
+  DICE_STYLES.forEach(id => M.register('dice_' + id, (v, m, val) => diceHtml(v, m, val, id)));
   function syncUi(g) {
     const sides = +g.dataset.sides, count = +g.dataset.count;
     g.querySelectorAll('[data-vdk]').forEach(s => {
@@ -325,6 +329,11 @@
     const opt = { duration: T, fill: 'both' };
     return [fly.animate(flyKf, opt), sh.animate(shKf, opt), cube.animate(cubeKf, opt)];
   }
+  // Roll registry. A roll style is (cell, faceIdx, sides, delay, D, amp, rm, x0) and returns [flyAnim, shadowAnim, cubeAnim], each of
+  // duration D + delay with fill 'both'; the first frame is the resting pose and the last frame is the cube facing faceIdx at rest.
+  M.rolls = M.rolls || {};
+  M.rolls.tumble = M.rolls.tumble || throwDie;
+  M.dice = { geom, facing, IDLE, unit, f4, rand, clamp, room, sweeps };
   function roll(g) {
     const vals = faceValues(g);
     if (!vals.length) return;
@@ -368,10 +377,11 @@
     st.classList.add('vd-rolling');
     st._side = Math.random() < 0.5 ? -1 : 1;
     let last = null;
+    const rollFn = M.rolls[g.dataset.rollstyle] || M.rolls.tumble;
     const cells = Array.from(st.querySelectorAll('.vd3-cell')), rooms = cells.map(cell => room(cell, sides)), xs = sweeps(rooms, st._side, D);
     cells.forEach((cell, i) => {
       // each die is tossed in from the side, inside the stage from the first frame
-      const a = throwDie(cell, faceOf(ks[i], i), sides, i * 110 / c.speed, D, md === 'short' ? c.intensity * 0.5 : c.intensity, rooms[i], xs[i]);
+      const a = rollFn(cell, faceOf(ks[i], i), sides, i * 110 / c.speed, D, md === 'short' ? c.intensity * 0.5 : c.intensity, rooms[i], xs[i]);
       last = a[0];
     });
     let done = false;
