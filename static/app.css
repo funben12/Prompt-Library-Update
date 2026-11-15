@@ -9830,6 +9830,9 @@
 
 /* masonry feed */
 #boardWorkspace .pmb-masonry { columns: 236px; column-gap: 16px; }
+#boardWorkspace .pmb-masonry.is-js { display: flex; align-items: flex-start; gap: var(--pmb-gap, 16px); }
+#boardWorkspace .pmb-masonry-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+#boardWorkspace .pmb-masonry.is-js .pmb-pin { margin-bottom: var(--pmb-gap, 16px); }
 #boardWorkspace .pmb-pin { break-inside: avoid; display: block; width: 100%; margin: 0 0 16px; border-radius: var(--r-xl); cursor: pointer; text-align: left; }
 #boardWorkspace .pmb-pin:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 #boardWorkspace .pmb-pin-tile {

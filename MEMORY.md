@@ -511,3 +511,8 @@ Handover phase 5, done. All five phases of the Prompt Builder Pro handover are n
 - Duplicate pairs keep their side by side review. They get a Combine button only when `window.PL_openCombine` exists (combine flow, PR 67), and the organiser rescans on the `pl:prompts-combined` event.
 - Touch bug fixed in the engine: on touch screens the browser holds the finger on the inner element, so a bubbled `lostpointercapture` cancelled every drag. The handler now only reacts when the event target is the card itself.
 - Tested in headless Chromium on a scratch database at 1280 and 390 wide, 26 checks. Not tested in the PyWebView window or on Eugene's real database. Backups: `_rollbacks/* v-pre-swipe-deck.*`.
+
+### Prompt Board masonry reads left to right (2026-11-15)
+- `.pmb-masonry` feeds (Home, single board, More like this) are now laid out by `_pmbMasonry` in app.js: each pin goes into the shortest column, so the sort order runs along the top row like Pinterest. Before this, CSS `columns` filled each column top to bottom, so the newest pins stacked down the left column.
+- Column width and gap still come from app.css (`columns: 236px`, 160px under 900px, 200px for More like this). The JS reads them with getComputedStyle and builds `.pmb-masonry-col` flex columns; a ResizeObserver relays when the column count or width changes. The CSS columns stay as the fallback if JS layout never runs.
+- Backups: `_rollbacks/app v-pre-board-masonry.js`, `.css`.
