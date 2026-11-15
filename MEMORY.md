@@ -587,3 +587,4 @@ Handover phase 5, done. All five phases of the Prompt Builder Pro handover are n
 - The `<script` count in `static/index.html` is now 8 (components-data, forge-frameworks, xray-views, qrcode.min, app.js, randomiser-motion, vartypes-3d, inline bootstrap). The 5 in `CLAUDE.md` is stale. Use 8 for the truncation check.
 - `tests/randomiser` needs the Python `playwright` package and `CHROME` set. It passes (the phone drift check skips without `PHONE_ASSETS`).
 - Still open: nearby share on real devices, committing the click through scripts as tests.
+- `CLAUDE.md` updated 2026-11-15: the `<script` count is now 8 everywhere it appears (architecture line, gotchas, triage, corrections). Backup: `_rollbacks/15-11-2026-CLAUDE.md`.
