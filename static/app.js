@@ -15589,7 +15589,57 @@ Must avoid: [Anything sensitive or previously declined]`
         _pmbBindMain(main);
     }
 
+    // Masonry: place each pin in the shortest column so the feed reads left to right,
+    // newest along the top row, like Pinterest. CSS columns stay as the fallback.
+    let _pmbMasonryObserver = null;
+    function _pmbMasonry(root) {
+        if (!root) return;
+        root.querySelectorAll('.pmb-masonry').forEach(_pmbMasonryLayout);
+    }
+    function _pmbMasonryLayout(m) {
+        if (!m.isConnected) return;
+        if (typeof ResizeObserver === 'function' && !m.dataset.pmbWatched) {
+            if (!_pmbMasonryObserver) {
+                _pmbMasonryObserver = new ResizeObserver(entries => {
+                    requestAnimationFrame(() => entries.forEach(en => _pmbMasonryLayout(en.target)));
+                });
+            }
+            m.dataset.pmbWatched = '1';
+            _pmbMasonryObserver.observe(m);
+        }
+        // column-width and column-gap still come from app.css (multicol rules are ignored once the container is flex)
+        const cs = getComputedStyle(m);
+        const min = parseFloat(cs.columnWidth) || 236, gap = parseFloat(cs.columnGap) || 16;
+        const width = m.clientWidth;
+        if (!width) return;
+        const cols = Math.max(1, Math.floor((width + gap) / (min + gap)));
+        if (m.classList.contains('is-js') && Number(m.dataset.pmbCols) === cols && Number(m.dataset.pmbWidth) === width) return;
+        const pins = m.dataset.pmbCols ? JSON.parse(m.dataset.pmbOrder || '[]').map(id => m.querySelector('[data-pmb-pin="' + id + '"]')).filter(Boolean) : Array.from(m.children).filter(el => el.matches('.pmb-pin'));
+        if (!m.dataset.pmbOrder) m.dataset.pmbOrder = JSON.stringify(pins.map(el => el.dataset.pmbPin));
+        m.classList.add('is-js');
+        m.style.setProperty('--pmb-gap', gap + 'px');
+        const colWidth = (width - gap * (cols - 1)) / cols;
+        const probe = document.createElement('div');
+        probe.className = 'pmb-masonry-col';
+        probe.style.width = colWidth + 'px';
+        probe.style.flex = 'none';
+        m.replaceChildren(probe);
+        pins.forEach(el => probe.appendChild(el));
+        const heights = pins.map(el => el.offsetHeight + (parseFloat(getComputedStyle(el).marginBottom) || 0));
+        const columns = Array.from({ length: cols }, () => { const c = document.createElement('div'); c.className = 'pmb-masonry-col'; return c; });
+        const filled = new Array(cols).fill(0);
+        pins.forEach((el, i) => {
+            const k = filled.indexOf(Math.min(...filled));
+            columns[k].appendChild(el);
+            filled[k] += heights[i];
+        });
+        m.replaceChildren(...columns);
+        m.dataset.pmbCols = cols;
+        m.dataset.pmbWidth = width;
+    }
+
     function _pmbBindMain(main) {
+        _pmbMasonry(main);
         main.querySelectorAll('[data-pmb]').forEach(_pmbBind);
         main.querySelectorAll('[data-pmb-pin]').forEach(card => {
             card.addEventListener('click', e => {
@@ -15665,6 +15715,7 @@ Must avoid: [Anything sensitive or previously declined]`
             true
         );
         _pmbState.detailId = id;
+        _pmbMasonry($('#pmbModalCard'));
         $('#pmbModalCard')?.querySelectorAll('[data-pmb-pin]').forEach(card => {
             card.addEventListener('click', e => {
                 if (e.target.closest('[data-pmb]')) return;

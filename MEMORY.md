@@ -432,3 +432,8 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - Known bug, not fixed: the full screen prompt viewer never opens. Its IIFE reads `window.state.prompts`, which is never set.
 - Stray files seen in `static/`, not touched: `accounts.js` (17 KB, account layer was removed) and `app` (1.1 MB, no extension). Neither is loaded by `index.html`.
 - Verified in headless Chromium only, not in the PyWebView window. Backups: `_rollbacks/* v-pre-desktop-upgrade.*`.
+
+### Prompt Board masonry reads left to right (2026-11-15)
+- `.pmb-masonry` feeds (Home, single board, More like this) are now laid out by `_pmbMasonry` in app.js: each pin goes into the shortest column, so the sort order runs along the top row like Pinterest. Before this, CSS `columns` filled each column top to bottom, so the newest pins stacked down the left column.
+- Column width and gap still come from app.css (`columns: 236px`, 160px under 900px, 200px for More like this). The JS reads them with getComputedStyle and builds `.pmb-masonry-col` flex columns; a ResizeObserver relays when the column count or width changes. The CSS columns stay as the fallback if JS layout never runs.
+- Backups: `_rollbacks/app v-pre-board-masonry.js`, `.css`.
