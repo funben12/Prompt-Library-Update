@@ -12,6 +12,7 @@
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
 <link rel="stylesheet" href="/static/app.css?v=1594708d-plx">
+<link rel="stylesheet" href="/static/combine-prompts.css?v=1">
 </head>
 <body>
 
@@ -297,6 +298,7 @@
       <select id="bulkFolderSelect">
         <option value="">Move to folder…</option>
       </select>
+      <button class="btn btn-ghost btn-sm" id="bulkCombineBtn" hidden title="Merge these two prompts into one">Combine</button>
       <button class="btn btn-ghost btn-sm" id="bulkDeleteBtn">Delete</button>
       <button class="btn btn-ghost btn-sm" id="bulkClearBtn">Clear selection</button>
     </div>
@@ -322,6 +324,9 @@
           </button>
           <button class="icon-btn premium-locked" id="panelDuplicateBtn" data-premium="true" title="Duplicate">
             <span class="material-symbols-outlined">content_copy</span>
+          </button>
+          <button class="icon-btn" id="panelCombineBtn" title="Combine with a similar prompt" aria-label="Combine with a similar prompt">
+            <span class="material-symbols-outlined">call_merge</span>
           </button>
           <button class="icon-btn" id="panelEditBtn" title="Edit">
             <span class="material-symbols-outlined">edit</span>
@@ -4999,7 +5004,8 @@
 
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
-<script defer src="/static/app.js?v=f30d71f3"></script>
+<script defer src="/static/combine-prompts.js?v=1"></script>
+<script defer src="/static/app.js?v=7619bd71"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

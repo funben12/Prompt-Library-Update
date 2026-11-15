@@ -432,3 +432,13 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - Known bug, not fixed: the full screen prompt viewer never opens. Its IIFE reads `window.state.prompts`, which is never set.
 - Stray files seen in `static/`, not touched: `accounts.js` (17 KB, account layer was removed) and `app` (1.1 MB, no extension). Neither is loaded by `index.html`.
 - Verified in headless Chromium only, not in the PyWebView window. Backups: `_rollbacks/* v-pre-desktop-upgrade.*`.
+
+### Combine two prompts instead of deleting a duplicate (2026-11-15)
+
+- New `static/combine-prompts.js` and `static/combine-prompts.css` (own files, so app.js grows by one bridge object and two lines). Side by side view of two prompts: pick A, B or both per field (title, prompt, description, tags, categories, folder, favourite, notes) or edit the combined value. Fields that match are folded into one line. Variables follow the combined prompt text; when both prompts set up the same variable differently, a per variable A or B toggle picks the settings.
+- Entry points: `#bulkCombineBtn` in the bulk toolbar (shows only with exactly 2 selected), `#panelCombineBtn` in the detail panel (opens a picker sorted by similarity, same Jaccard scorer as Library Organizer), and `window.PL_openCombine(idA, idB)` for other workspaces. Fires `pl:prompts-combined` on window after a combine or undo.
+- `window.PL_libraryBridge` (end of the main IIFE) exposes api, toast, loadPrompts, loadFilterOptions, openDetail, closeDetailPanel, bulkDeselectAll, getState, getBulkSelection for files outside app.js.
+- Backend: `POST /api/prompts/combine` inserts the combined prompt and removes both originals in one transaction (nothing is removed if the save fails). Carries over board pins, taxonomy use cases, related links and composition links, adds up use counts, keeps the latest last used, highest rating. Forks of a removed original get the usual parent snapshot. Locked prompts are refused (423). `POST /api/prompts/combine/undo` puts the originals back with their own ids, versions, usage log, pins and links, and removes the combined prompt. Undo snapshots live in memory (last 20), so undo ends when the app restarts. Undo returns 409 if the combined prompt was edited since, unless `force`.
+- No schema change, no new dependency. Test: `python tests/combine/test_combine.py` (throwaway database).
+- Library Organizer's duplicate card still offers only "Keep this, delete other"; the swipe organizer work is adding a Combine button that calls `PL_openCombine`.
+- Verified in headless Chromium against a throwaway database only, not in the PyWebView window. Backups: `_rollbacks/* v-pre-combine.*`.
