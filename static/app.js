@@ -831,6 +831,8 @@
         if (!bar) return;
         const count = _bulkSelection.size;
         bar.hidden = count === 0;
+        const combineBtn = $('#bulkCombineBtn');
+        if (combineBtn) combineBtn.hidden = count !== 2;
         const countEl = $('#bulkCount');
         if (countEl) countEl.textContent = count + ' selected';
 
@@ -22910,6 +22912,12 @@ Must avoid: [Anything sensitive or previously declined]`
 
     // Shared with the later IIFEs (phone share panel) that have no toast of their own
     window.PL_toast = toast;
+    // Lets static/combine-prompts.js reach the library without living inside this file
+    window.PL_libraryBridge = {
+        api, toast, escapeHtml, detectVariables, loadPrompts, loadFilterOptions, openDetail, closeDetailPanel, bulkDeselectAll,
+        getState: () => state,
+        getBulkSelection: () => Array.from(_bulkSelection),
+    };
 
     // NEARBY SHARE -- AirDrop style inbox: prompts sent from nearby devices arrive as an Accept or Decline card
     (function initNearbyShare() {
