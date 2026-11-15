@@ -11,7 +11,7 @@
 
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/app.css?v=300ef010-plx">
+<link rel="stylesheet" href="/static/app.css?v=65c9aaec-plx">
 <link rel="stylesheet" href="/static/builder-pro.css?v=20261113c">
 </head>
 <body>
@@ -3094,7 +3094,7 @@
       <span class="material-symbols-outlined ws-header-icon">visibility</span>
       <div>
         <h2 class="ws-title">Prompt X-Ray</h2>
-        <p class="ws-subtitle">See inside any prompt — role, context, task, constraints, format.</p>
+        <p class="ws-subtitle">See inside any prompt, in the classic six parts or any Prompt Forge layout.</p>
       </div>
     </div>
     <div class="ws-header-actions">
@@ -3106,6 +3106,8 @@
       <div class="opt-section-label">Prompt</div>
       <select id="xrayPicker" class="forge-input qf-picker"><option value="">Load from library…</option></select>
       <textarea id="xrayInput" class="forge-input" rows="10" placeholder="Paste any prompt to deconstruct…"></textarea>
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">View</div>
+      <select id="xrayView" class="forge-input qf-picker" aria-label="X-Ray view"><option value="classic">Classic: Role, Context, Task, Constraints, Format, Examples</option></select>
       <div class="opt-actions" style="margin-top:var(--sp-3);">
         <button class="btn btn-accent" id="xrayRunBtn"><span class="material-symbols-outlined">visibility</span> Deconstruct</button>
       </div>
@@ -5029,10 +5031,11 @@
 <!-- Components library data (loaded before app.js) -->
 <script src="/static/components-data.js"></script>
 <script src="/static/forge-frameworks.js"></script>
+<script src="/static/xray-views.js"></script>
 
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
-<script defer src="/static/app.js?v=a862fa9b"></script>
+<script defer src="/static/app.js?v=2fffa8ca"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

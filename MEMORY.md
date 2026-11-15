@@ -516,3 +516,10 @@ Handover phase 5, done. All five phases of the Prompt Builder Pro handover are n
 - `.pmb-masonry` feeds (Home, single board, More like this) are now laid out by `_pmbMasonry` in app.js: each pin goes into the shortest column, so the sort order runs along the top row like Pinterest. Before this, CSS `columns` filled each column top to bottom, so the newest pins stacked down the left column.
 - Column width and gap still come from app.css (`columns: 236px`, 160px under 900px, 200px for More like this). The JS reads them with getComputedStyle and builds `.pmb-masonry-col` flex columns; a ResizeObserver relays when the column count or width changes. The CSS columns stay as the fallback if JS layout never runs.
 - Backups: `_rollbacks/app v-pre-board-masonry.js`, `.css`.
+
+### Prompt X-Ray views from Prompt Forge (2026-11-15)
+
+- X-Ray has a View dropdown under the prompt box: Classic (the old six parts, unchanged), My frameworks, Popular (18 picks) and all 353 Prompt Forge layouts. Changing the view rebuilds the cards straight away; the choice is kept in localStorage `pl_xray_view`.
+- Splitting for Forge views lives in `static/xray-views.js` (`window.PL_XRAY_VIEWS`), shared byte for byte with the phone app. It reads headings first (a `## Situation` section lands in Situation), otherwise scores each sentence: the classic part it looks like, matched to the Forge part whose name points at that classic part, plus words shared with the part's name and hint. Anything with no match goes to Unclassified. Offline, keyword scored, no AI.
+- Copy and Save use the chosen view's part names as headings. Prompt Splicer still uses the classic six parts (`XRAY_PARTS`), untouched.
+- Verified in headless Chromium against a disposable database (18 checks), not in the PyWebView window. Backups: `_rollbacks/* v-pre-xray-views.*`.

@@ -15507,31 +15507,75 @@ Must avoid: [Anything sensitive or previously declined]`
         },
     ];
 
+    // X-Ray view: 'classic' or any Prompt Forge framework key; shared splitter in static/xray-views.js
+    const XRAY_VIEW_KEY = 'pl_xray_view';
+    let _xrayView = (() => { try { return localStorage.getItem(XRAY_VIEW_KEY) || 'classic'; } catch { return 'classic'; } })();
+    let _xrayParts = null; // parts shown in the grid: [{ key, label }]
+
+    function _xrayViewDef(key) {
+        return key && key !== 'classic' ? (FORGE_FRAMEWORKS[key] || null) : null;
+    }
+
+    function _xrayFillViews() {
+        const sel = $('#xrayView');
+        const V = window.PL_XRAY_VIEWS;
+        if (!sel || !V) return;
+        if (!_xrayViewDef(_xrayView)) _xrayView = 'classic';
+        const opt = (k, d) => '<option value="' + escapeAttr(k) + '">' + escapeHtml(V.name(d)) + '</option>';
+        const keys = Object.keys(FORGE_FRAMEWORKS).filter(k => k !== 'custom' && FORGE_FRAMEWORKS[k]?.fields?.length);
+        const mine = keys.filter(k => k.startsWith('my_'));
+        const popular = V.POPULAR.filter(k => FORGE_FRAMEWORKS[k]);
+        const all = keys.filter(k => !k.startsWith('my_'))
+            .sort((a, b) => String(FORGE_FRAMEWORKS[a].label || a).localeCompare(String(FORGE_FRAMEWORKS[b].label || b)));
+        sel.innerHTML = '<optgroup label="Classic"><option value="classic">Classic: Role, Context, Task, Constraints, Format, Examples</option></optgroup>' +
+            (mine.length ? '<optgroup label="My frameworks">' + mine.map(k => opt(k, FORGE_FRAMEWORKS[k])).join('') + '</optgroup>' : '') +
+            '<optgroup label="Popular">' + popular.map(k => opt(k, FORGE_FRAMEWORKS[k])).join('') + '</optgroup>' +
+            '<optgroup label="All Prompt Forge layouts (' + all.length + ')">' + all.map(k => opt(k, FORGE_FRAMEWORKS[k])).join('') + '</optgroup>';
+        sel.value = _xrayView;
+    }
+
     function _xrayRun() {
         const text = $('#xrayInput')?.value?.trim();
         if (!text) {
             toast('Paste a prompt first', 'warning');
             return;
         }
-        const parts = _wsSplitComponents(text);
         const grid = $('#xrayGrid');
         if (!grid) return;
-        grid.innerHTML = XRAY_PARTS.map(p => {
-            const content = (parts[p.key] || []).join('\n');
+        const def = _xrayViewDef(_xrayView);
+        let parts;
+        if (def && window.PL_XRAY_VIEWS) {
+            const segs = window.PL_XRAY_VIEWS.split(text, def);
+            const pick = id => segs.filter(s => s.part === id).map(s => s.text);
+            parts = def.fields.map((f, i) => ({
+                key: f.id || ('part' + i), label: f.label, icon: f.icon || 'label', hint: f.hint || '', lines: pick(f.id || ('part' + i))
+            }));
+            parts.push({ key: 'other', label: 'Unclassified', icon: 'help_outline', hint: '', lines: pick('other') });
+        } else {
+            const found = _wsSplitComponents(text);
+            parts = XRAY_PARTS.map(p => ({ key: p.key, label: p.label, icon: p.icon, hint: '', lines: found[p.key] || [] }));
+        }
+        _xrayParts = parts.map(p => ({ key: p.key, label: p.label }));
+        const named = parts.filter(p => p.key !== 'other');
+        const hits = named.filter(p => p.lines.join('').trim()).length;
+        grid.innerHTML = '<div class="xr-summary">' + escapeHtml(def ? (def.label || 'Layout') : 'Classic') +
+            ' <span class="xr-summary-count">' + hits + ' of ' + named.length + ' parts found</span></div>' +
+            parts.map(p => {
+            const content = p.lines.join('\n');
             const present = !!content.trim();
             if (p.key === 'other' && !present) return '';
+            const ph = present ? '' : (p.hint ? p.hint + '…' : 'Nothing detected, add your own ' + p.label.toLowerCase() + ' here…');
             return '<div class="xr-card' + (present ? '' : ' xr-missing') + '">' +
-                '<div class="xr-card-head"><span class="material-symbols-outlined">' + p.icon + '</span>' +
-                '<span>' + p.label + '</span>' +
+                '<div class="xr-card-head"><span class="material-symbols-outlined">' + escapeHtml(p.icon) + '</span>' +
+                '<span>' + escapeHtml(p.label) + '</span>' +
                 '<span class="xr-chip">' + (present ? 'Found' : 'Missing') + '</span>' +
-                '<button class="icon-btn xr-copy" data-xr-part="' + p.key + '" title="Copy section"><span class="material-symbols-outlined" style="font-size:15px;">content_copy</span></button></div>' +
-                '<textarea class="forge-input xr-text" data-xr-key="' + p.key + '" rows="3" placeholder="' +
-                (present ? '' : 'Nothing detected — add your own ' + p.label.toLowerCase() + ' here…') + '">' + escapeHtml(content) + '</textarea>' +
+                '<button class="icon-btn xr-copy" data-xr-part="' + escapeAttr(p.key) + '" title="Copy section"><span class="material-symbols-outlined" style="font-size:15px;">content_copy</span></button></div>' +
+                '<textarea class="forge-input xr-text" data-xr-key="' + escapeAttr(p.key) + '" rows="3" placeholder="' + escapeAttr(ph) + '">' + escapeHtml(content) + '</textarea>' +
                 '</div>';
         }).join('');
         grid.querySelectorAll('.xr-copy').forEach(btn => {
             btn.addEventListener('click', async () => {
-                const ta = grid.querySelector('.xr-text[data-xr-key="' + btn.dataset.xrPart + '"]');
+                const ta = [...grid.querySelectorAll('.xr-text')].find(t => t.dataset.xrKey === btn.dataset.xrPart);
                 if (ta?.value.trim() && await copyToClipboard(ta.value.trim())) toast('Section copied', 'success');
             });
         });
@@ -15541,8 +15585,9 @@ Must avoid: [Anything sensitive or previously declined]`
 
     function _xrayAssemble() {
         const parts = [];
-        XRAY_PARTS.forEach(p => {
-            const ta = document.querySelector('#xrayGrid .xr-text[data-xr-key="' + p.key + '"]');
+        const texts = [...document.querySelectorAll('#xrayGrid .xr-text')];
+        (_xrayParts || XRAY_PARTS).forEach(p => {
+            const ta = texts.find(t => t.dataset.xrKey === p.key);
             const v = ta?.value?.trim();
             if (v) parts.push('## ' + (p.key === 'other' ? 'Notes' : p.label) + '\n' + v);
         });
@@ -15560,6 +15605,7 @@ Must avoid: [Anything sensitive or previously declined]`
         document.body.style.overflow = 'hidden';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'xray'));
         _wsFillPromptPicker('#xrayPicker');
+        _xrayFillViews();
         setTimeout(() => $('#xrayInput')?.focus(), 80);
     };
 
@@ -15581,6 +15627,11 @@ Must avoid: [Anything sensitive or previously declined]`
             }
         });
         $('#xrayRunBtn')?.addEventListener('click', _xrayRun);
+        $('#xrayView')?.addEventListener('change', e => {
+            _xrayView = e.target.value || 'classic';
+            try { localStorage.setItem(XRAY_VIEW_KEY, _xrayView); } catch {}
+            if ($('#xrayInput')?.value?.trim() && $('#xrayGrid .xr-card')) _xrayRun();
+        });
         $('#xrayCopyBtn')?.addEventListener('click', async () => {
             const text = _xrayAssemble();
             if (!text) {

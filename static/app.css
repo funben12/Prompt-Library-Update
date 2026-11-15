@@ -9736,6 +9736,8 @@
 .xr-missing .xr-chip { background: var(--surface-2); color: var(--ink-3); }
 .xr-copy { margin-left: auto; }
 .xr-text { width: 100%; resize: vertical; }
+.xr-summary { display: flex; align-items: baseline; gap: var(--sp-2); font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2); }
+.xr-summary-count { font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 @media (max-width: 900px) { .xr-body { grid-template-columns: 1fr; } .xr-left { border-right: none; border-bottom: 1px solid var(--line); } }
 
 /* ── Prompt Splicer ── */

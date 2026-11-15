@@ -251,6 +251,7 @@ The phone app lives in the separate repo `funben12/AI-App-Factory`, folder `apps
 - **Must stay in step with desktop:**
   - `static/components-data.js` feeds the phone through `scripts/build-components-data.js` in the AI-App-Factory app folder. Rerun it when blocks or frameworks change here.
   - `static/forge-frameworks.js` is copied to the phone as `forge-frameworks.js`.
+  - `static/xray-views.js` (Prompt X-Ray views) is copied to the phone as `xray-views.js`, byte for byte.
   - `variable_meta` (type, default, options, visible, multi, wrap) and nearby share (`share_server.py`, `/api/share/send`) carry variable types both ways. Changing either needs the phone's `vartypes.js` and `MainActivity.java` checked.
   - The Gauntlet Loop text is shared word for word with the phone (`_gauntTemplate` here, `tools-build.js` there).
 - **Baseline (2026-10-09):** current main of both repos, after the 2026-10-09 variable type PR merges, is the version Eugene uses. Clean up starts from it. Do not compare against the APKs uploaded or committed so far: both are older, pre-cleanup builds. The reference phone build is the latest "Build Prompt Library Mobile APK" release from AI-App-Factory main. See MEMORY.md, BASELINE.
