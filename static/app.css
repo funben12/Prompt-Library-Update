@@ -779,19 +779,25 @@
     color: var(--ink);
     background: var(--surface);
     border: 1px solid var(--line);
-    box-shadow: var(--neu-raised-sm);
+    box-shadow: var(--btn-rest);
     transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast),
-                transform var(--t-fast), box-shadow var(--t-fast);
+                transform var(--btn-spring), box-shadow var(--t-fast);
     white-space: nowrap;
   }
-  .btn:hover { background: var(--surface-2); border-color: var(--line-strong); }
-  .btn:active { transform: scale(0.98); box-shadow: var(--neu-pressed); }
+  .btn:hover { background: var(--surface-2); border-color: var(--line-strong); transform: translateY(var(--btn-lift)); box-shadow: var(--btn-hover); }
+  .btn:active { transform: translateY(var(--btn-sink)); box-shadow: var(--btn-down); }
+  .btn:focus-visible { outline: none; box-shadow: var(--btn-rest), var(--ring); }
+  .btn:disabled, .btn[disabled] { transform: none; box-shadow: none; }
   .btn .material-symbols-outlined { font-size: 16px; }
 
   .btn-primary {
     background: var(--ink);
     color: var(--bg);
     border-color: var(--ink);
+    --be: color-mix(in srgb, var(--ink) 55%, black);
+    --btn-rest: inset 0 1px 0 oklch(100% 0 0 / 0.28), 0 2px 0 var(--be), 0 3px 6px -2px oklch(18% 0.04 260 / 0.22);
+    --btn-hover: inset 0 1px 0 oklch(100% 0 0 / 0.34), 0 3px 0 var(--be), 0 8px 12px -5px oklch(18% 0.04 260 / 0.3);
+    --btn-down: inset 0 1px 3px oklch(0% 0 0 / 0.3), 0 0 0 var(--be);
   }
   .btn-primary:hover { background: var(--accent); border-color: var(--accent); }
 
@@ -799,6 +805,10 @@
     background: var(--accent);
     color: white;
     border-color: var(--accent);
+    --be: color-mix(in srgb, var(--accent) 60%, black);
+    --btn-rest: inset 0 1px 0 oklch(100% 0 0 / 0.28), 0 2px 0 var(--be), 0 3px 6px -2px oklch(18% 0.04 260 / 0.22);
+    --btn-hover: inset 0 1px 0 oklch(100% 0 0 / 0.34), 0 3px 0 var(--be), 0 8px 12px -5px oklch(18% 0.04 260 / 0.3);
+    --btn-down: inset 0 1px 3px oklch(0% 0 0 / 0.3), 0 0 0 var(--be);
   }
   .btn-accent:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 
@@ -806,11 +816,23 @@
     background: transparent;
     border-color: transparent;
     color: var(--ink-2);
+    box-shadow: none;
   }
-  .btn-ghost:hover { background: var(--surface-2); color: var(--ink); }
+  .btn-ghost:hover { background: var(--surface-2); color: var(--ink); box-shadow: none; }
+  .btn-ghost:active { box-shadow: none; }
+  .btn-ghost:focus-visible { box-shadow: var(--ring); }
 
-  .btn-danger { color: var(--danger); border-color: var(--line); background: var(--surface); }
+  .btn-danger { color: var(--danger); border-color: var(--line); background: var(--surface);
+    --be: color-mix(in srgb, var(--danger) 35%, var(--btn-edge));
+    --btn-rest: inset 0 1px 0 oklch(100% 0 0 / 0.5), 0 2px 0 var(--be), 0 3px 6px -2px oklch(18% 0.04 260 / 0.16);
+    --btn-hover: inset 0 1px 0 oklch(100% 0 0 / 0.6), 0 3px 0 var(--be), 0 8px 12px -5px oklch(18% 0.04 260 / 0.22);
+    --btn-down: inset 0 1px 3px oklch(18% 0.04 260 / 0.22), 0 0 0 var(--be); }
   .btn-danger:hover { background: var(--danger-soft); border-color: var(--danger); }
+  .btn-primary:focus-visible, .btn-accent:focus-visible, .btn-danger:focus-visible { box-shadow: var(--btn-rest), var(--ring); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn, .btn:hover, .btn:active { transform: none; }
+  }
 
   .icon-btn {
     width: 34px; height: 34px;
@@ -827,8 +849,6 @@
 
   /* Library front page only: flat shadcn-style controls (rest of app stays neumorphic). */
   #contentHeader .btn, #contentHeader .icon-btn { border-radius: var(--r-md); }
-  #contentHeader .btn { box-shadow: var(--shadow-sm); }
-  #contentHeader .btn:active { box-shadow: none; }
 
   #searchWrap {
     flex: 1 1 320px;
@@ -6354,9 +6374,9 @@
 .chip:active { transform: scale(0.93) !important; }
 
 /* ── Button press micro-feedback ────────────────────────────────────────── */
-.btn:active:not(:disabled) { transform: scale(0.96); }
+.btn:active:not(:disabled) { transform: translateY(var(--btn-sink)); }
 .btn { transition: background var(--t-fast), color var(--t-fast),
-                   border-color var(--t-fast), transform var(--t-fast),
+                   border-color var(--t-fast), transform var(--btn-spring),
                    box-shadow var(--t-fast) !important; }
 
 /* ── Drag-over textarea ──────────────────────────────────────────────────── */
