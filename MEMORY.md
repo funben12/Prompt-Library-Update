@@ -588,3 +588,11 @@ Handover phase 5, done. All five phases of the Prompt Builder Pro handover are n
 - `tests/randomiser` needs the Python `playwright` package and `CHROME` set. It passes (the phone drift check skips without `PHONE_ASSETS`).
 - Still open: nearby share on real devices, committing the click through scripts as tests.
 - `CLAUDE.md` updated 2026-11-15: the `<script` count is now 8 everywhere it appears (architecture line, gotchas, triage, corrections). Backup: `_rollbacks/15-11-2026-CLAUDE.md`.
+
+### Dice cube only, card fit, shuffle styles (2026-11-15, branch desktop-combine-verify)
+
+- Desktop dice are now always a 3D six faced cube, including custom option lists (a 20 option die used to draw a d20 solid). With more than six options the face that lands is rewritten with the rolled option, never the face already showing. Long option text wraps onto up to three lines on the face.
+- The dealt card grows to fit its text (wider by the longest word, then taller, table makes room). Whole words are kept.
+- Card shuffle styles: Riffle (default), Overhand, Fan out, Surprise me. Setting is in Settings, Randomiser motion, stored in localStorage `pl.shuffleStyle`.
+- `static/vartypes-3d.js` NO LONGER matches the phone's copy byte for byte. The phone repo (AI-App-Factory, `assets/vartypes-3d.js`) needs the same change, or this file must be reconciled before the next phone sync. `tests/randomiser` only flags the drift when `PHONE_ASSETS` is set. Backups of the pre change files are in `_rollbacks/15-11-2026-*`.
+- Open: Eugene asked (mid session) for a nicer look across all buttons and a replacement for the red glowing Dark mode orb in the sidebar. Not started, waiting on direction.

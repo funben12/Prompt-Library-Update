@@ -74,6 +74,12 @@
     if (cycle) { e.preventDefault(); return setMode(MODES[(MODES.indexOf(mode()) + 1) % MODES.length]); }
     const set = e.target.closest && e.target.closest('[data-rmode-set]');
     if (set) { e.preventDefault(); setMode(set.dataset.rmodeSet); }
+    const sh = e.target.closest && e.target.closest('[data-rshuffle-set]');
+    if (sh) {
+      e.preventDefault();
+      try { localStorage.setItem('pl.shuffleStyle', sh.dataset.rshuffleSet); } catch (_) {}
+      document.querySelectorAll('[data-rshuffle-set]').forEach(b => { const on = b === sh; b.classList.toggle('active', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    }
   }));
 
   // ---- fair random: a whole number from 0 to n - 1, rejection sampling keeps every value equally likely ----
@@ -200,9 +206,13 @@
     const box = document.createElement('div');
     box.className = 'pl-rm-setting';
     const m = mode(), opt = (v, label) => `<button type="button" class="pl-rm-tab${m === v ? ' active' : ''}" data-rmode-set="${v}" aria-pressed="${m === v}">${label}</button>`;
+    let ss = 'riffle'; try { ss = localStorage.getItem('pl.shuffleStyle') || 'riffle'; } catch (_) {}
+    const sopt = (v, label) => `<button type="button" class="pl-rm-tab${ss === v ? ' active' : ''}" data-rshuffle-set="${v}" aria-pressed="${ss === v}">${label}</button>`;
     box.innerHTML = `<div class="config-section-label">Randomiser motion</div>
       <div class="pl-rm-tabs" role="group" aria-label="Randomiser motion">${opt('full', 'Full')}${opt('short', 'Short')}${opt('off', 'Off')}</div>
-      <p class="pl-rm-hint">For dice, card decks, random picks and random numbers. Click while it moves to skip to the result.</p>`;
+      <p class="pl-rm-hint">For dice, card decks, random picks and random numbers. Click while it moves to skip to the result.</p>
+      <div class="config-section-label" style="margin-top:12px">Card shuffle style</div>
+      <div class="pl-rm-tabs pl-rm-tabs4" role="group" aria-label="Card shuffle style">${sopt('riffle', 'Riffle')}${sopt('overhand', 'Overhand')}${sopt('fan', 'Fan out')}${sopt('random', 'Surprise me')}</div>`;
     body.appendChild(box);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', safe('setting', addSetting)); else safe('setting', addSetting)();
@@ -216,6 +226,7 @@
 .vm-reeling{font-family:var(--ff-mono);color:var(--ink-3)}
 .var-random-block [data-roll-result]{display:inline-block}
 .pl-rm-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pl-rm-tabs4{grid-template-columns:repeat(2,1fr)}
 .pl-rm-tab{padding:8px 4px;text-align:center;font-size:var(--fs-sm, 13px);font-weight:500;border:1px solid var(--line);border-radius:var(--radius, 8px);background:var(--surface);color:var(--ink-2);cursor:pointer}
 .pl-rm-tab:hover{background:var(--surface-3);color:var(--ink)}
 .pl-rm-tab.active{background:var(--accent-soft, var(--surface-3));border-color:var(--accent);color:var(--accent);font-weight:600}

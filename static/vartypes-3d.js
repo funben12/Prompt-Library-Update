@@ -129,11 +129,17 @@
     let body;
     if (pips) body = (PIPS[+text] || []).map(k => `<circle cx="${f4(cx + ((k % 3) - 1) * 0.5 * R)}" cy="${f4(cy + (Math.floor(k / 3) - 1) * 0.5 * R)}" r="${f4(0.13 * R)}"/>`).join('');
     else {
-      let t = String(text == null ? '' : text);
-      const max = Math.max(2, Math.floor((2.6 * rr) / (0.62 * 7)));
-      if (t.length > max) t = t.slice(0, max - 1) + '…';
-      const fs = Math.max(7, Math.min(rr * 1.1, (2.6 * rr) / (0.62 * Math.max(t.length, 1))));
-      body = `<text x="${f4(cx)}" y="${f4(cy)}" text-anchor="middle" dominant-baseline="central" font-size="${f4(fs)}">${esc(t)}</text>`;
+      const t = String(text == null ? '' : text).trim();
+      // wrap onto up to three lines at spaces, with the largest type that fits the face
+      const box = 1.8 * rr, wrapAt = n => { const out = []; let cur = ''; t.split(/\s+/).forEach(w => { if (cur && (cur + ' ' + w).length > n) { out.push(cur); cur = w; } else cur = cur ? cur + ' ' + w : w; }); if (cur) out.push(cur); return out; };
+      let fs = Math.min(rr * 1.1, 24), lines = [t];
+      for (; fs >= 7; fs -= 0.5) {
+        const n = Math.max(1, Math.floor(box / (0.62 * fs))), l = wrapAt(n);
+        if (l.length <= 3 && l.every(x => x.length <= n) && l.length * fs * 1.15 <= box) { lines = l; break; }
+        if (fs <= 7.5) { lines = l.slice(0, 3).map(x => (x.length > n ? x.slice(0, Math.max(1, n - 1)) + '…' : x)); break; }
+      }
+      const y0 = cy - ((lines.length - 1) * fs * 1.15) / 2;
+      body = `<text x="${f4(cx)}" text-anchor="middle" dominant-baseline="central" font-size="${f4(fs)}">${lines.map((x, i) => `<tspan x="${f4(cx)}" y="${f4(y0 + i * fs * 1.15)}">${esc(x)}</tspan>`).join('')}</text>`;
     }
     const m = f.fr, T = mul(f.n, R);
     const mat = `matrix3d(${[m.u[0], m.u[1], m.u[2], 0, m.d[0], m.d[1], m.d[2], 0, m.n[0], m.n[1], m.n[2], 0, T[0], T[1], T[2], 1].map(f4).join(',')})`;
@@ -144,7 +150,7 @@
     const g = geom(sides);
     // a d4's corners reach three times its inner radius, so its body is drawn smaller to sit on the table like the others
     const R = sides === 4 ? d.R * 0.6 : d.R;
-    return `<div class="vd3-cube" data-faces="${g.count}" data-sides="${sides}" style="transform:${pose}">${g.faces.map((_, i) => faceSvg(g, i, labels[g.label[i]], R, pips)).join('')}</div>`;
+    return `<div class="vd3-cube" data-faces="${g.count}" data-sides="${sides}" style="transform:${pose}">${g.faces.map((_, i) => faceSvg(g, i, labels[g.label[i] % Math.max(1, labels.length)], R, pips)).join('')}</div>`;
   }
   function cellHtml(sides, labels, d, k, pips) {
     return `<span class="vd-die vd3-cell" style="--k:${k};width:${d.cw}px;height:${d.ch}px;--cy:${f4(d.cy)}px;--ty:${f4(d.ty)}px;--R:${d.R}px"><i class="vd3-shadow"></i><span class="vd3-fly">${cubeHtml(sides, labels, d, IDLE, pips)}</span></span>`;
@@ -206,7 +212,7 @@
   }
   M.register('diceroll', function (v, m, val) {
     const opts = (m.options || []).map(o => String(o).trim()).filter(Boolean), custom = opts.length > 0;
-    const sides = custom ? opts.length : clamp(parseInt(m.faces, 10) || 6, 2, 100);
+    const sides = 6; // desktop: always a cube, a long option list is written onto the face that lands
     const labels = custom ? opts : Array.from({ length: sides }, (_, i) => String(i + 1));
     return `<div class="vd" data-vd="${esc(v)}" data-custom="${custom ? 1 : 0}" data-sides="${sides}" data-count="1" data-opts="${esc(JSON.stringify(opts))}">
       <div class="vd-out"><output aria-live="polite">${esc(val || 'Ready to roll')}</output><button type="button" data-vdgo>Roll dice</button>${modeButton()}</div>
@@ -324,13 +330,23 @@
     // the result is chosen here, before any animation, so the motion never decides it
     const ks = Array.from({ length: n }, () => rand(vals.length));
     const picks = ks.map(k => vals[k]);
-    const faceOf = k => Math.max(0, G.label.indexOf(k));
+    // a cube has six faces: with more options than that, the face that lands is rewritten (never the one showing now)
+    const cubes = Array.from(g.querySelectorAll('.vd3-cube')), many = vals.length > G.count, fIdx = ks.map(() => -1);
+    if (many) cubes.forEach((cube, i) => {
+      const shown = cube.querySelector('.win'), skip = shown ? +shown.dataset.i : -1, pool = [];
+      for (let f = 0; f < G.count; f++) if (f !== skip) pool.push(f);
+      const f = pool[rand(pool.length)], R = parseFloat(cube.closest('.vd3-cell').style.getPropertyValue('--R')) || 34;
+      cube.querySelectorAll('.win').forEach(x => x.classList.remove('win'));
+      cube.querySelector(`[data-i="${f}"]`).outerHTML = faceSvg(G, f, vals[ks[i]], R, false);
+      fIdx[i] = f;
+    });
+    const faceOf = (k, i) => (many ? fIdx[i] : Math.max(0, G.label.indexOf(k)));
     const out = g.querySelector('output'), hidden = g.querySelector('input[data-var]'), go = g.querySelector('[data-vdgo]'), st = g.querySelector('.vd-stage');
     const settle = () => {
       st.querySelectorAll('.vd3-cell').forEach((cell, i) => {
         const cube = cell.querySelector('.vd3-cube');
-        cube.style.transform = facing(G.faces[faceOf(ks[i])].fr);
-        const f = cube.querySelector(`[data-i="${faceOf(ks[i])}"]`);
+        cube.style.transform = facing(G.faces[faceOf(ks[i], i)].fr);
+        const f = cube.querySelector(`[data-i="${faceOf(ks[i], i)}"]`);
         if (f) f.classList.add('win');
       });
     };
@@ -352,7 +368,7 @@
     const cells = Array.from(st.querySelectorAll('.vd3-cell')), rooms = cells.map(cell => room(cell, sides)), xs = sweeps(rooms, st._side, D);
     cells.forEach((cell, i) => {
       // each die is tossed in from the side, inside the stage from the first frame
-      const a = throwDie(cell, faceOf(ks[i]), sides, i * 110 / c.speed, D, md === 'short' ? c.intensity * 0.5 : c.intensity, rooms[i], xs[i]);
+      const a = throwDie(cell, faceOf(ks[i], i), sides, i * 110 / c.speed, D, md === 'short' ? c.intensity * 0.5 : c.intensity, rooms[i], xs[i]);
       last = a[0];
     });
     let done = false;
@@ -494,6 +510,91 @@
     if (!live()) return;
     cards.forEach((c, k) => lay(c, base(k)));
   }
+  // The dealt card grows to hold its text: wider first, then taller, and the table makes room for it
+  function fitCard(g, text) {
+    const tb = g.querySelector('.vc-table'), dk = g.querySelector('.vc-deck'), slot = g.querySelector('.vc-slot'), face = g.querySelector('[data-vcface]');
+    if (!tb || !dk || !slot || !face) return;
+    const left = dk.offsetLeft + dk.offsetWidth + 14, room = Math.max(76, Math.min(190, (tb.clientWidth || 310) - left - 12));
+    const probe = face.cloneNode(false);
+    probe.removeAttribute('data-vcface'); probe.textContent = text;
+    probe.style.cssText = 'position:absolute;visibility:hidden;inset:auto;transform:none;height:auto;backface-visibility:visible;overflow:visible;overflow-wrap:normal';
+    slot.appendChild(probe);
+    // widest word sets the minimum width (min-content already includes padding and border), then the height follows
+    probe.style.width = 'min-content';
+    let w = Math.max(76, Math.min(room, Math.ceil(probe.getBoundingClientRect().width) + 6)), h = 106;
+    probe.style.width = w + 'px';
+    h = Math.max(106, Math.ceil(probe.getBoundingClientRect().height));
+    // still taller than a card while there is room to widen: widen in steps
+    while (h > 160 && w < room) { w = Math.min(room, w + 12); probe.style.width = w + 'px'; h = Math.max(106, Math.ceil(probe.getBoundingClientRect().height)); }
+    probe.remove();
+    w = Math.min(w, room);
+    slot.style.width = w + 'px'; slot.style.height = h + 'px'; slot.style.left = 'auto'; slot.style.marginLeft = '0'; slot.style.right = '14px';
+    tb.style.height = Math.max(164, 36 + h + 22) + 'px';
+  }
+  // ---- shuffle styles: riffle (default), overhand, fan and sweep; the setting lives in Settings, Randomiser motion ----
+  const SHUFFLES = ['riffle', 'overhand', 'fan'];
+  function shuffleStyle() {
+    let v = 'riffle';
+    try { v = localStorage.getItem('pl.shuffleStyle') || 'riffle'; } catch (_) {}
+    if (v === 'random') return SHUFFLES[rand(SHUFFLES.length)];
+    return SHUFFLES.includes(v) ? v : 'riffle';
+  }
+  // Overhand: packets are peeled off the top and dropped in turn, so the order ends reversed by packet.
+  // Same contract as riffle: the stack starts at x = from and ends squared at the table centre P.C.
+  async function overhand(cards, S, amp, live, P, from) {
+    const PK = 4, packets = [];
+    for (let top = cards.length; top > 0; top -= PK) packets.push(cards.slice(Math.max(0, top - PK), top));
+    const lift = Math.max(14, 20 * Math.min(amp, 1.4)), next = [].concat.apply([], packets);
+    const jit = next.map(() => [(Math.random() - 0.5) * 6, (Math.random() - 0.5) * 5]);
+    const anims = [];
+    packets.forEach((pk, n) => {
+      pk.forEach((c, j) => {
+        const k = n * PK + j, i = cards.indexOf(c), z = 100 + k;
+        anims.push(c.animate([
+          { transform: at(from, 0, i, 0), zIndex: z },
+          { transform: at(from + 34 * amp, -lift, i, 7), zIndex: z, offset: 0.4, easing: 'ease-in' },
+          { transform: at(P.C + jit[k][0], 0, k, jit[k][1]), zIndex: z }], { duration: 260 / S, delay: n * 230 / S + j * 25 / S, easing: 'ease-out', fill: 'forwards' }));
+      });
+    });
+    await all(anims, (packets.length * 230 + 260 + PK * 25) / S + 600);
+    if (!live()) return;
+    next.forEach((c, k) => lay(c, at(P.C + jit[k][0], 0, k, jit[k][1]), k + 1));
+    cards.length = 0; next.forEach(c => cards.push(c));
+    await all(cards.map((c, k) => c.animate([
+      { transform: at(P.C + jit[k][0], 0, k, jit[k][1]) },
+      { transform: at(P.C, 3, k, 0) + ' scale(1.03,.96)', offset: 0.5 },
+      { transform: at(P.C, 0, k, 0) }], { duration: 220 / S, easing: 'ease-in-out', fill: 'forwards' })), 220 / S + 600);
+    if (!live()) return;
+    cards.forEach((c, k) => lay(c, at(P.C, 0, k, 0)));
+  }
+  // Fan and sweep: the deck spreads into an arc, the cards are mixed along it, then swept back into one stack
+  async function fanSweep(cards, S, amp, live, P, from) {
+    const n = cards.length, mid = (n - 1) / 2, reachX = Math.min(Math.max(30, (P.R - P.L) / 2 + 14), 74 + 10 * amp);
+    const order = cards.slice(), next = cards.slice();
+    for (let i = n - 1; i > 0; i--) { const j = rand(i + 1), t = next[i]; next[i] = next[j]; next[j] = t; }
+    const arc = (k, spread) => at(P.C + ((k - mid) / mid) * reachX * spread, Math.abs(k - mid) * Math.abs(k - mid) * -0.32 * spread, k, ((k - mid) / mid) * 22 * spread);
+    await all(order.map((c, i) => c.animate([
+      { transform: at(from, 0, i, 0) },
+      { transform: arc(i, 1) }], { duration: 300 / S, delay: i * 14 / S, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' })), (300 + n * 14) / S + 600);
+    if (!live()) return;
+    order.forEach((c, i) => lay(c, arc(i, 1)));
+    // mix: every card slides to its new place in the arc, a little higher while it travels
+    await all(next.map((c, k) => { const i = order.indexOf(c); return c.animate([
+      { transform: arc(i, 1) },
+      { transform: arc(Math.round((i + k) / 2), 1.05) + ' translateY(-14px)', offset: 0.5 },
+      { transform: arc(k, 1) }], { duration: 420 / S, delay: k * 12 / S, easing: 'ease-in-out', fill: 'forwards' }); }), (420 + n * 12) / S + 600);
+    if (!live()) return;
+    next.forEach((c, k) => lay(c, arc(k, 1)));
+    cards.length = 0; next.forEach(c => cards.push(c));
+    // sweep: the arc closes into one squared stack, sideways first so the cards slap together
+    await all(cards.map((c, k) => c.animate([
+      { transform: arc(k, 1) },
+      { transform: arc(k, 0.25), offset: 0.55 },
+      { transform: at(P.C, 0, k, 0) }], { duration: 380 / S, delay: k * 10 / S, easing: 'ease-in-out', fill: 'forwards' })), (380 + n * 10) / S + 600);
+    if (!live()) return;
+    cards.forEach((c, k) => lay(c, at(P.C, 0, k, 0)));
+  }
+  const SHUFFLE_FN = { riffle: (...a) => riffle(...a), overhand: (...a) => overhand(...a), fan: (...a) => fanSweep(...a) };
   async function drawCard(btn) {
     const g = btn.closest('[data-vc]');
     if (!g || g._busy) return;
@@ -505,7 +606,7 @@
     const face = g.querySelector('[data-vcface]'), left = g.querySelector('[data-vcleft]'), hidden = g.querySelector('input[data-var]');
     const slotCard = g.querySelector('.vc-card');
     let valueSet = false, ended = false;
-    const setValue = () => { if (valueSet) return; valueSet = true; face.textContent = pick; if (hidden) hidden.value = pick; if (window.PL_VARS && window.PL_VARS.onChange) window.PL_VARS.onChange(g.dataset.vc, pick); };
+    const setValue = () => { if (valueSet) return; valueSet = true; face.textContent = pick; fitCard(g, pick); if (hidden) hidden.value = pick; if (window.PL_VARS && window.PL_VARS.onChange) window.PL_VARS.onChange(g.dataset.vc, pick); };
     const deckEl = g.querySelector('.vc-deck'), cards = Array.from(deckEl.querySelectorAll('.vc-c'));
     const done = () => {
       if (ended) return; ended = true;
@@ -535,9 +636,10 @@
     g._watch = setTimeout(done, Math.max(7000, plan * 1.5 + 1000));
     try {
       const P = spots(g, amp);
-      await riffle(cards, S, amp, live, P, 0);
+      const shuffle = SHUFFLE_FN[shuffleStyle()];
+      await shuffle(cards, S, amp, live, P, 0);
       if (skipped) return;
-      if (md === 'full') { await riffle(cards, S * 1.15, amp, live, P, P.C); if (skipped) return; }
+      if (md === 'full') { await shuffle(cards, S * 1.15, amp, live, P, P.C); if (skipped) return; }
       await gather(cards, S, live, P.C);
       if (skipped) return;
       // deal: the top card lifts off the deck, travels to the slot and turns face up
@@ -577,7 +679,7 @@
 .vc-card{position:relative;width:100%;height:100%;opacity:0;transform-style:preserve-3d}
 .vc-back,.vc-face{position:absolute;inset:0;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border-radius:8px;backface-visibility:hidden;-webkit-backface-visibility:hidden}
 .vc-back{background:var(--accent);border:1px solid var(--surface);box-shadow:inset 0 0 0 5px var(--accent),inset 0 0 0 6px var(--on-accent)}
-.vc-face{padding:8px;background:var(--surface);border:2px solid var(--accent);transform:rotateY(180deg);font:700 15px/1.25 var(--ff-sans);text-align:center;color:var(--ink);overflow:hidden;overflow-wrap:anywhere}
+.vc-face{padding:8px;background:var(--surface);border:2px solid var(--accent);transform:rotateY(180deg);font:700 15px/1.25 var(--ff-sans);text-align:center;color:var(--ink);overflow:hidden;overflow-wrap:break-word;word-break:normal}
 .vc.drawn .vc-card{opacity:1;transform:rotateY(180deg)}
 .vc.dealing .vc-card{opacity:1}
 .vc-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding-top:8px}
