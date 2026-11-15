@@ -447,10 +447,14 @@
   // ---- card deck: cut, riffle twice, square up, deal one card face up ----
   const DECK = 12;
   const CARDS = ['Ace', 'King', 'Queen', 'Jack', 'Ten'];
-  M.register('carddeck', function (v, m, val) {
+  // one deck type per shuffle: 'carddeck' follows the Settings choice, each 'deck_<id>' always uses its own shuffle
+  const DECK_STYLES = ['overhand', 'riffle', 'hindu', 'strip', 'wash', 'faro', 'mongean', 'pile', 'charlier', 'cascade', 'cut', 'fan'];
+  function deckHtml(v, m, val, style) {
     const opts = (m.options || []).map(o => String(o).split('|')[0].trim()).filter(Boolean), deck = opts.length ? opts : CARDS;
-    return `<div class="vc${val ? ' drawn' : ''}" data-vc="${esc(v)}" data-options="${esc(JSON.stringify(deck))}"><div class="vc-table"><div class="vc-deck" aria-hidden="true">${Array.from({ length: DECK }, (_, i) => `<i class="vc-c" style="--i:${i}"></i>`).join('')}</div><div class="vc-slot"><div class="vc-card"><div class="vc-back"></div><div class="vc-face" data-vcface>${esc(val)}</div></div></div></div><div class="vc-row"><button type="button" data-vcdraw>Shuffle and draw</button><small data-vcleft>${deck.length} cards in the deck</small>${modeButton()}</div><input type="hidden" data-var="${esc(v)}" value="${esc(val)}"></div>`;
-  });
+    return `<div class="vc${val ? ' drawn' : ''}" data-vc="${esc(v)}"${style ? ` data-shuffle="${style}"` : ''} data-options="${esc(JSON.stringify(deck))}"><div class="vc-table"><div class="vc-deck" aria-hidden="true">${Array.from({ length: DECK }, (_, i) => `<i class="vc-c" style="--i:${i}"></i>`).join('')}</div><div class="vc-slot"><div class="vc-card"><div class="vc-back"></div><div class="vc-face" data-vcface>${esc(val)}</div></div></div></div><div class="vc-row"><button type="button" data-vcdraw>Shuffle and draw</button><small data-vcleft>${deck.length} cards in the deck</small>${modeButton()}</div><input type="hidden" data-var="${esc(v)}" value="${esc(val)}"></div>`;
+  }
+  M.register('carddeck', (v, m, val) => deckHtml(v, m, val, ''));
+  DECK_STYLES.forEach(id => M.register('deck_' + id, (v, m, val) => deckHtml(v, m, val, id)));
   // each card sits a little up and left of the one below it, so the stack shows its thickness
   const base = i => `translate(${f4(-i * 0.4)}px,${f4(-i * 1.4)}px)`;
   // a card at x, y from the deck's home spot, at height i in its pile, turned r degrees
@@ -544,6 +548,9 @@
     tb.style.height = Math.max(164, 36 + h + 22) + 'px';
   }
   // ---- shuffle styles: riffle (default), overhand, fan and sweep; the setting lives in Settings, Randomiser motion ----
+  // Shuffle registry. A shuffle is async (cards, S, amp, live, P, from): cards are the 12 .vc-c elements bottom to top (reorder the array
+  // in place), the stack starts squared at x = from, and must end squared at the table centre P.C. fn.dur is its length in ms at speed 1.
+  M.shuffles = M.shuffles || {};
   const SHUFFLES = ['riffle', 'overhand', 'fan'];
   function shuffleStyle() {
     let v = 'riffle';
@@ -606,7 +613,9 @@
     if (!live()) return;
     cards.forEach((c, k) => lay(c, at(P.C, 0, k, 0)));
   }
-  const SHUFFLE_FN = { riffle: (...a) => riffle(...a), overhand: (...a) => overhand(...a), fan: (...a) => fanSweep(...a) };
+  riffle.dur = 1760; overhand.dur = 1300; fanSweep.dur = 1500;
+  M.shuffles.riffle = M.shuffles.riffle || riffle; M.shuffles.overhand = M.shuffles.overhand || overhand; M.shuffles.fan = M.shuffles.fan || fanSweep;
+  M.deck = { DECK, at, base, lay, all, wait, rand, f4, spots };
   async function drawCard(btn) {
     const g = btn.closest('[data-vc]');
     if (!g || g._busy) return;
@@ -634,13 +643,14 @@
     };
     const md = mode();
     if (md === 'off') return done();
+    const style = g.dataset.shuffle || shuffleStyle();
     const c = cfg('carddeck'), S = c.speed * (md === 'short' ? 1.6 : 1), amp = 0.6 + c.intensity * 0.8;
     g._busy = true; btn.disabled = true;
     g.classList.remove('drawn', 'dealing'); g.classList.add('shuffling');
     cards.forEach(x => { x.style.visibility = ''; });
     // how long this draw should take: one pass is cut, riffle and square up, then the gather and the deal;
     // the watchdog waits half as long again plus a second, so it only ever lands a draw that has stalled
-    const pass = 340 + DECK * 80 + 240 + 220, plan = (md === 'full' ? pass + pass / 1.15 : pass) / S + (260 + 950) / S;
+    const pass = (M.shuffles[style] || M.shuffles.riffle).dur || (340 + DECK * 80 + 240 + 220), plan = (md === 'full' ? pass + pass / 1.15 : pass) / S + (260 + 950) / S;
     // a tap on the table skips to the dealt card; the watchdog lands it if anything stalls
     let skipped = false;
     const live = () => !skipped;
@@ -648,7 +658,7 @@
     g._watch = setTimeout(done, Math.max(7000, plan * 1.5 + 1000));
     try {
       const P = spots(g, amp);
-      const shuffle = SHUFFLE_FN[shuffleStyle()];
+      const shuffle = M.shuffles[style] || M.shuffles.riffle;
       await shuffle(cards, S, amp, live, P, 0);
       if (skipped) return;
       if (md === 'full') { await shuffle(cards, S * 1.15, amp, live, P, P.C); if (skipped) return; }

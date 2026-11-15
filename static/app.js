@@ -1611,10 +1611,14 @@
     // Old shape:  { type: 'checkbox', default: 'true' | 'Yes' | 'No' }  -- no options array
     // New shape:  { type: 'checkbox', default: 'Yes', options: ['Yes','No'] }
     // Variable types kept after the 2026-10-09 trim. Old saved types map to the nearest kept one or fall back to text.
-    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
+    // One card deck variable type per shuffle style (animations live in static/deck-shuffles.js)
+    const _PL_DECK_STYLES = [['overhand', 'Overhand shuffle'], ['riffle', 'Riffle shuffle'], ['hindu', 'Hindu shuffle'], ['strip', 'Strip shuffle (running cut)'], ['wash', 'Wash shuffle (scramble)'], ['faro', 'Faro shuffle'], ['mongean', 'Mongean shuffle'], ['pile', 'Pile shuffle'], ['charlier', 'Charlier shuffle (one hand cut)'], ['cascade', 'Cascade (bridge)'], ['cut', 'Cut the deck'], ['fan', 'Fan and sweep']];
+    const _PL_DECK_TYPES = ['carddeck'].concat(_PL_DECK_STYLES.map(d => 'deck_' + d[0]));
+    const _PL_isDeck = t => _PL_DECK_TYPES.includes(t);
+    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'].concat(_PL_DECK_TYPES.slice(1));
     const _PL_LEGACY_TYPE_MAP = { radio: 'choicechips', segmented: 'choicechips', yesno: 'choicechips', multiselect: 'checkbox', togglegroup: 'checkbox', boolean: 'choicechips' };
-    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
-    const _PL_RANDOM_TYPES = ['diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
+    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'diceroll', 'weightedmix', 'randompick', 'randomnumber'].concat(_PL_DECK_TYPES);
+    const _PL_RANDOM_TYPES = ['diceroll', 'weightedmix', 'randompick', 'randomnumber'].concat(_PL_DECK_TYPES);
     function _PL_normMeta(m) {
         const out = Object.assign({}, m);
         const t = m.type || 'text';
@@ -1758,7 +1762,7 @@
             const def = m.default || '';
             const opts = m.options || [];
             const optTitles = opts.map(o => _PL_splitOpt(o).t);
-            const icon = typeIcon[type] || 'abc';
+            const icon = typeIcon[type] || (_PL_isDeck(type) ? 'style' : 'abc');
             let input = '';
             if (type === 'choicechips' || type === 'choicecards') {
                 const isMulti = !!m.multi;
@@ -1776,10 +1780,10 @@
         <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
                 }
-            } else if (type === 'carddeck') {
+            } else if (_PL_isDeck(type)) {
                 const deckOpts = opts.length ? optTitles : _PL_CARD_DEFAULT;
                 // the shared 3D deck (static/vartypes-3d.js) when it loaded, else the built in deck below
-                const deck3d = window.PL_MOTION && window.PL_MOTION.control && window.PL_MOTION.control('carddeck', v, { options: deckOpts }, def);
+                const deck3d = window.PL_MOTION && window.PL_MOTION.control && window.PL_MOTION.control(type, v, { options: deckOpts }, def);
                 input = deck3d || `<div class="var-deck${def ? ' drawn' : ''}" data-deck-options="${escapeAttr(JSON.stringify(deckOpts))}">
         <div class="var-deck-table">
           <div class="var-deck-pile" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
@@ -3260,6 +3264,9 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="randompick" ${type === 'randompick' ? 'selected' : ''}>Random Pick</option>
             <option value="randomnumber" ${type === 'randomnumber' ? 'selected' : ''}>Random Number</option>
             </optgroup>
+            <optgroup label="Card decks (one shuffle each)">
+            ${_PL_DECK_STYLES.map(d => `<option value="deck_${d[0]}" ${type === 'deck_' + d[0] ? 'selected' : ''}>Card Deck: ${d[1]}</option>`).join('')}
+            </optgroup>
           </select>
           <input type="text" data-field="default" class="var-default-field" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
         </div>
@@ -3309,7 +3316,7 @@ STYLE/THEME: [[reserved for future use]]`;
             randompick: 'Options, comma separated',
             stepslider: 'Steps in order, comma separated (at least 2)',
             choicecards: 'One card per line: Title | short description'
-        })[type] || 'Comma separated options';
+        })[_PL_isDeck(type) ? 'carddeck' : type] || 'Comma separated options';
     }
     function _PL_applyVarTypeUI(row, type) {
         const show = (sel, on, disp) => { const el = row.querySelector(sel); if (el) el.style.display = on ? (disp || 'flex') : 'none'; };

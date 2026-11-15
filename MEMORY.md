@@ -621,3 +621,9 @@ Only the `.vc*` CSS block in `static/vartypes-3d.js` changed (markup, drawCard, 
 ### Rounder cube (2026-11-15)
 
 - Dice faces are drawn inset and stroked with a round join, so every cube corner has a radius of `ROUND * R` (`ROUND = 0.2` in `faceSvg`, `static/vartypes-3d.js`). An outline underlay `.vd3-o` carries the edge colour, `.vd3-p` the face, `.vd3-s` the shade. The landed face turns its outline accent. Raise or lower `ROUND` to change the roundness. Phone copy of `vartypes-3d.js` still needs the combined patch. Backup: `_rollbacks/15-11-2026-vartypes-3d-pre-round.js`.
+
+### Card deck shuffle types (2026-11-15, in progress)
+
+- Each card shuffle is its own variable type: `deck_overhand`, `deck_riffle`, `deck_hindu`, `deck_strip`, `deck_wash`, `deck_faro`, `deck_mongean`, `deck_pile`, `deck_charlier`, `deck_cascade`, `deck_cut`, `deck_fan`, shown in the variable editor under "Card decks (one shuffle each)". The older `carddeck` type stays and follows Settings, Randomiser motion, Card shuffle style.
+- Plumbing: `vartypes-3d.js` registers every `deck_*` type through `deckHtml` (the `.vc` element carries `data-shuffle`), keeps a registry `PL_MOTION.shuffles` and exposes `PL_MOTION.deck` helpers. New file `static/deck-shuffles.js` (script tag count is now 9, cache busted by `update_hash.py`) holds one marked section per shuffle. `app.js` has `_PL_DECK_STYLES`, `_PL_DECK_TYPES`, `_PL_isDeck`. A shuffle that is not written yet falls back to riffle. Backups: `_rollbacks/15-11-2026-*-pre-decktypes.*`.
+- Phone: `variable-types-data.js`, the phone's `vartypes.js` and `vartypes-3d.js` need the new types and `deck-shuffles.js` (new shared file).
