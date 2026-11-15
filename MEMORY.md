@@ -539,3 +539,4 @@ Handover phase 5, done. All five phases of the Prompt Builder Pro handover are n
 - Verified in headless Chromium: page loads, no console errors, libraryScopeBar and openBuilderProWorkspace present, new scripts served. Not yet clicked through each feature, not run in PyWebView.
 - NOT merged, decisions needed: ccr-a045f841-s45c5q (Context Bank rework, direct clash with own-categories, needs hand merge); claude/sharp-ptolemy-1lwhno (removes variable types, overlaps randomiser-motion); feature/prompt-switchboard and three old variable-type branches (wizardly-ptolemy, variable-types-original, relaxed-gauss reldate) are unique but unmerged; Prompt Rush (sleepy-brown) is a separate game. Other branches were judged already in main or stale.
 - Backups: `_rollbacks/*.15-11-2026-pre-combine`.
+

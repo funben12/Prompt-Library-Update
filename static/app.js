@@ -628,52 +628,6 @@
             fLbl.textContent = fCount === 1 ? '1 folder' : `${fCount} folders`;
             fLbl.hidden = fSep.hidden = fCount === 0;
         }
-        renderScopeBar();
-    }
-
-    // One row of chips above the list: All, Favourites, then every folder, so nothing hides in one long list.
-    function renderScopeBar() {
-        const bar = $('#libraryScopeBar');
-        if (!bar) return;
-        const isVault = state.librarySource && state.librarySource.type === 'vault';
-        const scoped = state.view === 'library' || state.view === 'favorites' || typeof state.view === 'number';
-        bar.hidden = isVault || !scoped;
-        if (bar.hidden) return;
-        const counts = new Map();
-        let favs = 0;
-        for (const p of state.prompts) {
-            if (p.is_favorite) favs++;
-            if (p.folder_id) counts.set(p.folder_id, (counts.get(p.folder_id) || 0) + 1);
-        }
-        const chip = (view, icon, label, count, extra) => {
-            const on = String(state.view) === String(view);
-            const arg = typeof view === 'number' ? view : `'${view}'`;
-            return `<button type="button" class="chip scope-chip${on ? ' active' : ''}${extra || ''}" aria-pressed="${on}" data-scope="${view}" onclick="window.PL_setView(${arg})">` +
-                `<span class="material-symbols-outlined">${icon}</span><span class="scope-label">${escapeHtml(label)}</span>` +
-                `<span class="scope-count">${count}</span></button>`;
-        };
-        const folders = [...state.folders].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        const keepLeft = bar.scrollLeft;
-        bar.innerHTML = chip('library', 'menu_book', 'All', state.prompts.length) +
-            chip('favorites', 'star', 'Favourites', favs, ' scope-fav') +
-            (folders.length ? '<span class="scope-sep" aria-hidden="true"></span>' : '') +
-            folders.map(f => {
-                const n = counts.get(f.id) || 0;
-                return chip(f.id, 'folder', f.name, n, n ? '' : ' scope-empty');
-            }).join('');
-        bar.scrollLeft = keepLeft;
-        const act = bar.querySelector('.scope-chip.active');
-        if (act && (act.offsetLeft < bar.scrollLeft || act.offsetLeft + act.offsetWidth > bar.scrollLeft + bar.clientWidth)) {
-            bar.scrollLeft = Math.max(0, act.offsetLeft - 24);
-        }
-        if (!bar.dataset.wheel) {
-            bar.dataset.wheel = '1';
-            bar.addEventListener('wheel', (e) => {
-                if (bar.scrollWidth <= bar.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-                bar.scrollLeft += e.deltaY;
-                e.preventDefault();
-            }, { passive: false });
-        }
     }
 
     /* ============================================================================
@@ -1071,7 +1025,6 @@
         </div>
       </div>`;
         }).join('');
-        renderScopeBar();
     }
 
     let _tagsExpanded = false;
