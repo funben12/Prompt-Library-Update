@@ -578,3 +578,12 @@ Handover phase 5, done. All five phases of the Prompt Builder Pro handover are n
 - New branches get a name that says what they hold, for example `agents-builder-pro` or `context-bank-categories`, not a random id. Eugene should be able to read the branch list and know what each one contains.
 - Format: lowercase, words joined by hyphens, feature first. One purpose per branch.
 - Cloud sessions are told to develop on a fixed branch (currently `ccr-e4605b92-9rygdj`) and that name cannot be changed by Claude. When the session branch is fixed, say so and suggest the purpose name for the PR title instead.
+
+### Desktop combine verification (2026-11-15)
+
+- Branch `desktop-combine-verify`, from `ccr-e4605b92-9rygdj`. Full report: `outputs/15-11-2026-desktop-verification.md`.
+- Pinterest Prompt Board, X-Ray layouts (all 372 picker options), nearby share (quick then full scan merge, send and accept between two instances), Context Bank (launcher card, block CRUD, pin, duplicate, delete with Undo, import and export, saved copy restore, New prompt Context panel) and Prompt Builder Pro (launcher, wiring, compile, four exports, `PL_galleryBorrow`, My Favorites collapse) were clicked through in headless Chromium on a disposable data folder. All pass, no console or network errors, all 37 launcher cards open.
+- No application file was changed, so no cache hash or Builder Pro `?v=` bump was needed.
+- The `<script` count in `static/index.html` is now 8 (components-data, forge-frameworks, xray-views, qrcode.min, app.js, randomiser-motion, vartypes-3d, inline bootstrap). The 5 in `CLAUDE.md` is stale. Use 8 for the truncation check.
+- `tests/randomiser` needs the Python `playwright` package and `CHROME` set. It passes (the phone drift check skips without `PHONE_ASSETS`).
+- Still open: nearby share on real devices, committing the click through scripts as tests.
