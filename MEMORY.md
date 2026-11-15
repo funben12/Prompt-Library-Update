@@ -531,3 +531,11 @@ Handover phase 5, done. All five phases of the Prompt Builder Pro handover are n
 - Splitting for Forge views lives in `static/xray-views.js` (`window.PL_XRAY_VIEWS`), shared byte for byte with the phone app. It reads headings first (a `## Situation` section lands in Situation), otherwise scores each sentence: the classic part it looks like, matched to the Forge part whose name points at that classic part, plus words shared with the part's name and hint. Anything with no match goes to Unclassified. Offline, keyword scored, no AI.
 - Copy and Save use the chosen view's part names as headings. Prompt Splicer still uses the classic six parts (`XRAY_PARTS`), untouched.
 - Verified in headless Chromium against a disposable database (18 checks), not in the PyWebView window. Backups: `_rollbacks/* v-pre-xray-views.*`.
+
+### Branch combine (2026-11-15)
+
+- This branch is origin/main (Prompt Builder Pro, launcher My Favorites) plus 8 merged feature branches: library-scope-bar (favourites and folder chips), combine-duplicates, organiser-swipe-deck, pinterest-board, context-bank-own-categories, xray-forge-views, nearby-background, randomiser-motion.
+- Conflicts were only `?v=` cache-bust lines and MEMORY.md; hashes regenerated with update_hash.py. `grep -c "<script" static/index.html` is now 5+ on main by design (the old "3" check is stale).
+- Verified in headless Chromium: page loads, no console errors, libraryScopeBar and openBuilderProWorkspace present, new scripts served. Not yet clicked through each feature, not run in PyWebView.
+- NOT merged, decisions needed: ccr-a045f841-s45c5q (Context Bank rework, direct clash with own-categories, needs hand merge); claude/sharp-ptolemy-1lwhno (removes variable types, overlaps randomiser-motion); feature/prompt-switchboard and three old variable-type branches (wizardly-ptolemy, variable-types-original, relaxed-gauss reldate) are unique but unmerged; Prompt Rush (sleepy-brown) is a separate game. Other branches were judged already in main or stale.
+- Backups: `_rollbacks/*.15-11-2026-pre-combine`.
