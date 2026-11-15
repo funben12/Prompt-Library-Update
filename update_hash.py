@@ -1,4 +1,5 @@
 import hashlib
+import os
 import re
 
 # Hash app.js
@@ -17,6 +18,14 @@ html = re.sub(r'app\.js\?v=[a-f0-9]+', 'app.js?v=' + js_hash, html)
 
 # Update app.css version param
 html = re.sub(r'app\.css\?v=[a-f0-9]+', 'app.css?v=' + css_hash, html)
+
+# Randomiser motion files (dice, card deck, random pick): cache-bust them too, or a stale copy keeps the old motion
+for name in ('randomiser-motion.js', 'vartypes-3d.js'):
+    path = os.path.join('static', name)
+    if os.path.exists(path):
+        with open(path, 'rb') as f:
+            h = hashlib.md5(f.read()).hexdigest()[:8]
+        html = re.sub(re.escape(name) + r'\?v=[a-f0-9]+', name + '?v=' + h, html)
 
 import os, tempfile, time
 tmp = 'static/index.html.tmp'
