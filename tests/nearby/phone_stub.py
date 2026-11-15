@@ -68,4 +68,32 @@ class H(BaseHTTPRequestHandler):
         self._send(404, {'error': 'Not found'})
 
 
+def answer_discovery():
+    # Same as ShareHub.answer(): reply "here" to a "query" on UDP 47800 (multicast group or broadcast)
+    import socket
+    import struct
+    import threading
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(('', 47800))
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP,
+                    struct.pack('4s4s', socket.inet_aton('224.0.0.168'), socket.inet_aton(ip)))
+    reply = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    reply.bind((ip, 0))
+
+    def run():
+        while True:
+            data, addr = sock.recvfrom(2048)
+            try:
+                q = json.loads(data)
+            except ValueError:
+                continue
+            if q.get('app') == 'prompt-library' and q.get('kind') == 'query' and q.get('deviceId') != DEVICE_ID:
+                reply.sendto(json.dumps({'app': 'prompt-library', 'v': 1, 'kind': 'here', 'deviceId': DEVICE_ID,
+                                         'name': name, 'type': 'phone', 'receiving': RECEIVING['on'],
+                                         'port': 47800}).encode(), addr)
+    threading.Thread(target=run, daemon=True).start()
+
+
+answer_discovery()
 ThreadingHTTPServer((ip, 47800), H).serve_forever()

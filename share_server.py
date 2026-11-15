@@ -5,12 +5,15 @@
 import ipaddress
 import secrets
 import socket
+import struct
 import threading
 import time
 
 from flask import Flask, jsonify, request
 
 SHARE_PORT = 47800
+SHARE_HOST = '0.0.0.0'     # tests bind one loopback address per fake device
+DISCOVER_GROUP = '224.0.0.168'  # quick discovery: "who is here" on UDP SHARE_PORT (multicast and broadcast)
 OFFER_TTL = 180            # seconds an offer waits for Accept or Decline
 MAX_BODY = 256 * 1024      # bytes per offer
 MAX_PENDING = 20
@@ -300,6 +303,113 @@ def scan():
             'ip': mine[0] if mine else None, 'networks': [n + '.x' for n in nets]}
 
 
+# ---- quick discovery: answer and ask "who is here" on the local network ----
+
+def _here():
+    return json.dumps({'app': 'prompt-library', 'v': 1, 'kind': 'here', 'deviceId': _state['device_id'],
+                       'name': _state['name'] or socket.gethostname(), 'type': 'desktop',
+                       'receiving': _state['enabled'], 'port': SHARE_PORT}).encode('utf-8')
+
+
+def _answer_forever():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(('', SHARE_PORT))
+    for ip in (_lan_ips() if SHARE_HOST in ('0.0.0.0', '') else [SHARE_HOST]) + ['0.0.0.0']:
+        try:
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP,
+                            struct.pack('4s4s', socket.inet_aton(DISCOVER_GROUP), socket.inet_aton(ip)))
+        except OSError:
+            pass  # that adapter has no multicast, or is already joined; broadcast still works
+    # A device bound to one address replies from it, so the asker sees the right address
+    reply = sock
+    if SHARE_HOST not in ('0.0.0.0', ''):
+        reply = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        reply.bind((SHARE_HOST, 0))
+    while True:
+        try:
+            data, addr = sock.recvfrom(2048)
+            if not _private(addr[0]):
+                continue
+            q = json.loads(data.decode('utf-8'))
+            if not isinstance(q, dict) or q.get('app') != 'prompt-library' or q.get('kind') != 'query':
+                continue
+            if q.get('deviceId') == _state['device_id']:
+                continue
+            reply.sendto(_here(), addr)
+        except (ValueError, UnicodeDecodeError):
+            continue
+        except OSError:
+            time.sleep(0.5)
+
+
+def start_discovery():
+    # Optional: if UDP SHARE_PORT is taken, the full scan still finds everyone
+    def run():
+        try:
+            _answer_forever()
+        except Exception:
+            import logging, traceback
+            logging.error('Nearby quick discovery could not start:\n' + traceback.format_exc())
+    threading.Thread(target=run, daemon=True, name='nearby-discover').start()
+
+
+def discover(timeout=1.0):
+    """Ask every local network who has Prompt Library open. Returns the addresses that answered."""
+    q = json.dumps({'app': 'prompt-library', 'v': 1, 'kind': 'query',
+                    'deviceId': _state['device_id']}).encode('utf-8')
+    socks = []
+    for ip in _lan_ips():
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ip))
+            s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
+            s.bind((ip, 0))
+            s.setblocking(False)
+            for target in (DISCOVER_GROUP, ip.rsplit('.', 1)[0] + '.255'):
+                try:
+                    s.sendto(q, (target, SHARE_PORT))
+                except OSError:
+                    pass
+            socks.append(s)
+        except OSError:
+            continue
+    found, end = [], time.time() + timeout
+    import select
+    try:
+        while socks and time.time() < end:
+            ready, _, _ = select.select(socks, [], [], max(0.0, end - time.time()))
+            for s in ready:
+                try:
+                    data, addr = s.recvfrom(2048)
+                    r = json.loads(data.decode('utf-8'))
+                except (OSError, ValueError, UnicodeDecodeError):
+                    continue
+                if (isinstance(r, dict) and r.get('app') == 'prompt-library' and r.get('kind') == 'here'
+                        and r.get('deviceId') != _state['device_id'] and _private(addr[0])
+                        and addr[0] not in found):
+                    found.append(addr[0])
+    finally:
+        for s in socks:
+            s.close()
+    return found
+
+
+def quick_scan():
+    """Fast first look: devices that answer the discovery question, plus ones seen before."""
+    mine = _lan_ips()
+    with _lock:
+        known = list(_peers.keys())
+    targets = [t for t in dict.fromkeys(discover() + known) if t not in mine]
+    found = []
+    if targets:
+        with ThreadPoolExecutor(max_workers=16) as pool:
+            found = [d for d in pool.map(lambda ip: probe(ip, timeout=1.5), targets) if d]
+    return {'devices': sorted(found, key=lambda d: d['name'].lower()), 'ip': mine[0] if mine else None,
+            'networks': sorted({ip.rsplit('.', 1)[0] + '.x' for ip in mine}), 'quick': True}
+
+
 def send(ip, prompt):
     return _call(ip, '/share/offer', {
         'fromId': _state['device_id'], 'fromName': _state['name'] or socket.gethostname(),
@@ -312,6 +422,7 @@ def sent_status(ip, oid):
 
 
 def serve_forever():
+    start_discovery()
     try:
         _serve()
     except Exception:
@@ -322,6 +433,6 @@ def serve_forever():
 def _serve():
     try:
         from waitress import serve
-        serve(share_app, host='0.0.0.0', port=SHARE_PORT, threads=4, _quiet=True)
+        serve(share_app, host=SHARE_HOST, port=SHARE_PORT, threads=4, _quiet=True)
     except ImportError:
-        share_app.run(host='0.0.0.0', port=SHARE_PORT, debug=False, use_reloader=False)
+        share_app.run(host=SHARE_HOST, port=SHARE_PORT, debug=False, use_reloader=False)

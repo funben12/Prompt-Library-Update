@@ -270,6 +270,13 @@ Do not replace this with a generic node editor, and do not damage the existing S
 - First run found three things, all fixed 2026-10-13 in AI-App-Factory `apps/app-003-prompt-library-mobile` (backups in its `_rollbacks/`, `*v-pre-parse-fix.js` and `index v-pre-nearby-copy.html`): `tools-board.js` had a misplaced `}` in a template string plus a stray duplicate `})();`, `tools-components.js` had a stray duplicate `})();`, so Prompt Board and Prompt Components never loaded; and the phone Send sheet empty state now says another phone or a computer. Harness now 11 of 11 desktop and 9 of 9 phone.
 - Not covered by the harness: the Java receiver and real radios. Phone app folder `tests/README.md` items 14 to 21 still need two real devices.
 
+### Nearby quick discovery and phone background receive (2026-11-11)
+
+- Quick discovery: every Prompt Library answers a "who is here" question on **UDP 47800** (multicast group `224.0.0.168`, plus subnet and global broadcast). Question `{"app":"prompt-library","v":1,"kind":"query","deviceId"}`, answer `{"app","v","kind":"here","deviceId","name","type","receiving","port"}` sent back to the asker. The asker still says hello over HTTP to each answer, so the device list format is unchanged.
+- Desktop: `share_server.start_discovery()` (started by `serve_forever`; failure is logged and never stops the app), `discover()`, `quick_scan()`. `GET /api/share/devices?quick=1` returns answering devices plus recent peers in about a second; the Send to nearby modal calls it first, then the full /24 scan, and merges. `SHARE_HOST` lets the test harness bind one loopback address per fake device. Stdlib only, no new dependency.
+- Phone 0.9.0 (AI-App-Factory branch `claude/nearby-background`, built on the 0.8.0 branch): the receiver moved from `MainActivity` into `ShareHub.java`, shared by the screen and a new `ShareService` foreground service (`connectedDevice`). Manage, Nearby has "Receive with the app closed" (off by default). With it on, offers that arrive with the app closed become a notification; tapping opens the app on the Incoming sheet. Nothing is saved without Accept, same as before.
+- Tests: `tests/nearby/test_desktop.py` 12 of 12 (new `test_01b_quick_discovery_both_ways`); phone stub answers discovery too. Not tested on real devices or Windows firewall (UDP 47800 may need the same private network allow as TCP 47800).
+
 ### Memory maintenance rule
 
 Substantial repository changes must update the relevant model-specific memory file automatically.
