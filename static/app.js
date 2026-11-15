@@ -14581,6 +14581,7 @@ Must avoid: [Anything sensitive or previously declined]`
         { key: 'undescribed', label: 'No description', icon: 'description' },
         { key: 'thin', label: 'Thin content', icon: 'compress' },
         { key: 'stale', label: 'Stale (90+ days)', icon: 'history' },
+        { key: 'everything', label: 'Every prompt', icon: 'style' },
         { key: 'duplicates', label: 'Duplicates', icon: 'content_copy' },
     ];
     const PULSE_BADGE_LABEL = { untagged: 'No tags', uncategorised: 'No category', undescribed: 'No description', thin: 'Thin content', stale: 'Stale 90+ days' };
@@ -14589,6 +14590,24 @@ Must avoid: [Anything sensitive or previously declined]`
     let _pulseFilter = 'all';
     let _pulseIndex = 0;
     let _pulseResolved = 0;
+
+    // Swipe deck: right keeps, left adds the Archive category, delete waits in a marked pile until confirmed
+    const PULSE_ARCHIVE = 'Archive';
+    const PULSE_KEPT_KEY = 'pl.organiserKept';
+    const PULSE_ISSUE_KEYS = ['untagged', 'uncategorised', 'undescribed', 'thin', 'stale'];
+    const _pulsePendingDel = new Map();
+    let _pulseDeck = null;
+    let _pulseDeckFilter = '';
+    let _pulseDeckLoading = false;
+    const _pulseIsArchived = p => (Array.isArray(p.categories) ? p.categories : []).some(c => String(c).trim().toLowerCase() === 'archive');
+
+    function _pulseKeptGet() {
+        try { return JSON.parse(localStorage.getItem(PULSE_KEPT_KEY) || '{}') || {}; } catch { return {}; }
+    }
+
+    function _pulseKeptSet(map) {
+        try { localStorage.setItem(PULSE_KEPT_KEY, JSON.stringify(map)); } catch {}
+    }
 
     function _pulseScoreFor(list, issues, dupCount) {
         const total = list.length || 1;
@@ -14602,7 +14621,7 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     function _pulseLiveIssues() {
-        const list = _pulseData.list;
+        const list = _pulseData.list.filter(p => !_pulseIsArchived(p) && !_pulsePendingDel.has(p.id));
         const metaEmpty = v => Array.isArray(v) ? !v.length : !String(v || '').trim();
         const cutoff = Date.now() - 90 * 24 * 3600 * 1000;
         const idSet = new Set(list.map(p => p.id));
@@ -14616,6 +14635,11 @@ Must avoid: [Anything sensitive or previously declined]`
                 return !isNaN(d) && d < cutoff;
             }),
             duplicates: _pulseData.dupPairs.filter(([a, b]) => idSet.has(a.id) && idSet.has(b.id)),
+            everything: (() => {
+                const kept = _pulseKeptGet();
+                const when = p => Date.parse(p.updated_at || p.created_at || '') || 0;
+                return list.filter(p => !kept[p.id]).sort((a, b) => when(a) - when(b));
+            })(),
         };
     }
 
@@ -14651,6 +14675,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 }
             }
             _pulseData = { list, dupPairs, cappedNote: list.length > 500 };
+            _pulseDeckDrop();
             _pulseResolved = 0;
             _pulseFilter = 'all';
             _pulseIndex = 0;
@@ -14730,24 +14755,60 @@ Must avoid: [Anything sensitive or previously declined]`
         const issues = _pulseLiveIssues();
 
         if (_pulseFilter === 'duplicates') {
+            _pulseDeckDrop();
             _pulseRenderDupStack(stack, issues.duplicates);
             return;
         }
 
-        const queue = _pulseFilter === 'all' ? _pulseAllQueue(issues) : issues[_pulseFilter].map(p => ({ p, keys: [_pulseFilter] }));
-        if (_pulseIndex >= queue.length) _pulseIndex = Math.max(0, queue.length - 1);
-
-        if (!queue.length) {
-            stack.innerHTML = '<div class="pulse-clear"><span class="material-symbols-outlined">task_alt</span>' +
-                '<div class="pulse-card-title">All clear here</div><p class="hint">Nothing left to sort in this pile.</p></div>';
+        if (!window.PL_SwipeDeck) {
+            _pulseLoadDeck();
+            stack.innerHTML = '<div class="pulse-clear"><span class="material-symbols-outlined">hourglass_top</span><div class="pulse-card-title">Shuffling the deck…</div></div>';
             return;
         }
+        if (_pulseDeck && _pulseDeckFilter === _pulseFilter) {
+            _pulseDeck.render();
+            return;
+        }
+        _pulseDeckDrop();
+        _pulseDeckFilter = _pulseFilter;
+        stack.style.overflowY = 'auto';
+        stack.style.overflowX = 'hidden';
+        _pulseDeck = window.PL_SwipeDeck.create(stack, {
+            items: () => _pulseQueueFor(_pulseDeckFilter, _pulseLiveIssues()),
+            key: e => e.p.id,
+            title: e => e.p.title || 'Untitled',
+            cardHtml: _pulseCardHtml,
+            peekHtml: e => '<div class="pulse-card-title">' + escapeHtml(e.p.title || 'Untitled') + '</div><div class="pulse-card-preview">' + escapeHtml((e.p.content || '').slice(0, 160)) + '</div>',
+            hint: 'Drag right to keep, left to archive. Arrow keys work too, Delete marks it, Z undoes.',
+            emptyHtml: () => _pulseDeckFilter === 'everything'
+                ? '<strong>You have been through every prompt</strong>Kept prompts stay out of this pile next time.<div style="margin-top:12px"><button type="button" class="btn btn-ghost" data-pulse-restart>Start over</button></div>'
+                : '<strong>All clear here</strong>Nothing left to sort in this pile.',
+            footHtml: () => {
+                const n = _pulsePendingDel.size;
+                if (!n) return '';
+                return '<div class="sd-foot"><span>' + n + ' marked to delete. Nothing is deleted until you confirm.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" data-pulse-unmark style="background:transparent;color:inherit;border:1px solid currentColor">Unmark</button><button type="button" data-pulse-commit>Delete ' + n + ' now</button></span></div>';
+            },
+            afterRender: (root, entry) => _pulseBindCard(root, entry),
+            onAction: _pulseDeckAction,
+            onChange: () => { _pulseRenderStats(); _pulseRenderRail(); },
+        });
+    }
 
-        const entry = queue[_pulseIndex];
+    function _pulseKeysOf(p, issues) {
+        return PULSE_ISSUE_KEYS.filter(k => issues[k].includes(p));
+    }
+
+    function _pulseQueueFor(key, issues) {
+        if (key === 'all') return _pulseAllQueue(issues);
+        return (issues[key] || []).map(p => ({ p, keys: key === 'everything' ? null : [key] }));
+    }
+
+    function _pulseCardHtml(entry) {
         const p = entry.p;
-        const keys = entry.keys;
-        const badges = keys.map(k => '<span class="pulse-badge' + (k === 'stale' ? ' pulse-badge-stale' : '') + '">' + PULSE_BADGE_LABEL[k] + '</span>').join('');
-
+        const keys = entry.keys || _pulseKeysOf(p, _pulseLiveIssues());
+        const badges = keys.length
+            ? keys.map(k => '<span class="pulse-badge' + (k === 'stale' ? ' pulse-badge-stale' : '') + '">' + PULSE_BADGE_LABEL[k] + '</span>').join('')
+            : '<span class="pulse-badge pulse-badge-stale">No issues found</span>';
         let fixHtml = '';
         if (keys.includes('untagged')) {
             fixHtml += '<div class="pulse-fix"><div class="pulse-fix-label">Add a tag</div><div class="pulse-fix-row"><input type="text" placeholder="e.g. marketing" data-pulse-tag-input /><button type="button" class="btn btn-primary btn-xs" data-pulse-add-tag>Add</button></div></div>';
@@ -14758,38 +14819,144 @@ Must avoid: [Anything sensitive or previously declined]`
         if (keys.includes('undescribed')) {
             fixHtml += '<div class="pulse-fix"><div class="pulse-fix-label">Write a description</div><div class="pulse-fix-row"><textarea placeholder="One line about what this prompt does…" data-pulse-desc-input></textarea></div><div class="pulse-fix-row"><button type="button" class="btn btn-primary btn-xs" data-pulse-save-desc>Save</button></div></div>';
         }
-
-        const actions = ['<button type="button" class="btn btn-ghost" data-pulse-open="' + p.id + '"><span class="material-symbols-outlined">open_in_new</span> Open</button>'];
+        const extra = ['<button type="button" class="btn btn-ghost btn-xs" data-pulse-open="' + p.id + '"><span class="material-symbols-outlined">open_in_new</span> Open</button>'];
         if (keys.includes('stale')) {
-            actions.push('<button type="button" class="btn btn-ghost" data-pulse-mark-reviewed><span class="material-symbols-outlined">check</span> Mark reviewed</button>');
+            extra.push('<button type="button" class="btn btn-ghost btn-xs" data-pulse-mark-reviewed><span class="material-symbols-outlined">check</span> Mark reviewed</button>');
         }
-        actions.push('<button type="button" class="btn btn-danger" data-pulse-delete><span class="material-symbols-outlined">delete</span> Delete</button>');
-        actions.push('<button type="button" class="btn btn-ghost" data-pulse-skip>Skip <span class="material-symbols-outlined">arrow_forward</span></button>');
-
-        stack.innerHTML =
-            '<div class="pulse-stack-progress"><div class="pulse-stack-progress-fill" style="width:' + Math.round((_pulseIndex / queue.length) * 100) + '%"></div></div>' +
-            '<div class="pulse-card-active">' +
-            '<div class="pulse-card-eyebrow">' + (_pulseIndex + 1) + ' of ' + queue.length + '</div>' +
+        const cats = (Array.isArray(p.categories) ? p.categories : []).slice(0, 3).map(c => escapeHtml(c)).join(', ');
+        return '<div class="pulse-card-eyebrow">' + (cats || 'No category') + '</div>' +
             '<div class="pulse-card-title" data-pulse-open="' + p.id + '">' + escapeHtml(p.title || 'Untitled') + '</div>' +
-            '<div class="pulse-card-preview">' + escapeHtml((p.content || '').slice(0, 220)) + '</div>' +
+            '<div class="pulse-card-preview" style="max-height:7.2em">' + escapeHtml((p.content || '').slice(0, 420)) + '</div>' +
             '<div class="pulse-badges">' + badges + '</div>' +
             fixHtml +
-            '<div class="pulse-actions">' + actions.join('') + '</div>' +
-            '</div>';
+            '<div class="pulse-actions" style="margin-top:0">' + extra.join('') + '</div>';
+    }
 
-        _pulseOpenHandlers(stack);
-        stack.querySelector('[data-pulse-add-tag]')?.addEventListener('click', () => _pulseQuickAdd(p, 'tags'));
-        stack.querySelector('[data-pulse-tag-input]')?.addEventListener('keydown', e => {
+    function _pulseBindCard(root, entry) {
+        _pulseOpenHandlers(root);
+        root.querySelector('[data-pulse-restart]')?.addEventListener('click', () => {
+            _pulseKeptSet({});
+            _pulseDeckDrop();
+            _pulseAfterMutate();
+        });
+        root.querySelector('[data-pulse-commit]')?.addEventListener('click', () => _pulseCommitDeletes(false));
+        root.querySelector('[data-pulse-unmark]')?.addEventListener('click', () => {
+            _pulsePendingDel.clear();
+            _pulseDeckDrop();
+            _pulseAfterMutate();
+        });
+        if (!entry) return;
+        const p = entry.p;
+        root.querySelector('[data-pulse-add-tag]')?.addEventListener('click', () => _pulseQuickAdd(p, 'tags'));
+        root.querySelector('[data-pulse-tag-input]')?.addEventListener('keydown', e => {
             if (e.key === 'Enter') { e.preventDefault(); _pulseQuickAdd(p, 'tags'); }
         });
-        stack.querySelector('[data-pulse-add-cat]')?.addEventListener('click', () => _pulseQuickAdd(p, 'categories'));
-        stack.querySelector('[data-pulse-cat-input]')?.addEventListener('keydown', e => {
+        root.querySelector('[data-pulse-add-cat]')?.addEventListener('click', () => _pulseQuickAdd(p, 'categories'));
+        root.querySelector('[data-pulse-cat-input]')?.addEventListener('keydown', e => {
             if (e.key === 'Enter') { e.preventDefault(); _pulseQuickAdd(p, 'categories'); }
         });
-        stack.querySelector('[data-pulse-save-desc]')?.addEventListener('click', () => _pulseSaveDescription(p));
-        stack.querySelector('[data-pulse-mark-reviewed]')?.addEventListener('click', () => _pulseMarkReviewed(p));
-        stack.querySelector('[data-pulse-delete]')?.addEventListener('click', () => _pulseDeletePrompt(p));
-        stack.querySelector('[data-pulse-skip]')?.addEventListener('click', () => _pulseSkip());
+        root.querySelector('[data-pulse-save-desc]')?.addEventListener('click', () => _pulseSaveDescription(p));
+        root.querySelector('[data-pulse-mark-reviewed]')?.addEventListener('click', () => _pulseMarkReviewed(p));
+    }
+
+    // Returns an undo function when the action worked, or null so the card comes back
+    async function _pulseDeckAction(dir, entry) {
+        const p = entry.p;
+        const pile = _pulseDeckFilter;
+        if (dir === 'right') {
+            if (pile === 'everything') {
+                const kept = _pulseKeptGet();
+                kept[p.id] = Date.now();
+                _pulseKeptSet(kept);
+            }
+            return () => {
+                if (pile === 'everything') {
+                    const kept = _pulseKeptGet();
+                    delete kept[p.id];
+                    _pulseKeptSet(kept);
+                }
+                return true;
+            };
+        }
+        if (dir === 'left') {
+            const before = Array.isArray(p.categories) ? p.categories.slice() : [];
+            const next = before.concat(PULSE_ARCHIVE);
+            try {
+                await api(`/prompts/${p.id}`, { method: 'PUT', body: { categories: next } });
+            } catch (e) {
+                toast(String(e.message || '').includes('423') ? 'This prompt is locked, unlock it in Version Lock first' : 'Could not archive', 'error');
+                return null;
+            }
+            p.categories = next;
+            _pulseResolved++;
+            return async () => {
+                try {
+                    await api(`/prompts/${p.id}`, { method: 'PUT', body: { categories: before } });
+                } catch {
+                    toast('Could not undo the archive', 'error');
+                    return false;
+                }
+                p.categories = before;
+                _pulseResolved = Math.max(0, _pulseResolved - 1);
+                return true;
+            };
+        }
+        _pulsePendingDel.set(p.id, p);
+        return () => {
+            _pulsePendingDel.delete(p.id);
+            return true;
+        };
+    }
+
+    async function _pulseCommitDeletes(skipConfirm) {
+        const ids = Array.from(_pulsePendingDel.keys());
+        if (!ids.length) return true;
+        const n = ids.length;
+        if (!skipConfirm && !confirm('Delete ' + n + ' marked prompt' + (n === 1 ? '' : 's') + "? This can't be undone.")) return false;
+        let done = 0;
+        for (const id of ids) {
+            try {
+                await api(`/prompts/${id}`, { method: 'DELETE' });
+                _pulsePendingDel.delete(id);
+                _pulseData.list = _pulseData.list.filter(x => x.id !== id);
+                done++;
+            } catch {}
+        }
+        _pulseResolved += done;
+        if (_pulseDeck) _pulseDeck.dropUndo(e => e.dir === 'del' && !_pulsePendingDel.has(Number(e.key)));
+        if (done) toast(done === 1 ? 'Deleted 1 prompt' : 'Deleted ' + done + ' prompts', 'success');
+        if (done < n) toast((n - done) + ' could not be deleted, they may be locked', 'error');
+        try { await loadPrompts(); } catch {}
+        _pulseAfterMutate();
+        return done === n;
+    }
+
+    function _pulseDeckDrop() {
+        if (_pulseDeck) _pulseDeck.destroy();
+        _pulseDeck = null;
+        _pulseDeckFilter = '';
+        const stack = $('#pulseStack');
+        if (stack) {
+            stack.style.overflowY = '';
+            stack.style.overflowX = '';
+        }
+    }
+
+    function _pulseLoadDeck() {
+        if (window.PL_SwipeDeck || _pulseDeckLoading) return;
+        _pulseDeckLoading = true;
+        const s = document.createElement('script');
+        s.src = '/static/swipe-deck.js?v=1';
+        s.onload = () => {
+            _pulseDeckLoading = false;
+            if (_pulseData) _pulseRenderStack();
+        };
+        s.onerror = () => {
+            _pulseDeckLoading = false;
+            const stack = $('#pulseStack');
+            if (stack) stack.innerHTML = '<div class="pulse-clear"><span class="material-symbols-outlined" style="color:var(--danger)">error</span><div class="pulse-card-title">Could not load the swipe deck</div></div>';
+        };
+        document.head.appendChild(s);
     }
 
     function _pulseRenderDupStack(stack, dupPairs) {
@@ -14809,11 +14976,16 @@ Must avoid: [Anything sensitive or previously declined]`
             '<div class="pulse-card-active">' +
             '<div class="pulse-card-eyebrow">' + (_pulseIndex + 1) + ' of ' + dupPairs.length + ' possible duplicate' + (dupPairs.length !== 1 ? 's' : '') + '</div>' +
             '<div class="pulse-dup-compare">' + col(a, b) + '<div class="pulse-dup-vs">≈</div>' + col(b, a) + '</div>' +
-            '<div class="pulse-actions"><button type="button" class="btn btn-ghost" data-pulse-skip>Not a duplicate, skip <span class="material-symbols-outlined">arrow_forward</span></button></div>' +
+            '<div class="pulse-actions">' +
+            (typeof window.PL_openCombine === 'function' ? '<button type="button" class="btn btn-primary" data-pulse-combine><span class="material-symbols-outlined">merge</span> Combine</button>' : '') +
+            '<button type="button" class="btn btn-ghost" data-pulse-skip>Not a duplicate, skip <span class="material-symbols-outlined">arrow_forward</span></button></div>' +
             '</div>';
         _pulseOpenHandlers(stack);
         stack.querySelectorAll('[data-pulse-keep-drop]').forEach(btn => {
             btn.addEventListener('click', () => _pulseDropDuplicate(parseInt(btn.dataset.pulseKeepDrop, 10)));
+        });
+        stack.querySelector('[data-pulse-combine]')?.addEventListener('click', () => {
+            if (typeof window.PL_openCombine === 'function') window.PL_openCombine(a.id, b.id);
         });
         stack.querySelector('[data-pulse-skip]')?.addEventListener('click', () => _pulseSkip());
     }
@@ -14908,13 +15080,21 @@ Must avoid: [Anything sensitive or previously declined]`
         ws.classList.add('open');
         document.body.style.overflow = 'hidden';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'pulse'));
+        _pulseLoadDeck();
         _pulseScan();
     };
 
-    function closePulseWorkspace() {
+    async function closePulseWorkspace() {
+        const n = _pulsePendingDel.size;
+        if (n) {
+            if (confirm('Delete the ' + n + ' prompt' + (n === 1 ? '' : 's') + ' you marked? Cancel keeps ' + (n === 1 ? 'it' : 'them') + '.')) await _pulseCommitDeletes(true);
+            _pulsePendingDel.clear();
+        }
+        _pulseDeckDrop();
         $('#pulseWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+        try { await loadPrompts(); } catch {}
     }
 
     function initPulseWorkspace() {
@@ -14922,6 +15102,10 @@ Must avoid: [Anything sensitive or previously declined]`
         if (!ws) return;
         $('#closePulseBtn')?.addEventListener('click', closePulseWorkspace);
         $('#pulseRescanBtn')?.addEventListener('click', _pulseScan);
+        // Combine duplicates (combine-prompts.js) changes the library, so rescan while the organiser is open
+        window.addEventListener('pl:prompts-combined', () => {
+            if (ws.classList.contains('open')) _pulseScan();
+        });
         ws.addEventListener('keydown', e => {
             if (e.key === 'Escape') closePulseWorkspace();
         });

@@ -432,3 +432,14 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - Known bug, not fixed: the full screen prompt viewer never opens. Its IIFE reads `window.state.prompts`, which is never set.
 - Stray files seen in `static/`, not touched: `accounts.js` (17 KB, account layer was removed) and `app` (1.1 MB, no extension). Neither is loaded by `index.html`.
 - Verified in headless Chromium only, not in the PyWebView window. Backups: `_rollbacks/* v-pre-desktop-upgrade.*`.
+
+### Library organiser swipe deck (2026-11-15)
+
+- Every pile in the Library organiser except Duplicates is now a swipe deck: one prompt card at a time. Right or the right arrow keeps, left or the left arrow archives, Delete or Backspace marks for deletion, Z undoes. Buttons do the same.
+- Engine is `static/swipe-deck.js` (`window.PL_SwipeDeck.create(host, options)`), lazy loaded by `_pulseLoadDeck`, so `index.html` has no new script tag. The phone app carries a byte identical copy in its assets folder. Change both or neither. Motion uses the Web Animations API, so a reduced motion CSS rule cannot freeze it. Under reduced motion the timings shrink to 0.7.
+- Archive is the category `Archive` (no schema change). Archived prompts drop out of the organiser piles. The main list still shows them: hiding them there is a follow up.
+- Delete never removes straight away. Marked prompts sit in `_pulsePendingDel` until "Delete N now" or closing the organiser, and both ask first. Cancelling keeps them.
+- New pile "Every prompt" lists everything not yet kept, oldest edit first. Kept ids live in localStorage `pl.organiserKept`, cleared by Start over.
+- Duplicate pairs keep their side by side review. They get a Combine button only when `window.PL_openCombine` exists (combine flow, PR 67), and the organiser rescans on the `pl:prompts-combined` event.
+- Touch bug fixed in the engine: on touch screens the browser holds the finger on the inner element, so a bubbled `lostpointercapture` cancelled every drag. The handler now only reacts when the event target is the card itself.
+- Tested in headless Chromium on a scratch database at 1280 and 390 wide, 26 checks. Not tested in the PyWebView window or on Eugene's real database. Backups: `_rollbacks/* v-pre-swipe-deck.*`.
