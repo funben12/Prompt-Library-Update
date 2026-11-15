@@ -11,7 +11,7 @@
 
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/app.css?v=1594708d-plx">
+<link rel="stylesheet" href="/static/app.css?v=4baaf46e-plx">
 </head>
 <body>
 
@@ -3090,7 +3090,7 @@
       <span class="material-symbols-outlined ws-header-icon">visibility</span>
       <div>
         <h2 class="ws-title">Prompt X-Ray</h2>
-        <p class="ws-subtitle">See inside any prompt — role, context, task, constraints, format.</p>
+        <p class="ws-subtitle">See inside any prompt, in the classic six parts or any Prompt Forge layout.</p>
       </div>
     </div>
     <div class="ws-header-actions">
@@ -3102,6 +3102,8 @@
       <div class="opt-section-label">Prompt</div>
       <select id="xrayPicker" class="forge-input qf-picker"><option value="">Load from library…</option></select>
       <textarea id="xrayInput" class="forge-input" rows="10" placeholder="Paste any prompt to deconstruct…"></textarea>
+      <div class="opt-section-label" style="margin-top:var(--sp-3);">View</div>
+      <select id="xrayView" class="forge-input qf-picker" aria-label="X-Ray view"><option value="classic">Classic: Role, Context, Task, Constraints, Format, Examples</option></select>
       <div class="opt-actions" style="margin-top:var(--sp-3);">
         <button class="btn btn-accent" id="xrayRunBtn"><span class="material-symbols-outlined">visibility</span> Deconstruct</button>
       </div>
@@ -4996,10 +4998,11 @@
 <!-- Components library data (loaded before app.js) -->
 <script src="/static/components-data.js"></script>
 <script src="/static/forge-frameworks.js"></script>
+<script src="/static/xray-views.js"></script>
 
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
-<script defer src="/static/app.js?v=f30d71f3"></script>
+<script defer src="/static/app.js?v=1f4b9b73"></script>
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>

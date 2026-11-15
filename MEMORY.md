@@ -432,3 +432,10 @@ This supersedes every earlier variable type note above wherever they conflict, i
 - Known bug, not fixed: the full screen prompt viewer never opens. Its IIFE reads `window.state.prompts`, which is never set.
 - Stray files seen in `static/`, not touched: `accounts.js` (17 KB, account layer was removed) and `app` (1.1 MB, no extension). Neither is loaded by `index.html`.
 - Verified in headless Chromium only, not in the PyWebView window. Backups: `_rollbacks/* v-pre-desktop-upgrade.*`.
+
+### Prompt X-Ray views from Prompt Forge (2026-11-15)
+
+- X-Ray has a View dropdown under the prompt box: Classic (the old six parts, unchanged), My frameworks, Popular (18 picks) and all 353 Prompt Forge layouts. Changing the view rebuilds the cards straight away; the choice is kept in localStorage `pl_xray_view`.
+- Splitting for Forge views lives in `static/xray-views.js` (`window.PL_XRAY_VIEWS`), shared byte for byte with the phone app. It reads headings first (a `## Situation` section lands in Situation), otherwise scores each sentence: the classic part it looks like, matched to the Forge part whose name points at that classic part, plus words shared with the part's name and hint. Anything with no match goes to Unclassified. Offline, keyword scored, no AI.
+- Copy and Save use the chosen view's part names as headings. Prompt Splicer still uses the classic six parts (`XRAY_PARTS`), untouched.
+- Verified in headless Chromium against a disposable database (18 checks), not in the PyWebView window. Backups: `_rollbacks/* v-pre-xray-views.*`.

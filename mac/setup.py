@@ -14,6 +14,7 @@ DATA_FILES = [
         'static/app.js',
         'static/components-data.js',
         'static/forge-frameworks.js',
+        'static/xray-views.js',
         'static/index.html',
     ]),
 ]
