@@ -11172,3 +11172,24 @@ body.plx-workspace-open{overflow:hidden}
 
 /* Dice are always six sided: hide the sides stepper and presets */
 .vd [data-vdk="sides"], .vd .vd-presets { display: none !important; }
+
+/* ── Shared Context Bank picker (opened from any workspace) ─────────────── */
+.ctxpick { position: fixed; z-index: 9500; display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-lg); box-shadow: var(--shadow-lg); overflow: hidden; }
+.ctxpick-head { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: var(--fs-sm); }
+.ctxpick-head .material-symbols-outlined { font-size: 18px; color: var(--accent); }
+.ctxpick-head b { flex: 1; font-weight: 700; }
+.ctxpick-search { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-sunk); color: var(--ink); font: inherit; font-size: var(--fs-sm); }
+.ctxpick-search:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
+.ctxpick-cats { display: flex; flex-wrap: nowrap; gap: 4px; flex-shrink: 0; overflow-x: auto; padding: 2px 2px 6px; }
+.ctxpick-cats .chip { flex: none; }
+.ctxpick-list { display: flex; flex-direction: column; gap: 6px; overflow: auto; min-height: 80px; padding: 2px; }
+.ctxpick-item { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; text-align: left; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); color: var(--ink); cursor: pointer; box-shadow: var(--btn-rest); transition: transform var(--btn-spring), box-shadow var(--t-fast), border-color var(--t-fast); }
+.ctxpick-item:hover { border-color: var(--accent-line); transform: translateY(var(--btn-lift)); box-shadow: var(--btn-hover); }
+.ctxpick-item:active { transform: translateY(var(--btn-sink)); box-shadow: var(--btn-down); }
+.ctxpick-title { font-weight: 600; font-size: var(--fs-sm); }
+.ctxpick-cat { font-size: 11px; color: var(--accent); align-self: center; }
+.ctxpick-prev { grid-column: 1 / -1; font-size: 12px; color: var(--ink-3); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ctxpick-empty { padding: 16px; text-align: center; color: var(--ink-3); font-size: var(--fs-sm); }
+.ctxpick-foot { display: flex; justify-content: flex-end; font-size: 12px; color: var(--ink-3); }
+.ctxpick-foot select { margin-left: 6px; padding: 3px 6px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: inherit; }
+@media (prefers-reduced-motion: reduce) { .ctxpick-item, .ctxpick-item:hover, .ctxpick-item:active { transform: none; } }

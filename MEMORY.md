@@ -637,3 +637,7 @@ Only the `.vc*` CSS block in `static/vartypes-3d.js` changed (markup, drawCard, 
 ### Dice roll style types (2026-11-15, in progress)
 
 - Same pattern as the decks: each roll style is its own variable type, `dice_tumble` (the existing `diceroll`), `dice_drop`, `dice_cup`, `dice_spin`, `dice_throw`, `dice_tray`, `dice_flip`, `dice_float`, in the editor under "Dice rolls (one style each)". `vartypes-3d.js` has `diceHtml` (the `.vd` carries `data-rollstyle`), the registry `PL_MOTION.rolls` (tumble is the existing `throwDie`) and `PL_MOTION.dice` helpers. New file `static/dice-rolls.js` (script tag count is now 10, cache busted by `update_hash.py`) holds one marked section per roll; a style not written yet falls back to the tumble. `app.js` has `_PL_DICE_STYLES`, `_PL_DICE_TYPES`, `_PL_isDice`. Backups: `_rollbacks/15-11-2026-*-pre-dicetypes.*`.
+
+### Shared Context Bank picker (2026-11-15)
+
+- `window.PL_ctxPicker(anchorEl, target, opts)` (in `app.js`, next to the New prompt Context panel code) opens a floating Context Bank list (search, category chips, wrap choice, Open Context Bank) under any button and inserts the chosen block at the cursor of `target` (a textarea or input, a selector, or a function returning one). `opts.onPick(block)` replaces the default insert. `window.PL_ctxList()` resolves to every block as `{ id, title, category, content, wrapped }`. Styles `.ctxpick*` at the end of `app.css`. Workspaces should use this, not a second picker. Backups: `_rollbacks/15-11-2026-app-pre-ctxpicker.*`.

@@ -8874,6 +8874,82 @@ Must avoid: [Anything sensitive or previously declined]`
         toast('Context block inserted', 'success');
     }
 
+    // ── Shared Context Bank picker: a floating list any workspace can open to drop a block into its text ─────────
+    // window.PL_ctxPicker(anchorEl, target, opts): target is a textarea or input, or a function returning one.
+    // opts.onPick(block) replaces the default insert at the cursor (block = { id, title, category, content, wrapped }).
+    // window.PL_ctxList() resolves to every block (pinned first) for workspaces that build their own UI.
+    let _ctxPickerEl = null, _ctxPickerCat = 'all', _ctxPickerClose = null;
+    function _ctxPlain(b) { return { id: b.id, title: b.title || 'Untitled', category: _ctxCat(b), content: b.content || '', wrapped: _ctxWrapText(b) }; }
+    window.PL_ctxList = function() {
+        return _ctxSync().then(() => { _ctxSeedTemplates(); _ctxLoad(); return _ctxSorted(_ctxBlocks).map(_ctxPlain); });
+    };
+    function _ctxPickerHide() {
+        if (_ctxPickerEl) { _ctxPickerEl.remove(); _ctxPickerEl = null; }
+        if (_ctxPickerClose) { document.removeEventListener('mousedown', _ctxPickerClose, true); document.removeEventListener('keydown', _ctxPickerClose, true); _ctxPickerClose = null; }
+    }
+    window.PL_ctxPicker = function(anchor, target, opts) {
+        opts = opts || {};
+        if (_ctxPickerEl) { const was = _ctxPickerEl._anchor; _ctxPickerHide(); if (was === anchor) return; }
+        const el = document.createElement('div');
+        el.className = 'ctxpick';
+        el.setAttribute('role', 'dialog');
+        el.setAttribute('aria-label', 'Context Bank');
+        el._anchor = anchor;
+        el.innerHTML = '<div class="ctxpick-head"><span class="material-symbols-outlined">database</span><b>Context Bank</b>' +
+            '<button type="button" class="icon-btn ctxpick-open" title="Open the Context Bank" aria-label="Open the Context Bank"><span class="material-symbols-outlined">open_in_new</span></button></div>' +
+            '<input type="search" class="ctxpick-search" placeholder="Search blocks" aria-label="Search blocks" />' +
+            '<div class="ctxpick-cats"></div><div class="ctxpick-list" role="listbox"></div>' +
+            '<div class="ctxpick-foot"><label>Wrap <select class="ctxpick-wrap"><option value="plain">Plain text</option><option value="labelled">Labelled</option><option value="xml">XML tags</option></select></label></div>';
+        document.body.appendChild(el);
+        _ctxPickerEl = el;
+        const r = anchor.getBoundingClientRect(), w = 340;
+        el.style.width = w + 'px';
+        el.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + 'px';
+        const below = r.bottom + 6, room = window.innerHeight - below - 12;
+        if (room < 260 && r.top > room) { el.style.bottom = (window.innerHeight - r.top + 6) + 'px'; el.style.maxHeight = Math.min(480, r.top - 18) + 'px'; }
+        else { el.style.top = below + 'px'; el.style.maxHeight = Math.min(480, room) + 'px'; }
+        const wrapSel = el.querySelector('.ctxpick-wrap');
+        wrapSel.value = _ctxWrapStyle();
+        wrapSel.addEventListener('change', () => { try { localStorage.setItem(CTX_WRAP_KEY, wrapSel.value); } catch (_) {} draw(); });
+        let blocks = [];
+        const draw = () => {
+            const q = el.querySelector('.ctxpick-search').value.trim().toLowerCase();
+            const cats = _ctxCategories();
+            if (_ctxPickerCat !== 'all' && !cats.some(c => c.name === _ctxPickerCat)) _ctxPickerCat = 'all';
+            el.querySelector('.ctxpick-cats').innerHTML = [{ name: 'all' }].concat(cats).map(c =>
+                '<button type="button" class="chip' + (c.name === _ctxPickerCat ? ' active' : '') + '" data-pc="' + escapeAttr(c.name) + '">' + escapeHtml(c.name === 'all' ? 'All' : c.name) + '</button>').join('');
+            const list = _ctxSorted(blocks.filter(b => _ctxMatches(b, _ctxPickerCat, q)));
+            el.querySelector('.ctxpick-list').innerHTML = list.length ? list.map(b =>
+                '<button type="button" class="ctxpick-item" role="option" data-pid="' + escapeAttr(b.id) + '"><span class="ctxpick-title">' + escapeHtml(b.title || 'Untitled') + '</span>' +
+                '<span class="ctxpick-cat">' + escapeHtml(_ctxCat(b)) + '</span><span class="ctxpick-prev">' + escapeHtml((b.content || '').slice(0, 110)) + '</span></button>').join('')
+                : '<div class="ctxpick-empty">No blocks match.</div>';
+        };
+        _ctxSync().then(() => { _ctxSeedTemplates(); _ctxLoad(); blocks = _ctxBlocks.slice(); draw(); });
+        el.querySelector('.ctxpick-search').addEventListener('input', draw);
+        el.querySelector('.ctxpick-search').focus();
+        el.querySelector('.ctxpick-open').addEventListener('click', () => { _ctxPickerHide(); if (window.openContextBankWorkspace) window.openContextBankWorkspace(); });
+        el.addEventListener('click', e => {
+            const c = e.target.closest('[data-pc]');
+            if (c) { _ctxPickerCat = c.dataset.pc; return draw(); }
+            const it = e.target.closest('[data-pid]');
+            if (!it) return;
+            const b = _ctxBlocks.find(x => x.id === it.dataset.pid);
+            if (!b) return;
+            _ctxPickerHide();
+            if (opts.onPick) return opts.onPick(_ctxPlain(b));
+            const t = typeof target === 'function' ? target() : (typeof target === 'string' ? document.querySelector(target) : target);
+            if (!t) { toast('Nothing to insert into here', 'warning'); return; }
+            _ctxInsertAt(t, _ctxWrapText(b));
+            toast('Context block inserted', 'success');
+        });
+        _ctxPickerClose = e => {
+            if (e.type === 'keydown') { if (e.key === 'Escape') { e.stopPropagation(); _ctxPickerHide(); anchor.focus && anchor.focus(); } return; }
+            if (!el.contains(e.target) && !anchor.contains(e.target)) _ctxPickerHide();
+        };
+        document.addEventListener('mousedown', _ctxPickerClose, true);
+        document.addEventListener('keydown', _ctxPickerClose, true);
+    };
+
     function _ctxPanelSaveNew() {
         const title = ($('#ctxPanelNewTitle')?.value || '').trim();
         const category = $('#ctxPanelNewCat')?.value || 'Other';
