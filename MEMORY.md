@@ -558,3 +558,12 @@ Handover phase 5, done. All five phases of the Prompt Builder Pro handover are n
 - The workspace has `tabindex="-1"` and `_ctxKeepFocus()` so Escape and Ctrl+S work after a focused button is hidden.
 - Verified in headless Chromium at 1280 px against a disposable data folder, light and dark. Not run in the PyWebView window. The native Save As window for Export could not be opened there.
 - Backups: `_rollbacks/* v-pre-context-bank.*`. Job files and screenshots: `jobs/context-bank/`.
+
+### Branch combine follow-up (2026-11-15), supersedes the notes above where they differ
+
+- Library scope bar (favourites and folder chips) REMOVED again: Eugene did not like how it looked on desktop. The JSON export folder name change from that branch stays. The launcher's My Favorites list from main is unchanged.
+- Dice are always six sided on desktop. `static/vartypes-3d.js` is untouched (it must stay byte for byte with the phone). Instead `app.js` forces 6 faces, the variable editor Sides field is hidden and no longer saved, and `app.css` hides the sides stepper and presets (`.vd [data-vdk="sides"]`, `.vd .vd-presets`). Custom word faces still set their own face count.
+- Context Bank rework (ccr-a045f841-s45c5q) is now merged: Pro launcher card, Context button and side panel in the New prompt window (`#ctxPanelToggleBtn`), category pills with counts, sort, pin, duplicate, saved copy through `/api/settings/context-bank`. It replaces the own-categories manager: rename and remove of custom categories is gone, new categories are made by typing one in the block editor. The dead own-categories code (`CTX_CATS_KEY`, `_ctxCatUI`, `_ctxRenderCatManager` and related) was deleted from `app.js`.
+- Verified in headless Chromium (disposable data folder): launcher card present, workspace opens with 60 starter blocks and 12 pills, New prompt Context panel opens, no console errors. Not run in PyWebView, not clicked through block editing, pin or import.
+- Backups: `_rollbacks/*.15-11-2026-pre-dice6` and `*.15-11-2026-pre-ctxbank`.
+- Still unmerged: claude/sharp-ptolemy-1lwhno, feature/prompt-switchboard, three older variable-type branches.
