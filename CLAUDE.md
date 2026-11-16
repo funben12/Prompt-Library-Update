@@ -42,7 +42,7 @@ No test suite, no linter, no package.json. Verification is manual: syntax checks
 
 - `Main.py` -- entry point, launches Flask + PyWebView, handles frozen-vs-dev path resolution
 - `app.py` (~2.6k lines) -- Flask app: DB init/schema (`init_db()`), all `/api/*` routes, serialisation helpers. One file, no blueprints
-- `static/index.html` (~3.4k lines) -- all markup; 10 `<script>` tags (components-data, forge-frameworks, xray-views, qrcode.min, app.js, randomiser-motion, vartypes-3d, deck-shuffles, dice-rolls, inline bootstrap)
+- `static/index.html` (~3.4k lines) -- all markup; 11 `<script>` tags (components-data, forge-frameworks, xray-views, qrcode.min, combine-prompts, app.js, randomiser-motion, vartypes-3d, deck-shuffles, dice-rolls, inline bootstrap)
 - `static/app.css` (~270KB) -- all styling, cache-busted via `app.css?v=[hash]` in index.html
 - `static/app.js` (~18k lines) -- entire frontend logic in one IIFE: `state` object, render functions, workspace init/open functions, API calls
 - `static/components-data.js` -- static prompt-component library data, separated from app.js because of size
@@ -120,7 +120,7 @@ in `_shared/shared.css` -- grep both before concluding something isn't styled.
 - Flask routes: private helpers prefixed `_` (`_json_body`, `_normalise_list`, `_folder_id`)
 - Comments: plain English, one line, imperative. No paragraph comments, no docstring blocks
 - No new dependencies without explicit approval. No schema migrations without explicit approval
-- Premium-gated features: `premium-locked` class on the HTML element + `state.isPremium` check in JS
+- Premium-gated features: `premium-locked` class on the HTML element + `state.isPremium` check in JS. **Since 2026-11-16 there is no free tier inside the app**: a first launch licence screen (`#activationGate`) asks for the key and, once a valid key is saved, every lock and limit is gone. Do not reintroduce `FREE_LIMITS` or upgrade toasts. The old `premium-locked` markup and `state.isPremium` checks are now dead code kept for safety.
 
 ---
 
@@ -144,7 +144,7 @@ in `_shared/shared.css` -- grep both before concluding something isn't styled.
 - **Frozen vs dev paths differ.** `get_data_dir()` / `get_static_dir()` in app.py branch on PyInstaller frozen state -- don't hardcode paths relative to the source tree.
 - **Flask/PyWebView startup race.** Main.py polls the socket to confirm Flask is up before WebView loads the page -- don't remove that wait.
 - **Async loaders need try/catch around every render call inside them,** or a failed fetch silently blanks the UI with no error surfaced.
-- **NUL bytes and truncation have hit this file before.** Before trusting static/index.html or app.js, sanity check: `grep -c "<script" static/index.html` should be 10; `node --check static/app.js` should pass and end in `})();`.
+- **NUL bytes and truncation have hit this file before.** Before trusting static/index.html or app.js, sanity check: `grep -c "<script" static/index.html` should be 11; `node --check static/app.js` should pass and end in `})();`.
 - **PromptLibrary.db and PromptLibrary.db-journal are live SQLite files in the repo root** -- don't blindly overwrite/delete, the journal implies an interrupted write.
 - **licence_api.py / licence_ui.js are a separate system from the main prompt CRUD** -- don't conflate premium-gating logic with licence validation logic.
 - **`.chain-step` / `.chain-step-num` / `.chain-step-body` are already taken.** An unrelated chain-search picker elsewhere in `app.css` (~line 1479) uses these exact class names with `display: grid; grid-template-columns: 32px 1fr auto`, which silently breaks any other feature that reuses them (missing `display` overrides leak straight through the cascade). The Prompt Chain workspace uses `chainw-step` / `chainw-step-num` / `chainw-step-body` instead -- grep for a class before reusing it, don't assume `chain-` prefixed names are free.
@@ -153,7 +153,7 @@ in `_shared/shared.css` -- grep both before concluding something isn't styled.
 
 ## Triage: "prompts not showing"
 
-1. `grep -c "<script" static/index.html` -> must be 10, else file truncated
+1. `grep -c "<script" static/index.html` -> must be 11, else file truncated
 2. `node --check static/app.js` -> JS syntax error
 3. `python3 -m py_compile app.py` -> Flask startup error
 4. Check render calls inside async loaders are wrapped in try/catch
@@ -297,6 +297,6 @@ A Pro workspace opened from the launcher's My Favorites list. It is a node canva
 
 **Corrections to older notes in this file (checked 2026-11-13):**
 
-- `grep -c "<script" static/index.html` is **10** (re-checked 2026-11-15, deck-shuffles.js and dice-rolls.js added: components-data, forge-frameworks, xray-views, qrcode.min, app.js, randomiser-motion, vartypes-3d, inline bootstrap), not 5 or 3. Use 10 in the truncation check and the triage list.
+- `grep -c "<script" static/index.html` is **11** (re-checked 2026-11-16, combine-prompts.js restored; was 10 on 2026-11-15, deck-shuffles.js and dice-rolls.js added: components-data, forge-frameworks, xray-views, qrcode.min, app.js, randomiser-motion, vartypes-3d, inline bootstrap), not 5 or 3. Use 10 in the truncation check and the triage list.
 - `Prompt Library Interface Files/` is not in this git repository. It may exist only on Eugene's machine. If it is missing, work from the live files in `static/`.
 - Browser checks in cloud sessions have been run with scripted Playwright (the `playwright` Node library with headless Chromium) against a disposable data folder. The Playwright MCP tools were not tried there, so the rule above still stands for local sessions.
