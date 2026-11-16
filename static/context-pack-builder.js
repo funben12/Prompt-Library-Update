@@ -577,7 +577,7 @@
             return `<button type="button" class="cpb-pack${on ? ' cpb-on' : ''}" data-act="selectPack" data-id="${esc(pk.id)}"${on ? ' aria-current="true"' : ''}>
         <span class="cpb-pack-name">${esc(pk.name)}</span>
         <span class="cpb-pack-plat">${esc(PLAT[pk.platform].name)}</span>
-        <span class="cpb-pack-meta"><span><span class="cpb-mono">${fmt(n)}</span> items</span><span><span class="cpb-mono">${fmt(packTokens(pk, p.ratio))}</span> est. tokens</span></span>
+        <span class="cpb-pack-meta"><span><span class="cpb-mono">${fmt(n)}</span> ${n === 1 ? 'item' : 'items'}</span><span><span class="cpb-mono">${fmt(packTokens(pk, p.ratio))}</span> est. tokens</span></span>
       </button>`;
         }).join('');
         return `<div class="cpb-pane-head"><span class="cpb-label">Packs <span class="cpb-mono cpb-count">${store.packs.length}</span></span></div>
@@ -644,7 +644,6 @@
         <span class="cpb-glyph" aria-hidden="true">${ms(T.icon)}</span>
         <input class="form-input cpb-mod-name" data-f="modName" value="${esc(m.name)}" aria-label="Module name" autocomplete="off">
         <span class="cpb-mod-meta">
-          <select class="form-input cpb-mod-type" data-f="modType" aria-label="Module type">${optionsHtml(TYPES, m.type)}</select>
           <span class="cpb-tok" data-tok-mod="${esc(m.id)}"></span>
           <span class="cpb-tools">
             <button type="button" class="icon-btn" data-act="modUp" aria-label="Move module up"${i === 0 ? ' disabled' : ''}>${ms('arrow_upward')}</button>
@@ -654,7 +653,10 @@
         </span>
       </header>
       ${collapsed ? '' : `<div class="cpb-mod-body">
-        <p class="cpb-hint">${esc(T.blurb)}</p>
+        <div class="cpb-mod-sub">
+          <p class="cpb-hint">${esc(T.blurb)}</p>
+          <label class="cpb-type-pick"><span class="cpb-label">Type</span><select class="form-input cpb-mod-type" data-f="modType" aria-label="Module type">${optionsHtml(TYPES, m.type)}</select></label>
+        </div>
         <div class="cpb-items">${items}</div>
         <div class="cpb-mod-actions">
           <button type="button" class="btn" data-act="addItem">${ms('add')}<span>Add item</span></button>
@@ -696,15 +698,14 @@
     </div>`;
     }
 
-    function barHtml(label, demand, budget, extra) {
-        if (budget == null) return `<div class="cpb-bar-row"><div class="cpb-bar-head"><span class="cpb-label">${label}</span><span class="cpb-mono cpb-bar-fig">${fmt(demand)}<span class="cpb-unit"> est. tokens, no limit set</span></span></div></div>`;
+    function barHtml(label, demand, budget) {
+        if (budget == null) return `<div class="cpb-bar-row"><div class="cpb-bar-head"><span class="cpb-label">${label}</span><span class="cpb-bar-status">No limit set</span><span class="cpb-mono cpb-bar-fig">${fmt(demand)}<span class="cpb-unit"> est. tokens</span></span></div></div>`;
         const pct = budget > 0 ? demand / budget : 0;
         const tone = pct > 1 ? 'over' : pct >= 0.8 ? 'near' : 'ok';
-        const status = pct > 1 ? `Over by ${fmt(demand - budget)}` : pct >= 0.8 ? 'Close to the limit' : 'Fits';
+        const status = pct > 1 ? `Over by <span class="cpb-mono">${fmt(demand - budget)}</span>` : pct >= 0.8 ? 'Close to the limit' : 'Fits';
         return `<div class="cpb-bar-row" data-tone="${tone}">
-      <div class="cpb-bar-head"><span class="cpb-label">${label}</span><span class="cpb-mono cpb-bar-fig">${fmt(demand)} / ${fmt(budget)}<span class="cpb-unit"> est. tokens</span></span></div>
+      <div class="cpb-bar-head"><span class="cpb-label">${label}</span><span class="cpb-bar-status">${status}</span><span class="cpb-mono cpb-bar-fig">${fmt(demand)} / ${fmt(budget)}<span class="cpb-unit"> est. tokens</span></span></div>
       <div class="cpb-bar" role="meter" aria-label="${esc(label)} against the approximate limit" aria-valuemin="0" aria-valuemax="${budget}" aria-valuenow="${Math.min(demand, budget)}" aria-valuetext="${fmt(demand)} of about ${fmt(budget)} estimated tokens"><span class="cpb-bar-fill" style="width:${Math.min(100, Math.round(pct * 1000) / 10)}%"></span></div>
-      <div class="cpb-bar-foot"><span class="cpb-bar-status">${status}</span><span class="cpb-mono">${Math.round(pct * 100)}%</span>${extra || ''}</div>
     </div>`;
     }
 
@@ -721,6 +722,7 @@
         const num = (k, v, ph) => `<input class="form-input cpb-mono cpb-num" type="number" min="1" step="1" data-f="prof_${k}" value="${v == null ? '' : v}" placeholder="${ph}">`;
         const settings = `<details class="cpb-details" id="cpb-limits"${store.ui.limitsOpen ? ' open' : ''}>
       <summary><span class="cpb-label">Limits and splitting</span>${ms('expand_more')}</summary>
+      <p class="cpb-hint">${esc(plat.basis)}</p>
       <div class="cpb-limit-grid">
         <label class="cpb-field"><span>Instruction budget, est. tokens</span>${num('instr', P.instr, 'No limit')}</label>
         <label class="cpb-field"><span>Knowledge budget, est. tokens</span>${num('know', P.know, 'No limit')}</label>
@@ -768,7 +770,7 @@
     <div class="cpb-out-scroll">
       <section class="cpb-budget" aria-label="Budget">
         ${bars.join('')}
-        <p class="cpb-approx">${ms('info')}<span>${esc(plat.basis)} Every limit here is approximate. Check the platform's current limits before you rely on them.</span></p>
+        <p class="cpb-approx">${ms('info')}<span>Every limit here is approximate. Check the platform's current limits before you rely on them.</span></p>
         ${settings}
       </section>
       ${notes.join('')}
@@ -797,10 +799,20 @@
         const el = $('#cpb-output', root);
         const scroller = $('.cpb-out-scroll', el);
         const top = scroller ? scroller.scrollTop : 0;
-        const focusAct = document.activeElement && el.contains(document.activeElement) ? document.activeElement.dataset.act : null;
+        const topOuter = el.scrollTop;
+        const active = document.activeElement && el.contains(document.activeElement) ? document.activeElement : null;
+        const focusAct = active ? active.dataset.act : null;
+        // The limits fields keep their own element while the rest is redrawn, so typing is never interrupted.
+        const keep = active && active.dataset.f && active.dataset.f.startsWith('prof_') ? $('#cpb-limits', el) : null;
         el.innerHTML = outputHtml();
+        if (keep) {
+            const fresh = $('#cpb-limits', el);
+            if (fresh) fresh.replaceWith(keep);
+            keep.querySelector(`[data-f="${active.dataset.f}"]`).focus({ preventScroll: true });
+        }
         const s = $('.cpb-out-scroll', el);
         if (s) s.scrollTop = top;
+        el.scrollTop = topOuter;
         if (focusAct) { const f = $(`[data-act="${focusAct}"]`, el); if (f) f.focus({ preventScroll: true }); }
     }
     function renderAll() { renderRail(); renderEditor(); renderOutput(); }
@@ -1292,6 +1304,8 @@
         root.addEventListener('input', onInput);
         root.addEventListener('change', onChange);
         root.addEventListener('keydown', onKeydown);
+        // The toggle event does not bubble, so it is caught on the way down.
+        root.addEventListener('toggle', e => { if (e.target.id === 'cpb-limits') { store.ui.limitsOpen = e.target.open; save(); } }, true);
         window.addEventListener('pagehide', flushSave);
         setTab('edit');
         renderAll();

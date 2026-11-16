@@ -214,7 +214,7 @@
     function emptyState(kind) {
         const tab = st.tab, f = st.filter[tab], q = norm(st.q);
         if (!q && tab === 'folders' && f !== 'all' && f !== NONE) {
-            return '<div class="wsp-empty" role="status">' + ms('folder_open', 'wsp-empty-icon') + '<h4>This folder is empty</h4><p>Drag a workspace card onto this folder in the list on the left, or use Organise on a card.</p></div>';
+            return '<div class="wsp-empty" role="status">' + ms('folder_open', 'wsp-empty-icon') + '<h4>This folder is empty</h4><p>Drag a workspace card onto this folder, or use Organise on a card to move one here.</p></div>';
         }
         if (!q && f !== 'all' && tab !== 'folders') {
             return '<div class="wsp-empty" role="status">' + ms(tab === 'tags' ? 'sell' : 'category', 'wsp-empty-icon') + '<h4>Nothing here yet</h4><p>No workspaces use this ' + kindOfTab(tab) + '. Use Organise on a card to add one.</p>' +
@@ -329,6 +329,9 @@
         st.railOpen = false;
         keepFocus(() => { syncTabs(); renderRail(); renderMain(); });
         mainEl.scrollTop = 0;
+        // On a phone the rail is a sideways strip, so the chosen chip is brought into view.
+        const sel = railEl.querySelector('.is-sel');
+        if (sel && window.matchMedia('(max-width: 640px)').matches) sel.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
     function clearFilters() {
         st.q = ''; searchEl.value = '';
@@ -477,10 +480,10 @@
         return '<div class="wsp-field"><span class="wsp-label">Move to folder</span>' +
             (folders.length ? '<div class="wsp-optlist" role="group" aria-label="Folder">' + fl + '</div>' : '<p class="wsp-dlg-text">No folders yet.</p><button type="button" class="wsp-btn" data-act="o-newfolder" data-fk="opt:newfolder">' + ms('add') + 'New folder</button>') + '</div>' +
             '<div class="wsp-field"><span class="wsp-label">Category</span><div class="wsp-optrow" role="group" aria-label="Category">' +
-                cats.map(c => '<button type="button" class="wsp-pick' + (o.category === c.id ? ' is-on' : '') + '" style="' + chipVars(c.color) + '" data-act="o-cat" data-val="' + esc(c.id) + '" data-fk="opt:cat:' + esc(c.id) + '" aria-pressed="' + (o.category === c.id) + '"><span class="wsp-chip-dot" aria-hidden="true"></span>' + esc(c.name) + '</button>').join('') +
+                cats.map(c => '<button type="button" class="wsp-pick' + (o.category === c.id ? ' is-on' : '') + '" style="' + chipVars(c.color) + '" data-act="o-cat" data-val="' + esc(c.id) + '" data-fk="opt:cat:' + esc(c.id) + '" aria-pressed="' + (o.category === c.id) + '"><span class="wsp-chip-dot" aria-hidden="true"></span>' + esc(c.name) + (o.category === c.id ? ms('check') : '') + '</button>').join('') +
             '</div></div>' +
             '<div class="wsp-field"><span class="wsp-label">Tags</span>' + (tags.length ? '<div class="wsp-optrow" role="group" aria-label="Tags">' +
-                tags.map(t => '<button type="button" class="wsp-pick' + (o.tags.indexOf(t.id) >= 0 ? ' is-on' : '') + '" style="' + chipVars(t.color) + '" data-act="o-tag" data-val="' + esc(t.id) + '" data-fk="opt:tag:' + esc(t.id) + '" aria-pressed="' + (o.tags.indexOf(t.id) >= 0) + '"><span class="wsp-chip-dot" aria-hidden="true"></span>' + esc(t.name) + '</button>').join('') + '</div>' : '<p class="wsp-dlg-text">No tags yet.</p>') + '</div>';
+                tags.map(t => '<button type="button" class="wsp-pick' + (o.tags.indexOf(t.id) >= 0 ? ' is-on' : '') + '" style="' + chipVars(t.color) + '" data-act="o-tag" data-val="' + esc(t.id) + '" data-fk="opt:tag:' + esc(t.id) + '" aria-pressed="' + (o.tags.indexOf(t.id) >= 0) + '"><span class="wsp-chip-dot" aria-hidden="true"></span>' + esc(t.name) + (o.tags.indexOf(t.id) >= 0 ? ms('check') : '') + '</button>').join('') + '</div>' : '<p class="wsp-dlg-text">No tags yet.</p>') + '</div>';
     }
     function organiseDialog(id) {
         const w = P().get(id);

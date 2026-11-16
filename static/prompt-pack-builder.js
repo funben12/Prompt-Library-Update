@@ -329,7 +329,7 @@
     </div>
   </div>
   <div class="ws-header-actions">
-    <button class="btn" type="button" data-act="import">${ms('upload')}<span>Import pack</span></button>
+    <button class="btn" type="button" data-act="import" aria-label="Import pack">${ms('upload')}<span>Import pack</span></button>
     <input type="file" id="ppb-file" accept=".json,application/json" hidden>
     <button class="icon-btn" type="button" data-act="close" aria-label="Close Prompt Pack Builder">${ms('close')}</button>
   </div>
@@ -423,7 +423,7 @@
       <div class="ppb-checks" id="ppb-checks" tabindex="-1"></div>
       <div class="ppb-export-head"><span class="ppb-label">Export</span><span class="ppb-mono ppb-count" id="ppb-export-size"></span></div>
       <div class="ppb-export-grid">
-        ${Object.keys(FORMATS).map(k => `<button class="btn" type="button" data-act="export" data-fmt="${k}">${ms('download')}<span>${FORMATS[k].label}</span><span class="ppb-mono ppb-ext">.${FORMATS[k].ext}</span></button>`).join('')}
+        ${Object.keys(FORMATS).map(k => `<button class="btn" type="button" data-act="export" data-fmt="${k}">${ms('download')}<span class="ppb-btn-label">${FORMATS[k].label}</span><span class="ppb-mono ppb-ext">.${FORMATS[k].ext}</span></button>`).join('')}
       </div>
       <button class="btn btn-accent ppb-copy-md" type="button" data-act="copyMd">${ms('content_copy')}<span>Copy Markdown</span></button>
     </div>
@@ -492,7 +492,7 @@
         const confirm = ui.confirmPrompt === x.uid;
         return '<li class="ppb-card' + (flag ? ' ppb-card-flag' : '') + '" data-uid="' + esc(x.uid) + '">' +
             '<div class="ppb-card-head">' +
-            '<button class="ppb-grip" type="button" data-grip aria-label="Reorder ' + esc(name) + ', position ' + (i + 1) + ' of ' + total + '. Drag, or use the arrow keys." title="Drag to reorder">' + ms('drag_indicator') + '</button>' +
+            '<span class="ppb-grip" role="button" tabindex="0" draggable="true" data-grip aria-label="Reorder ' + esc(name) + ', position ' + (i + 1) + ' of ' + total + '. Drag, or use the arrow keys." title="Drag to reorder">' + ms('drag_indicator') + '</span>' +
             '<span class="ppb-num ppb-mono">' + n + '</span>' +
             '<input class="form-input ppb-card-title" data-card="title" value="' + esc(x.title) + '" maxlength="300" placeholder="Prompt title" aria-label="Title of prompt ' + (i + 1) + '" autocomplete="off">' +
             '<div class="ppb-card-actions">' +
@@ -1040,6 +1040,10 @@
                 el._t = setTimeout(renderPicker, 120);
             }
         });
+        root.addEventListener('mousedown', e => {
+            const box = e.target.closest('#ppb-tagbox');
+            if (box && !e.target.closest('button') && e.target.id !== 'ppb-f-tags') { e.preventDefault(); $('#ppb-f-tags').focus(); }
+        });
         root.addEventListener('change', e => {
             if (e.target.id === 'ppb-file') importFile(e.target.files && e.target.files[0]);
         });
@@ -1078,18 +1082,14 @@
             if (el.id === 'ppb-rename') commitRename(el.closest('[data-id]').dataset.id, el.value);
             else if (el.id === 'ppb-f-tags' && el.value.trim()) { addTags(el.value); el.value = ''; }
         });
-        // Drag to reorder. The row only becomes draggable while the grip is held, so text selection stays normal.
-        root.addEventListener('pointerdown', e => {
-            const g = e.target.closest('[data-grip]');
-            if (g) { const li = g.closest('.ppb-card'); if (li) li.draggable = true; }
-        });
-        root.addEventListener('pointerup', () => { $$('.ppb-card[draggable="true"]').forEach(li => { if (!ui.dragUid) li.draggable = false; }); });
+        // Drag to reorder. Only the grip is draggable, so text selection in the fields stays normal.
         root.addEventListener('dragstart', e => {
-            const li = e.target.closest && e.target.closest('.ppb-card');
-            if (!li || !li.draggable) return;
+            const g = e.target.closest && e.target.closest('[data-grip]');
+            const li = g && g.closest('.ppb-card');
+            if (!li) return;
             ui.dragUid = li.dataset.uid;
             e.dataTransfer.effectAllowed = 'move';
-            try { e.dataTransfer.setData('text/plain', ui.dragUid); } catch (x) { /* some engines refuse */ }
+            try { e.dataTransfer.setData('text/plain', ui.dragUid); e.dataTransfer.setDragImage(li, 24, 24); } catch (x) { /* some engines refuse */ }
             setTimeout(() => li.classList.add('ppb-dragging'), 0);
         });
         root.addEventListener('dragover', e => {
@@ -1118,7 +1118,6 @@
         ui.dragUid = null;
         ui.dropUid = null;
         $$('.ppb-dragging, .ppb-drop-before, .ppb-drop-after').forEach(n => n.classList.remove('ppb-dragging', 'ppb-drop-before', 'ppb-drop-after'));
-        $$('.ppb-card[draggable="true"]').forEach(li => { li.draggable = false; });
     }
 
     function mount() {

@@ -204,7 +204,7 @@
   line-height: 1.2;
   transition: border-color var(--t-fast);
 }
-#promptPackBuilderWorkspace .ppb-title-input::placeholder { color: var(--ink-4); }
+#promptPackBuilderWorkspace ::placeholder { color: var(--ink-3); opacity: 1; }
 #promptPackBuilderWorkspace .ppb-title-input:hover { border-bottom-color: var(--ink-3); }
 #promptPackBuilderWorkspace .ppb-title-input:focus { border-bottom-color: var(--accent); box-shadow: none; }
 #promptPackBuilderWorkspace .ppb-title-input:focus-visible { box-shadow: 0 2px 0 0 var(--accent-line); }
@@ -309,9 +309,8 @@
   border: 0;
   border-radius: var(--r-sm);
   background: none;
-  color: var(--ink-4);
+  color: var(--ink-3);
   cursor: grab;
-  touch-action: none;
 }
 #promptPackBuilderWorkspace .ppb-grip:hover { color: var(--ink-2); background: var(--surface-2); }
 #promptPackBuilderWorkspace .ppb-grip:active { cursor: grabbing; }
@@ -396,7 +395,8 @@
 #promptPackBuilderWorkspace .ppb-checks:focus-visible { box-shadow: var(--ring); }
 #promptPackBuilderWorkspace .ppb-check-head { display: flex; align-items: center; gap: var(--sp-2); margin: 0; font-weight: 700; }
 #promptPackBuilderWorkspace .ppb-check-head .material-symbols-outlined { font-size: 18px; }
-#promptPackBuilderWorkspace .ppb-check-ok { color: var(--success); }
+#promptPackBuilderWorkspace .ppb-check-ok { color: var(--ink); }
+#promptPackBuilderWorkspace .ppb-check-ok .material-symbols-outlined { color: var(--success); }
 #promptPackBuilderWorkspace .ppb-check-bad { color: var(--danger); }
 #promptPackBuilderWorkspace .ppb-check-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 132px; overflow-y: auto; }
 #promptPackBuilderWorkspace .ppb-check-item {
@@ -418,11 +418,11 @@
 #promptPackBuilderWorkspace .ppb-check-item .material-symbols-outlined { font-size: 16px; flex-shrink: 0; }
 #promptPackBuilderWorkspace .ppb-check-error > .material-symbols-outlined:first-child { color: var(--danger); }
 #promptPackBuilderWorkspace .ppb-check-warn > .material-symbols-outlined:first-child { color: var(--warn); }
-#promptPackBuilderWorkspace .ppb-check-go { color: var(--ink-4); }
+#promptPackBuilderWorkspace .ppb-check-go { color: var(--ink-3); }
 #promptPackBuilderWorkspace .ppb-export-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
 #promptPackBuilderWorkspace .ppb-export-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }
 #promptPackBuilderWorkspace .ppb-export-grid .btn { justify-content: flex-start; }
-#promptPackBuilderWorkspace .ppb-export-grid .btn > span:nth-of-type(1) { flex: 1; text-align: left; }
+#promptPackBuilderWorkspace .ppb-btn-label { flex: 1; text-align: left; }
 #promptPackBuilderWorkspace .ppb-ext { font-size: var(--fs-xs); color: var(--ink-3); font-weight: 500; }
 #promptPackBuilderWorkspace .ppb-copy-md { justify-content: center; }
 
@@ -455,8 +455,8 @@
 #promptPackBuilderWorkspace .ppb-pick-snippet { color: var(--ink-3); font-size: var(--fs-xs); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 #promptPackBuilderWorkspace .ppb-pick-tags { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-top: 2px; }
 #promptPackBuilderWorkspace .ppb-pick-act { display: flex; align-items: center; gap: var(--sp-2); flex-shrink: 0; }
-#promptPackBuilderWorkspace .ppb-in-pack { display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-xs); color: var(--success); font-weight: 600; }
-#promptPackBuilderWorkspace .ppb-in-pack .material-symbols-outlined { font-size: 15px; }
+#promptPackBuilderWorkspace .ppb-in-pack { display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-xs); color: var(--ink-2); font-weight: 600; }
+#promptPackBuilderWorkspace .ppb-in-pack .material-symbols-outlined { font-size: 15px; color: var(--success); }
 #promptPackBuilderWorkspace .ppb-picker-note { display: grid; justify-items: center; gap: var(--sp-3); padding: var(--sp-7) var(--sp-5); color: var(--ink-3); text-align: center; }
 #promptPackBuilderWorkspace .ppb-picker-note p { margin: 0; }
 #promptPackBuilderWorkspace .ppb-picker-error .material-symbols-outlined { color: var(--danger); font-size: 28px; }
@@ -490,8 +490,11 @@
   #promptPackBuilderWorkspace .ppb-fmts { flex: 1; }
   #promptPackBuilderWorkspace .ppb-fmt { flex: 1; padding-inline: var(--sp-2); }
   #promptPackBuilderWorkspace .ppb-pack-main { min-height: 44px; }
-  #promptPackBuilderWorkspace .ppb-grip { width: 36px; height: 44px; }
-  #promptPackBuilderWorkspace .ppb-chip button { width: 28px; height: 28px; }
+  #promptPackBuilderWorkspace .ppb-grip { width: 44px; height: 44px; }
+  #promptPackBuilderWorkspace .ppb-tagbox { padding-block: 0; }
+  #promptPackBuilderWorkspace .ppb-tag-input { min-height: 44px; }
+  #promptPackBuilderWorkspace .ppb-chip { padding-block: 0; }
+  #promptPackBuilderWorkspace .ppb-chip button { width: 44px; height: 44px; margin: -8px -12px -8px -10px; }
   #promptPackBuilderWorkspace .ppb-check-item { min-height: 44px; }
   #promptPackBuilderWorkspace input, #promptPackBuilderWorkspace textarea, #promptPackBuilderWorkspace .form-input, #promptPackBuilderWorkspace .form-textarea { font-size: 16px; }
   #promptPackBuilderWorkspace .ppb-card-body { font-size: 14px; }
@@ -511,6 +514,11 @@
   #promptPackBuilderWorkspace .ppb-pick { flex-wrap: wrap; }
   #promptPackBuilderWorkspace .ppb-pick-act { width: 100%; justify-content: flex-end; }
   #promptPackBuilderWorkspace .ppb-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
+}
+
+/* Drag needs a mouse. Touch screens use the move buttons, so the grip is hidden there. */
+@media (hover: none) and (pointer: coarse) {
+  #promptPackBuilderWorkspace .ppb-grip { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

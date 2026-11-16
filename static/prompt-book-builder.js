@@ -29,19 +29,19 @@
     const words = s => (String(s || '').trim().match(/\S+/g) || []).length;
     const slug = s => String(s || '').toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, '').trim().replace(/\s+/g, '-');
     const reduceMotion = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    const stepItems = text => String(text || '').split('\n').map(l => l.replace(/^\s*(?:\d+[.)]|[*\-+•])\s+/, '').trim()).filter(Boolean);
+    const stepItems = text => String(text || '').split('\n').map(l => l.replace(/^\s*(?:\d+[.)]|[*\-+\u2022])\s+/, '').trim()).filter(Boolean);
     const varsIn = text => [...new Set(String(text || '').match(VAR_RE) || [])];
     const varHl = escaped => escaped.replace(VAR_RE, m => `<span class="pbb-var">${m}</span>`);
 
     // ---------- safe markdown subset: headings, bold, italic, bullet and numbered lists ----------
     function inline(raw) {
         const keep = [];
-        let s = String(raw ?? '').replace(/[]/g, '').replace(VAR_RE, m => { keep.push(m); return '' + (keep.length - 1) + ''; });
+        let s = String(raw ?? '').replace(/[\uE000\uE001]/g, '').replace(VAR_RE, m => { keep.push(m); return '\uE000' + (keep.length - 1) + '\uE001'; });
         s = esc(s);
         s = s.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
         s = s.replace(/(^|[^*\w])\*([^*\s][^*\n]*?)\*(?!\*)/g, '$1<em>$2</em>');
         s = s.replace(/(^|[^\w])_([^_\s][^_\n]*?)_(?!\w)/g, '$1<em>$2</em>');
-        return s.replace(/(\d+)/g, (_, i) => `<span class="pbb-var">${esc(keep[+i])}</span>`);
+        return s.replace(/\uE000(\d+)\uE001/g, (_, i) => `<span class="pbb-var">${esc(keep[+i])}</span>`);
     }
     function renderMd(src, base = 3) {
         const lines = String(src || '').replace(/\r\n?/g, '\n').split('\n');
@@ -207,7 +207,7 @@
         const toc = [];
         if (b.intro.trim()) toc.push('* [Introduction](#introduction)');
         const heads = b.chapters.map((c, i) => `Chapter ${i + 1}${c.title.trim() ? ': ' + c.title.trim() : ''}`);
-        heads.forEach((t, i) => toc.push(`${i + 1}. [${mdSafe(t).replace(/([\[\]])/g, '\\$1')}](#${slug(t)})`));
+        heads.forEach(t => toc.push(`* [${mdSafe(t).replace(/([\[\]])/g, '\\$1')}](#${slug(t)})`));
         out.push('', '## Contents', '', toc.length ? toc.join('\n') : '_This book has no chapters yet._');
         if (b.intro.trim()) out.push('', '## Introduction', '', shiftHeadings(b.intro, 3));
         b.chapters.forEach((c, i) => {
@@ -246,7 +246,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.65 "Iowan Old St
 .pbb-cover{min-height:min(34rem,80vh);display:grid;align-items:center}
 .pbb-cover-title{font-size:clamp(2.2rem,8vw,3.4rem);line-height:1.08;margin:0;letter-spacing:-.02em}
 .pbb-cover-sub{font-size:1.25rem;color:var(--ink2);margin:.9rem 0 0}
-.pbb-cover-rule{width:3.5rem;height:3px;background:var(--accent);margin:1.75rem 0 1.25rem}
+.pbb-cover-rule{width:3.5rem;height:0;border-top:3px solid var(--accent);margin:1.75rem 0 1.25rem}
 .pbb-cover-author{margin:0;font-size:1.1rem}
 .pbb-cover-edition{margin:.2rem 0 0;color:var(--mute);font-size:.95rem}
 .pbb-toc-list{list-style:none;margin:0;padding:0}
@@ -573,7 +573,8 @@ ${live ? `<div class="pbb-md-live pbb-prose">${x.text.trim() ? renderMd(x.text, 
         closeDialog(false, true);
         const layer = $('#pbb-layer');
         layer.innerHTML = `<div class="pbb-scrim" data-scrim><div class="pbb-dialog${opts.wide ? ' pbb-dialog-wide' : ''}" role="${opts.alert ? 'alertdialog' : 'dialog'}" aria-modal="true" aria-labelledby="pbb-dlg-title" tabindex="-1">${html}</div></div>`;
-        dialog = { opener: opts.opener || document.activeElement, resolve: opts.resolve || null, onClose: opts.onClose || null };
+        const op = opts.opener || document.activeElement;
+        dialog = { opener: op, openerAct: op && op.dataset ? op.dataset.act : null, resolve: opts.resolve || null, onClose: opts.onClose || null };
         const d = layer.querySelector('.pbb-dialog');
         (d.querySelector('[data-autofocus]') || d).focus();
     }
@@ -585,7 +586,7 @@ ${live ? `<div class="pbb-md-live pbb-prose">${x.text.trim() ? renderMd(x.text, 
         if (d.resolve) d.resolve(result === true);
         if (silent) return;
         if (d.opener && d.opener.isConnected && root.contains(d.opener)) d.opener.focus();
-        else root.focus();
+        else if (!(d.openerAct && focusSel(`[data-act="${d.openerAct}"]`))) root.focus();
     }
     function confirmDialog(title, body, okLabel) {
         return new Promise(resolve => openDialog(`<h3 class="pbb-dlg-title" id="pbb-dlg-title">${esc(title)}</h3><p class="pbb-dlg-body">${esc(body)}</p><div class="pbb-dlg-foot"><button type="button" class="btn" data-act="dlgCancel" data-autofocus>Cancel</button><button type="button" class="btn btn-danger" data-act="dlgOk">${esc(okLabel)}</button></div>`, { alert: true, resolve }));
@@ -605,6 +606,7 @@ ${live ? `<div class="pbb-md-live pbb-prose">${x.text.trim() ? renderMd(x.text, 
         const foot = root.querySelector('#pbb-lib-count');
         if (lib.loading && !lib.items) { el.innerHTML = `<p class="pbb-empty">Loading your library.</p>`; return; }
         if (lib.error && !lib.items) { el.innerHTML = `<p class="pbb-empty">Your library could not be loaded. You can still type a prompt directly.</p>`; return; }
+        const keepId = document.activeElement && el.contains(document.activeElement) ? document.activeElement.dataset.id : null;
         const all = libFilter(), shown = all.slice(0, 100);
         if (foot) foot.textContent = `${fmtN(all.length)} of ${fmtN((lib.items || []).length)}`;
         if (!all.length) { el.innerHTML = `<p class="pbb-empty">${(lib.items || []).length ? 'No prompts match that search.' : 'Your library has no prompts yet.'}</p>`; return; }
@@ -614,6 +616,7 @@ ${live ? `<div class="pbb-md-live pbb-prose">${x.text.trim() ? renderMd(x.text, 
             const tags = (p.tags || []).slice(0, 3).map(t => `<span class="pbb-chip">${esc(t)}</span>`).join('');
             return `<button type="button" class="pbb-lib-item${added ? ' is-added' : ''}" data-act="libPick" data-id="${esc(p.id)}"><span class="pbb-lib-main"><span class="pbb-lib-title">${esc(p.title || 'Untitled')}</span><span class="pbb-lib-snip">${esc(snip)}</span>${tags ? `<span class="pbb-lib-tags">${tags}</span>` : ''}</span><span class="pbb-lib-cta">${added ? `${ms('check')}<span>Added</span>` : `${ms(lib.mode === 'add' ? 'add' : 'swap_horiz')}<span>${lib.mode === 'add' ? 'Add' : 'Use'}</span>`}</span></button>`;
         }).join('') + (all.length > shown.length ? `<p class="pbb-empty">Showing the first ${shown.length}. Search to narrow the list.</p>` : '');
+        if (keepId != null) { const again = [...el.querySelectorAll('[data-id]')].find(n => n.dataset.id === keepId); if (again) again.focus({ preventScroll: true }); }
     }
     async function loadLibrary() {
         lib.loading = true; lib.error = false;

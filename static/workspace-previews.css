@@ -19,6 +19,8 @@
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
+  /* A little stronger than --line so panel outlines survive the scale down, in light and dark. */
+  --wsv-edge: color-mix(in oklch, var(--line) 45%, var(--line-strong));
 }
 :where(.wsv *, .wsv *::before, .wsv *::after) { box-sizing: border-box; margin: 0; padding: 0; pointer-events: none; }
 .wsv .wsv-stage {
@@ -118,7 +120,7 @@ html.wsv-js .wsv .wsv-stage { transform: scale(var(--wsv-s, 0.3)); }
 .wsv .wsv-k-yellow { --k: var(--c-yellow); --ks: var(--c-yellow-soft); }
 
 /* ---------- header (the real ws-header: icon, display title, subtitle, actions) ---------- */
-.wsv .wsv-hdr { display: flex; align-items: center; gap: 16px; height: 76px; padding: 0 28px; background: var(--surface); border-bottom: 2px solid var(--line); flex: none; }
+.wsv .wsv-hdr { display: flex; align-items: center; gap: 16px; height: 76px; padding: 0 28px; background: var(--surface); border-bottom: 2px solid var(--wsv-edge); flex: none; }
 .wsv.wsv-sm .wsv-hdr { height: 72px; }
 .wsv .wsv-hdr .wsv-spacer { flex: 1; min-width: 0; }
 .wsv .wsv-tile { width: 42px; height: 42px; border-radius: 10px; background: var(--accent-soft); border: 2px solid var(--accent-line); display: flex; align-items: center; justify-content: center; flex: none; }
@@ -127,7 +129,8 @@ html.wsv-js .wsv .wsv-stage { transform: scale(var(--wsv-s, 0.3)); }
 .wsv .wsv-tile.wsv-sm .wsv-ic { font-size: 22px; }
 .wsv .wsv-tile.wsv-k { background: var(--ks); border-color: color-mix(in oklch, var(--k) 40%, transparent); }
 .wsv .wsv-tile.wsv-k .wsv-ic { color: var(--k); }
-.wsv .wsv-hdr-plx { height: 96px; align-items: flex-start; padding-top: 18px; }
+.wsv .wsv-hdr.wsv-hdr-plx { height: 98px; align-items: flex-start; padding-top: 16px; }
+.wsv.wsv-sm .wsv-hdr.wsv-hdr-plx { height: 112px; padding-top: 18px; }
 
 /* ---------- controls ---------- */
 .wsv .wsv-btn { display: flex; align-items: center; justify-content: center; flex: none; height: 34px; border-radius: 8px; border: 2px solid var(--line-strong); background: var(--surface); }
@@ -140,11 +143,11 @@ html.wsv-js .wsv .wsv-stage { transform: scale(var(--wsv-s, 0.3)); }
 .wsv .wsv-btn.wsv-btn-sq::after { width: 12px; height: 12px; border-radius: 3px; }
 .wsv .wsv-btn.wsv-btn-lg { height: 42px; border-radius: 10px; }
 
-.wsv .wsv-field { display: flex; align-items: center; gap: 8px; flex: none; height: 40px; padding: 0 12px; border-radius: 8px; border: 2px solid var(--line); background: var(--surface-sunk); }
+.wsv .wsv-field { display: flex; align-items: center; gap: 8px; flex: none; height: 40px; padding: 0 12px; border-radius: 8px; border: 2px solid var(--wsv-edge); background: var(--surface-sunk); }
 .wsv .wsv-field.wsv-line { background: var(--surface); border-color: var(--line-strong); }
 .wsv .wsv-field.wsv-sel::after { content: ''; margin-left: auto; width: 8px; height: 8px; border-right: 2px solid var(--ink-3); border-bottom: 2px solid var(--ink-3); transform: translateY(-2px) rotate(45deg); flex: none; }
 .wsv .wsv-field.wsv-search .wsv-ic { font-size: 20px; }
-.wsv .wsv-area { display: flex; flex-direction: column; gap: 10px; min-height: 0; padding: 14px; border-radius: 8px; border: 2px solid var(--line); background: var(--surface-sunk); overflow: hidden; }
+.wsv .wsv-area { display: flex; flex-direction: column; gap: 10px; min-height: 0; padding: 14px; border-radius: 8px; border: 2px solid var(--wsv-edge); background: var(--surface-sunk); overflow: hidden; }
 .wsv .wsv-area.wsv-out { background: var(--surface); }
 .wsv .wsv-area.wsv-hl { border-left: 5px solid var(--accent); background: var(--surface); }
 .wsv .wsv-area.wsv-mono-lines { gap: 9px; }
@@ -190,16 +193,16 @@ html.wsv-js .wsv .wsv-stage { transform: scale(var(--wsv-s, 0.3)); }
 .wsv .wsv-badge { display: flex; align-items: center; justify-content: center; flex: none; min-width: 30px; height: 26px; padding: 0 9px; border-radius: 7px; background: var(--ks, var(--surface-2)); color: var(--k, var(--ink-3)); font-family: var(--ff-mono); font-size: 14px; font-weight: 600; border: 2px solid color-mix(in oklch, var(--k, var(--ink-3)) 35%, transparent); }
 
 /* ---------- panels ---------- */
-.wsv .wsv-pane { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; padding: 18px; border-radius: 14px; border: 2px solid var(--line); background: var(--surface); overflow: hidden; }
+.wsv .wsv-pane { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; padding: 18px; border-radius: 14px; border: 2px solid var(--wsv-edge); background: var(--surface); overflow: hidden; }
 .wsv .wsv-pane.wsv-flat { background: var(--bg); }
 .wsv .wsv-pane.wsv-sel { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
 .wsv .wsv-pane.wsv-k { border-top: 5px solid var(--k); }
-.wsv .wsv-rail { display: flex; flex-direction: column; gap: 12px; flex: none; padding: 20px 18px; overflow: hidden; background: var(--surface-2); border-right: 2px solid var(--line); }
-.wsv .wsv-rail.wsv-r { border-right: 0; border-left: 2px solid var(--line); }
+.wsv .wsv-rail { display: flex; flex-direction: column; gap: 12px; flex: none; padding: 20px 18px; overflow: hidden; background: var(--surface-2); border-right: 2px solid var(--wsv-edge); }
+.wsv .wsv-rail.wsv-r { border-right: 0; border-left: 2px solid var(--wsv-edge); }
 .wsv .wsv-rail.wsv-plain { background: var(--surface); }
 .wsv .wsv-li { display: flex; align-items: center; gap: 10px; flex: none; height: 38px; padding: 0 12px; border-radius: 8px; border: 2px solid transparent; }
 .wsv .wsv-li.wsv-on { background: var(--accent-soft); border-color: var(--accent-line); }
-.wsv .wsv-li.wsv-card { background: var(--surface); border-color: var(--line); height: 48px; border-radius: 10px; }
+.wsv .wsv-li.wsv-card { background: var(--surface); border-color: var(--wsv-edge); height: 48px; border-radius: 10px; }
 .wsv .wsv-li.wsv-sl { height: 32px; }
 .wsv .wsv-li.wsv-tall { height: 60px; }
 .wsv .wsv-li .wsv-end { margin-left: auto; display: flex; align-items: center; gap: 10px; }
@@ -207,7 +210,8 @@ html.wsv-js .wsv .wsv-stage { transform: scale(var(--wsv-s, 0.3)); }
 /* ---------- canvas, nodes, wires ---------- */
 .wsv .wsv-cv { position: relative; flex: 1 1 0; min-width: 0; min-height: 0; overflow: hidden; background: var(--surface-sunk); }
 .wsv .wsv-cv.wsv-framed { border: 2px solid var(--line); border-radius: 14px; }
-.wsv .wsv-cvin { position: absolute; left: 50%; top: 0; }
+.wsv .wsv-cvin { position: absolute; left: 50%; top: 0; transform-origin: 50% 0; }
+.wsv.wsv-sm .wsv-cvin { transform: scale(0.74); }
 .wsv .wsv-node { position: absolute; display: flex; flex-direction: column; gap: 9px; padding: 16px 14px 14px; border-radius: 12px; border: 2px solid var(--line-strong); background: var(--surface); box-shadow: var(--shadow-sm); }
 .wsv .wsv-node::before { content: ''; position: absolute; left: 12px; right: 12px; top: -2px; height: 5px; border-radius: 0 0 4px 4px; background: var(--k, var(--line-strong)); }
 .wsv .wsv-node.wsv-sel { border-color: var(--accent); box-shadow: 0 0 0 5px var(--accent-soft); }
@@ -240,7 +244,7 @@ html.wsv-js .wsv .wsv-stage { transform: scale(var(--wsv-s, 0.3)); }
 .wsv .wsv-tools > i::after { content: ''; width: 10px; height: 3px; border-radius: 2px; background: var(--ink-3); }
 
 /* ---------- tables ---------- */
-.wsv .wsv-tbl { display: flex; flex-direction: column; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); overflow: hidden; min-height: 0; }
+.wsv .wsv-tbl { display: flex; flex-direction: column; border-radius: 12px; border: 2px solid var(--wsv-edge); background: var(--surface); overflow: hidden; min-height: 0; }
 .wsv .wsv-tr { display: flex; align-items: center; gap: 14px; flex: none; height: 44px; padding: 0 16px; border-bottom: 2px solid var(--line); }
 .wsv .wsv-tr:last-child { border-bottom: 0; }
 .wsv .wsv-tr.wsv-h { height: 38px; background: var(--surface-2); }
@@ -256,13 +260,13 @@ html.wsv-js .wsv .wsv-stage { transform: scale(var(--wsv-s, 0.3)); }
 .wsv .wsv-paper { display: flex; flex-direction: column; gap: 14px; padding: 36px 44px; background: var(--surface); border: 2px solid var(--line); border-radius: 6px; box-shadow: var(--shadow-md); }
 .wsv .wsv-pblock { display: flex; flex-direction: column; gap: 9px; padding: 14px 16px; border-radius: 8px; border-left: 5px solid var(--accent); background: var(--accent-soft); }
 .wsv .wsv-bento { display: grid; gap: 14px; flex: 1 1 0; min-height: 0; }
-.wsv .wsv-bcell { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; padding: 14px 16px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); border-left: 5px solid var(--k, var(--line-strong)); overflow: hidden; }
+.wsv .wsv-bcell { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; padding: 14px 16px; border-radius: 12px; border: 2px solid var(--wsv-edge); background: var(--surface); border-left: 5px solid var(--k, var(--line-strong)); overflow: hidden; }
 .wsv .wsv-mas { column-count: 3; column-gap: 16px; flex: 1 1 0; min-height: 0; overflow: hidden; }
 .wsv.wsv-sm .wsv-mas { column-count: 2; }
 .wsv .wsv-mas > .wsv-pane { break-inside: avoid; margin-bottom: 16px; display: flex; }
 .wsv .wsv-tl { position: relative; display: flex; flex-direction: column; gap: 10px; padding-left: 26px; }
 .wsv .wsv-tl::before { content: ''; position: absolute; left: 6px; top: 8px; bottom: 8px; width: 2px; background: var(--line-strong); }
-.wsv .wsv-tl > .wsv-li::before { content: ''; position: absolute; left: 1px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 3px solid var(--k, var(--accent)); }
+.wsv .wsv-tl > .wsv-li::before { content: ''; position: absolute; left: -25px; top: 50%; margin-top: -6px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 3px solid var(--k, var(--accent)); }
 .wsv .wsv-tl > .wsv-li { position: relative; }
 .wsv .wsv-stack { position: relative; flex: 1 1 0; min-height: 0; }
 .wsv .wsv-stack > .wsv-pane { position: absolute; }
@@ -273,7 +277,7 @@ html.wsv-js .wsv .wsv-stage { transform: scale(var(--wsv-s, 0.3)); }
 .wsv .wsv-seq > .wsv-ic { font-size: 18px; color: var(--ink-4); }
 .wsv .wsv-banner { display: flex; align-items: center; gap: 12px; flex: none; padding: 12px 16px; border-radius: 10px; background: var(--accent-soft); border: 2px solid var(--accent-line); }
 .wsv .wsv-banner.wsv-k-wn { background: var(--warn-soft); border-color: color-mix(in oklch, var(--warn) 40%, transparent); }
-.wsv .wsv-stat { display: flex; flex-direction: column; gap: 8px; flex: 1 1 0; min-width: 0; padding: 14px 16px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); }
+.wsv .wsv-stat { display: flex; flex-direction: column; gap: 8px; flex: 1 1 0; min-width: 0; padding: 14px 16px; border-radius: 12px; border: 2px solid var(--wsv-edge); background: var(--surface); }
 .wsv .wsv-sheet { display: flex; flex-direction: column; margin: 0 auto; min-height: 0; gap: 12px; flex: 1 1 0; }
 .wsv.wsv-sm .wsv-sheet { width: 88% !important; }
 .wsv .wsv-up { text-transform: uppercase; }
@@ -285,6 +289,8 @@ html.wsv-js .wsv .wsv-stage { transform: scale(var(--wsv-s, 0.3)); }
 .wsv.wsv-sm .wsv-bar.wsv-hd { height: 20px; }
 .wsv.wsv-sm .wsv-tile { width: 52px; height: 52px; border-radius: 13px; }
 .wsv.wsv-sm .wsv-tile .wsv-ic { font-size: 32px; }
+.wsv.wsv-sm .wsv-tile.wsv-sm { width: 40px; height: 40px; border-radius: 10px; }
+.wsv.wsv-sm .wsv-tile.wsv-sm .wsv-ic { font-size: 24px; }
 .wsv.wsv-sm .wsv-btn { height: 40px; }
 .wsv.wsv-sm .wsv-btn.wsv-btn-sq { width: 40px; }
 .wsv.wsv-sm .wsv-chip { height: 28px; }
@@ -294,4 +300,3 @@ html.wsv-js .wsv .wsv-stage { transform: scale(var(--wsv-s, 0.3)); }
 .wsv.wsv-sm .wsv-t { font-size: 18px; }
 .wsv.wsv-sm .wsv-li { height: 44px; }
 
-/* ---------- unknown workspace fallback uses the same atoms ---------- */
