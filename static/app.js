@@ -12236,6 +12236,12 @@ Must avoid: [Anything sensitive or previously declined]`
                     if (!b.id) b.id = _pcwUid();
                 });
                 _canvasLinks = Array.isArray(_pcwDraft.links) ? _pcwDraft.links : [];
+                _canvasLinks.forEach(function(l) {
+                    // Older drafts stored connection slots; the lower pair meant background
+                    if (!l.kind) l.kind = (l.fp === 1 || l.tp === 1) ? 'support' : 'flow';
+                    delete l.fp;
+                    delete l.tp;
+                });
                 _pcwDraftTitle = _pcwDraft.title || '';
                 if (_pcwDraft.view && typeof _pcwDraft.view.zoom === 'number') _canvasState = _pcwDraft.view;
             }
@@ -12567,8 +12573,10 @@ Must avoid: [Anything sensitive or previously declined]`
             });
         }
 
-        /* ---- Assembly order: wired blocks follow their wires, loose blocks come last in reading order.
-               With no wires at all it is simply the reading order. ---- */
+        /* ---- Assembly order ----
+               Order wires (top dots) make the chain. A background wire (lower dots) from a block that is not in the chain
+               places it right before the block it supports. Blocks with no wire come last. With no wires at all it is
+               simply the reading order. ---- */
         function _pcwOrdered() {
             var base = _pcwSpatial();
             if (!_canvasLinks.length) return base;
@@ -12576,7 +12584,9 @@ Must avoid: [Anything sensitive or previously declined]`
                 pos = {},
                 indeg = {},
                 outs = {},
-                linked = {};
+                inFlow = {},
+                support = {},
+                hasBg = {};
             base.forEach(function(o, k) {
                 if (!o.b.id) return;
                 byId[o.b.id] = o;
@@ -12586,28 +12596,55 @@ Must avoid: [Anything sensitive or previously declined]`
             });
             _canvasLinks.forEach(function(l) {
                 if (!byId[l.from] || !byId[l.to]) return;
+                if (l.kind === 'support') {
+                    (support[l.to] = support[l.to] || []).push(l.from);
+                    hasBg[l.from] = true;
+                    return;
+                }
                 outs[l.from].push(l.to);
                 indeg[l.to]++;
-                linked[l.from] = linked[l.to] = true;
+                inFlow[l.from] = inFlow[l.to] = true;
             });
+            var byPos = function(p, q) {
+                return pos[p.b.id] - pos[q.b.id];
+            };
             var ready = base.filter(function(o) {
-                return o.b.id && linked[o.b.id] && indeg[o.b.id] === 0;
+                return o.b.id && inFlow[o.b.id] && indeg[o.b.id] === 0;
             });
-            var out = [],
+            var chain = [],
                 done = {};
             while (ready.length) {
-                ready.sort(function(p, q) {
-                    return pos[p.b.id] - pos[q.b.id];
-                });
+                ready.sort(byPos);
                 var cur = ready.shift();
-                out.push(cur);
+                chain.push(cur);
                 done[cur.b.id] = true;
                 outs[cur.b.id].forEach(function(t) {
                     if (--indeg[t] === 0) ready.push(byId[t]);
                 });
             }
+            var out = [],
+                emitted = {};
+
+            function emit(o) {
+                if (o.b.id) {
+                    if (emitted[o.b.id]) return;
+                    emitted[o.b.id] = true;
+                    (support[o.b.id] || []).map(function(id) {
+                        return byId[id];
+                    }).filter(function(s) {
+                        return s && !emitted[s.b.id] && !inFlow[s.b.id];
+                    }).sort(byPos).forEach(emit);
+                }
+                out.push(o);
+            }
+            chain.forEach(emit);
             base.forEach(function(o) {
-                if (!o.b.id || !done[o.b.id]) out.push(o);
+                // Background blocks are placed by the block they support
+                if (o.b.id && !inFlow[o.b.id] && hasBg[o.b.id]) return;
+                emit(o);
+            });
+            base.forEach(function(o) {
+                if (o.b.id && !emitted[o.b.id]) emit(o);
             });
             return out;
         }
@@ -12723,8 +12760,9 @@ Must avoid: [Anything sensitive or previously declined]`
                 return liveIds[l.from] && liveIds[l.to];
             });
             // Several blocks added at once (framework, quick start, cart) arrive wired in order
-            if (freshIdx.length > 1 || (_pcwChainMode && freshIdx.length)) {
-                var prevId = _pcwChainMode ? _pcwTailId(freshIds) : null;
+            var joinEnd = _pcwAutoLink() && freshIdx.length === 1 && _canvasBlocks.length > 1;
+            if (freshIdx.length > 1 || ((_pcwChainMode || joinEnd) && freshIdx.length)) {
+                var prevId = (_pcwChainMode || joinEnd) ? _pcwTailId(freshIds) : null;
                 freshIdx.forEach(function(i) {
                     var fid = _canvasBlocks[i].id;
                     if (prevId) _pcwLink(prevId, fid, true);
@@ -12754,14 +12792,15 @@ Must avoid: [Anything sensitive or previously declined]`
                 var cardBlanks = countBlanks(b.text);
                 var cardSnippet = escH(String(b.text).replace(/\s+/g, ' ').slice(0, 90));
                 card.innerHTML =
-                    '<button type="button" class="pcw-port pcw-port-in" data-port="in" data-slot="0" tabindex="-1" aria-label="Input 1, the previous step" title="Input 1: the step before this one. Drop a wire here, or drag from here to another block"></button>' +
-                    '<button type="button" class="pcw-port pcw-port-in" data-port="in" data-slot="1" tabindex="-1" aria-label="Input 2, a supporting block" title="Input 2: a block that supports this one (drawn dashed)"></button>' +
-                    '<button type="button" class="pcw-port pcw-port-out" data-port="out" data-slot="0" tabindex="-1" aria-label="Output 1, the next step" title="Output 1: the step after this one. Drag from here to another block"></button>' +
-                    '<button type="button" class="pcw-port pcw-port-out" data-port="out" data-slot="1" tabindex="-1" aria-label="Output 2, supports another block" title="Output 2: this block supports another one (drawn dashed)"></button>' +
+                    '<button type="button" class="pcw-port pcw-port-in" data-port="in" data-slot="0" data-label="Previous step" tabindex="-1" aria-label="Order in: the previous step" title="Order in. Drop the previous block\'s wire here."></button>' +
+                    '<button type="button" class="pcw-port pcw-port-in" data-port="in" data-slot="1" data-label="Background in" tabindex="-1" aria-label="Background in" title="Background in. A block attached here is placed just before this one."></button>' +
+                    '<button type="button" class="pcw-port pcw-port-out" data-port="out" data-slot="0" data-label="Next step (click to add)" tabindex="-1" aria-label="Order out: the next step" title="Order out. Drag to the next block, or click to add one."></button>' +
+                    '<button type="button" class="pcw-port pcw-port-out" data-port="out" data-slot="1" data-label="Use as background" tabindex="-1" aria-label="Background out" title="Background out. Drag to a block this one should support."></button>' +
                     '<div class="pcw-block-header" title="Drag to move — click to collapse">' +
                     '<span class="material-symbols-outlined pcw-block-drag-handle">drag_indicator</span>' +
                     '<span class="pcw-block-step" title="Assembly order: follows your wires, then top to bottom">' + order[idx] + '</span>' +
                     '<span class="pcw-block-type-badge">' + escH(b.label) + '</span>' +
+                    (_canvasLinks.length && !linkedIds[b.id] ? '<span class="pcw-loose-chip" title="Not wired, so it goes last in the prompt">not wired</span>' : '') +
                     (cardBlanks ? '<span class="pcw-blank-chip" title="' + cardBlanks + ' unfilled placeholders">' + cardBlanks + '</span>' : '') +
                     '<span class="pcw-block-snippet">' + cardSnippet + '</span>' +
                     '<button type="button" class="pcw-block-collapse" aria-expanded="' + (!b.collapsed) + '" aria-label="Expand or collapse block">' +
@@ -12795,12 +12834,12 @@ Must avoid: [Anything sensitive or previously declined]`
                     // Removing a block in the middle of a chain joins its neighbours back up
                     var rid = _canvasBlocks[idx].id;
                     var preds = _canvasLinks.filter(function(l) {
-                        return l.to === rid;
+                        return l.to === rid && l.kind !== 'support';
                     }).map(function(l) {
                         return l.from;
                     });
                     var succs = _canvasLinks.filter(function(l) {
-                        return l.from === rid;
+                        return l.from === rid && l.kind !== 'support';
                     }).map(function(l) {
                         return l.to;
                     });
@@ -12894,22 +12933,20 @@ Must avoid: [Anything sensitive or previously declined]`
             return false;
         }
 
-        // fp / tp: which output (0 upper, 1 lower) and input the wire uses. The lower pair draws dashed, as "supports".
-        function _pcwLink(from, to, quiet, fp, tp) {
+        // kind: "flow" sets the order (top dots), "support" attaches background (lower dots)
+        function _pcwLink(from, to, quiet, kind) {
             if (!from || !to || from === to) return false;
-            fp = fp ? 1 : 0;
-            tp = tp ? 1 : 0;
+            kind = kind === 'support' ? 'support' : 'flow';
             var existing = _canvasLinks.filter(function(l) {
                 return l.from === from && l.to === to;
             })[0];
             if (existing) {
-                // The same pair again just moves the wire to the other connection points
-                if ((existing.fp || 0) === fp && (existing.tp || 0) === tp) {
+                // The same pair again switches the wire between order and background
+                if ((existing.kind || 'flow') === kind) {
                     if (!quiet) toast('Already connected', 'info');
                     return false;
                 }
-                existing.fp = fp;
-                existing.tp = tp;
+                existing.kind = kind;
                 return true;
             }
             if (_pcwReaches(to, from)) {
@@ -12919,21 +12956,30 @@ Must avoid: [Anything sensitive or previously declined]`
             _canvasLinks.push({
                 from: from,
                 to: to,
-                fp: fp,
-                tp: tp
+                kind: kind
             });
             return true;
         }
 
-        // Last existing block with nothing wired after it: the end a new chain continues from
+        // End of the current chain: where a new block joins. Falls back to the last block in reading order.
         function _pcwTailId(skip) {
-            for (var i = _canvasBlocks.length - 1; i >= 0; i--) {
-                var b = _canvasBlocks[i];
-                if (skip[b.id]) continue;
+            var ord = _pcwOrdered().filter(function(o) {
+                return !skip[o.b.id];
+            });
+            var inFlow = {};
+            _canvasLinks.forEach(function(l) {
+                if (l.kind !== 'support') inFlow[l.from] = inFlow[l.to] = true;
+            });
+            var chain = ord.filter(function(o) {
+                return inFlow[o.b.id];
+            });
+            var pool = chain.length ? chain : ord;
+            for (var i = pool.length - 1; i >= 0; i--) {
+                var id = pool[i].b.id;
                 var hasOut = _canvasLinks.some(function(l) {
-                    return l.from === b.id;
+                    return l.from === id && l.kind !== 'support';
                 });
-                if (!hasOut) return b.id;
+                if (!hasOut) return id;
             }
             return null;
         }
@@ -12982,20 +13028,24 @@ Must avoid: [Anything sensitive or previously declined]`
         function _pcwDrawWires() {
             var svg = _pcwSvg();
             if (!svg) return;
-            var html = '';
+            var html = '<defs><marker id="pcw-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 1L10 5L0 9z" fill="context-stroke"/></marker></defs>';
             _canvasLinks.forEach(function(l) {
-                var p1 = _pcwPortPos(l.from, 'out', l.fp),
-                    p2 = _pcwPortPos(l.to, 'in', l.tp);
+                var slot = l.kind === 'support' ? 1 : 0;
+                var p1 = _pcwPortPos(l.from, 'out', slot),
+                    p2 = _pcwPortPos(l.to, 'in', slot);
                 if (!p1 || !p2) return;
                 var key = l.from + '>' + l.to;
                 var src = _pcwBlockById(l.from);
-                var d = _pcwWireD(p1, p2);
+                // The arrow stops at the edge of the input dot
+                var d = _pcwWireD(p1, {
+                    x: p2.x - 9,
+                    y: p2.y
+                });
                 var mx = (p1.x + p2.x) / 2,
                     my = (p1.y + p2.y) / 2;
-                var support = l.fp === 1 || l.tp === 1;
                 html += '<g class="pcw-wire-g' + (_pcwSelLink === key ? ' selected' : '') + '" data-link="' + key + '">' +
                     '<path class="pcw-wire-hit" d="' + d + '"/>' +
-                    '<path class="pcw-wire' + (support ? ' pcw-wire-support' : '') + '" d="' + d + '" style="stroke:' + _pcwCatColor(src && src.cat) + '"/>' +
+                    '<path class="pcw-wire' + (slot ? ' pcw-wire-support' : '') + '" d="' + d + '" marker-end="url(#pcw-arrow)" style="stroke:' + _pcwCatColor(src && src.cat) + '"/>' +
                     '<g class="pcw-wire-del" transform="translate(' + mx + ',' + my + ')"><title>Remove this wire</title><circle r="9"/><path d="M-3.5 -3.5L3.5 3.5M3.5 -3.5L-3.5 3.5"/></g></g>';
             });
             svg.innerHTML = html;
@@ -13009,31 +13059,24 @@ Must avoid: [Anything sensitive or previously declined]`
             renderCanvas();
         }
 
-        // The block under the pointer, and the connection point (0 upper, 1 lower) the pointer is on or nearest to
+        // The block under the pointer
         function _pcwBlockAt(ev) {
             var el = document.elementFromPoint(ev.clientX, ev.clientY);
             var card = el && el.closest ? el.closest('.pcw-canvas-block') : null;
-            if (!card) return null;
-            var port = el.closest('.pcw-port');
-            var slot;
-            if (port) {
-                slot = parseInt(port.dataset.slot, 10) || 0;
-            } else {
-                var r = card.getBoundingClientRect();
-                slot = (ev.clientY - r.top) > r.height / 2 ? 1 : 0;
-            }
-            return {
+            return card ? {
                 id: card.dataset.blockId,
-                el: card,
-                slot: slot
-            };
+                el: card
+            } : null;
         }
 
-        // Drag from a connection point; drop on any block to wire it. Starting from an input wires backwards.
+        // Drag from a dot to another block. The top dots set the order, the lower dots attach background.
+        // A plain click on a top right dot opens "add the next block". Dragging from an input wires backwards.
         function _pcwStartWire(e, id, side, slot) {
             if (e.button !== 0) return;
             e.preventDefault();
             e.stopPropagation();
+            _pcwClosePicker();
+            var kind = slot ? 'support' : 'flow';
             var zone = $('#pcwDropZone'),
                 svg = _pcwSvg(),
                 anchor = _pcwPortPos(id, side, slot);
@@ -13046,7 +13089,10 @@ Must avoid: [Anything sensitive or previously declined]`
             zone.classList.add('connecting');
             var want = side === 'out' ? 'in' : 'out';
             var hotCard = null,
-                hotPort = null;
+                hotPort = null,
+                moved = false,
+                sx = e.clientX,
+                sy = e.clientY;
 
             function clearHot() {
                 if (hotCard) hotCard.classList.remove('pcw-wire-target');
@@ -13063,11 +13109,12 @@ Must avoid: [Anything sensitive or previously declined]`
             }
 
             function onMove(ev) {
+                if (!moved && Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) > 5) moved = true;
                 var p = toWorld(ev);
                 temp.setAttribute('d', side === 'out' ? _pcwWireD(anchor, p) : _pcwWireD(p, anchor));
-                var t = _pcwBlockAt(ev);
+                var t = moved ? _pcwBlockAt(ev) : null;
                 var card = t && t.id !== id ? t.el : null;
-                var port = card ? card.querySelector('.pcw-port-' + want + '[data-slot="' + t.slot + '"]') : null;
+                var port = card ? card.querySelector('.pcw-port-' + want + '[data-slot="' + slot + '"]') : null;
                 if (card !== hotCard || port !== hotPort) {
                     clearHot();
                     if (card) card.classList.add('pcw-wire-target');
@@ -13083,15 +13130,152 @@ Must avoid: [Anything sensitive or previously declined]`
                 zone.classList.remove('connecting');
                 clearHot();
                 if (temp.parentNode) temp.parentNode.removeChild(temp);
+                if (!moved) {
+                    if (side === 'out' && !slot) _pcwOpenPicker(id);
+                    return;
+                }
                 var t = _pcwBlockAt(ev);
                 if (t && t.id !== id) {
-                    var made = side === 'out' ? _pcwLink(id, t.id, false, slot, t.slot) : _pcwLink(t.id, id, false, t.slot, slot);
+                    var made = side === 'out' ? _pcwLink(id, t.id, false, kind) : _pcwLink(t.id, id, false, kind);
                     if (made) renderCanvas();
                 }
             }
             onMove(e);
             document.addEventListener('mousemove', onMove);
             document.addEventListener('mouseup', onUp);
+        }
+
+        /* ---- Add the next block: click a top right dot ---- */
+        var _pcwPickerEl = null;
+
+        function _pcwClosePicker() {
+            if (!_pcwPickerEl) return;
+            _pcwPickerEl.remove();
+            _pcwPickerEl = null;
+            document.removeEventListener('mousedown', _pcwPickerAway, true);
+            document.removeEventListener('keydown', _pcwPickerKey, true);
+        }
+
+        function _pcwPickerAway(e) {
+            if (_pcwPickerEl && !_pcwPickerEl.contains(e.target)) _pcwClosePicker();
+        }
+
+        function _pcwPickerKey(e) {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                _pcwClosePicker();
+            }
+        }
+
+        // A spot to the right of a block that no other block is sitting on
+        function _pcwFreeSpot(x, y) {
+            for (var i = 0; i < 14; i++) {
+                var taken = _canvasBlocks.some(function(b) {
+                    return Math.abs((b.x || 0) - x) < 400 && Math.abs((b.y || 0) - y) < 260;
+                });
+                if (!taken) break;
+                y += 340;
+            }
+            return {
+                x: x,
+                y: y
+            };
+        }
+
+        // Pan the board only when the block is off screen
+        function _pcwReveal(id) {
+            var zone = $('#pcwDropZone'),
+                b = _pcwBlockById(id);
+            if (!zone || !b) return;
+            var z = _canvasState.zoom;
+            var left = b.x * z + _canvasState.panX,
+                top = b.y * z + _canvasState.panY;
+            if (left < 20 || top < 20 || left + 380 * z > zone.clientWidth - 20 || top + 200 * z > zone.clientHeight - 20) {
+                _canvasState.panX = zone.clientWidth / 2 - (b.x + 190) * z;
+                _canvasState.panY = zone.clientHeight / 2 - (b.y + 90) * z;
+                _pcwApplyView();
+                _pcwSaveDraft();
+            }
+        }
+
+        function _pcwAddAfter(fromId, item) {
+            var src = _pcwBlockById(fromId);
+            if (!src || !item) return;
+            var spot = _pcwFreeSpot((src.x || 0) + 520, src.y || 0);
+            var blk = {
+                id: _pcwUid(),
+                label: item.label,
+                text: item.text,
+                cat: item.cat || null,
+                collapsed: false,
+                x: spot.x,
+                y: spot.y
+            };
+            _canvasBlocks.push(blk);
+            _pcwLink(fromId, blk.id, true);
+            renderCanvas();
+            _pcwReveal(blk.id);
+        }
+
+        function _pcwOpenPicker(fromId) {
+            _pcwClosePicker();
+            var zone = $('#pcwDropZone'),
+                p = _pcwPortPos(fromId, 'out', 0);
+            if (!zone || !p) return;
+            var el = document.createElement('div');
+            el.className = 'pcw-picker';
+            el.setAttribute('role', 'dialog');
+            el.setAttribute('aria-label', 'Add the next block');
+            el.innerHTML = '<div class="pcw-picker-head">Add the next block</div>' +
+                '<input type="search" class="form-input" placeholder="Search blocks" aria-label="Search blocks" autocomplete="off">' +
+                '<ul class="pcw-picker-list"></ul>' +
+                '<button type="button" class="pcw-picker-more">Browse the whole library</button>';
+            var left = p.x * _canvasState.zoom + _canvasState.panX + 18;
+            var top = p.y * _canvasState.zoom + _canvasState.panY - 24;
+            el.style.left = Math.max(8, Math.min(left, zone.clientWidth - 300)) + 'px';
+            el.style.top = Math.max(8, Math.min(top, zone.clientHeight - 340)) + 'px';
+            zone.appendChild(el);
+            _pcwPickerEl = el;
+            var QUICK = ['Role', 'Context', 'Task', 'Constraints', 'Examples', 'Output Format'];
+            var input = el.querySelector('input'),
+                list = el.querySelector('.pcw-picker-list');
+
+            function draw() {
+                var q = input.value.trim().toLowerCase();
+                var items = [];
+                if (!q) {
+                    QUICK.forEach(function(lbl) {
+                        var hit = BLOCKS.filter(function(b) {
+                            return b.label === lbl;
+                        })[0];
+                        if (hit) items.push(hit);
+                    });
+                } else {
+                    items = BLOCKS.filter(function(b) {
+                        return (b.label || '').toLowerCase().indexOf(q) !== -1 || (b.text || '').toLowerCase().indexOf(q) !== -1;
+                    }).slice(0, 8);
+                }
+                list.innerHTML = items.length ? items.map(function(b) {
+                    return '<li><button type="button" data-bi="' + BLOCKS.indexOf(b) + '"><span class="pcw-picker-dot" style="background:' + _pcwCatColor(b.cat) + '"></span><span>' + escH(b.label) + '</span></button></li>';
+                }).join('') : '<li class="pcw-picker-empty">No blocks match</li>';
+            }
+            draw();
+            input.addEventListener('input', draw);
+            list.addEventListener('click', function(ev) {
+                var btn = ev.target.closest('[data-bi]');
+                if (!btn) return;
+                _pcwClosePicker();
+                _pcwAddAfter(fromId, BLOCKS[parseInt(btn.dataset.bi, 10)]);
+            });
+            el.querySelector('.pcw-picker-more').addEventListener('click', function() {
+                _pcwClosePicker();
+                _galOpen({
+                    mode: 'home'
+                });
+            });
+            document.addEventListener('mousedown', _pcwPickerAway, true);
+            document.addEventListener('keydown', _pcwPickerKey, true);
+            input.focus();
         }
 
         // Wire every block to the next one in reading order
@@ -13103,8 +13287,19 @@ Must avoid: [Anything sensitive or previously declined]`
         }
 
         /* ---- Add block to canvas ---- */
+        // New blocks join the end of the chain (switch off in the help card). Without a drop position they land to its right.
+        function _pcwAutoLink() {
+            var v = window.PL_prefs ? window.PL_prefs.get('pcw_autolink') : null;
+            return v !== '0';
+        }
+
         function addBlock(label, text, cat, pos) {
-            var p = pos || _pcwNextPos();
+            var p = pos;
+            if (!p) {
+                var tailId = _pcwAutoLink() && _canvasBlocks.length ? _pcwTailId({}) : null;
+                var tail = tailId ? _pcwBlockById(tailId) : null;
+                p = tail ? _pcwFreeSpot((tail.x || 0) + 520, tail.y || 0) : _pcwNextPos();
+            }
             _canvasBlocks.push({
                 label: label,
                 text: text,
@@ -13114,6 +13309,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 y: p.y
             });
             renderCanvas();
+            _pcwReveal(_canvasBlocks[_canvasBlocks.length - 1].id);
         }
 
         function _pcwCatColor(cat) {
@@ -13243,7 +13439,11 @@ Must avoid: [Anything sensitive or previously declined]`
                 var fwIdx = e.dataTransfer.getData('pcw-fw');
                 if (blockIdx !== '') {
                     var b = BLOCKS[parseInt(blockIdx, 10)];
-                    if (b) addBlock(b.label, b.text, b.cat);
+                    var zr = zone.getBoundingClientRect();
+                    if (b) addBlock(b.label, b.text, b.cat, {
+                        x: (e.clientX - zr.left - _canvasState.panX) / _canvasState.zoom - 190,
+                        y: (e.clientY - zr.top - _canvasState.panY) / _canvasState.zoom - 30
+                    });
                 } else if (fwIdx !== '') {
                     var f = FRAMEWORKS[parseInt(fwIdx, 10)];
                     if (f) addFramework(f);
@@ -14195,7 +14395,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 zoneEl.addEventListener('mousedown', function(e) {
                     if (e.button !== 0 && e.button !== 1) return;
                     if (e.button === 0 && (e.target.closest('.pcw-canvas-block') || e.target.closest('.pcw-quickstarts') ||
-                            e.target.closest('.pcw-view-tools') || e.target.closest('button') || e.target.closest('.pcw-wire-g'))) return;
+                            e.target.closest('.pcw-view-tools') || e.target.closest('button') || e.target.closest('.pcw-wire-g') || e.target.closest('.pcw-help') || e.target.closest('.pcw-picker'))) return;
                     if (e.button === 1 && e.target.closest('.pcw-view-tools')) return;
                     e.preventDefault();
                     if (_pcwSelLink) {
@@ -14256,6 +14456,30 @@ Must avoid: [Anything sensitive or previously declined]`
                 _pcwSaveDraft();
             });
             if ($('#pcwFitBtn')) $('#pcwFitBtn').addEventListener('click', _pcwFitView);
+            // How wiring works: shown until dismissed, remembered in the database
+            function _pcwSyncHelp() {
+                var card = $('#pcwHelp');
+                if (!card) return;
+                var pref = window.PL_prefs ? window.PL_prefs.get('pcw_help') : null;
+                card.hidden = pref === 'hidden';
+                var box = $('#pcwAutoLink');
+                if (box) box.checked = _pcwAutoLink();
+            }
+            if (window.PL_prefs) window.PL_prefs.ready.then(_pcwSyncHelp);
+            _pcwSyncHelp();
+            if ($('#pcwHelpBtn')) $('#pcwHelpBtn').addEventListener('click', function() {
+                var card = $('#pcwHelp');
+                if (!card) return;
+                card.hidden = !card.hidden;
+                if (window.PL_prefs) window.PL_prefs.set('pcw_help', card.hidden ? 'hidden' : 'shown');
+            });
+            if ($('#pcwHelpClose')) $('#pcwHelpClose').addEventListener('click', function() {
+                $('#pcwHelp').hidden = true;
+                if (window.PL_prefs) window.PL_prefs.set('pcw_help', 'hidden');
+            });
+            if ($('#pcwAutoLink')) $('#pcwAutoLink').addEventListener('change', function(e) {
+                if (window.PL_prefs) window.PL_prefs.set('pcw_autolink', e.target.checked ? '1' : '0');
+            });
             if ($('#pcwChainBtn')) $('#pcwChainBtn').addEventListener('click', function() {
                 if (!_canvasBlocks.length) {
                     toast('Add some blocks first', 'info');
@@ -24841,7 +25065,7 @@ Must avoid: [Anything sensitive or previously declined]`
         },
         {
             title: 'Prompt <em>Components</em>',
-            desc: 'Drag components onto an endless canvas and wire them together. Every block has two inputs on the left and two outputs on the right, and the prompt follows your wires.',
+            desc: 'Drag components onto an endless canvas and wire them together. The top dots set the order, the lower dots attach background to a block, and the prompt follows your wires. The question mark button explains it.',
             icon: 'extension',
             open: 'components',
             target: null

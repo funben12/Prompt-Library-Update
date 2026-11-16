@@ -11,8 +11,8 @@
 
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/app.css?v=2698e916-plx">
-<link rel="stylesheet" href="/static/builder-pro.css?v=20261116f">
+<link rel="stylesheet" href="/static/app.css?v=cbc29ad8-plx">
+<link rel="stylesheet" href="/static/builder-pro.css?v=20261116g">
 <link rel="stylesheet" href="/static/combine-prompts.css?v=20261116a">
 </head>
 <body>
@@ -1122,7 +1122,7 @@
         </button>
       </div>
       <p class="pvp-sub" id="pvpSub" hidden>How <span class="pvp-name" id="pvpName"></span> looks when the prompt is filled in.</p>
-      <p class="pvp-empty" id="pvpEmpty">Open a variable on the Variables tab to preview it here.</p>
+      <p class="pvp-empty" id="pvpEmpty">Open a variable in the Variables panel to preview it here.</p>
       <div class="pvp-stage" id="pvpField"></div>
     </div>
   </div>
@@ -3247,7 +3247,17 @@
       <div class="pcw-canvas-inner">
         <div class="pcw-drop-zone pcw-infinite" id="pcwDropZone">
           <div class="pcw-world" id="pcwWorld"><!-- canvas blocks injected here --></div>
+          <div class="pcw-help" id="pcwHelp" hidden>
+            <div class="pcw-help-head"><b>How wiring works</b><button type="button" class="icon-btn" id="pcwHelpClose" aria-label="Hide this help"><span class="material-symbols-outlined">close</span></button></div>
+            <ol class="pcw-help-steps">
+              <li><span class="pcw-key pcw-key-flow" aria-hidden="true"></span><div><b>Order.</b> Drag from a block's top right dot to the next block. The prompt follows the arrows. Click that dot to add the next block.</div></li>
+              <li><span class="pcw-key pcw-key-bg" aria-hidden="true"></span><div><b>Background.</b> Drag from the lower right dot to a block it should support. The background block is placed just before it.</div></li>
+              <li><span class="pcw-key pcw-key-num" aria-hidden="true">3</span><div><b>The number</b> on each block is its place in the final prompt. Blocks with no wire go last.</div></li>
+            </ol>
+            <label class="pcw-help-opt"><input type="checkbox" id="pcwAutoLink" checked> New blocks join the end of the chain</label>
+          </div>
           <div class="pcw-view-tools">
+            <button type="button" class="icon-btn" id="pcwHelpBtn" title="How wiring works"><span class="material-symbols-outlined">help</span></button>
             <button type="button" class="icon-btn" id="pcwChainBtn" title="Wire the blocks together in reading order"><span class="material-symbols-outlined">cable</span></button>
             <button type="button" class="icon-btn" id="pcwUnlinkBtn" title="Remove all wires"><span class="material-symbols-outlined">link_off</span></button>
             <span class="pcw-tools-sep" aria-hidden="true"></span>
@@ -5130,7 +5140,7 @@
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
 <script defer src="/static/combine-prompts.js?v=5620e7a8"></script>
-<script defer src="/static/app.js?v=64c1cfe3"></script>
+<script defer src="/static/app.js?v=ee0f70f8"></script>
 <script defer src="/static/randomiser-motion.js?v=b58f9ac7"></script>
 <script defer src="/static/vartypes-3d.js?v=8848706c"></script>
 <script defer src="/static/deck-shuffles.js?v=23f50d79"></script>
@@ -5144,7 +5154,7 @@
   if (typeof window.createFolderInline !== 'function') window.createFolderInline = function () {};
   if (typeof window.clearAllFilters    !== 'function') window.clearAllFilters    = function () {};
   (function(){ var s=document.createElement("script"); s.src="/static/gauntlet-suite.js?v=20261005b"; s.defer=true; document.head.appendChild(s); })();
-  ["builder-pro-engine.js", "builder-pro.js", "builder-pro-showcases.js"].forEach(function(f){ var s=document.createElement("script"); s.src="/static/"+f+"?v=20261116f"; s.async=false; document.head.appendChild(s); });
+  ["builder-pro-engine.js", "builder-pro.js", "builder-pro-showcases.js"].forEach(function(f){ var s=document.createElement("script"); s.src="/static/"+f+"?v=20261116g"; s.async=false; document.head.appendChild(s); });
 </script>
 
 </body>

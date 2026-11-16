@@ -1450,12 +1450,19 @@
             exh.run++;
             Object.assign(exh, { id, chapter: 0, built: {}, made: [], plan: PB.showcaseBuild(sc), playing: false });
             exh.origin = state.nodes.length ? { x: Math.max(...state.nodes.map(n => n.x)) + NODE_W + 140, y: 80 } : { x: 40, y: 80 };
+            // Blocks this showcase made earlier (before a reload, say) are picked up again, not built twice.
+            state.nodes.filter(n => n.showcase && n.showcase.id === id).forEach(n => {
+                exh.built[n.showcase.k] = n.id;
+                exh.made.push(n.id);
+                const at = exh.plan.flatMap(c => c.nodes).find(x => x.k === n.showcase.k);
+                if (at && exh.made.length === 1) exh.origin = { x: n.x - at.x, y: n.y - at.y };
+            });
             renderLearn();
         }
         function showPlace(n) {
             const id = uid('node');
             state.nodes.push({
-                id, type: n.type, config: JSON.parse(JSON.stringify(n.config)),
+                id, type: n.type, showcase: { id: exh.id, k: n.k }, config: JSON.parse(JSON.stringify(n.config)),
                 x: Math.round((exh.origin.x + n.x) / 8) * 8, y: Math.round((exh.origin.y + n.y) / 8) * 8
             });
             exh.built[n.k] = id;
@@ -1912,6 +1919,7 @@
                 const n = node(state.selected);
                 if (!n) return;
                 const c = { ...JSON.parse(JSON.stringify(n)), id: uid('node'), x: n.x + 32, y: n.y + 32 };
+                delete c.showcase;
                 state.nodes.push(c);
                 state.selected = c.id;
                 render();

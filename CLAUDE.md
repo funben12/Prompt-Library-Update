@@ -289,7 +289,7 @@ A Pro workspace opened from the launcher's My Favorites list. It is a node canva
 1. Every id and class is prefixed `pbp-`, and every CSS rule sits under `#builderProWorkspace`.
 2. Colours come from `app.css` tokens only. No hex values, no blur. Icons are Material Symbols.
 3. Listeners go on the workspace root. The one `document` keydown listener must keep returning at once while the workspace is closed.
-4. **Cache busting is separate.** `update_hash.py` does not touch these files. They carry a hand-set `?v=` value in `index.html` (two places, currently `20261116f`). Bump it whenever one of the four files changes.
+4. **Cache busting is separate.** `update_hash.py` does not touch these files. They carry a hand-set `?v=` value in `index.html` (two places, currently `20261116g`). Bump it whenever one of the four files changes.
 5. Saved flows and layout are localStorage only (`prompt-builder-pro.v5`, `.workshop.v1`, `.panes.v1`, `.tour.v1`, `.learn.v1`). The quick tour flag and finished lessons are also kept in the database through `window.PL_prefs` (`builder_tour`, `builder_learn`) because WebView storage can reset. No schema change.
 6. It shares the Component Library with Prompt Components through `window.PL_galleryBorrow` in `app.js`. Never build a second component dataset, and never edit `static/components-data.js` for this workspace.
 7. The `body.is-premium` check at the top of `openBuilderProWorkspace` is a leftover: there is no free tier any more (see the licence screen), so it never refuses anyone after activation.
