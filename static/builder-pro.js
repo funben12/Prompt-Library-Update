@@ -51,6 +51,10 @@
         rubric_scoring: 'scoreboard', feedback_format: 'comment', quality_metrics: 'speed', ab_testing: 'compare_arrows'
     };
     const iconName = v => (/^[a-z0-9_]+$/.test(String(v || '')) ? v : '');
+    Object.assign(ICONS, {
+        agent_proponent: 'thumb_up', agent_red_team: 'security', agent_audience: 'visibility', agent_brainstormer: 'emoji_objects',
+        agent_summariser: 'summarize', agent_coder: 'code', agent_tester: 'bug_report', agent_triage: 'emergency', agent_moderator: 'forum'
+    });
     const glyph = (type, n) => `<span class="pbp-glyph material-symbols-outlined" aria-hidden="true">${iconName(n && n.config && n.config.source && n.config.source.icon) || ICONS[type] || 'widgets'}</span>`;
 
     /* ---------- Component Library link ----------
@@ -65,8 +69,192 @@
         { target: '.pbp-workshop', side: 'right', title: 'Bring in components', text: 'Open library to browse the Component Library. What you select lands here in the Workshop, ready to drag onto the canvas.' },
         { target: '#pbp-canvas', side: 'inside', title: 'Wire the flow', text: 'Drag from the dot on one block to another block to connect them. Select a block to edit its text. Blocks that are not wired in are left out of the prompt.' },
         { target: '#pbp-pane-right', side: 'left', title: 'Read the live prompt', text: 'The prompt compiles as you build. Checks lists anything to fix. When the badge says Ready to copy, copy it or use Export.' },
+        { target: '#pbp-right-tabs [data-tab="learn"]', side: 'left', title: 'Learn by doing', text: 'The Learn tab has short hands-on lessons on the agent blocks. Do each step yourself, or press Show me and the builder does it. Your own blocks are never touched.' },
         { target: '#pbp-template-select', side: 'below', title: 'Start from a template', text: 'Templates load a working flow, including ready-made agent teams. Guide explains teams and loops. The tour button beside it replays these steps.' }
     ];
+    /* ---------- more multi-agent blocks ----------
+       Added here, the compile engine is left as it was: it treats any block in the "agents" category as a team member. */
+    const agentBody = (label, rows) => ({ key: 'content', label, type: 'textarea', rows, placeholder: '' });
+    const MORE_AGENTS = [
+        {
+            type: 'agent_proponent', kind: 'worker', label: 'Proponent Agent', hint: 'Argue the strongest case for', glyph: 'PRO',
+            about: 'The other side of a debate. It makes the strongest honest case in favour of a proposal, so a Judge has two real positions to weigh.',
+            use: ["Pair it with a Devil's Advocate and let a Judge decide.", "Wire Case into Position A of a Judge and the Devil's Advocate's Objections into Position B.", 'Wire Objections in, then use Rebuttal for a second round.'],
+            inputs: [{ id: 'proposal', label: 'Proposal in' }, { id: 'context', label: 'Context in' }, { id: 'objections', label: 'Objections in' }],
+            outputs: [{ id: 'case', label: 'Case' }, { id: 'rebuttal', label: 'Rebuttal' }],
+            fields: [agentBody('Rules of advocacy', 5)],
+            defaults: { title: 'Proponent Agent', content: 'Make the strongest honest case in favour of the proposal. Give your three best arguments in order of strength, each with the evidence behind it. If objections arrive, answer each one directly and concede any you cannot answer.' }
+        },
+        {
+            type: 'agent_red_team', kind: 'reviewer', label: 'Red Team Agent', hint: 'Try to break it', glyph: 'RED',
+            about: 'Adversarial testing. It tries to make the work fail through misuse, edge cases, ambiguity and bad inputs, then reports what broke and how to fix it.',
+            use: ['Point it at a draft or plan before anyone relies on it.', "Wire Findings into a Writer's Feedback input to harden the work.", 'Use it beside a Critic: the Critic checks quality, the Red Team looks for ways to break it.'],
+            inputs: [{ id: 'target', label: 'Target in' }, { id: 'context', label: 'Context in' }],
+            outputs: [{ id: 'findings', label: 'Findings' }, { id: 'fixes', label: 'Suggested fixes' }],
+            fields: [agentBody('Attack rules', 5)],
+            defaults: { title: 'Red Team Agent', content: 'Try to break the work: misuse it, feed it awkward inputs, read it in bad faith. List each failure with how you triggered it and how serious it is. Do not rewrite the work, report what broke and suggest one fix per failure.' }
+        },
+        {
+            type: 'agent_audience', kind: 'reviewer', label: 'Audience Reviewer', hint: 'Read it as the reader', glyph: 'AUD',
+            about: 'Plays your target reader. It reads the draft cold and says where it got confused, bored or lost, which a Critic who knows the brief cannot see.',
+            use: ['Wire the draft in and describe the reader in Audience in.', 'Wire Confusion points into a Writer so unclear passages get rewritten.', 'Use Would they act? as the last gate for anything meant to persuade.'],
+            inputs: [{ id: 'draft', label: 'Draft in' }, { id: 'audience', label: 'Audience in' }],
+            outputs: [{ id: 'reactions', label: 'Reactions' }, { id: 'confusions', label: 'Confusion points' }, { id: 'verdict', label: 'Would they act?' }],
+            fields: [agentBody('How to read', 5)],
+            defaults: { title: 'Audience Reviewer', content: 'Read the draft as the intended reader, knowing only what they know. Note the first place you got lost, anything you did not believe, and what you would do next. Say it in the reader\'s own words, not as an editor.' }
+        },
+        {
+            type: 'agent_brainstormer', kind: 'worker', label: 'Brainstormer Agent', hint: 'Many ideas before any judging', glyph: 'BRN',
+            about: 'Diverges before anyone converges. It produces many different ideas quickly, including a few odd ones, and does not judge them.',
+            use: ['Feed Ideas into a Judge or Consensus Vote to pick the best.', 'Wire Wild cards into a Specialist for a second look at the odd ones.', 'Wire Constraints in to keep the ideas inside your limits.'],
+            inputs: [{ id: 'task', label: 'Task in' }, { id: 'context', label: 'Context in' }, { id: 'constraints', label: 'Constraints' }],
+            outputs: [{ id: 'ideas', label: 'Ideas' }, { id: 'wildcards', label: 'Wild cards' }],
+            fields: [agentBody('Brainstorming rules', 5)],
+            defaults: { title: 'Brainstormer Agent', content: 'Give ten different ideas, each in one line. Cover safe, bold and strange angles. Do not rank, filter or criticise. Mark the three strangest as wild cards.' }
+        },
+        {
+            type: 'agent_summariser', kind: 'worker', label: 'Summariser Agent', hint: 'Shrink long material faithfully', glyph: 'SUM',
+            about: 'Compresses long material for the next agent. It keeps what matters to the brief and says what it left out.',
+            use: ['Place it between a Researcher and a Writer when the findings are long.', 'Wire a Brief in so it keeps only what the next agent needs.', 'Use Key points as a short briefing note in a handoff.'],
+            inputs: [{ id: 'source', label: 'Source in' }, { id: 'brief', label: 'Brief' }],
+            outputs: [{ id: 'summary', label: 'Summary' }, { id: 'keypoints', label: 'Key points' }],
+            fields: [agentBody('Summarising rules', 5)],
+            defaults: { title: 'Summariser Agent', content: 'Summarise for the brief, not for everyone. Keep names, figures and decisions exactly as written. Cut background and repetition. End with one line saying what you left out.' }
+        },
+        {
+            type: 'agent_coder', kind: 'worker', label: 'Coder Agent', hint: 'Write and revise the code', glyph: 'COD',
+            about: 'Writes the code. It follows the plan, explains its choices briefly, and revises when a Tester sends feedback.',
+            use: ["Wire a Planner's Plan in so the code follows a design.", "Wire a Tester's Feedback into Feedback to create a fix loop.", 'Use Notes to record assumptions the Tester should check.'],
+            inputs: [{ id: 'task', label: 'Task in' }, { id: 'plan', label: 'Plan in' }, { id: 'context', label: 'Context in' }, { id: 'feedback', label: 'Feedback' }],
+            outputs: [{ id: 'code', label: 'Code' }, { id: 'notes', label: 'Notes' }],
+            fields: [agentBody('Coding rules', 5)],
+            defaults: { title: 'Coder Agent', content: 'Write the smallest working solution that meets the task. Follow the plan, name things clearly and handle the obvious failure cases. When feedback arrives, fix every failure raised and say what changed.' }
+        },
+        {
+            type: 'agent_tester', kind: 'reviewer', label: 'Tester Agent', hint: 'Test the code against the brief', glyph: 'TST',
+            about: 'Checks the code against the requirements. It writes the test cases, runs them in its head, and reports each failure.',
+            use: ['Wire Feedback into a Coder to create a fix loop.', 'Wire the requirements in as Requirements so it tests what was asked for.', 'Use Test cases as part of the final deliverable.'],
+            inputs: [{ id: 'code', label: 'Code in' }, { id: 'task', label: 'Requirements' }],
+            outputs: [{ id: 'tests', label: 'Test cases' }, { id: 'failures', label: 'Failures' }, { id: 'feedback', label: 'Feedback' }],
+            fields: [agentBody('Testing rules', 5)],
+            defaults: { title: 'Tester Agent', content: 'Write test cases for the requirements, including edge cases and bad input. Walk the code through each one and report every case that fails, with the input, the expected result and the actual result.' }
+        },
+        {
+            type: 'agent_triage', kind: 'worker', label: 'Triage Agent', hint: 'Sort and rank incoming requests', glyph: 'TRI',
+            about: 'The front desk. It reads a request, says what kind it is, how urgent it is and what it still needs to know before anyone starts.',
+            use: ['Place it in front of a Router so each request reaches the right agent.', 'Wire Open questions into a Human Approval block to ask the user first.', 'Use Priority to decide which agents to bother at all.'],
+            inputs: [{ id: 'request', label: 'Request in' }, { id: 'context', label: 'Context in' }],
+            outputs: [{ id: 'category', label: 'Category' }, { id: 'priority', label: 'Priority' }, { id: 'questions', label: 'Open questions' }],
+            fields: [agentBody('Triage rules', 5)],
+            defaults: { title: 'Triage Agent', content: 'Classify the request in one word, rate its urgency as high, medium or low with one reason, and list anything you would need to know before starting. Do not begin the work.' }
+        },
+        {
+            type: 'agent_moderator', kind: 'coordinator', label: 'Debate Moderator', hint: 'Optional. Runs a debate you add', glyph: 'MOD',
+            about: 'Optional. A Moderator runs a structured debate: it hands the topic to a Proponent and a Devil\'s Advocate, then to a Judge. The agents are separate blocks: add them and wire one to each output.',
+            use: ['Settle a decision with two real positions and a verdict.', 'Set the number of rounds and the speaking order in one place.', 'Feed a Judge\'s verdict back in to open a second round.'],
+            inputs: [{ id: 'task', label: 'Topic in' }, { id: 'context', label: 'Context in' }, { id: 'feedback', label: 'Feedback in' }],
+            outputs: [{ id: 'pro', label: 'Proponent' }, { id: 'con', label: 'Opponent' }, { id: 'judge', label: 'Judge' }, { id: 'summary', label: 'Sign-off' }],
+            fields: [agentBody('Debate rules', 6)],
+            defaults: { title: 'Debate Moderator', content: 'Run the debate in two rounds. The Proponent speaks first, the Opponent answers, then each replies once. The Judge decides only after both have finished. Keep every speaker under 150 words a turn.' }
+        }
+    ];
+    MORE_AGENTS.forEach(d => {
+        if (BLOCKS[d.type]) return;
+        const b = { inputs: true, outputs: [{ id: 'out', label: 'Next' }], category: 'agents', section: 'agents', ...d };
+        BLOCKS[b.type] = b;
+        LIBRARY.push(b);
+    });
+
+    /* ---------- Learn: hands-on lessons on the agent blocks ----------
+       Each step can be done by hand or by pressing Show me. a = add [key, block type, column, row, name], w = wire
+       [from key, from port, to key, to port], u = unwire, spawn = press "Add its agents", info = read only. */
+    const LESSONS = [
+        {
+            id: 'pair', title: 'Two agents make a team', blurb: 'Writer into Critic: the smallest team there is.',
+            steps: [
+                { t: 'Add a Writer', d: 'An agent block is one team member with one job. Find the Writer Agent in the Block library (search "writer") and select it, or press Show me.', a: [['w', 'agent_writer', 0, 0]] },
+                { t: 'Add a Critic', d: 'The Critic reviews what the Writer produces. Add a Critic Agent the same way.', a: [['c', 'agent_critic', 1, 0]] },
+                { t: 'Wire them together', d: 'Drag from the dot beside Draft on the Writer to the dot beside Draft in on the Critic. That wire is the hand-off.', w: [['w', 'draft', 'c', 'draft']] },
+                { t: 'Read what you built', d: 'Every agent entry now says who it receives from and who it hands to. That is all a team is: blocks with hand-offs between them.', info: true }
+            ]
+        },
+        {
+            id: 'loop', title: 'Close a revision loop', blurb: 'Let the Critic send work back, with a limit on the rounds.',
+            steps: [
+                { t: 'Start with a team', d: 'You need a Writer and a Critic with Draft wired across. Build it, or press Show me.', a: [['w', 'agent_writer', 0, 0], ['c', 'agent_critic', 1, 0]], w: [['w', 'draft', 'c', 'draft']] },
+                { t: 'Send feedback back', d: 'Drag from the Critic\'s Feedback output back to the Writer\'s Feedback input. A wire that returns into a Feedback input is a loop: it is drawn dotted and the prompt gains a "Revision loop" entry. Here it passes through a Feedback block, so you can set the rounds.', a: [['f', 'feedback', 1, 1]], w: [['c', 'feedback', 'f', 'in'], ['f', 'to_writer', 'w', 'feedback']] },
+                { t: 'Cap the rounds', d: 'Loops run for 2 rounds unless told otherwise. Select the Feedback block and set Max rounds in its settings. Press Show me to select it.', info: true, show: 'select', sel: 'f' }
+            ]
+        },
+        {
+            id: 'plan', title: 'Plan, research, then write', blurb: 'Three specialists share one task and feed a Writer.',
+            steps: [
+                { t: 'Give the team a task', d: 'Wire the task into more than one agent. The Planner and the Researcher both need the original task, not only each other\'s output.', a: [['t', 'task', 0, 1], ['p', 'agent_planner', 1, 0], ['r', 'agent_researcher', 1, 2]], w: [['t', 'out', 'p', 'task'], ['t', 'out', 'r', 'task']] },
+                { t: 'Bring in the Writer', d: 'The Writer takes the Plan for structure and the Findings for evidence. Wire Plan to Plan in, and Findings to Context in.', a: [['w', 'agent_writer', 2, 1]], w: [['p', 'plan', 'w', 'plan'], ['r', 'findings', 'w', 'context']] },
+                { t: 'Give the Writer the task too', d: 'Without the original task, the Writer only knows what the others told it. Wire the task in as well.', w: [['t', 'out', 'w', 'task']] },
+                { t: 'End on an output format', d: 'The team needs to know what the finished deliverable looks like. Add an Output Format block after the Writer.', a: [['o', 'output', 3, 1]], w: [['w', 'draft', 'o', 'in']] }
+            ]
+        },
+        {
+            id: 'conductor', title: 'Let a Conductor brief the team', blurb: 'One block hands out the work to four agents.',
+            steps: [
+                { t: 'Add a task and a Conductor', d: 'A Conductor is optional. It only hands out work, so it needs a task to hand out.', a: [['t', 'task', 0, 1], ['m', 'multi_agent', 1, 1]], w: [['t', 'out', 'm', 'task']] },
+                { t: 'Add its agents', d: 'Select the Conductor and press "Add its agents and wire them" in its settings, or press Show me. You get a Planner, Researcher, Writer and Critic, one on each output.', spawn: 'm' },
+                { t: 'Wire the team to each other', d: 'The Conductor does not connect the agents to each other. Use Workflow, then "Wire loose blocks" to let the builder join them, or drag the wires yourself.', info: true, show: 'wire' }
+            ]
+        },
+        {
+            id: 'router', title: 'Route each request to one agent', blurb: 'A Router picks exactly one agent instead of briefing them all.',
+            steps: [
+                { t: 'Add a task and a Router', d: 'Where a Conductor briefs every agent, a Router chooses one for each request.', a: [['t', 'task', 0, 1], ['rt', 'agent_router', 1, 1]], w: [['t', 'out', 'rt', 'request']] },
+                { t: 'Add the agents it can choose', d: 'Select the Router and press "Add its agents and wire them", or press Show me. The Fallback output catches anything unclear and asks a question.', spawn: 'rt' },
+                { t: 'Check the prompt', d: 'The Router entry now says to choose exactly one agent. Add a Triage Agent in front of it when requests arrive messy.', info: true }
+            ]
+        },
+        {
+            id: 'debate', title: 'Debate, then judge', blurb: 'Two positions, one verdict.',
+            steps: [
+                { t: 'Set up two debaters', d: 'A Proponent argues for the proposal and a Devil\'s Advocate argues against it. Wire the same task into both.', a: [['t', 'task', 0, 1], ['pr', 'agent_proponent', 1, 0], ['dv', 'agent_advocate', 1, 2]], w: [['t', 'out', 'pr', 'proposal'], ['t', 'out', 'dv', 'proposal']] },
+                { t: 'Add the Judge', d: 'The Judge weighs Position A against Position B. Wire the Proponent\'s Case into A and the Advocate\'s Objections into B.', a: [['j', 'agent_judge', 2, 1]], w: [['pr', 'case', 'j', 'option_a'], ['dv', 'objections', 'j', 'option_b']] },
+                { t: 'Let the Proponent answer back', d: 'Wire the Objections into the Proponent\'s Objections in. It now rebuts before the Judge decides.', w: [['dv', 'objections', 'pr', 'objections']] }
+            ]
+        },
+        {
+            id: 'team', title: 'Split the job, then merge', blurb: 'A Team Lead shares the work and signs it off.',
+            steps: [
+                { t: 'Add a task and a Team Lead', d: 'A Team Lead splits a job across up to three agents and checks the results.', a: [['t', 'task', 0, 1], ['l', 'agent_lead', 1, 1]], w: [['t', 'out', 'l', 'task']] },
+                { t: 'Hand out two assignments', d: 'Add two Specialists and wire Assignment A and B to them. Give each one a different specialism in its settings.', a: [['s1', 'agent_specialist', 2, 0, 'Specialist A'], ['s2', 'agent_specialist', 2, 2, 'Specialist B']], w: [['l', 'worker_a', 's1', 'task'], ['l', 'worker_b', 's2', 'task']] },
+                { t: 'Merge the results', d: 'An Aggregator joins what the Specialists produced and calls out where they disagree.', a: [['g', 'agent_aggregator', 3, 1]], w: [['s1', 'result', 'g', 'planner_out'], ['s2', 'result', 'g', 'researcher_out']] },
+                { t: 'Report back to the lead', d: 'Wire the merged result into the Team Lead\'s Reports in. That is a reporting line, so the lead signs off the combined work.', w: [['g', 'merged', 'l', 'reports']] }
+            ]
+        },
+        {
+            id: 'approve', title: 'Pause for a person', blurb: 'Stop for approval before the expensive step.',
+            steps: [
+                { t: 'Plan first', d: 'Add a task and a Planner. The plan is the cheap thing to get approved.', a: [['t', 'task', 0, 1], ['p', 'agent_planner', 1, 1]], w: [['t', 'out', 'p', 'task']] },
+                { t: 'Add the approval stop', d: 'A Human Approval block shows the work to the user and waits. Wire the Plan into For approval.', a: [['h', 'agent_human', 2, 1]], w: [['p', 'plan', 'h', 'proposal']] },
+                { t: 'Write only after a yes', d: 'Wire Approved into the Writer\'s Plan in. The prompt tells the model to continue only on a clear yes.', a: [['w', 'agent_writer', 3, 1]], w: [['h', 'approved', 'w', 'plan'], ['t', 'out', 'w', 'task']] }
+            ]
+        },
+        {
+            id: 'dev', title: 'A small dev team', blurb: 'A Coder and a Tester in a fix loop.',
+            steps: [
+                { t: 'Add the Coder', d: 'The Coder turns a task into code. Wire the task into it.', a: [['t', 'task', 0, 1], ['c', 'agent_coder', 1, 1]], w: [['t', 'out', 'c', 'task']] },
+                { t: 'Add the Tester', d: 'The Tester checks the code against the requirements. Wire Code to Code in, and the task to Requirements.', a: [['te', 'agent_tester', 2, 1]], w: [['c', 'code', 'te', 'code'], ['t', 'out', 'te', 'task']] },
+                { t: 'Close the fix loop', d: 'Wire the Tester\'s Feedback back into the Coder\'s Feedback. Failures now go back for another round.', w: [['te', 'feedback', 'c', 'feedback']] }
+            ]
+        },
+        {
+            id: 'harden', title: 'Stress-test a draft', blurb: 'A Red Team and a reader review the Writer\'s work.',
+            steps: [
+                { t: 'Start with a draft', d: 'A Writer produces the draft. Add one, or press Show me.', a: [['w', 'agent_writer', 0, 1]] },
+                { t: 'Add a Red Team', d: 'The Red Team tries to break the draft. Wire Draft into Target in.', a: [['rd', 'agent_red_team', 1, 0]], w: [['w', 'draft', 'rd', 'target']] },
+                { t: 'Add an Audience Reviewer', d: 'It reads the draft as your reader and says where it got lost. Wire Draft into Draft in.', a: [['au', 'agent_audience', 1, 2]], w: [['w', 'draft', 'au', 'draft']] },
+                { t: 'Send the findings back', d: 'Wire Findings and Confusion points into the Writer\'s Feedback. Both are loops, so the Writer revises before finishing.', w: [['rd', 'findings', 'w', 'feedback'], ['au', 'confusions', 'w', 'feedback']] }
+            ]
+        }
+    ];
+
     const COMPONENT = 'component_';
     const COMPONENT_SECTIONS = ['system', 'role', 'audience', 'context', 'knowledge', 'task', 'instructions', 'approach', 'examples', 'constraints', 'tone', 'output', 'quality', 'success'];
     const sectionTitle = id => (PE.SECTIONS.find(x => x.id === id) || {}).title || id;
@@ -201,6 +389,7 @@
           <button class="pbp-tab" role="tab" data-tab="prompt" aria-selected="true">Prompt</button>
           <button class="pbp-tab" role="tab" data-tab="checks" aria-selected="false">Checks<small id="pbp-check-count"></small></button>
           <button class="pbp-tab" role="tab" data-tab="trace" aria-selected="false">Trace</button>
+          <button class="pbp-tab" role="tab" data-tab="learn" aria-selected="false">Learn</button>
         </div>
         <span class="pbp-badge" id="pbp-health" role="status"></span>
       </div>
@@ -236,6 +425,7 @@
         <div class="pbp-empty"><b>Step through the flow</b>Run a trace to watch each wired block light up in the order the prompt uses it.</div>
       </div>
     </div>
+    <div class="pbp-tabpanel" id="pbp-panel-learn" role="tabpanel" hidden></div>
     <div class="pbp-pane-foot">
       <span><b class="pbp-mono" id="pbp-count-tokens">0</b> tokens, <b class="pbp-mono" id="pbp-count-chars">0</b> chars</span>
       <span class="pbp-foot-actions">
@@ -281,6 +471,7 @@
       <tr><td>Do I need a Conductor?</td><td>No. It is optional. Use it when you want one block that briefs four agents from a single task.</td></tr>
       <tr><td>If I add a Conductor, do I still need the agent blocks?</td><td>Yes. A Conductor only hands out work. Select it and press "Add its agents and wire them" to get all four in one go.</td></tr>
       <tr><td>Conductor, Team Lead or Router?</td><td>Conductor briefs a fixed four. Team Lead splits a job across any three agents you choose. Router sends each request to one agent only. Use one at most.</td></tr>
+      <tr><td>Is there a hands-on tutorial?</td><td>Yes. Open the Learn tab on the right. Each lesson builds one kind of team step by step: do a step yourself or press Show me.</td></tr>
       <tr><td>Does anything actually run?</td><td>No. The builder writes a prompt. The AI you paste it into plays every agent in order, which is why the prompt spells out who hands what to whom.</td></tr>
     </tbody></table>
 
@@ -610,6 +801,7 @@
         const SPAWN = {
             multi_agent: { planner: ['agent_planner', 'task'], researcher: ['agent_researcher', 'task'], writer: ['agent_writer', 'task'], critic: ['agent_critic', 'task'] },
             agent_router: { to_planner: ['agent_planner', 'task'], to_researcher: ['agent_researcher', 'task'], to_writer: ['agent_writer', 'task'], to_critic: ['agent_critic', 'task'], fallback: ['meta_clarify', 'in'] },
+            agent_moderator: { pro: ['agent_proponent', 'proposal'], con: ['agent_advocate', 'proposal'], judge: ['agent_judge', 'criteria'] },
             agent_lead: { worker_a: ['agent_specialist', 'task', 'Specialist A'], worker_b: ['agent_specialist', 'task', 'Specialist B'], worker_c: ['agent_specialist', 'task', 'Specialist C'] }
         };
         function missingAgents(n) {
@@ -651,6 +843,7 @@
             renderChecks();
             renderStatus();
             if (inspector) renderInspector();
+            if (state.tab === 'learn') renderLearn();
             save();
         }
         let raf = 0;
@@ -699,8 +892,9 @@
         function setTab(t) {
             state.tab = t;
             $$('#pbp-right-tabs [data-tab]').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t));
-            ['prompt', 'checks', 'trace'].forEach(p => { $(`#pbp-panel-${p}`).hidden = p !== t; });
+            ['prompt', 'checks', 'trace', 'learn'].forEach(p => { $(`#pbp-panel-${p}`).hidden = p !== t; });
             $('#pbp-prompt-toolbar').hidden = t !== 'prompt';
+            if (t === 'learn') renderLearn();
         }
 
         /* ---------- workshop: components picked in the Component Library ---------- */
@@ -1038,10 +1232,181 @@
         } catch (e) { /* default: both open */ }
         applyPanes();
 
+        /* ---------- Learn tab ---------- */
+        const LEARN_STORE = 'prompt-builder-pro.learn.v1';
+        const learn = { lesson: null, step: 0, keys: {}, types: {}, made: [], seen: {}, origin: { x: 40, y: 80 } };
+        let learnDone = [];
+        (function loadLearn() {
+            try { learnDone = JSON.parse(localStorage.getItem(LEARN_STORE) || '[]'); } catch (e) { learnDone = []; }
+            if (!Array.isArray(learnDone)) learnDone = [];
+            const saved = window.PL_prefs && window.PL_prefs.ready ? window.PL_prefs.ready : null;
+            if (saved) saved.then(() => {
+                try {
+                    JSON.parse(window.PL_prefs.get('builder_learn') || '[]').forEach(id => { if (!learnDone.includes(id)) learnDone.push(id); });
+                    if (state.tab === 'learn') renderLearn();
+                } catch (e) { /* nothing saved yet */ }
+            });
+        })();
+        function saveLearn() {
+            try { localStorage.setItem(LEARN_STORE, JSON.stringify(learnDone)); } catch (e) { /* kept in the database below */ }
+            if (window.PL_prefs) window.PL_prefs.set('builder_learn', JSON.stringify(learnDone));
+        }
+        const lessonById = id => LESSONS.find(l => l.id === id);
+        // A lesson reuses your own blocks when they match, and only ever removes the ones it made itself.
+        function lFind(key, type) {
+            const own = state.nodes.find(n => n.id === learn.keys[key]);
+            if (own) return own;
+            const taken = new Set(Object.values(learn.keys));
+            const hit = state.nodes.find(n => n.type === type && !taken.has(n.id));
+            if (hit) learn.keys[key] = hit.id;
+            return hit || null;
+        }
+        function lEnsure(key, type, col, row, title) {
+            const have = lFind(key, type);
+            if (have) return have;
+            const n = {
+                id: uid('node'), type,
+                x: Math.round((learn.origin.x + col * (NODE_W + 90)) / 8) * 8,
+                y: Math.round((learn.origin.y + row * 190) / 8) * 8,
+                config: JSON.parse(JSON.stringify(BLOCKS[type].defaults))
+            };
+            if (title) n.config.title = title;
+            state.nodes.push(n);
+            learn.keys[key] = n.id;
+            learn.made.push(n.id);
+            return n;
+        }
+        const lEdge = (w, a, b) => state.edges.find(e => e.from === a.id && e.fromPort === w[1] && e.to === b.id && (e.toPort || 'in') === w[3]);
+        function lWired(w) {
+            const a = lFind(w[0], learn.types[w[0]]), b = lFind(w[2], learn.types[w[2]]);
+            return !!(a && b && lEdge(w, a, b));
+        }
+        function stepDone(s, i) {
+            if (s.info) return !!learn.seen[i];
+            if (s.spawn) {
+                const m = lFind(s.spawn, learn.types[s.spawn]);
+                return !!m && missingAgents(m).length === 0;
+            }
+            return (s.a || []).every(a => !!lFind(a[0], a[1])) && (s.w || []).every(lWired) && (s.u || []).every(w => !lWired(w));
+        }
+        function focusLesson() {
+            const ids = Object.values(learn.keys);
+            const list = state.nodes.filter(n => ids.includes(n.id));
+            if (!list.length) return;
+            const r = els.canvas.getBoundingClientRect();
+            const minX = Math.min(...list.map(n => n.x)), maxX = Math.max(...list.map(n => n.x)) + NODE_W;
+            const minY = Math.min(...list.map(n => n.y)), maxY = Math.max(...list.map(n => n.y)) + 190;
+            const z = Math.max(.35, Math.min(.9, r.width / (maxX - minX + 120), r.height / (maxY - minY + 140)));
+            state.zoom = z;
+            state.pan = { x: (r.width - (maxX - minX) * z) / 2 - minX * z, y: (r.height - (maxY - minY) * z) / 2 - minY * z };
+            els.viewport.classList.add('pbp-is-gliding');
+            applyView();
+            renderWires();
+            setTimeout(() => els.viewport.classList.remove('pbp-is-gliding'), 260);
+        }
+        function stepRun(s) {
+            (s.a || []).forEach(a => lEnsure(a[0], a[1], a[2], a[3], a[4]));
+            (s.w || []).forEach(w => {
+                if (lWired(w)) return;
+                const a = lEnsure(w[0], learn.types[w[0]], 0, 0), b = lEnsure(w[2], learn.types[w[2]], 1, 0);
+                state.edges.push({ id: uid('edge'), from: a.id, fromPort: w[1], to: b.id, toPort: w[3] });
+            });
+            (s.u || []).forEach(w => {
+                const a = lFind(w[0], learn.types[w[0]]), b = lFind(w[2], learn.types[w[2]]);
+                if (a && b) state.edges = state.edges.filter(e => !(e.from === a.id && e.fromPort === w[1] && e.to === b.id && (e.toPort || 'in') === w[3]));
+            });
+            if (s.spawn) {
+                const m = lEnsure(s.spawn, learn.types[s.spawn], 0, 1);
+                state.selected = m.id;
+                addAgents();
+                // The agents it adds belong to the lesson, so removing the lesson's blocks removes them too.
+                state.edges.filter(e => e.from === m.id).forEach(e => { if (!learn.made.includes(e.to)) learn.made.push(e.to); learn.keys['_' + e.to] = e.to; });
+            } else if (s.show === 'wire') {
+                autoWire();
+            } else if (s.show === 'select') {
+                const n = lFind(s.sel, learn.types[s.sel]);
+                if (n) select(n.id, { reveal: true });
+                return;
+            } else {
+                render();
+            }
+            focusLesson();
+        }
+        function learnOpen(id) {
+            const lesson = lessonById(id);
+            if (!lesson) return;
+            learn.lesson = id; learn.step = 0; learn.keys = {}; learn.made = []; learn.seen = {};
+            learn.types = {};
+            lesson.steps.forEach(s => (s.a || []).forEach(a => { learn.types[a[0]] = a[1]; }));
+            learn.origin = state.nodes.length ? { x: Math.max(...state.nodes.map(n => n.x)) + NODE_W + 140, y: 80 } : { x: 40, y: 80 };
+            renderLearn();
+        }
+        function learnNext() {
+            const lesson = lessonById(learn.lesson);
+            if (!lesson) return;
+            learn.seen[learn.step] = true;
+            if (learn.step >= lesson.steps.length - 1) {
+                if (!learnDone.includes(lesson.id)) { learnDone.push(lesson.id); saveLearn(); }
+                toast(`Lesson complete: ${lesson.title}`, 'success');
+                learn.lesson = null;
+            } else {
+                learn.step++;
+            }
+            renderLearn();
+        }
+        function learnClear() {
+            const gone = new Set(learn.made);
+            if (!gone.size) return toast('This lesson has not added any blocks', 'info');
+            state.nodes = state.nodes.filter(n => !gone.has(n.id));
+            state.edges = state.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+            learn.keys = {}; learn.made = [];
+            state.selected = null;
+            render();
+            toast('Lesson blocks removed. Your own blocks are untouched.', 'success');
+        }
+        function renderLearn() {
+            const el = $('#pbp-panel-learn');
+            if (!el || el.hidden) return;
+            const lesson = lessonById(learn.lesson);
+            if (!lesson) {
+                el.innerHTML = `<div class="pbp-learn">
+                    <div class="pbp-learn-intro"><b>Learn the agent blocks</b><p>Short hands-on lessons. Each step you can do yourself, or press Show me and the builder does it. Lessons add their own blocks beside yours and never change what you have built.</p></div>
+                    <ul class="pbp-lessons">${LESSONS.map((l, i) => `<li><button class="pbp-lesson" data-act="learnOpen" data-lesson="${l.id}">
+                        <span class="pbp-lesson-n" ${learnDone.includes(l.id) ? 'data-done' : ''}>${learnDone.includes(l.id) ? ms('check') : i + 1}</span>
+                        <span class="pbp-lesson-text"><b>${esc(l.title)}</b><small>${esc(l.blurb)} ${l.steps.length} steps</small></span>${ms('chevron_right')}</button></li>`).join('')}</ul></div>`;
+                return;
+            }
+            const s = lesson.steps[learn.step];
+            const done = stepDone(s, learn.step);
+            const team = result.sections.find(x => x.id === 'agents');
+            const excerpt = team ? team.parts.map(p => p.text).join('\n\n').slice(0, 900) : '';
+            el.innerHTML = `<div class="pbp-learn">
+                <button class="pbp-learn-back" data-act="learnClose">${ms('arrow_back')}<span>All lessons</span></button>
+                <h3 class="pbp-learn-title">${esc(lesson.title)}</h3>
+                <ol class="pbp-steps">${lesson.steps.map((x, i) => `<li data-state="${stepDone(x, i) ? 'done' : i === learn.step ? 'now' : 'todo'}"><button data-act="learnGo" data-step="${i}"><i>${stepDone(x, i) ? ms('check') : i + 1}</i><span>${esc(x.t)}</span></button></li>`).join('')}</ol>
+                <div class="pbp-step-card" data-done="${done}">
+                    <span class="pbp-label">Step ${learn.step + 1} of ${lesson.steps.length}${done ? ' · done' : ''}</span>
+                    <b>${esc(s.t)}</b>
+                    <p>${esc(s.d)}</p>
+                    <div class="pbp-step-actions">
+                        ${s.info && !s.show ? '' : `<button class="btn btn-accent pbp-btn-xs" data-act="learnShow">${ms('auto_fix_high')}<span>Show me</span></button>`}
+                        <button class="btn pbp-btn-xs pbp-push-left" data-act="learnPrev" ${learn.step ? '' : 'disabled'}>Back</button>
+                        <button class="btn pbp-btn-xs" data-act="learnNext">${learn.step >= lesson.steps.length - 1 ? 'Finish' : 'Next'}</button>
+                    </div>
+                </div>
+                <div class="pbp-now"><span class="pbp-label">What the prompt says now</span>${excerpt ? `<pre>${esc(excerpt)}</pre>` : '<p>Nothing yet. Once two agent blocks are wired together, their hand-offs appear here.</p>'}</div>
+                <div class="pbp-learn-foot"><button class="btn btn-ghost pbp-btn-xs" data-act="learnExample">Build the whole example</button><button class="btn btn-ghost pbp-btn-xs" data-act="learnClear">Remove lesson blocks</button></div>
+            </div>`;
+        }
+
         /* ---------- first run tutorial, replayed from the tour button ---------- */
         let tourAt = -1, tourPanes = null;
         const tourOn = () => tourAt >= 0;
-        const tourSeen = () => { try { return localStorage.getItem(TOUR_STORE) === '1'; } catch (e) { return true; } };
+        // Remembered in the database as well: WebView storage can reset between launches, and the tour must not come back.
+        const tourSeen = () => {
+            try { if (localStorage.getItem(TOUR_STORE) === '1') return true; } catch (e) { /* ask the database */ }
+            return !!(window.PL_prefs && window.PL_prefs.get('builder_tour') === '1');
+        };
         function placeTour() {
             if (!tourOn()) return;
             const step = TOUR_STEPS[tourAt];
@@ -1086,7 +1451,8 @@
             if (!tourOn()) return;
             tourAt = -1;
             $('#pbp-tour').hidden = true;
-            try { localStorage.setItem(TOUR_STORE, '1'); } catch (e) { /* it will simply show again next time */ }
+            try { localStorage.setItem(TOUR_STORE, '1'); } catch (e) { /* the database copy below still holds */ }
+            if (window.PL_prefs) window.PL_prefs.set('builder_tour', '1');
             if (tourPanes) {
                 if (panes.left !== tourPanes.left) togglePane('left', false);
                 if (panes.right !== tourPanes.right) togglePane('right', false);
@@ -1385,7 +1751,23 @@
                 toast('Default text restored', 'success');
             },
             openContext: t => openContext(t),
-            openGuide: () => { $('#pbp-guide-dialog').showModal(); $('.pbp-guide-body').scrollTop = 0; }
+            openGuide: () => { $('#pbp-guide-dialog').showModal(); $('.pbp-guide-body').scrollTop = 0; },
+            learnOpen: t => learnOpen(t.dataset.lesson),
+            learnClose: () => { learn.lesson = null; renderLearn(); },
+            learnGo: t => { learn.step = +t.dataset.step; renderLearn(); },
+            learnPrev: () => { if (learn.step) { learn.step--; renderLearn(); } },
+            learnNext,
+            learnShow: () => {
+                const lesson = lessonById(learn.lesson);
+                if (lesson) stepRun(lesson.steps[learn.step]);
+            },
+            learnExample: () => {
+                const lesson = lessonById(learn.lesson);
+                if (!lesson) return;
+                lesson.steps.forEach((s, i) => { stepRun(s); learn.seen[i] = true; });
+                renderLearn();
+            },
+            learnClear
         };
 
         root.addEventListener('click', e => {
@@ -1562,7 +1944,8 @@
                 else loadTemplate('default', true);
                 document.fonts?.ready.then(() => { if (isOpen()) renderWires(); });
                 // First run only. The tour button in the header replays it.
-                if (!tourSeen()) setTimeout(() => { if (isOpen()) startTour(); }, 350);
+                const prefsReady = window.PL_prefs && window.PL_prefs.ready ? window.PL_prefs.ready : Promise.resolve();
+                prefsReady.then(() => { if (!tourSeen()) setTimeout(() => { if (isOpen()) startTour(); }, 350); });
             } else {
                 renderWires();
             }

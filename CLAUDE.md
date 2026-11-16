@@ -288,10 +288,11 @@ A Pro workspace opened from the launcher's My Favorites list. It is a node canva
 1. Every id and class is prefixed `pbp-`, and every CSS rule sits under `#builderProWorkspace`.
 2. Colours come from `app.css` tokens only. No hex values, no blur. Icons are Material Symbols.
 3. Listeners go on the workspace root. The one `document` keydown listener must keep returning at once while the workspace is closed.
-4. **Cache busting is separate.** `update_hash.py` does not touch these files. They carry a hand-set `?v=` value in `index.html` (two places). Bump it whenever one of the three files changes.
-5. Saved state is localStorage only (`prompt-builder-pro.v5`, `.workshop.v1`, `.panes.v1`, `.tour.v1`). No database, no schema change.
+4. **Cache busting is separate.** `update_hash.py` does not touch these files. They carry a hand-set `?v=` value in `index.html` (two places, currently `20261116b`). Bump it whenever one of the three files changes.
+5. Saved flows and layout are localStorage only (`prompt-builder-pro.v5`, `.workshop.v1`, `.panes.v1`, `.tour.v1`, `.learn.v1`). The quick tour flag and finished lessons are also kept in the database through `window.PL_prefs` (`builder_tour`, `builder_learn`) because WebView storage can reset. No schema change.
 6. It shares the Component Library with Prompt Components through `window.PL_galleryBorrow` in `app.js`. Never build a second component dataset, and never edit `static/components-data.js` for this workspace.
-7. Free users are refused by a `body.is-premium` check, because `state` and `showPremiumModal` are private to the `app.js` IIFE.
+7. The `body.is-premium` check at the top of `openBuilderProWorkspace` is a leftover: there is no free tier any more (see the licence screen), so it never refuses anyone after activation.
+8. **New agent blocks and lessons live in `builder-pro.js`, not the engine:** `MORE_AGENTS` registers extra blocks into `PE.BLOCKS` and `PE.LIBRARY` (the engine treats every block in the `agents` category as a team member) and `LESSONS` drives the Learn tab. A block needs its ports, `about`, `use` and `defaults`; extra fields are not compiled unless the engine's `blockText` handles that type, so keep new agents to the one text field.
 
 **Launcher:** list headers are buttons that collapse their list (`pl_ws_collapsed` in localStorage). A new launcher list needs an icon colour rule beside the others in `app.css`.
 

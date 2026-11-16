@@ -24700,7 +24700,7 @@ Must avoid: [Anything sensitive or previously declined]`
 
 /* ============================================================================
    ONBOARDING SPOTLIGHT TOUR
-   13 steps. localStorage key: promptlib.tourDone
+   17 cards (welcome, 15 steps, last card). localStorage key: promptlib.tourDone, mirrored in the database (tour_done)
    Auto-launches on first run. Replay via #tourBtn.
    window.PL_startOnboarding, window.PL_skipOnboarding,
    window.PL_onboardNext, window.PL_onboardBack
@@ -24711,102 +24711,121 @@ Must avoid: [Anything sensitive or previously declined]`
     const TOUR_KEY = 'promptlib.tourDone';
     let _step = 0;
 
+    // Steps between the welcome and the last card are numbered automatically ("Step 3 of 15").
     const STEPS = [{
             eyebrow: 'Welcome',
             title: 'Your prompts. <em>Your machine.</em>',
-            desc: 'Prompt Library Pro is a fully offline workspace for the prompts you actually use. No cloud. No subscriptions. No one else has access to your data.',
+            desc: 'Prompt Library Pro is a fully offline workspace for the prompts you actually use. No cloud. No accounts. Nothing leaves this computer unless you send it.',
             icon: 'auto_awesome',
             target: null
         },
         {
-            eyebrow: 'Step 1 of 12',
             title: 'Your <em>library</em>',
-            desc: 'Every prompt you save lives here. Search, filter by folder, tag, or category. The list updates instantly as you type.',
+            desc: 'Every prompt you save lives here. Search, filter by folder, tag or category. The list updates as you type.',
             icon: 'library_books',
             target: '#promptsContainer'
         },
         {
-            eyebrow: 'Step 2 of 12',
             title: 'Save your first <em>prompt</em>',
-            desc: 'Click the + button or press Ctrl+N. Give it a title, paste your prompt, and save. It\'s searchable and ready to copy in one click from that moment on.',
+            desc: 'Click the + button or press Ctrl+N. Along the top of the editor sit Components, Context, Snippets and Variables, each opening a side panel beside your prompt.',
             icon: 'edit_note',
             target: '#newPromptBtn'
         },
         {
-            eyebrow: 'Step 3 of 12',
             title: 'Dynamic <em>variables</em>',
-            desc: 'Wrap any word in double brackets — [[client]], [[topic]], [[tone]] — and it becomes a fillable field. When you copy, a form lets you fill it in seconds.',
+            desc: 'Wrap any word in double brackets, such as [[client]] or [[tone]], and it becomes a fillable field. Open Variables in the editor to give each one a type: text, dropdown, slider, dice roll, card deck and more.',
             icon: 'data_object',
             target: '#promptsContainer'
         },
         {
-            eyebrow: 'Step 4 of 12',
             title: 'Organise with <em>folders</em>',
-            desc: 'Create folders to group prompts by project, client, or workflow. Drag-and-drop or assign in the editor. Use the folder filter in the sidebar to narrow the list.',
+            desc: 'Create folders to group prompts by project, client or workflow. Drag and drop, or assign in the editor. Use the folder filter in the sidebar to narrow the list.',
             icon: 'folder_open',
             target: '.nav-section-label[data-toggle="folders"]'
         },
         {
-            eyebrow: 'Step 5 of 12',
             title: 'Tags and <em>categories</em>',
-            desc: 'Add tags for flexible cross-folder search. Assign a category (Writing, Research, Product…) for quick chip-filter access at the top of the library.',
+            desc: 'Add tags for flexible search across folders. Assign a category (Writing, Research, Product and so on) for quick chip filtering at the top of the library.',
             icon: 'label',
             target: '.nav-section-label[data-toggle="categories"]'
         },
         {
-            eyebrow: 'Step 6 of 12',
-            title: 'Build <em>AI agents</em>',
-            desc: 'This is the Agents workspace. Define full role profiles — identity, voice, knowledge base, skills — and copy them as structured text, XML, or prose into any AI tool.',
-            icon: 'smart_toy',
-            open: 'roles',
-            target: null
-        },
-        {
-            eyebrow: 'Step 7 of 12',
-            title: 'Power <em>workspaces</em>',
-            desc: 'This is Prompt Forge — a structured prompt builder. The workspace nav also gives you Lab, Context Bank, Prompt Components and more. Each is a dedicated tool built around your saved prompts.',
-            icon: 'workspaces',
-            open: 'forge',
-            target: null
-        },
-        {
-            eyebrow: 'Step 8 of 12',
             title: 'The <em>detail panel</em>',
-            desc: 'Click any prompt to open the right panel. Fill variables, view version history, add notes and ratings, run a chain, or copy in any format — all without leaving the library.',
+            desc: 'Click any prompt to open the right panel. Fill variables, view history, add notes and ratings, run a chain, or copy in any format, without leaving the library.',
             icon: 'side_navigation',
             openDetail: true,
             target: '#detailPanel'
         },
         {
-            eyebrow: 'Step 9 of 12',
+            title: 'Combine <em>similar prompts</em>',
+            desc: 'Two prompts that overlap? Use this merge button, or open Workspaces and choose Combine Prompts. Compare them side by side, keep the best of each, and undo if you change your mind.',
+            icon: 'call_merge',
+            openDetail: true,
+            target: '#panelCombineBtn'
+        },
+        {
+            title: 'Power <em>workspaces</em>',
+            desc: 'This is Prompt Forge, a structured prompt builder. The Workspaces launcher holds many more tools: Context Bank, Prompt X-Ray, Combine Prompts, Prompt Chain and others, each built around your saved prompts.',
+            icon: 'workspaces',
+            open: 'forge',
+            target: null
+        },
+        {
+            title: 'Prompt <em>Components</em>',
+            desc: 'Drag components onto an endless canvas and wire them together. Every block has two inputs on the left and two outputs on the right, and the prompt follows your wires.',
+            icon: 'extension',
+            open: 'components',
+            target: null
+        },
+        {
+            title: 'Prompt <em>Builder Pro</em>',
+            desc: 'Find it under Workspaces. Wire blocks and agent teams into one compiled prompt. The Learn tab on the right teaches the multi-agent blocks with short hands-on lessons.',
+            icon: 'schema',
+            target: '#workspacesNavBtn'
+        },
+        {
             title: 'Context <em>Bank</em>',
-            desc: 'This is the Context Bank. Save reusable context blocks — company info, persona, style guide — and inject them into any prompt with one click. No more retyping the same background text.',
+            desc: 'Save reusable context blocks such as company info, a persona or a style guide, and drop them into any prompt. Choose how a block starts: plain, labelled, XML, Markdown, brackets, or type your own.',
             icon: 'database',
             open: 'contextBank',
             target: null
         },
         {
-            eyebrow: 'Step 10 of 12',
+            title: 'Build <em>AI agents</em>',
+            desc: 'This is the Agents workspace. Define full role profiles: identity, voice, knowledge and skills. Copy them as structured text, XML or prose into any AI tool.',
+            icon: 'smart_toy',
+            open: 'roles',
+            target: null
+        },
+        {
             title: 'Import and <em>Export</em>',
             desc: 'Share your library as a .plp pack, export individual prompts as Markdown or CSV, or import a colleague\'s pack. Everything travels as a single file.',
             icon: 'import_export',
             target: '#exportBtn'
         },
         {
-            eyebrow: 'Step 11 of 12',
-            title: 'Pro <em>features</em>',
-            desc: 'Unlock version history, analytics, chat-format export, and power workspaces like Prompt Components with a Pro licence. Your data stays local either way.',
+            title: 'Your <em>licence</em>',
+            desc: 'Your licence key is checked once and saved on this computer. Open this button any time to see its status. Everything is unlocked, with no limits.',
             icon: 'workspace_premium',
             target: '#licenceBtn'
         },
         {
+            title: 'A <em>shortcut</em> worth knowing',
+            desc: 'Select text in any text box and press Shift+F3 to cycle through Title Case, lowercase, UPPERCASE, Capitalised and Sentence case. Your [[variables]] are left alone.',
+            icon: 'text_fields',
+            target: null
+        },
+        {
             eyebrow: 'You\'re set',
             title: 'The library is <em>yours</em>',
-            desc: 'That\'s the full tour. Build your library one prompt at a time. Replay this tour anytime via the "App tour" button in the sidebar footer.',
+            desc: 'That\'s the full tour. Build your library one prompt at a time. Replay it any time with the App tour button in the sidebar footer.',
             icon: 'check_circle',
             target: null
         }
     ];
+    STEPS.forEach(function(st, i) {
+        if (!st.eyebrow) st.eyebrow = 'Step ' + i + ' of ' + (STEPS.length - 2);
+    });
 
     const TOTAL = STEPS.length;
 
@@ -24847,6 +24866,7 @@ Must avoid: [Anything sensitive or previously declined]`
     const OPEN_FNS = {
         roles: 'openRolesWorkspace',
         forge: 'openForgeWorkspace',
+        components: 'openComponentsWorkspace',
         contextBank: 'openContextBankWorkspace'
     };
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
