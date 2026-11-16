@@ -401,6 +401,7 @@
         </div>
         <div class="pbp-toggles">
           <label class="pbp-toggle">Sample values<button class="pbp-switch" role="switch" id="pbp-sample-switch" aria-checked="false" aria-label="Fill variables with sample values"></button></label>
+          <label class="pbp-toggle" title="Adds your blocks to the end of a copied or exported prompt as a hidden comment, so Import can give the same blocks back. Turn it off for a clean prompt to paste into a model.">Keep blocks in copy<button class="pbp-switch" role="switch" id="pbp-embed-switch" aria-checked="true" aria-label="Add the blocks to the end of a copied or exported prompt so it can be imported again"></button></label>
           <label class="pbp-toggle">Follow wire order<button class="pbp-switch" role="switch" id="pbp-order-switch" aria-checked="false" aria-label="Order sections by wiring instead of the standard prompt structure"></button></label>
         </div>
       </div>
@@ -531,7 +532,7 @@
 
         const state = {
             title: '', nodes: [], edges: [], selected: null,
-            format: 'markdown', order: 'canonical', sample: false,
+            format: 'markdown', order: 'canonical', sample: false, embed: true,
             pan: { x: 24, y: 72 }, zoom: .85, nextId: 1,
             tab: 'prompt', cat: 'all', query: ''
         };
@@ -551,7 +552,7 @@
             try {
                 localStorage.setItem(STORE, JSON.stringify({
                     title: state.title, nodes: state.nodes, edges: state.edges,
-                    format: state.format, order: state.order, sample: state.sample
+                    format: state.format, order: state.order, sample: state.sample, embed: state.embed
                 }));
             } catch (e) { /* storage full or blocked, the canvas still works */ }
         }
@@ -563,6 +564,7 @@
                 Object.assign(state, {
                     title: raw.title || '',
                     nodes: clean.nodes, edges: clean.edges,
+                    embed: raw.embed !== false,
                     format: raw.format || 'markdown',
                     order: raw.order || 'canonical',
                     sample: !!raw.sample
@@ -1157,9 +1159,27 @@
                 t.remove();
             }
         }
+        /* ---------- round trip: the blocks travel with the prompt ----------
+           A hidden comment at the end holds every block, its settings, position and wires, plus a fingerprint of the visible text.
+           Import restores them exactly when the text is unchanged, and rebuilds from the text when it was edited. */
+        const GRAPH_RE = /<!--\s*prompt-builder-pro:graph v1\s*([\s\S]*?)\s*-->/;
+        const plainText = t => String(t).replace(/\r\n?/g, '\n').split('\n').map(l => l.replace(/\s+$/, '')).join('\n').trim();
+        const fingerprint = t => {
+            let h = 0x811c9dc5;
+            const x = plainText(t);
+            for (let i = 0; i < x.length; i++) { h ^= x.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+            return h.toString(16).padStart(8, '0');
+        };
+        function withBlocks(text) {
+            if (!state.embed || !state.nodes.length) return text;
+            const visible = String(text).replace(/\s+$/, '');
+            // Two dashes cannot appear inside a comment, so they are written as escapes. JSON reads them back unchanged.
+            const data = JSON.stringify({ v: 1, h: fingerprint(visible), title: state.title, order: state.order, nodes: state.nodes, edges: state.edges }).replace(/--/g, '\\u002d\\u002d');
+            return `${visible}\n\n<!-- prompt-builder-pro:graph v1 ${data} -->\n`;
+        }
         async function copyPrompt(btn) {
             if (!result.text.trim()) return toast('Wire some blocks together first', 'warning');
-            await copyText(result.text);
+            await copyText(state.format === 'json' ? result.text : withBlocks(result.text));
             const issues = result.diagnostics.filter(d => d.level !== 'info').length;
             toast(issues ? `Copied, with ${issues} open check${issues === 1 ? '' : 's'}` : 'Prompt copied', 'success');
             const label = btn && btn.querySelector('.pbp-btn-label');
@@ -1174,7 +1194,7 @@
         function buildExport(kind) {
             const opts = { order: state.order, sample: state.sample, title: state.title };
             const md = PE.compilePrompt(compileNodes(), state.edges, { ...opts, format: 'markdown' });
-            if (kind === 'md') return md.text;
+            if (kind === 'md') return withBlocks(md.text);
             if (kind === 'txt') return md.text.replace(/^##\s+(.*)$/gm, (m, t) => t.toUpperCase()).replace(/^#{1,6}\s+/gm, '');
             if (kind === 'json') {
                 const text = PE.compilePrompt(compileNodes(), state.edges, { ...opts, format: 'json' }).text;
@@ -1191,7 +1211,9 @@
             const text = `<?xml version="1.0" encoding="UTF-8"?>\n<prompt title="${xmlEsc(state.title || 'Untitled prompt').replace(/"/g, '&quot;')}">\n${body}\n</prompt>\n`;
             const doc = new DOMParser().parseFromString(text, 'application/xml');
             if (doc.querySelector('parsererror') || doc.documentElement.nodeName !== 'prompt') throw new Error('xml');
-            return text;
+            const tagged = withBlocks(text);
+            if (tagged !== text && new DOMParser().parseFromString(tagged, 'application/xml').querySelector('parsererror')) throw new Error('xml');
+            return tagged;
         }
         function exportAs(kind) {
             if (!result.text.trim()) return toast('Wire some blocks together first', 'warning');
@@ -1649,7 +1671,7 @@
             $('#pbp-json-title').textContent = mode === 'export' ? 'Export backup' : 'Import a prompt';
             $('#pbp-json-desc').textContent = mode === 'export'
                 ? 'This is the full canvas: every block, its settings, its position and its wires. Keep it as a backup. To share the prompt itself, use Export prompt (Markdown).'
-                : 'Paste a prompt written in Markdown. Each heading becomes a block, wired in the order you wrote them. XML tags and a JSON backup work too.';
+                : 'Paste a prompt written in Markdown. A prompt copied or exported from here gives the same blocks back. Otherwise each heading becomes a block, wired in the order you wrote them. XML tags and a JSON backup work too.';
             $('#pbp-json-text').value = mode === 'export' ? JSON.stringify({ title: state.title, nodes: state.nodes, edges: state.edges }, null, 2) : '';
             $('#pbp-json-text').placeholder = MD_EXAMPLE;
             $('#pbp-json-action').textContent = mode === 'export' ? 'Copy JSON' : 'Build blocks';
@@ -1657,8 +1679,29 @@
             $('#pbp-json-dialog').showModal();
         }
         function importText(text) {
-            const src = text.trim();
+            let src = text.trim();
             if (!src) throw new Error('blank');
+            let edited = false;
+            const mark = src.match(GRAPH_RE);
+            if (mark) {
+                const visible = src.replace(GRAPH_RE, '');
+                let raw = null;
+                try { raw = JSON.parse(mark[1]); } catch (e) { raw = null; }
+                if (raw && raw.v === 1 && Array.isArray(raw.nodes) && Array.isArray(raw.edges)) {
+                    if (raw.h === fingerprint(visible)) {
+                        const clean = PE.sanitizeGraph(raw.nodes.map(n => ({ ...n, x: +n.x || 0, y: +n.y || 0, config: n.config || {} })), raw.edges);
+                        if (clean.nodes.length) {
+                            return {
+                                title: raw.title || 'Imported prompt', nodes: clean.nodes, edges: clean.edges, restored: true,
+                                order: raw.order === 'wire' ? 'wire' : 'canonical',
+                                notes: clean.dropped ? [`${clean.dropped} broken item${clean.dropped === 1 ? ' was' : 's were'} skipped.`] : []
+                            };
+                        }
+                    } else edited = true;
+                }
+                src = visible.trim();
+                if (!src) throw new Error('blank');
+            }
             if (src[0] === '{') {
                 let raw;
                 try { raw = JSON.parse(src); } catch (e) { throw new Error('json'); }
@@ -1678,7 +1721,7 @@
             const ids = new Map(parsed.nodes.map(n => [n.id, uid('node')]));
             return {
                 title: parsed.title || 'Imported prompt',
-                notes: parsed.notes,
+                notes: edited ? ['The text was edited after it was exported, so the blocks were rebuilt from the text.'].concat(parsed.notes) : parsed.notes,
                 nodes: parsed.nodes.map(n => ({ ...n, id: ids.get(n.id) })),
                 edges: parsed.edges.map(e => ({ ...e, id: uid('edge'), from: ids.get(e.from), to: ids.get(e.to) }))
             };
@@ -1693,13 +1736,17 @@
             try {
                 const got = importText($('#pbp-json-text').value);
                 Object.assign(state, { title: got.title, nodes: got.nodes, edges: got.edges, selected: null });
+                if (got.restored) {
+                    state.order = got.order;
+                    $('#pbp-order-switch').setAttribute('aria-checked', state.order === 'wire');
+                }
                 $('#pbp-workflow-title').value = state.title;
                 $('#pbp-json-dialog').close();
                 render();
                 fit();
                 importNotes = got.notes;
                 renderChecks();
-                toast(`${got.nodes.length} block${got.nodes.length === 1 ? '' : 's'} built${got.notes.length ? `. ${got.notes.length} note${got.notes.length === 1 ? '' : 's'} in Checks.` : ''}`, 'success');
+                toast(`${got.nodes.length} block${got.nodes.length === 1 ? '' : 's'} ${got.restored ? 'restored exactly from the Markdown' : 'built'}${got.notes.length ? `. ${got.notes.length} note${got.notes.length === 1 ? '' : 's'} in Checks.` : ''}`, 'success');
             } catch (e) {
                 err.hidden = false;
                 err.textContent = {
@@ -2070,7 +2117,8 @@
 
         for (const [id, key, on, off] of [
             ['pbp-sample-switch', 'sample', true, false],
-            ['pbp-order-switch', 'order', 'wire', 'canonical']
+            ['pbp-order-switch', 'order', 'wire', 'canonical'],
+            ['pbp-embed-switch', 'embed', true, false]
         ]) {
             $('#' + id).addEventListener('click', e => {
                 e.preventDefault();
@@ -2126,6 +2174,7 @@
             $$('[data-format]').forEach(b => b.setAttribute('aria-pressed', b.dataset.format === state.format));
             $('#pbp-sample-switch').setAttribute('aria-checked', state.sample);
             $('#pbp-order-switch').setAttribute('aria-checked', state.order === 'wire');
+            $('#pbp-embed-switch').setAttribute('aria-checked', state.embed);
         }
 
         // The canvas measures the DOM, so the first paint waits until the workspace is on screen.
