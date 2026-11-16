@@ -477,13 +477,77 @@
         box().querySelectorAll('[data-cmb-close]').forEach(b => b.addEventListener('click', closeCombine));
     }
 
+    /* ── Start screen: opened from the Workspaces launcher, before any prompt is chosen ── */
+    async function openStart() {
+        if (inVaultMode()) { toast('Combine works on library prompts, not local library files', 'info'); return; }
+        let list;
+        try { list = await call('/prompts'); } catch (e) { toast('Could not load prompts', 'error'); return; }
+        const pairs = [];
+        if (list.length <= 800) {
+            const sets = list.map(tokenSet);
+            for (let i = 0; i < list.length; i++) {
+                for (let j = i + 1; j < list.length; j++) {
+                    const score = jaccard(sets[i], sets[j]);
+                    if (score >= 0.5) pairs.push({ a: list[i], b: list[j], score });
+                }
+            }
+            pairs.sort((x, y) => y.score - x.score);
+        }
+        S = { mode: 'start', list, pairs: pairs.slice(0, 5), query: '' };
+        renderStart();
+        show();
+        setTimeout(() => box().querySelector('[data-cmb-search]')?.focus(), 60);
+    }
+
+    function renderStart() {
+        const q = S.query.trim().toLowerCase();
+        const rows = (q ? S.list.filter(p => ((p.title || '') + ' ' + (p.content || '')).toLowerCase().includes(q)) : S.list).slice(0, 8);
+        const pairRows = !q ? S.pairs.map(r =>
+            '<li><button type="button" class="cmb-pick-row" data-cmb-pair="' + r.a.id + ',' + r.b.id + '">' +
+            '<span class="cmb-pick-score' + (r.score >= 0.75 ? ' high' : '') + '">' + Math.round(r.score * 100) + '%</span>' +
+            '<span class="cmb-pick-text"><span class="cmb-pick-name">' + esc(r.a.title || 'Untitled') + '</span>' +
+            '<span class="cmb-pick-preview">with ' + esc(r.b.title || 'Untitled') + '</span></span>' +
+            '<span class="material-symbols-outlined">arrow_forward</span></button></li>').join('') : '';
+        box().innerHTML =
+            '<header class="cmb-head"><div><div class="cmb-eyebrow">Combine</div>' +
+            '<h2 id="cmbHeading" class="cmb-title">Combine two prompts</h2>' +
+            '<p class="cmb-sub">Take a suggested pair, or choose one prompt and then its partner. You decide what to keep before anything is removed.</p></div>' +
+            '<button type="button" class="icon-btn" data-cmb-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></header>' +
+            '<div class="cmb-pick-search"><span class="material-symbols-outlined">search</span><input type="search" placeholder="Search prompts" data-cmb-search value="' + esc(S.query) + '"></div>' +
+            (pairRows ? '<h3 class="cmb-section">Likely duplicates</h3><ul class="cmb-pick-list">' + pairRows + '</ul>' : '') +
+            '<h3 class="cmb-section">' + (q ? 'Results' : 'Start from one prompt') + '</h3>' +
+            '<ul class="cmb-pick-list">' + (rows.length ? rows.map(p =>
+                '<li><button type="button" class="cmb-pick-row" data-cmb-first="' + p.id + '">' +
+                '<span class="cmb-pick-text"><span class="cmb-pick-name">' + esc(p.title || 'Untitled') + '</span>' +
+                '<span class="cmb-pick-preview">' + esc((p.content || '').slice(0, 120)) + '</span></span>' +
+                '<span class="material-symbols-outlined">arrow_forward</span></button></li>').join('')
+                : '<li class="cmb-empty">No prompts match.</li>') + '</ul>';
+        wireCommon();
+        const input = box().querySelector('[data-cmb-search]');
+        input.addEventListener('input', () => {
+            S.query = input.value;
+            const pos = input.selectionStart;
+            renderStart();
+            const again = box().querySelector('[data-cmb-search]');
+            again.focus();
+            again.setSelectionRange(pos, pos);
+        });
+        box().querySelectorAll('[data-cmb-pair]').forEach(btn => btn.addEventListener('click', () => {
+            const [a, b] = btn.dataset.cmbPair.split(',').map(n => parseInt(n, 10));
+            openCompare(a, b);
+        }));
+        box().querySelectorAll('[data-cmb-first]').forEach(btn => btn.addEventListener('click', () => openPicker(parseInt(btn.dataset.cmbFirst, 10))));
+    }
+
     /* ── Public entry points ── */
     window.PL_openCombine = function (idA, idB) {
         idA = parseInt(idA, 10);
         idB = parseInt(idB, 10);
         if (idA && idB) return openCompare(idA, idB);
         if (idA) return openPicker(idA);
+        return openStart();
     };
+    window.openCombineWorkspace = () => openStart();
     window.PL_undoLastCombine = () => undo(false);
 
     function wireEntryPoints() {

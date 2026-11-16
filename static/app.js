@@ -31,14 +31,6 @@
     /* ============================================================================
        STATE
        ============================================================================ */
-    // Free tier limits — Pro users bypass all of these
-    const FREE_LIMITS = {
-        prompts: 35,
-        folders: 8,
-        tags: 5,
-        categories: 8,
-    };
-
     const state = {
         librarySource: { type: 'db' }, // { type: 'db' } | { type: 'vault', vaultId, vaultName }
         vaultBrowsePath: '', // relative folder path currently browsed inside the active vault
@@ -246,6 +238,41 @@
     function isTitleCase(str) {
         return toTitleCase(str) === str;
     }
+
+    /* ============================================================================
+       UI PREFERENCES
+       Small choices kept in the database (/api/settings/prefs) because WebView
+       localStorage can reset between launches. get() answers from memory.
+       ============================================================================ */
+    window.PL_prefs = (() => {
+        const cache = {};
+        let queue = {};
+        let timer = null;
+        const flush = () => {
+            timer = null;
+            const body = queue;
+            queue = {};
+            fetch('/api/settings/prefs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            }).catch(() => {});
+        };
+        const ready = fetch('/api/settings/prefs')
+            .then(r => (r.ok ? r.json() : {}))
+            .then(d => { Object.keys(d || {}).forEach(k => { if (!(k in queue)) cache[k] = d[k]; }); })
+            .catch(() => {});
+        return {
+            ready,
+            get: (k) => (k in cache ? cache[k] : null),
+            set: (k, v) => {
+                cache[k] = v;
+                queue[k] = v;
+                clearTimeout(timer);
+                timer = setTimeout(flush, 400);
+            }
+        };
+    })();
 
     /* ============================================================================
        TOAST
@@ -2929,6 +2956,7 @@ STYLE/THEME: [[reserved for future use]]`;
 
         // Reset varsbadge + previews
         $('#varsCountBadge').hidden = true;
+        _syncVarsCount(0);
         $('#editorPreview').innerHTML = '<span class="hint">Live preview...</span>';
         $('#varMetaList').innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
         $('#chainList').innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No steps yet.</p>';
@@ -3055,11 +3083,17 @@ STYLE/THEME: [[reserved for future use]]`;
 
     function switchEditorTab(name) {
         // 'content' was the old system-prompt pane, now always visible as prompt-block.
-        // Remap to 'variables' so advanced tabs still default to something sensible.
-        const target = name === 'content' ? 'variables' : name;
+        // Both it and 'variables' (now its own side panel) map to the first advanced tab, Chain.
+        const target = (name === 'content' || name === 'variables') ? 'chain' : name;
         $$('.editor-tab').forEach(t => t.classList.toggle('active', t.dataset.pane === target));
         $$('.editor-pane').forEach(p => p.classList.toggle('active', p.id === `pane-${target}`));
-        if (target !== 'variables') _PL_pvOpen(false);
+    }
+
+    function _syncVarsCount(n) {
+        const el = $('#varsPanelCount');
+        if (!el) return;
+        el.textContent = String(n);
+        el.hidden = !n;
     }
 
     function updateEditorPreview() {
@@ -3071,11 +3105,13 @@ STYLE/THEME: [[reserved for future use]]`;
         if (!content.trim()) {
             preview.innerHTML = '<span class="hint">Live preview...</span>';
             badge.hidden = true;
+            _syncVarsCount(0);
             return;
         }
 
         preview.innerHTML = renderChips(content);
         const vars = detectVariables(content);
+        _syncVarsCount(vars.length);
         if (vars.length > 0) {
             badge.hidden = false;
             badgeTxt.textContent = `${vars.length} var${vars.length !== 1 ? 's' : ''}`;
@@ -3127,12 +3163,6 @@ STYLE/THEME: [[reserved for future use]]`;
             return;
         }
 
-        // Free tier prompt limit
-        if (!id && !state.isPremium && state.prompts.length >= FREE_LIMITS.prompts) {
-            toast(`Free plan limit: ${FREE_LIMITS.prompts} prompts. Upgrade to Pro for unlimited.`, 'warning');
-            showPremiumModal();
-            return;
-        }
         const data = {
             title: (() => { const t = $('#promptTitle').value.trim(); return isTitleCase(t) ? t : toTitleCase(t); })(),
             description: $('#promptDesc').value.trim(),
@@ -3151,19 +3181,6 @@ STYLE/THEME: [[reserved for future use]]`;
         if (!data.title || !data.content) {
             toast('Title and content are required', 'warning');
             return;
-        }
-        // Free tier tag / category limits
-        if (!state.isPremium) {
-            const tagArr = data.tags ? data.tags.split(',').filter(Boolean) : [];
-            const catArr = data.categories ? data.categories.split(',').filter(Boolean) : [];
-            if (tagArr.length > FREE_LIMITS.tags) {
-                toast(`Free plan: max ${FREE_LIMITS.tags} tags per prompt. Remove ${tagArr.length - FREE_LIMITS.tags} to save, or upgrade to Pro.`, 'warning');
-                return;
-            }
-            if (catArr.length > FREE_LIMITS.categories) {
-                toast(`Free plan: max ${FREE_LIMITS.categories} categories per prompt. Upgrade to Pro for unlimited.`, 'warning');
-                return;
-            }
         }
         try {
             const url = id ? `/prompts/${id}` : '/prompts';
@@ -3204,8 +3221,14 @@ STYLE/THEME: [[reserved for future use]]`;
        ============================================================================ */
     // Fill form preview: left panel of the prompt editor shows the selected variable as the fill form draws it
     let _PL_pvSel = null;
+    let _PL_pvDismissed = false;
     function _PL_pvOpen(on) {
         $('#promptVarPreviewPanel')?.classList.toggle('open', !!on);
+        $('#promptModalWrap')?.classList.toggle('pvp-open', !!on);
+    }
+    function _PL_pvSync() {
+        const vp = $('#promptVarsPanel');
+        _PL_pvOpen(!!(vp && vp.classList.contains('open') && _PL_pvSel && !_PL_pvDismissed));
     }
     function _PL_pvRefresh() {
         const host = $('#pvpField');
@@ -3236,20 +3259,24 @@ STYLE/THEME: [[reserved for future use]]`;
             const sum = e.target.closest('summary.var-meta-summary');
             if (!sum) return;
             const row = sum.closest('.var-meta-row');
-            if (!row.open) { _PL_pvSel = row.dataset.var; _PL_pvOpen(true); }
+            if (!row.open) { _PL_pvSel = row.dataset.var; _PL_pvDismissed = false; }
             else if (_PL_pvSel === row.dataset.var) _PL_pvSel = null;
             _PL_pvRefresh();
+            _PL_pvSync();
         });
         ['input', 'change'].forEach(ev => list.addEventListener(ev, e => {
             const row = e.target.closest('.var-meta-row');
             if (row && row.dataset.var === _PL_pvSel) _PL_pvRefresh();
         }));
-        $('#closeVarPreviewPanel')?.addEventListener('click', () => _PL_pvOpen(false));
+        $('#closeVarPreviewPanel')?.addEventListener('click', () => { _PL_pvDismissed = true; _PL_pvSync(); });
+        const vp = $('#promptVarsPanel');
+        if (vp) new MutationObserver(_PL_pvSync).observe(vp, { attributes: true, attributeFilter: ['class'] });
         const modal = $('#promptModal');
         if (modal) new MutationObserver(() => {
             if (modal.classList.contains('active')) return;
             _PL_pvSel = null;
-            _PL_pvOpen(false);
+            _PL_pvDismissed = false;
+            _PL_pvSync();
             _PL_pvRefresh();
         }).observe(modal, { attributes: true, attributeFilter: ['class'] });
     }
@@ -3449,12 +3476,25 @@ STYLE/THEME: [[reserved for future use]]`;
         }
     }
 
+    let _chainSearchIndex = -1;
+
+    function _chainSetActive(res, dir) {
+        const items = $$('.chain-search-result', res);
+        if (!items.length) { _chainSearchIndex = -1; return; }
+        if (_chainSearchIndex < 0) _chainSearchIndex = dir > 0 ? 0 : items.length - 1;
+        else _chainSearchIndex = (_chainSearchIndex + dir + items.length) % items.length;
+        items.forEach((el, i) => el.classList.toggle('is-active', i === _chainSearchIndex));
+        items[_chainSearchIndex].scrollIntoView({ block: 'nearest' });
+    }
+
     function _renderChainSearchResults(q) {
         const res = $('#chainSearchResults');
         if (!res) return;
         const query = (q || '').toLowerCase().trim();
+        const used = JSON.parse($('#promptChainIds').value || '[]');
+        _chainSearchIndex = -1;
         const filtered = state.prompts
-            .filter(p => p.id !== _chainSearchCurrentId)
+            .filter(p => p.id !== _chainSearchCurrentId && !used.includes(p.id))
             .filter(p => !query ||
                 (p.title || '').toLowerCase().includes(query) ||
                 (p.description || '').toLowerCase().includes(query) ||
@@ -3463,14 +3503,16 @@ STYLE/THEME: [[reserved for future use]]`;
             .slice(0, 12);
 
         if (!filtered.length) {
-            res.innerHTML = '<div class="chain-search-empty">No prompts found</div>';
+            res.innerHTML = '<div class="chain-search-empty">' + (query ? 'No prompts found' : 'Every prompt is already in this chain') + '</div>';
             res.classList.add('open');
             return;
         }
         res.innerHTML = filtered.map(p => {
             const tags = (p.tags || []).slice(0, 3).map(t => `<span class="chain-search-tag">${escapeHtml(t)}</span>`).join('');
+            const desc = (p.description || '').trim();
             return `<div class="chain-search-result" role="option" data-id="${p.id}">
       <div class="chain-search-result-title">${escapeHtml(p.title || 'Untitled')}</div>
+      ${desc ? `<div class="chain-search-result-desc">${escapeHtml(desc)}</div>` : ''}
       ${tags ? `<div class="chain-search-tags">${tags}</div>` : ''}
     </div>`;
         }).join('');
@@ -3506,26 +3548,39 @@ STYLE/THEME: [[reserved for future use]]`;
 
     function renderChainEditor(ids) {
         const list = $('#chainList');
+        if (!list) return;
         if (!ids.length) {
-            list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No steps yet.</p>';
+            list.innerHTML = '<div class="chain-ed-empty"><span class="material-symbols-outlined">link</span><div><b>No steps yet</b>' +
+                '<p>A chain runs more prompts after this one. Each step receives the output of the step before it. Search below to add the first step.</p></div></div>';
             return;
         }
-        list.innerHTML = ids.map((id, i) => {
+        const startName = ($('#promptTitle')?.value || '').trim() || 'This prompt';
+        const missing = ids.filter(id => !state.prompts.some(x => x.id === id)).length;
+        const rows = ids.map((id, i) => {
             const p = state.prompts.find(x => x.id === id);
-            const title = p ? p.title : `Prompt #${id}`;
+            const prev = i === 0 ? startName : ((state.prompts.find(x => x.id === ids[i - 1]) || {}).title || 'the previous step');
+            const name = p ? (p.title || 'Untitled') : 'Prompt no longer exists';
+            const desc = p ? (p.description || '').trim() : 'It may have been deleted. Remove this step.';
             return `
-      <div class="chain-step">
+      <div class="chain-step${p ? '' : ' is-missing'}">
         <div class="chain-step-num">${i + 1}</div>
         <div class="chain-step-body">
-          <div class="chain-step-title">${escapeHtml(title)}</div>
+          <div class="chain-step-title">${escapeHtml(name)}</div>
+          ${desc ? `<div class="chain-step-desc">${escapeHtml(desc)}</div>` : ''}
+          <div class="chain-step-meta">Receives the output of ${escapeHtml(prev)}</div>
         </div>
         <div class="chain-step-actions">
-          ${i > 0 ? `<button type="button" class="icon-btn" onclick="window.PL_moveChain(${i}, -1)"><span class="material-symbols-outlined">arrow_upward</span></button>` : ''}
-          ${i < ids.length - 1 ? `<button type="button" class="icon-btn" onclick="window.PL_moveChain(${i}, 1)"><span class="material-symbols-outlined">arrow_downward</span></button>` : ''}
-          <button type="button" class="icon-btn danger" onclick="window.PL_removeChain(${i})"><span class="material-symbols-outlined">close</span></button>
+          ${i > 0 ? `<button type="button" class="icon-btn" aria-label="Move step ${i + 1} up" title="Move up" onclick="window.PL_moveChain(${i}, -1)"><span class="material-symbols-outlined">arrow_upward</span></button>` : ''}
+          ${i < ids.length - 1 ? `<button type="button" class="icon-btn" aria-label="Move step ${i + 1} down" title="Move down" onclick="window.PL_moveChain(${i}, 1)"><span class="material-symbols-outlined">arrow_downward</span></button>` : ''}
+          <button type="button" class="icon-btn danger" aria-label="Remove step ${i + 1}" title="Remove step" onclick="window.PL_removeChain(${i})"><span class="material-symbols-outlined">close</span></button>
         </div>
       </div>`;
-        }).join('');
+        });
+        const link = '<div class="chain-ed-link" aria-hidden="true"><span class="material-symbols-outlined">arrow_downward</span></div>';
+        list.innerHTML =
+            `<div class="chain-ed-summary"><span><b>${ids.length}</b> step${ids.length !== 1 ? 's' : ''} run after this prompt${missing ? `, <b>${missing}</b> missing` : ''}</span></div>` +
+            `<div class="chain-ed-flow"><div class="chain-ed-start"><span class="material-symbols-outlined">play_circle</span><span>${escapeHtml(startName)} <small>(runs first)</small></span></div>` +
+            link + rows.join(link) + '</div>';
     }
     window.PL_moveChain = function(idx, dir) {
         const ids = JSON.parse($('#promptChainIds').value || '[]');
@@ -3656,15 +3711,6 @@ STYLE/THEME: [[reserved for future use]]`;
         const id = $('#folderId').value;
         const name = $('#folderName').value.trim();
         if (!name) return;
-        // Free tier folder limit
-        if (!id && !state.isPremium) {
-            const folderCount = document.querySelectorAll('#foldersList .folder-item').length;
-            if (folderCount >= FREE_LIMITS.folders) {
-                toast(`Free plan limit: ${FREE_LIMITS.folders} folders. Upgrade to Pro for unlimited.`, 'warning');
-                showPremiumModal();
-                return;
-            }
-        }
         try {
             const url = id ? `/folders/${id}` : '/folders';
             const method = id ? 'PUT' : 'POST';
@@ -3702,15 +3748,6 @@ STYLE/THEME: [[reserved for future use]]`;
     window.createFolderInline = function() {
         const name = prompt('Folder name:');
         if (!name || !name.trim()) return;
-        // Free tier folder limit
-        if (!state.isPremium) {
-            const folderCount = document.querySelectorAll('#foldersList .folder-item').length;
-            if (folderCount >= FREE_LIMITS.folders) {
-                toast(`Free plan limit: ${FREE_LIMITS.folders} folders. Upgrade to Pro for unlimited.`, 'warning');
-                showPremiumModal();
-                return;
-            }
-        }
         api('/folders', {
             method: 'POST',
             body: {
@@ -4596,10 +4633,58 @@ Here are my prompts:
             console.warn('licence check failed:', err);
         }
         applyPremiumState();
+        // No free tier inside the app: without a saved valid key, ask for one.
+        _gateOpen(!state.isPremium);
+    }
+
+    // First launch licence screen. Covers the app (inert) until a valid key is saved.
+    function _gateOpen(on) {
+        const gate = $('#activationGate');
+        if (!gate) return;
+        gate.hidden = !on;
+        document.body.classList.toggle('gate-open', on);
+        const app = $('#app');
+        if (app) {
+            if (on) app.setAttribute('inert', '');
+            else app.removeAttribute('inert');
+        }
+        if (on) setTimeout(() => $('#gateKeyInput')?.focus(), 50);
+    }
+
+    async function _gateSubmit(e) {
+        e.preventDefault();
+        const input = $('#gateKeyInput');
+        const err = $('#gateError');
+        const btn = $('#gateSubmit');
+        const key = (input?.value || '').trim();
+        const fail = (msg) => {
+            err.textContent = msg;
+            err.hidden = false;
+            input?.focus();
+        };
+        if (!key) return fail('Enter your licence key first.');
+        err.hidden = true;
+        btn.disabled = true;
+        try {
+            if (!(await _validateAndStoreKey(key))) return fail('That key was not recognised. Check it and try again.');
+            try {
+                await _saveLicenceKeyToDb();
+            } catch (saveErr) {
+                toast('Activated for this session, but the key could not be saved. Enter it again next time.', 'warning');
+            }
+            if (input) input.value = '';
+            _gateOpen(false);
+            toast('Prompt Library Pro activated', 'success');
+        } catch (ex) {
+            fail('That key was not recognised. Check it and try again.');
+        } finally {
+            btn.disabled = false;
+        }
     }
 
     function applyPremiumState() {
         document.body.classList.toggle('is-premium', state.isPremium);
+        if (state.isPremium) document.dispatchEvent(new Event('pl:licensed'));
         $('#premiumBadge').hidden = !state.isPremium;
         const lblBtn = $('#licenceBtnLabel');
         if (lblBtn) lblBtn.textContent = state.isPremium ? 'Pro unlocked' : 'Unlock Pro';
@@ -4787,6 +4872,7 @@ Here are my prompts:
             ['Model Compare', 'compare_arrows', 'openCompareWorkspace', 'compare providers side by side models openai anthropic gemini'],
             ['Prompt X-Ray', 'visibility', 'openXrayWorkspace', 'deconstruct analyse parts anatomy'],
             ['Prompt Splicer', 'call_merge', 'openSpliceWorkspace', 'merge combine two prompts'],
+            ['Combine Prompts', 'compare_arrows', 'openCombineWorkspace', 'combine merge duplicates two similar prompts into one side by side'],
             ['Agents', 'smart_toy', 'openRolesWorkspace', 'agents roles personas ai'],
             ['Playground', 'science', 'openPlaygroundWorkspace', 'playground sessions test freeform'],
             ['Taxonomy Studio', 'sell', 'openTaxonomyWorkspace', 'taxonomy domain use case organise tag'],
@@ -5553,6 +5639,21 @@ Here are my prompts:
             chainSearch.addEventListener('input', (e) => _renderChainSearchResults(e.target.value));
             chainSearch.addEventListener('focus', (e) => _renderChainSearchResults(e.target.value));
             chainSearch.addEventListener('keydown', (e) => {
+                const resBox = $('#chainSearchResults');
+                if (resBox && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                    e.preventDefault();
+                    if (!resBox.classList.contains('open')) _renderChainSearchResults(chainSearch.value);
+                    _chainSetActive(resBox, e.key === 'ArrowDown' ? 1 : -1);
+                    return;
+                }
+                if (e.key === 'Enter') {
+                    // Never submit the prompt form from this box. Add the highlighted prompt, or the first match.
+                    e.preventDefault();
+                    const items = resBox ? $$('.chain-search-result', resBox) : [];
+                    const pick = items[_chainSearchIndex >= 0 ? _chainSearchIndex : 0];
+                    if (pick && (_chainSearchIndex >= 0 || chainSearch.value.trim())) _addChainStepById(parseInt(pick.dataset.id, 10));
+                    return;
+                }
                 if (e.key === 'Escape') {
                     const res = $('#chainSearchResults');
                     if (res) {
@@ -5641,6 +5742,7 @@ Here are my prompts:
         });
 
         document.addEventListener('keydown', (e) => {
+            if (document.body.classList.contains('gate-open')) return;
             const tag = e.target.tagName;
             const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable;
 
@@ -8238,9 +8340,38 @@ Must avoid: [Anything sensitive or previously declined]`
             (withNew ? '<option value="' + CTX_NEW_CAT + '">New category…</option>' : '');
     }
 
+    const CTX_WRAP_STYLES = ['plain', 'labelled', 'xml', 'markdown', 'brackets', 'custom'];
+    const CTX_WRAP_TEMPLATES = {
+        labelled: '--- Context: {title} ---',
+        xml: '<context name="{title}">',
+        markdown: '## {title}',
+        brackets: '[{title}]'
+    };
+    const CTX_CUSTOM_KEY = 'pl_ctx_wrap_custom';
+
     function _ctxWrapStyle() {
-        const v = localStorage.getItem(CTX_WRAP_KEY);
-        return ['plain', 'labelled', 'xml'].includes(v) ? v : 'labelled';
+        const saved = window.PL_prefs ? window.PL_prefs.get('ctx_wrap') : null;
+        let v = saved;
+        if (!v) { try { v = localStorage.getItem(CTX_WRAP_KEY); } catch (_) { v = null; } }
+        return CTX_WRAP_STYLES.includes(v) ? v : 'labelled';
+    }
+
+    function _ctxSetWrap(style) {
+        try { localStorage.setItem(CTX_WRAP_KEY, style); } catch (_) { /* the saved copy still works */ }
+        if (window.PL_prefs) window.PL_prefs.set('ctx_wrap', style);
+    }
+
+    // What a Custom block starts with. {title} becomes the block title, \n a line break.
+    function _ctxCustomOpen() {
+        const saved = window.PL_prefs ? window.PL_prefs.get('ctx_wrap_custom') : null;
+        if (saved !== null) return String(saved);
+        try { const v = localStorage.getItem(CTX_CUSTOM_KEY); if (v !== null) return v; } catch (_) { /* fall through */ }
+        return '## {title}';
+    }
+
+    function _ctxSetCustomOpen(text) {
+        try { localStorage.setItem(CTX_CUSTOM_KEY, text); } catch (_) { /* the saved copy still works */ }
+        if (window.PL_prefs) window.PL_prefs.set('ctx_wrap_custom', text);
     }
 
     function _ctxWrapOpen(title, style) {
@@ -8249,6 +8380,9 @@ Must avoid: [Anything sensitive or previously declined]`
             return '<context name="' + name + '">';
         }
         if (style === 'labelled') return '--- Context: ' + title + ' ---';
+        if (style === 'markdown') return '## ' + title;
+        if (style === 'brackets') return '[' + title + ']';
+        if (style === 'custom') return _ctxCustomOpen().replace(/\{title\}/gi, () => title).replace(/\\n/g, '\n');
         return '';
     }
 
@@ -8256,8 +8390,11 @@ Must avoid: [Anything sensitive or previously declined]`
         const body = (block.content || '').trim();
         const title = (block.title || 'Untitled').trim();
         const style = _ctxWrapStyle();
-        if (style === 'xml') return _ctxWrapOpen(title, style) + '\n' + body + '\n</context>';
-        if (style === 'labelled') return _ctxWrapOpen(title, style) + '\n' + body;
+        const open = _ctxWrapOpen(title, style);
+        if (style === 'xml') return open + '\n' + body + '\n</context>';
+        if (style === 'markdown') return open + '\n\n' + body;
+        if (style === 'custom') return open.trim() ? open + '\n' + body : body;
+        if (style === 'labelled' || style === 'brackets') return open + '\n' + body;
         return body;
     }
 
@@ -8378,10 +8515,24 @@ Must avoid: [Anything sensitive or previously declined]`
     function _ctxUpdateWrap() {
         const style = _ctxWrapStyle();
         $$('#ctxWrapSeg [data-ctx-wrap]').forEach(b => b.classList.toggle('active', b.dataset.ctxWrap === style));
+        const title = ($('#ctxTitle')?.value || '').trim() || 'Block title';
+        const starts = $('#ctxStartsWith');
+        if (starts) {
+            const custom = style === 'custom';
+            starts.readOnly = !custom;
+            starts.classList.toggle('is-custom', custom);
+            if (custom) {
+                if (document.activeElement !== starts) starts.value = _ctxCustomOpen();
+                starts.placeholder = 'Type what it starts with, {title} adds the block name';
+            } else {
+                starts.value = style === 'plain' ? '' : _ctxWrapOpen(title, style);
+                starts.placeholder = style === 'plain' ? 'Content only, nothing added' : '';
+            }
+        }
         const hint = $('#ctxWrapHint');
         if (hint) {
-            const title = ($('#ctxTitle')?.value || '').trim() || 'Block title';
-            hint.textContent = style === 'plain' ? 'Content only, nothing added' : 'Starts with ' + _ctxWrapOpen(title, style);
+            hint.hidden = style !== 'custom';
+            hint.textContent = style === 'custom' ? 'Preview: ' + (_ctxWrapOpen(title, style) || 'nothing added') : '';
         }
         const sel = $('#ctxPanelWrap');
         if (sel) sel.value = style;
@@ -8878,7 +9029,19 @@ Must avoid: [Anything sensitive or previously declined]`
         $('#ctxWrapSeg')?.addEventListener('click', e => {
             const btn = e.target.closest('[data-ctx-wrap]');
             if (!btn) return;
-            localStorage.setItem(CTX_WRAP_KEY, btn.dataset.ctxWrap);
+            const next = btn.dataset.ctxWrap;
+            const prev = _ctxWrapStyle();
+            // First time on Custom: start from the style it replaces, so there is something to edit.
+            const hasCustom = window.PL_prefs && window.PL_prefs.get('ctx_wrap_custom') !== null;
+            if (next === 'custom' && !hasCustom && CTX_WRAP_TEMPLATES[prev]) _ctxSetCustomOpen(CTX_WRAP_TEMPLATES[prev]);
+            _ctxSetWrap(next);
+            _ctxUpdateWrap();
+            if (next === 'custom') $('#ctxStartsWith')?.focus();
+        });
+
+        $('#ctxStartsWith')?.addEventListener('input', e => {
+            if (_ctxWrapStyle() !== 'custom') return;
+            _ctxSetCustomOpen(e.target.value);
             _ctxUpdateWrap();
         });
 
@@ -8913,7 +9076,7 @@ Must avoid: [Anything sensitive or previously declined]`
        ============================================================================ */
 
     function _panelOpen(panelId, btnId) {
-        ['#promptCtxPanel', '#promptComponentsPanel', '#promptSnippetsPanel'].forEach(sel => {
+        ['#promptCtxPanel', '#promptComponentsPanel', '#promptSnippetsPanel', '#promptVarsPanel'].forEach(sel => {
             const el = $(sel);
             if (el) el.classList.remove('open');
         });
@@ -9000,7 +9163,7 @@ Must avoid: [Anything sensitive or previously declined]`
             '<button type="button" class="icon-btn ctxpick-open" title="Open the Context Bank" aria-label="Open the Context Bank"><span class="material-symbols-outlined">open_in_new</span></button></div>' +
             '<input type="search" class="ctxpick-search" placeholder="Search blocks" aria-label="Search blocks" />' +
             '<div class="ctxpick-cats"></div><div class="ctxpick-list" role="listbox"></div>' +
-            '<div class="ctxpick-foot"><label>Wrap <select class="ctxpick-wrap"><option value="plain">Plain text</option><option value="labelled">Labelled</option><option value="xml">XML tags</option></select></label></div>';
+            '<div class="ctxpick-foot"><label>Wrap <select class="ctxpick-wrap"><option value="plain">Plain text</option><option value="labelled">Labelled</option><option value="xml">XML tags</option><option value="markdown">Markdown</option><option value="brackets">Brackets</option><option value="custom">Custom</option></select></label></div>';
         document.body.appendChild(el);
         _ctxPickerEl = el;
         const r = anchor.getBoundingClientRect(), w = 340;
@@ -9011,7 +9174,7 @@ Must avoid: [Anything sensitive or previously declined]`
         else { el.style.top = below + 'px'; el.style.maxHeight = Math.min(480, room) + 'px'; }
         const wrapSel = el.querySelector('.ctxpick-wrap');
         wrapSel.value = _ctxWrapStyle();
-        wrapSel.addEventListener('change', () => { try { localStorage.setItem(CTX_WRAP_KEY, wrapSel.value); } catch (_) {} draw(); });
+        wrapSel.addEventListener('change', () => { _ctxSetWrap(wrapSel.value); draw(); });
         let blocks = [];
         const draw = () => {
             const q = el.querySelector('.ctxpick-search').value.trim().toLowerCase();
@@ -9131,7 +9294,16 @@ Must avoid: [Anything sensitive or previously declined]`
                 _panelOpen('#promptSnippetsPanel', '#snipPanelToggleBtn');
         });
 
+        // Variables panel toggle
+        $('#varsPanelToggleBtn')?.addEventListener('click', () => {
+            if ($('#promptVarsPanel')?.classList.contains('open'))
+                _panelClose('#promptVarsPanel', '#varsPanelToggleBtn');
+            else
+                _panelOpen('#promptVarsPanel', '#varsPanelToggleBtn');
+        });
+
         // Close buttons
+        $('#closeVarsPanel')?.addEventListener('click', () => _panelClose('#promptVarsPanel', '#varsPanelToggleBtn'));
         $('#closeCtxPanel')?.addEventListener('click', () => _panelClose('#promptCtxPanel', '#ctxPanelToggleBtn'));
         $('#closeCompPanel')?.addEventListener('click', () => _panelClose('#promptComponentsPanel', '#compPanelToggleBtn'));
         $('#closeSnipPanel')?.addEventListener('click', () => _panelClose('#promptSnippetsPanel', '#snipPanelToggleBtn'));
@@ -9146,7 +9318,7 @@ Must avoid: [Anything sensitive or previously declined]`
             _ctxPanelRefresh();
         });
         $('#ctxPanelWrap')?.addEventListener('change', e => {
-            localStorage.setItem(CTX_WRAP_KEY, e.target.value);
+            _ctxSetWrap(e.target.value);
             _ctxUpdateWrap();
         });
         const ctxPanelPick = e => {
@@ -9309,6 +9481,8 @@ Must avoid: [Anything sensitive or previously declined]`
             window.closePromptModal = function() {
                 _panelClose('#promptCtxPanel', '#ctxPanelToggleBtn');
                 _panelClose('#promptComponentsPanel', '#compPanelToggleBtn');
+                _panelClose('#promptSnippetsPanel', '#snipPanelToggleBtn');
+                _panelClose('#promptVarsPanel', '#varsPanelToggleBtn');
                 origClose();
             };
         }
@@ -12036,7 +12210,17 @@ Must avoid: [Anything sensitive or previously declined]`
             zoom: 1,
             panX: 0,
             panY: 0
-        }; // zoom 0.25-2.0, pan in pixels
+        }; // zoom PCW_ZOOM_MIN to PCW_ZOOM_MAX, pan in pixels
+        var _canvasLinks = []; // wires between blocks: { from: blockId, to: blockId }
+        var _pcwChainMode = false; // while true, every new block is wired after the last open end
+        var _pcwSelLink = null; // key of the selected wire, "fromId>toId"
+        var PCW_ZOOM_MIN = 0.1,
+            PCW_ZOOM_MAX = 3;
+        var _pcwUidN = 0;
+
+        function _pcwUid() {
+            return 'b' + Date.now().toString(36) + (++_pcwUidN).toString(36);
+        }
         var _activeCat = 'all';
         var _dragSrcIdx = null;
         var _dragStartX = null; // for tracking spacebar drag pan
@@ -12048,6 +12232,10 @@ Must avoid: [Anything sensitive or previously declined]`
             var _pcwDraft = JSON.parse(localStorage.getItem('pl_pcw_draft') || 'null');
             if (_pcwDraft && Array.isArray(_pcwDraft.blocks)) {
                 _canvasBlocks = _pcwDraft.blocks;
+                _canvasBlocks.forEach(function(b) {
+                    if (!b.id) b.id = _pcwUid();
+                });
+                _canvasLinks = Array.isArray(_pcwDraft.links) ? _pcwDraft.links : [];
                 _pcwDraftTitle = _pcwDraft.title || '';
                 if (_pcwDraft.view && typeof _pcwDraft.view.zoom === 'number') _canvasState = _pcwDraft.view;
             }
@@ -12060,6 +12248,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 var t = $('#pcwTitleInput') ? $('#pcwTitleInput').value : '';
                 localStorage.setItem('pl_pcw_draft', JSON.stringify({
                     blocks: _canvasBlocks,
+                    links: _canvasLinks,
                     title: t,
                     view: _canvasState
                 }));
@@ -12363,8 +12552,8 @@ Must avoid: [Anything sensitive or previously declined]`
             });
         }
 
-        /* ---- Spatial assembly order: top-to-bottom, ties left-to-right ---- */
-        function _pcwOrdered() {
+        /* ---- Reading order: top-to-bottom, ties left-to-right ---- */
+        function _pcwSpatial() {
             return _canvasBlocks.map(function(b, i) {
                 return {
                     b: b,
@@ -12376,6 +12565,51 @@ Must avoid: [Anything sensitive or previously declined]`
                 if (Math.abs(ya - yb) > 24) return ya - yb;
                 return (p.b.x || 0) - (q.b.x || 0);
             });
+        }
+
+        /* ---- Assembly order: wired blocks follow their wires, loose blocks come last in reading order.
+               With no wires at all it is simply the reading order. ---- */
+        function _pcwOrdered() {
+            var base = _pcwSpatial();
+            if (!_canvasLinks.length) return base;
+            var byId = {},
+                pos = {},
+                indeg = {},
+                outs = {},
+                linked = {};
+            base.forEach(function(o, k) {
+                if (!o.b.id) return;
+                byId[o.b.id] = o;
+                pos[o.b.id] = k;
+                indeg[o.b.id] = 0;
+                outs[o.b.id] = [];
+            });
+            _canvasLinks.forEach(function(l) {
+                if (!byId[l.from] || !byId[l.to]) return;
+                outs[l.from].push(l.to);
+                indeg[l.to]++;
+                linked[l.from] = linked[l.to] = true;
+            });
+            var ready = base.filter(function(o) {
+                return o.b.id && linked[o.b.id] && indeg[o.b.id] === 0;
+            });
+            var out = [],
+                done = {};
+            while (ready.length) {
+                ready.sort(function(p, q) {
+                    return pos[p.b.id] - pos[q.b.id];
+                });
+                var cur = ready.shift();
+                out.push(cur);
+                done[cur.b.id] = true;
+                outs[cur.b.id].forEach(function(t) {
+                    if (--indeg[t] === 0) ready.push(byId[t]);
+                });
+            }
+            base.forEach(function(o) {
+                if (!o.b.id || !done[o.b.id]) out.push(o);
+            });
+            return out;
         }
 
         /* ---- Where a new block lands: near view centre, slightly staggered ---- */
@@ -12396,6 +12630,15 @@ Must avoid: [Anything sensitive or previously declined]`
             var world = $('#pcwWorld');
             if (world) {
                 world.style.transform = 'translate(' + _canvasState.panX + 'px,' + _canvasState.panY + 'px) scale(' + _canvasState.zoom + ')';
+            }
+            // The dot grid travels with the board, so it never ends
+            var zoneEl = $('#pcwDropZone');
+            if (zoneEl) {
+                var step = 22;
+                while (step * _canvasState.zoom < 14) step *= 2;
+                var cell = step * _canvasState.zoom;
+                zoneEl.style.backgroundSize = cell + 'px ' + cell + 'px';
+                zoneEl.style.backgroundPosition = _canvasState.panX + 'px ' + _canvasState.panY + 'px';
             }
             var zl = $('#pcwZoomLabel');
             if (zl) zl.textContent = Math.round(_canvasState.zoom * 100) + '%';
@@ -12432,7 +12675,7 @@ Must avoid: [Anything sensitive or previously declined]`
             var w = maxX - minX + pad * 2,
                 h = maxY - minY + pad * 2;
             var z = Math.min(zone.clientWidth / w, zone.clientHeight / h, 1.4);
-            z = Math.max(0.25, Math.min(2, z));
+            z = Math.max(PCW_ZOOM_MIN, Math.min(PCW_ZOOM_MAX, z));
             _canvasState.zoom = z;
             _canvasState.panX = (zone.clientWidth - (maxX - minX) * z) / 2 - minX * z;
             _canvasState.panY = (zone.clientHeight - (maxY - minY) * z) / 2 - minY * z;
@@ -12452,12 +12695,46 @@ Must avoid: [Anything sensitive or previously declined]`
             if (hint) hint.style.display = _canvasBlocks.length ? 'none' : 'flex';
             if (count) count.textContent = _canvasBlocks.length + ' block' + (_canvasBlocks.length !== 1 ? 's' : '');
 
-            // Blocks without coordinates (old drafts, quick-starts, AI build) fall into a tidy column
+            // Blocks without coordinates (old drafts, quick-starts) flow left to right, three to a row, so wires stay visible
             _canvasBlocks.forEach(function(b, i) {
                 if (typeof b.x !== 'number' || typeof b.y !== 'number') {
-                    b.x = 60;
-                    b.y = 60 + i * (b.collapsed ? 64 : 240);
+                    b.x = 60 + (i % 3) * 520;
+                    b.y = 60 + Math.floor(i / 3) * 340;
                 }
+            });
+
+            // Every block carries a stable id so wires can point at it
+            var freshIdx = [];
+            _canvasBlocks.forEach(function(b, i) {
+                if (!b.id) {
+                    b.id = _pcwUid();
+                    freshIdx.push(i);
+                }
+            });
+            var freshIds = {},
+                liveIds = {};
+            freshIdx.forEach(function(i) {
+                freshIds[_canvasBlocks[i].id] = 1;
+            });
+            _canvasBlocks.forEach(function(b) {
+                liveIds[b.id] = 1;
+            });
+            _canvasLinks = _canvasLinks.filter(function(l) {
+                return liveIds[l.from] && liveIds[l.to];
+            });
+            // Several blocks added at once (framework, quick start, cart) arrive wired in order
+            if (freshIdx.length > 1 || (_pcwChainMode && freshIdx.length)) {
+                var prevId = _pcwChainMode ? _pcwTailId(freshIds) : null;
+                freshIdx.forEach(function(i) {
+                    var fid = _canvasBlocks[i].id;
+                    if (prevId) _pcwLink(prevId, fid, true);
+                    prevId = fid;
+                });
+            }
+            var linkedIds = {};
+            _canvasLinks.forEach(function(l) {
+                linkedIds[l.from] = 1;
+                linkedIds[l.to] = 1;
             });
 
             world.innerHTML = '';
@@ -12468,7 +12745,8 @@ Must avoid: [Anything sensitive or previously declined]`
 
             _canvasBlocks.forEach(function(b, idx) {
                 var card = document.createElement('div');
-                card.className = 'pcw-canvas-block pcw-float' + (b.collapsed ? ' collapsed' : '');
+                card.className = 'pcw-canvas-block pcw-float' + (b.collapsed ? ' collapsed' : '') + (_canvasLinks.length && !linkedIds[b.id] ? ' pcw-loose' : '');
+                card.dataset.blockId = b.id;
                 card.style.setProperty('--blk-color', _pcwCatColor(b.cat));
                 card.style.left = (b.x || 0) + 'px';
                 card.style.top = (b.y || 0) + 'px';
@@ -12476,9 +12754,13 @@ Must avoid: [Anything sensitive or previously declined]`
                 var cardBlanks = countBlanks(b.text);
                 var cardSnippet = escH(String(b.text).replace(/\s+/g, ' ').slice(0, 90));
                 card.innerHTML =
+                    '<button type="button" class="pcw-port pcw-port-in" data-port="in" data-slot="0" tabindex="-1" aria-label="Input 1, the previous step" title="Input 1: the step before this one. Drop a wire here, or drag from here to another block"></button>' +
+                    '<button type="button" class="pcw-port pcw-port-in" data-port="in" data-slot="1" tabindex="-1" aria-label="Input 2, a supporting block" title="Input 2: a block that supports this one (drawn dashed)"></button>' +
+                    '<button type="button" class="pcw-port pcw-port-out" data-port="out" data-slot="0" tabindex="-1" aria-label="Output 1, the next step" title="Output 1: the step after this one. Drag from here to another block"></button>' +
+                    '<button type="button" class="pcw-port pcw-port-out" data-port="out" data-slot="1" tabindex="-1" aria-label="Output 2, supports another block" title="Output 2: this block supports another one (drawn dashed)"></button>' +
                     '<div class="pcw-block-header" title="Drag to move — click to collapse">' +
                     '<span class="material-symbols-outlined pcw-block-drag-handle">drag_indicator</span>' +
-                    '<span class="pcw-block-step" title="Assembly order: top to bottom, left to right">' + order[idx] + '</span>' +
+                    '<span class="pcw-block-step" title="Assembly order: follows your wires, then top to bottom">' + order[idx] + '</span>' +
                     '<span class="pcw-block-type-badge">' + escH(b.label) + '</span>' +
                     (cardBlanks ? '<span class="pcw-blank-chip" title="' + cardBlanks + ' unfilled placeholders">' + cardBlanks + '</span>' : '') +
                     '<span class="pcw-block-snippet">' + cardSnippet + '</span>' +
@@ -12499,6 +12781,7 @@ Must avoid: [Anything sensitive or previously declined]`
                     _canvasBlocks[idx].text = e.target.value;
                     e.target.style.height = 'auto';
                     e.target.style.height = Math.min(e.target.scrollHeight + 2, 420) + 'px';
+                    _pcwDrawWires();
                     _pcwSaveDraft();
                     _pcwUpdatePreview();
                     _pcwUpdateStats();
@@ -12509,8 +12792,33 @@ Must avoid: [Anything sensitive or previously declined]`
                     renderCanvas();
                 });
                 card.querySelector('.pcw-block-remove').addEventListener('click', function() {
+                    // Removing a block in the middle of a chain joins its neighbours back up
+                    var rid = _canvasBlocks[idx].id;
+                    var preds = _canvasLinks.filter(function(l) {
+                        return l.to === rid;
+                    }).map(function(l) {
+                        return l.from;
+                    });
+                    var succs = _canvasLinks.filter(function(l) {
+                        return l.from === rid;
+                    }).map(function(l) {
+                        return l.to;
+                    });
+                    _canvasLinks = _canvasLinks.filter(function(l) {
+                        return l.from !== rid && l.to !== rid;
+                    });
+                    preds.forEach(function(p) {
+                        succs.forEach(function(s2) {
+                            _pcwLink(p, s2, true);
+                        });
+                    });
                     _canvasBlocks.splice(idx, 1);
                     renderCanvas();
+                });
+                card.querySelectorAll('.pcw-port').forEach(function(port) {
+                    port.addEventListener('mousedown', function(e) {
+                        _pcwStartWire(e, b.id, port.dataset.port, parseInt(port.dataset.slot, 10) || 0);
+                    });
                 });
 
                 // Header drag moves the card; a sub-4px press is a collapse toggle
@@ -12534,6 +12842,7 @@ Must avoid: [Anything sensitive or previously declined]`
                             _canvasBlocks[idx].y = origY + (ev.clientY - startY) / _canvasState.zoom;
                             card.style.left = _canvasBlocks[idx].x + 'px';
                             card.style.top = _canvasBlocks[idx].y + 'px';
+                            _pcwDrawWires();
                         }
                     }
 
@@ -12553,10 +12862,244 @@ Must avoid: [Anything sensitive or previously declined]`
                 });
             });
 
+            _pcwDrawWires();
             _pcwApplyView();
             _pcwSaveDraft();
             _pcwUpdatePreview();
             _pcwUpdateStats();
+        }
+
+        /* ════════ WIRES: two connection points per block (in on the left, out on the right) ════════ */
+        var _PCW_NS = 'http://www.w3.org/2000/svg';
+
+        function _pcwBlockById(id) {
+            return _canvasBlocks.filter(function(b) {
+                return b.id === id;
+            })[0] || null;
+        }
+
+        // Would a wire from -> to close a loop? True when `to` already leads back to `from`.
+        function _pcwReaches(fromId, toId) {
+            var seen = {},
+                stack = [fromId];
+            while (stack.length) {
+                var cur = stack.pop();
+                if (cur === toId) return true;
+                if (seen[cur]) continue;
+                seen[cur] = 1;
+                _canvasLinks.forEach(function(l) {
+                    if (l.from === cur) stack.push(l.to);
+                });
+            }
+            return false;
+        }
+
+        // fp / tp: which output (0 upper, 1 lower) and input the wire uses. The lower pair draws dashed, as "supports".
+        function _pcwLink(from, to, quiet, fp, tp) {
+            if (!from || !to || from === to) return false;
+            fp = fp ? 1 : 0;
+            tp = tp ? 1 : 0;
+            var existing = _canvasLinks.filter(function(l) {
+                return l.from === from && l.to === to;
+            })[0];
+            if (existing) {
+                // The same pair again just moves the wire to the other connection points
+                if ((existing.fp || 0) === fp && (existing.tp || 0) === tp) {
+                    if (!quiet) toast('Already connected', 'info');
+                    return false;
+                }
+                existing.fp = fp;
+                existing.tp = tp;
+                return true;
+            }
+            if (_pcwReaches(to, from)) {
+                if (!quiet) toast('That would make a loop. Connect to a block that comes later.', 'warning');
+                return false;
+            }
+            _canvasLinks.push({
+                from: from,
+                to: to,
+                fp: fp,
+                tp: tp
+            });
+            return true;
+        }
+
+        // Last existing block with nothing wired after it: the end a new chain continues from
+        function _pcwTailId(skip) {
+            for (var i = _canvasBlocks.length - 1; i >= 0; i--) {
+                var b = _canvasBlocks[i];
+                if (skip[b.id]) continue;
+                var hasOut = _canvasLinks.some(function(l) {
+                    return l.from === b.id;
+                });
+                if (!hasOut) return b.id;
+            }
+            return null;
+        }
+
+        function _pcwPortPos(id, side, slot) {
+            var b = _pcwBlockById(id);
+            if (!b) return null;
+            var el = document.querySelector('#pcwWorld .pcw-canvas-block[data-block-id="' + id + '"]');
+            var w = el ? el.offsetWidth : 380,
+                h = el ? el.offsetHeight : 120;
+            return {
+                x: (b.x || 0) + (side === 'out' ? w : 0),
+                y: (b.y || 0) + h * (slot ? 0.7 : 0.3)
+            };
+        }
+
+        function _pcwWireD(p1, p2) {
+            var dx = Math.max(40, Math.min(180, Math.abs(p2.x - p1.x) / 2));
+            return 'M' + p1.x + ' ' + p1.y + ' C' + (p1.x + dx) + ' ' + p1.y + ' ' + (p2.x - dx) + ' ' + p2.y + ' ' + p2.x + ' ' + p2.y;
+        }
+
+        function _pcwSvg() {
+            var world = $('#pcwWorld');
+            if (!world) return null;
+            var svg = world.querySelector('.pcw-wires');
+            if (!svg) {
+                svg = document.createElementNS(_PCW_NS, 'svg');
+                svg.setAttribute('class', 'pcw-wires');
+                svg.setAttribute('aria-hidden', 'true');
+                world.insertBefore(svg, world.firstChild);
+                svg.addEventListener('click', function(e) {
+                    var g = e.target.closest('.pcw-wire-g');
+                    if (!g) return;
+                    var key = g.getAttribute('data-link');
+                    if (e.target.closest('.pcw-wire-del')) {
+                        _pcwRemoveLink(key);
+                        return;
+                    }
+                    _pcwSelLink = _pcwSelLink === key ? null : key;
+                    _pcwDrawWires();
+                });
+            }
+            return svg;
+        }
+
+        function _pcwDrawWires() {
+            var svg = _pcwSvg();
+            if (!svg) return;
+            var html = '';
+            _canvasLinks.forEach(function(l) {
+                var p1 = _pcwPortPos(l.from, 'out', l.fp),
+                    p2 = _pcwPortPos(l.to, 'in', l.tp);
+                if (!p1 || !p2) return;
+                var key = l.from + '>' + l.to;
+                var src = _pcwBlockById(l.from);
+                var d = _pcwWireD(p1, p2);
+                var mx = (p1.x + p2.x) / 2,
+                    my = (p1.y + p2.y) / 2;
+                var support = l.fp === 1 || l.tp === 1;
+                html += '<g class="pcw-wire-g' + (_pcwSelLink === key ? ' selected' : '') + '" data-link="' + key + '">' +
+                    '<path class="pcw-wire-hit" d="' + d + '"/>' +
+                    '<path class="pcw-wire' + (support ? ' pcw-wire-support' : '') + '" d="' + d + '" style="stroke:' + _pcwCatColor(src && src.cat) + '"/>' +
+                    '<g class="pcw-wire-del" transform="translate(' + mx + ',' + my + ')"><title>Remove this wire</title><circle r="9"/><path d="M-3.5 -3.5L3.5 3.5M3.5 -3.5L-3.5 3.5"/></g></g>';
+            });
+            svg.innerHTML = html;
+        }
+
+        function _pcwRemoveLink(key) {
+            _canvasLinks = _canvasLinks.filter(function(l) {
+                return (l.from + '>' + l.to) !== key;
+            });
+            _pcwSelLink = null;
+            renderCanvas();
+        }
+
+        // The block under the pointer, and the connection point (0 upper, 1 lower) the pointer is on or nearest to
+        function _pcwBlockAt(ev) {
+            var el = document.elementFromPoint(ev.clientX, ev.clientY);
+            var card = el && el.closest ? el.closest('.pcw-canvas-block') : null;
+            if (!card) return null;
+            var port = el.closest('.pcw-port');
+            var slot;
+            if (port) {
+                slot = parseInt(port.dataset.slot, 10) || 0;
+            } else {
+                var r = card.getBoundingClientRect();
+                slot = (ev.clientY - r.top) > r.height / 2 ? 1 : 0;
+            }
+            return {
+                id: card.dataset.blockId,
+                el: card,
+                slot: slot
+            };
+        }
+
+        // Drag from a connection point; drop on any block to wire it. Starting from an input wires backwards.
+        function _pcwStartWire(e, id, side, slot) {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            e.stopPropagation();
+            var zone = $('#pcwDropZone'),
+                svg = _pcwSvg(),
+                anchor = _pcwPortPos(id, side, slot);
+            if (!zone || !svg || !anchor) return;
+            var src = _pcwBlockById(id);
+            var temp = document.createElementNS(_PCW_NS, 'path');
+            temp.setAttribute('class', 'pcw-wire pcw-wire-temp' + (slot ? ' pcw-wire-support' : ''));
+            temp.style.stroke = _pcwCatColor(src && src.cat);
+            svg.appendChild(temp);
+            zone.classList.add('connecting');
+            var want = side === 'out' ? 'in' : 'out';
+            var hotCard = null,
+                hotPort = null;
+
+            function clearHot() {
+                if (hotCard) hotCard.classList.remove('pcw-wire-target');
+                if (hotPort) hotPort.classList.remove('pcw-port-hot');
+                hotCard = hotPort = null;
+            }
+
+            function toWorld(ev) {
+                var r = zone.getBoundingClientRect();
+                return {
+                    x: (ev.clientX - r.left - _canvasState.panX) / _canvasState.zoom,
+                    y: (ev.clientY - r.top - _canvasState.panY) / _canvasState.zoom
+                };
+            }
+
+            function onMove(ev) {
+                var p = toWorld(ev);
+                temp.setAttribute('d', side === 'out' ? _pcwWireD(anchor, p) : _pcwWireD(p, anchor));
+                var t = _pcwBlockAt(ev);
+                var card = t && t.id !== id ? t.el : null;
+                var port = card ? card.querySelector('.pcw-port-' + want + '[data-slot="' + t.slot + '"]') : null;
+                if (card !== hotCard || port !== hotPort) {
+                    clearHot();
+                    if (card) card.classList.add('pcw-wire-target');
+                    if (port) port.classList.add('pcw-port-hot');
+                    hotCard = card;
+                    hotPort = port;
+                }
+            }
+
+            function onUp(ev) {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                zone.classList.remove('connecting');
+                clearHot();
+                if (temp.parentNode) temp.parentNode.removeChild(temp);
+                var t = _pcwBlockAt(ev);
+                if (t && t.id !== id) {
+                    var made = side === 'out' ? _pcwLink(id, t.id, false, slot, t.slot) : _pcwLink(t.id, id, false, t.slot, slot);
+                    if (made) renderCanvas();
+                }
+            }
+            onMove(e);
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        }
+
+        // Wire every block to the next one in reading order
+        function _pcwChainAll() {
+            _canvasLinks = [];
+            var ord = _pcwSpatial();
+            for (var i = 1; i < ord.length; i++) _pcwLink(ord[i - 1].b.id, ord[i].b.id, true);
+            renderCanvas();
         }
 
         /* ---- Add block to canvas ---- */
@@ -12583,12 +13126,27 @@ Must avoid: [Anything sensitive or previously declined]`
         /* ---- Add framework ---- */
         function addFramework(fw) {
             if (fw.blocks) {
+                var base = _pcwNextPos(),
+                    n = 0;
                 fw.blocks.forEach(function(blockLabel) {
                     var b = BLOCKS.filter(function(x) {
                         return x.label === blockLabel;
                     })[0];
-                    if (b) addBlock(b.label, b.text);
+                    if (!b) return;
+                    _canvasBlocks.push({
+                        label: b.label,
+                        text: b.text,
+                        cat: b.cat || null,
+                        collapsed: false,
+                        x: base.x + (n % 3) * 520,
+                        y: base.y + Math.floor(n / 3) * 340
+                    });
+                    n++;
                 });
+                if (n) {
+                    renderCanvas();
+                    if (n > 1) _pcwFitView();
+                }
             } else if (fw.text) {
                 addBlock(fw.name, fw.text);
             }
@@ -12788,9 +13346,9 @@ Must avoid: [Anything sensitive or previously declined]`
                     label: it.label,
                     text: it.text,
                     cat: it.cat || null,
-                    collapsed: i < _galCart.length - 1,
-                    x: base.x,
-                    y: base.y + i * 70
+                    collapsed: false,
+                    x: base.x + (i % 3) * 520,
+                    y: base.y + Math.floor(i / 3) * 340
                 });
             });
             var n = _galCart.length;
@@ -13245,6 +13803,7 @@ Must avoid: [Anything sensitive or previously declined]`
             _aiClose();
             if (replace) {
                 _canvasBlocks = [];
+                _canvasLinks = [];
                 renderCanvas();
             }
             if (opt.title && $('#pcwTitleInput') && !$('#pcwTitleInput').value.trim()) {
@@ -13260,12 +13819,13 @@ Must avoid: [Anything sensitive or previously declined]`
             var zone = $('#pcwDropZone');
             var startCount = _canvasBlocks.length;
             var first = true;
+            _pcwChainMode = true; // blocks the AI adds one by one are wired in order
 
             try {
                 for (var i = 0; i < items.length; i++) {
                     var b = items[i];
-                    var tx = 80,
-                        ty = 80 + (startCount + i) * 70;
+                    var tx = 80 + ((startCount + i) % 3) * 520,
+                        ty = 80 + Math.floor((startCount + i) / 3) * 340;
                     var wsOpen = ws && ws.classList.contains('open');
                     if (_aiSkip || reduced || !wsOpen) {
                         _galClose();
@@ -13273,7 +13833,7 @@ Must avoid: [Anything sensitive or previously declined]`
                             label: b.label,
                             text: b.text,
                             cat: b.cat,
-                            collapsed: i < items.length - 1,
+                            collapsed: false,
                             x: tx,
                             y: ty
                         });
@@ -13351,7 +13911,7 @@ Must avoid: [Anything sensitive or previously declined]`
                         label: b.label,
                         text: b.text,
                         cat: b.cat,
-                        collapsed: i < items.length - 1,
+                        collapsed: false,
                         x: tx,
                         y: ty
                     });
@@ -13365,6 +13925,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 if (ws) ws.classList.remove('pcw-ai-driving');
             }
             renderCanvas();
+            _pcwChainMode = false;
             var sheet = $('#pcwPreviewSheet');
             if (sheet && !sheet.classList.contains('open')) {
                 sheet.classList.add('open');
@@ -13455,6 +14016,7 @@ Must avoid: [Anything sensitive or previously declined]`
                         btn.innerHTML = '<span class="material-symbols-outlined">restart_alt</span> Clear canvas';
                         btn.style.cssText = '';
                         _canvasBlocks = [];
+                        _canvasLinks = [];
                         renderCanvas();
                     } else {
                         _pcwClearArmed = true;
@@ -13631,10 +14193,15 @@ Must avoid: [Anything sensitive or previously declined]`
             var zoneEl = $('#pcwDropZone');
             if (zoneEl) {
                 zoneEl.addEventListener('mousedown', function(e) {
-                    if (e.button !== 0) return;
-                    if (e.target.closest('.pcw-canvas-block') || e.target.closest('.pcw-quickstarts') ||
-                        e.target.closest('.pcw-view-tools') || e.target.closest('button')) return;
+                    if (e.button !== 0 && e.button !== 1) return;
+                    if (e.button === 0 && (e.target.closest('.pcw-canvas-block') || e.target.closest('.pcw-quickstarts') ||
+                            e.target.closest('.pcw-view-tools') || e.target.closest('button') || e.target.closest('.pcw-wire-g'))) return;
+                    if (e.button === 1 && e.target.closest('.pcw-view-tools')) return;
                     e.preventDefault();
+                    if (_pcwSelLink) {
+                        _pcwSelLink = null;
+                        _pcwDrawWires();
+                    }
                     var sx = e.clientX,
                         sy = e.clientY;
                     var ox = _canvasState.panX,
@@ -13663,7 +14230,7 @@ Must avoid: [Anything sensitive or previously declined]`
                         var mx = e.clientX - rect.left,
                             my = e.clientY - rect.top;
                         var oldZ = _canvasState.zoom;
-                        var z = Math.max(0.25, Math.min(2, oldZ * (e.deltaY < 0 ? 1.1 : 0.9)));
+                        var z = Math.max(PCW_ZOOM_MIN, Math.min(PCW_ZOOM_MAX, oldZ * (e.deltaY < 0 ? 1.1 : 0.9)));
                         _canvasState.panX = mx - (mx - _canvasState.panX) * (z / oldZ);
                         _canvasState.panY = my - (my - _canvasState.panY) * (z / oldZ);
                         _canvasState.zoom = z;
@@ -13679,16 +14246,40 @@ Must avoid: [Anything sensitive or previously declined]`
                 });
             }
             if ($('#pcwZoomInBtn')) $('#pcwZoomInBtn').addEventListener('click', function() {
-                _canvasState.zoom = Math.min(2, _canvasState.zoom * 1.2);
+                _canvasState.zoom = Math.min(PCW_ZOOM_MAX, _canvasState.zoom * 1.2);
                 _pcwApplyView();
                 _pcwSaveDraft();
             });
             if ($('#pcwZoomOutBtn')) $('#pcwZoomOutBtn').addEventListener('click', function() {
-                _canvasState.zoom = Math.max(0.25, _canvasState.zoom / 1.2);
+                _canvasState.zoom = Math.max(PCW_ZOOM_MIN, _canvasState.zoom / 1.2);
                 _pcwApplyView();
                 _pcwSaveDraft();
             });
             if ($('#pcwFitBtn')) $('#pcwFitBtn').addEventListener('click', _pcwFitView);
+            if ($('#pcwChainBtn')) $('#pcwChainBtn').addEventListener('click', function() {
+                if (!_canvasBlocks.length) {
+                    toast('Add some blocks first', 'info');
+                    return;
+                }
+                _pcwChainAll();
+                toast('Blocks wired in reading order', 'success');
+            });
+            if ($('#pcwUnlinkBtn')) $('#pcwUnlinkBtn').addEventListener('click', function() {
+                if (!_canvasLinks.length) return;
+                _canvasLinks = [];
+                _pcwSelLink = null;
+                renderCanvas();
+                toast('All wires removed. The prompt reads top to bottom again.', 'info');
+            });
+            document.addEventListener('keydown', function(e) {
+                if ((e.key !== 'Delete' && e.key !== 'Backspace') || !_pcwSelLink) return;
+                var wsEl = $('#componentsWorkspace');
+                if (!wsEl || !wsEl.classList.contains('open')) return;
+                var tg = e.target.tagName;
+                if (tg === 'INPUT' || tg === 'TEXTAREA' || tg === 'SELECT') return;
+                e.preventDefault();
+                _pcwRemoveLink(_pcwSelLink);
+            });
 
             // Component gallery wiring
             function _openGalleryHome() {
@@ -13874,6 +14465,7 @@ Must avoid: [Anything sensitive or previously declined]`
                     });
                 });
                 renderCanvas();
+                _pcwFitView();
             });
 
             // Keyboard add: Enter or Space on a focused palette row
@@ -17353,6 +17945,7 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     function initLicenceUI() {
+        $('#gateForm')?.addEventListener('submit', _gateSubmit);
         const btn = $('#licenceActivateBtn');
         const input = $('#settingsLicenceKeyInput');
         const status = $('#licenceActivateStatus');
@@ -21425,6 +22018,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initOnboarding(); // spotlight tour auto-launch on first run
         initPromptViewer();
         initTagManager(); // tag manager modal (sidebar tags header)
+        window.PL_prefs.ready.then(() => { try { _ctxUpdateWrap(); } catch (e) { /* the workspace is not built yet */ } });
         // Fire licence check and data load in parallel -- prompts render immediately,
         // premium UI applies once both settle (no unlocked flash risk).
         initLicenceUI(); // wire Settings licence panel (sync)
@@ -24074,13 +24668,108 @@ Must avoid: [Anything sensitive or previously declined]`
         };
     })();
 
+    /* ============================================================================
+       SHIFT+F3 CASE CYCLE
+       Select text in any editable text box, press Shift+F3 to step through
+       Title Case, lowercase, UPPERCASE, Capitalised Each Word, Sentence case.
+       [[variables]], {{variables}} and ((variables)) are left untouched.
+       ============================================================================ */
+    (function initCaseCycle() {
+        const MODES = [
+            ['title', 'Title Case'],
+            ['lower', 'lowercase'],
+            ['upper', 'UPPERCASE'],
+            ['capital', 'Capitalised Each Word'],
+            ['sentence', 'Sentence case']
+        ];
+        const MINOR = new Set(['a', 'an', 'the', 'and', 'but', 'or', 'nor', 'for', 'so', 'yet', 'as', 'at', 'by', 'in', 'of', 'off', 'on', 'per', 'to', 'up', 'via', 'vs', 'about', 'above', 'across', 'after', 'against', 'along', 'among', 'around', 'before', 'behind', 'below', 'between', 'beyond', 'during', 'from', 'inside', 'into', 'onto', 'near', 'outside', 'over', 'since', 'through', 'toward', 'under', 'until', 'upon', 'with', 'within', 'without']);
+        const WORD = /[\p{L}\p{N}][\p{L}\p{N}'\u2019]*/gu;
+        const PROTECTED = /\[\[[^\]]*\]\]|\{\{[^}]*\}\}|\(\([^)]*\)\)/g;
+        const HOLD = '\uE000';
+        const WORD_OR_HOLD = /\uE000|[\p{L}\p{N}][\p{L}\p{N}'\u2019]*/gu;
+        let last = null;
+
+        const capWord = (w) => w.charAt(0).toUpperCase() + w.slice(1);
+
+        function transform(mode, src) {
+            const held = [];
+            const text = src.replace(PROTECTED, (m) => { held.push(m); return HOLD; });
+            let out;
+            if (mode === 'lower') out = text.toLowerCase();
+            else if (mode === 'upper') out = text.toUpperCase();
+            else if (mode === 'capital') out = text.toLowerCase().replace(WORD, capWord);
+            else if (mode === 'title') {
+                const low = text.toLowerCase();
+                const total = (low.match(WORD_OR_HOLD) || []).length;
+                let i = 0;
+                out = low.replace(WORD_OR_HOLD, (w, off) => {
+                    const edge = i === 0 || i === total - 1;
+                    i++;
+                    const afterBreak = /[:.!?]\s+$/.test(low.slice(0, off));
+                    return edge || afterBreak || !MINOR.has(w) ? capWord(w) : w;
+                });
+            } else {
+                out = text.toLowerCase()
+                    .replace(/(^|\n)([ \t]*(?:(?:[-*\u2022>#]+|\d+[.)])[ \t]+)?)(\p{L})/gu, (m, a, b, c) => a + b + c.toUpperCase())
+                    .replace(/([.!?]["')\]]*[ \t]+)(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
+            }
+            let n = 0;
+            return out.replace(/\uE000/g, () => held[n++]);
+        }
+
+        function editableTarget() {
+            const el = document.activeElement;
+            if (!el || el.readOnly || el.disabled) return null;
+            if (el.tagName === 'TEXTAREA') return el;
+            if (el.tagName === 'INPUT' && /^(text|search|url|tel)$/.test(el.type)) return el;
+            return null;
+        }
+
+        function replaceSelection(el, start, end, text) {
+            el.setSelectionRange(start, end);
+            let done = false;
+            try { done = document.execCommand('insertText', false, text); } catch (_) { done = false; }
+            if (!done || el.value.slice(start, start + text.length) !== text) {
+                el.setRangeText(text, start, end, 'end');
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            el.setSelectionRange(start, start + text.length);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'F3' || !e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+            const el = editableTarget();
+            if (!el) return;
+            e.preventDefault();
+            const start = el.selectionStart;
+            const end = el.selectionEnd;
+            if (start === end) {
+                toast('Select some text first, then press Shift+F3', 'info');
+                return;
+            }
+            const src = el.value.slice(start, end);
+            let idx = 0;
+            if (last && last.el === el && last.start === start && last.text === src) idx = (last.idx + 1) % MODES.length;
+            for (let tries = 0; tries < MODES.length; tries++) {
+                const at = (idx + tries) % MODES.length;
+                const out = transform(MODES[at][0], src);
+                if (out === src) continue;
+                replaceSelection(el, start, end, out);
+                last = { el, start, idx: at, text: out };
+                toast(MODES[at][1], 'info');
+                return;
+            }
+            toast('Nothing to change in this selection', 'info');
+        }, true);
+    })();
+
 })();
 
 
 
 /* ============================================================================
    ONBOARDING SPOTLIGHT TOUR
-   13 steps. localStorage key: promptlib.tourDone
+   17 cards (welcome, 15 steps, last card). localStorage key: promptlib.tourDone, mirrored in the database (tour_done)
    Auto-launches on first run. Replay via #tourBtn.
    window.PL_startOnboarding, window.PL_skipOnboarding,
    window.PL_onboardNext, window.PL_onboardBack
@@ -24091,102 +24780,121 @@ Must avoid: [Anything sensitive or previously declined]`
     const TOUR_KEY = 'promptlib.tourDone';
     let _step = 0;
 
+    // Steps between the welcome and the last card are numbered automatically ("Step 3 of 15").
     const STEPS = [{
             eyebrow: 'Welcome',
             title: 'Your prompts. <em>Your machine.</em>',
-            desc: 'Prompt Library Pro is a fully offline workspace for the prompts you actually use. No cloud. No subscriptions. No one else has access to your data.',
+            desc: 'Prompt Library Pro is a fully offline workspace for the prompts you actually use. No cloud. No accounts. Nothing leaves this computer unless you send it.',
             icon: 'auto_awesome',
             target: null
         },
         {
-            eyebrow: 'Step 1 of 12',
             title: 'Your <em>library</em>',
-            desc: 'Every prompt you save lives here. Search, filter by folder, tag, or category. The list updates instantly as you type.',
+            desc: 'Every prompt you save lives here. Search, filter by folder, tag or category. The list updates as you type.',
             icon: 'library_books',
             target: '#promptsContainer'
         },
         {
-            eyebrow: 'Step 2 of 12',
             title: 'Save your first <em>prompt</em>',
-            desc: 'Click the + button or press Ctrl+N. Give it a title, paste your prompt, and save. It\'s searchable and ready to copy in one click from that moment on.',
+            desc: 'Click the + button or press Ctrl+N. Along the top of the editor sit Components, Context, Snippets and Variables, each opening a side panel beside your prompt.',
             icon: 'edit_note',
             target: '#newPromptBtn'
         },
         {
-            eyebrow: 'Step 3 of 12',
             title: 'Dynamic <em>variables</em>',
-            desc: 'Wrap any word in double brackets — [[client]], [[topic]], [[tone]] — and it becomes a fillable field. When you copy, a form lets you fill it in seconds.',
+            desc: 'Wrap any word in double brackets, such as [[client]] or [[tone]], and it becomes a fillable field. Open Variables in the editor to give each one a type: text, dropdown, slider, dice roll, card deck and more.',
             icon: 'data_object',
             target: '#promptsContainer'
         },
         {
-            eyebrow: 'Step 4 of 12',
             title: 'Organise with <em>folders</em>',
-            desc: 'Create folders to group prompts by project, client, or workflow. Drag-and-drop or assign in the editor. Use the folder filter in the sidebar to narrow the list.',
+            desc: 'Create folders to group prompts by project, client or workflow. Drag and drop, or assign in the editor. Use the folder filter in the sidebar to narrow the list.',
             icon: 'folder_open',
             target: '.nav-section-label[data-toggle="folders"]'
         },
         {
-            eyebrow: 'Step 5 of 12',
             title: 'Tags and <em>categories</em>',
-            desc: 'Add tags for flexible cross-folder search. Assign a category (Writing, Research, Product…) for quick chip-filter access at the top of the library.',
+            desc: 'Add tags for flexible search across folders. Assign a category (Writing, Research, Product and so on) for quick chip filtering at the top of the library.',
             icon: 'label',
             target: '.nav-section-label[data-toggle="categories"]'
         },
         {
-            eyebrow: 'Step 6 of 12',
-            title: 'Build <em>AI agents</em>',
-            desc: 'This is the Agents workspace. Define full role profiles — identity, voice, knowledge base, skills — and copy them as structured text, XML, or prose into any AI tool.',
-            icon: 'smart_toy',
-            open: 'roles',
-            target: null
-        },
-        {
-            eyebrow: 'Step 7 of 12',
-            title: 'Power <em>workspaces</em>',
-            desc: 'This is Prompt Forge — a structured prompt builder. The workspace nav also gives you Lab, Context Bank, Prompt Components and more. Each is a dedicated tool built around your saved prompts.',
-            icon: 'workspaces',
-            open: 'forge',
-            target: null
-        },
-        {
-            eyebrow: 'Step 8 of 12',
             title: 'The <em>detail panel</em>',
-            desc: 'Click any prompt to open the right panel. Fill variables, view version history, add notes and ratings, run a chain, or copy in any format — all without leaving the library.',
+            desc: 'Click any prompt to open the right panel. Fill variables, view history, add notes and ratings, run a chain, or copy in any format, without leaving the library.',
             icon: 'side_navigation',
             openDetail: true,
             target: '#detailPanel'
         },
         {
-            eyebrow: 'Step 9 of 12',
+            title: 'Combine <em>similar prompts</em>',
+            desc: 'Two prompts that overlap? Use this merge button, or open Workspaces and choose Combine Prompts. Compare them side by side, keep the best of each, and undo if you change your mind.',
+            icon: 'call_merge',
+            openDetail: true,
+            target: '#panelCombineBtn'
+        },
+        {
+            title: 'Power <em>workspaces</em>',
+            desc: 'This is Prompt Forge, a structured prompt builder. The Workspaces launcher holds many more tools: Context Bank, Prompt X-Ray, Combine Prompts, Prompt Chain and others, each built around your saved prompts.',
+            icon: 'workspaces',
+            open: 'forge',
+            target: null
+        },
+        {
+            title: 'Prompt <em>Components</em>',
+            desc: 'Drag components onto an endless canvas and wire them together. Every block has two inputs on the left and two outputs on the right, and the prompt follows your wires.',
+            icon: 'extension',
+            open: 'components',
+            target: null
+        },
+        {
+            title: 'Prompt <em>Builder Pro</em>',
+            desc: 'Find it under Workspaces. Wire blocks and agent teams into one compiled prompt. The Learn tab on the right teaches the multi-agent blocks with short hands-on lessons.',
+            icon: 'schema',
+            target: '#workspacesNavBtn'
+        },
+        {
             title: 'Context <em>Bank</em>',
-            desc: 'This is the Context Bank. Save reusable context blocks — company info, persona, style guide — and inject them into any prompt with one click. No more retyping the same background text.',
+            desc: 'Save reusable context blocks such as company info, a persona or a style guide, and drop them into any prompt. Choose how a block starts: plain, labelled, XML, Markdown, brackets, or type your own.',
             icon: 'database',
             open: 'contextBank',
             target: null
         },
         {
-            eyebrow: 'Step 10 of 12',
+            title: 'Build <em>AI agents</em>',
+            desc: 'This is the Agents workspace. Define full role profiles: identity, voice, knowledge and skills. Copy them as structured text, XML or prose into any AI tool.',
+            icon: 'smart_toy',
+            open: 'roles',
+            target: null
+        },
+        {
             title: 'Import and <em>Export</em>',
             desc: 'Share your library as a .plp pack, export individual prompts as Markdown or CSV, or import a colleague\'s pack. Everything travels as a single file.',
             icon: 'import_export',
             target: '#exportBtn'
         },
         {
-            eyebrow: 'Step 11 of 12',
-            title: 'Pro <em>features</em>',
-            desc: 'Unlock version history, analytics, chat-format export, and power workspaces like Prompt Components with a Pro licence. Your data stays local either way.',
+            title: 'Your <em>licence</em>',
+            desc: 'Your licence key is checked once and saved on this computer. Open this button any time to see its status. Everything is unlocked, with no limits.',
             icon: 'workspace_premium',
             target: '#licenceBtn'
         },
         {
+            title: 'A <em>shortcut</em> worth knowing',
+            desc: 'Select text in any text box and press Shift+F3 to cycle through Title Case, lowercase, UPPERCASE, Capitalised and Sentence case. Your [[variables]] are left alone.',
+            icon: 'text_fields',
+            target: null
+        },
+        {
             eyebrow: 'You\'re set',
             title: 'The library is <em>yours</em>',
-            desc: 'That\'s the full tour. Build your library one prompt at a time. Replay this tour anytime via the "App tour" button in the sidebar footer.',
+            desc: 'That\'s the full tour. Build your library one prompt at a time. Replay it any time with the App tour button in the sidebar footer.',
             icon: 'check_circle',
             target: null
         }
     ];
+    STEPS.forEach(function(st, i) {
+        if (!st.eyebrow) st.eyebrow = 'Step ' + i + ' of ' + (STEPS.length - 2);
+    });
 
     const TOTAL = STEPS.length;
 
@@ -24227,6 +24935,7 @@ Must avoid: [Anything sensitive or previously declined]`
     const OPEN_FNS = {
         roles: 'openRolesWorkspace',
         forge: 'openForgeWorkspace',
+        components: 'openComponentsWorkspace',
         contextBank: 'openContextBankWorkspace'
     };
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
@@ -24424,20 +25133,24 @@ Must avoid: [Anything sensitive or previously declined]`
     window.initOnboarding = function() {
         // Auto-launch on first run only. localStorage can reset between
         // WebView launches, so also check the DB-backed flag before deciding.
+        // The tour waits for the licence screen: it starts once the app is licensed.
         if (localStorage.getItem(TOUR_KEY)) return;
+        const launch = function() {
+            const go = function() {
+                setTimeout(function() {
+                    window.PL_startOnboarding && window.PL_startOnboarding();
+                }, 800);
+            };
+            if (document.body.classList.contains('is-premium')) go();
+            else document.addEventListener('pl:licensed', go, { once: true });
+        };
         fetch('/api/settings').then(r => r.json()).then(s => {
             if (s && s.tour_done) {
                 localStorage.setItem(TOUR_KEY, '1');
                 return;
             }
-            setTimeout(function() {
-                window.PL_startOnboarding && window.PL_startOnboarding();
-            }, 800);
-        }).catch(() => {
-            setTimeout(function() {
-                window.PL_startOnboarding && window.PL_startOnboarding();
-            }, 800);
-        });
+            launch();
+        }).catch(launch);
     };
 
 })();
