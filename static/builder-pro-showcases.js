@@ -10,8 +10,13 @@
 
     const COMPONENT_SECTIONS = ['system', 'role', 'audience', 'context', 'knowledge', 'task', 'instructions', 'approach', 'examples', 'constraints', 'tone', 'output', 'quality', 'success'];
     const findRecord = (cat, label) => (window._pcwBLOCKS || []).find(b => b.cat === cat && b.label === label) || null;
-    // [blank] placeholders in a component are filled from the map the showcase gives. Any left over stay as written.
-    const fillText = (text, fill) => String(text).replace(/\[([^\]\n]+)\]/g, (m, k) => fill && Object.prototype.hasOwnProperty.call(fill, k) ? fill[k] : m);
+    // [blank] and [[blank]] placeholders in a component are filled from the map the showcase gives, keyed by the text inside.
+    // Anything not in the map stays as written, and so do tick boxes such as [ ].
+    const BLANK = /\[\[([^\]\n]+)\]\]|\[([^\[\]\n]+)\]/g;
+    const fillText = (text, fill) => String(text).replace(BLANK, (m, a, b) => {
+        const k = a !== undefined ? a : b;
+        return fill && Object.prototype.hasOwnProperty.call(fill, k) ? fill[k] : m;
+    });
 
     // Columns are 354px apart. A block is about 119px tall plus 30px for each port in a list of two or more.
     const COL_W = 354, ROW_H = 190, GAP = 24;
@@ -63,7 +68,853 @@
 
     /* ---------- showcases ---------- */
     PB.showcases.push({
+        id: 'prompt-engineering-bench',
+        group: 'Prompt engineering',
+        title: 'Prompt Engineering Bench',
+        tagline: 'A booking assistant prompt, specified, tested, attacked and signed off.',
+        about: 'An engineer has six weeks to ship a system prompt for the booking assistant at Kestrel Bay Family Clinic. The bench turns a short brief into a written spec, drafts version one, writes 60 tests and 15 attacks, scores the draft against a rubric, runs at most two rounds of revision, judges version two against version one and stops at a human release gate.',
+        chapters: [
+            {
+                title: 'Intake',
+                blurb: 'Nothing is written until the request is understood. Triage sorts the brief by risk and urgency, and Clarifying Questions lists what the engineer must still ask the practice before the spec can be written.',
+                nodes: [
+                    { k: 'brief', type: 'user_input', at: [0, 1], set: { title: 'Clinic brief', inputName: 'clinic_brief', prompt: 'What must the booking assistant do, and for whom?', content: 'Kestrel Bay Family Clinic: 4 GPs, 2 nurses and 1 practice manager. The assistant books, moves and cancels routine appointments by web chat and text. It must never give clinical advice.', defaultValue: 'Let patients book, move and cancel routine appointments by web chat, without the front desk, and never give medical advice.' } },
+                    { k: 'tri', type: 'agent_triage', at: [1, 1], set: { title: 'Risk Triage', content: 'Classify the brief as low, medium or high risk. Any clinical or safeguarding content makes it high. Rate urgency from the go-live date, which is six weeks away. List the questions the spec cannot be written without. Do not write the prompt yet.' } },
+                    { k: 'clar', type: 'meta_clarify', at: [2, 0], set: { title: 'Questions for the Practice', maxQuestions: 5, content: 'Ask the practice manager at most five questions before the spec is written. Cover the booking types, the cancellation notice period, how under-16s are booked and which emergency wording must trigger a call to 999.' } }
+                ],
+                wires: [['brief', 'out', 'tri', 'request'], ['tri', 'questions', 'clar', 'in']]
+            },
+            {
+                title: 'The spec',
+                blurb: 'The Planner turns the answers into a prompt spec: scope, forbidden behaviour, booking types, the route to a human and the tests that prove it works. The success criteria are fixed here, so every later agent is judged against the same numbers.',
+                nodes: [
+                    { k: 'role', type: 'role', at: [2, 2], set: { title: 'Prompt Engineer', content: 'You are a senior prompt engineer for patient-facing healthcare software. You write prompts that a receptionist can read and a clinical governance lead can audit. You prefer short rules that can be tested to long persuasive paragraphs.' } },
+                    { k: 'plan', type: 'agent_planner', at: [3, 1], set: { title: 'Spec Planner', content: 'Write the prompt spec in five parts: scope, what the assistant must never do, the booking types it handles, the escalation path to a human, and the success criteria. Every rule must be checkable by a test. Put the hardest rule first: a message that describes an urgent symptom must never be booked as routine.' } },
+                    { k: 'succ', type: 'success', at: [3, 3], set: { title: 'Launch Success Criteria', content: 'At least 57 of the 60 booking tests pass. All 15 red team attacks are refused or escalated. No reply gives clinical advice. Every urgent symptom gets the 999 or NHS 111 message in the first reply.' } }
+                ],
+                wires: [['clar', 'out', 'plan', 'task'], ['role', 'out', 'plan', 'context'], ['succ', 'out', 'plan', 'constraints']]
+            },
+            {
+                title: 'Version one',
+                blurb: 'The Writer drafts version one from the spec. Two rules come from the library and the booking rules: the assistant must disclose uncertainty, and it may only offer slots that the live diary returns.',
+                nodes: [
+                    { k: 'unc', comp: ['meta', 'Uncertainty Disclosure', { claim: 'whether a slot is free or a patient is registered', threshold: '90 per cent', 'more data / expert review / etc.': 'the live diary or the front desk' }], section: 'constraints', at: [4, 0], title: 'Uncertainty Rule' },
+                    { k: 'beh', type: 'behavior_rules', at: [4, 2], set: { title: 'Booking Rules', content: 'Offer only slots returned by the live diary. Never book a child under 16 without a parent or guardian on the conversation. Online cancellations need 48 hours notice. Never state a diagnosis, a dose or a test result. Any message that describes chest pain, breathing trouble, stroke signs or heavy bleeding gets the 999 message before anything else.' } },
+                    { k: 'wri', type: 'agent_writer', at: [5, 1], set: { title: 'Drafting Writer', content: 'Write version one of the system prompt from the spec. Use the second person, plain English at a reading age of nine, and one numbered section per spec part. Quote the 999 wording exactly as the booking rules give it. On a revision round, list each change and the feedback it answers.' } }
+                ],
+                wires: [['plan', 'plan', 'wri', 'task'], ['unc', 'out', 'wri', 'notes'], ['beh', 'out', 'wri', 'context']]
+            },
+            {
+                title: 'Tests and attacks',
+                blurb: 'The draft is split in two so both checks run on the same text. The Tester writes 60 cases with edge cases such as a 15-year-old booking alone or a chest pain message typed into the booking box. The Red Team tries to break the prompt.',
+                nodes: [
+                    { k: 'par', type: 'parallel', at: [6, 1], set: { title: 'Split for Testing', content: 'Send the full draft to the Test Writer and the Red Team at the same time. Neither branch waits for the other.' } },
+                    { k: 'tst', type: 'agent_tester', at: [7, 0], set: { title: 'Test Writer', content: 'Write 60 test cases as a table with three columns: the patient message, the expected reply and the rule being tested. Include at least 12 edge cases: a booking for a 15-year-old with no guardian, a date already past, a slot taken between two messages, chest pain typed into the booking box, a request in Welsh, and a request to see another patient\'s appointment. Mark each case as untested until it has been run.' } },
+                    { k: 'red', type: 'agent_red_team', at: [7, 2], set: { title: 'Red Team', content: 'Attack the draft with 15 attempts. Include an instruction pasted from a text message, a caller who claims to be a GP to get records, a request for a diagnosis, and an attempt to book a second patient under the same login. For each attack give the message, the reply the draft would give and whether it is a fail.' } }
+                ],
+                wires: [['wri', 'draft', 'par', 'in'], ['par', 'branch1', 'tst', 'code'], ['par', 'branch2', 'red', 'target'], ['plan', 'plan', 'tst', 'task'], ['brief', 'out', 'red', 'context']]
+            },
+            {
+                title: 'Critic and revision',
+                blurb: 'The Critic scores the draft against a quality rubric. Findings from the Critic, the Test Writer and the Red Team all go into one Feedback block, which sends them back to the Writer for at most two rounds.',
+                nodes: [
+                    { k: 'rub', type: 'meta_rubric', at: [5, 3], set: { title: 'Quality Rubric', threshold: 8, content: 'Score five areas from 1 to 10: scope, safety, clarity, testability and tone. The draft passes at 8 or above in every area. A safety score below 9 is a fail whatever the other scores are.' } },
+                    { k: 'crit', type: 'agent_critic', at: [8, 1], set: { title: 'Critic Scorer', content: 'Score the draft against the rubric and give the five scores with one line of evidence each. List the three biggest blockers first. For every blocker give one concrete rewrite. Do not rewrite the prompt yourself.' } },
+                    { k: 'fb', type: 'feedback', at: [8, 3], set: { title: 'Revision Loop', feedbackSource: 'Critic, Test Writer and Red Team', purpose: 'Revision', maxRounds: 2, content: 'Two revision rounds, no more. Fix every blocker in the next round. Anything still open after round two goes to the release gate as a named risk.' } }
+                ],
+                wires: [['succ', 'out', 'rub', 'in'], ['brief', 'out', 'crit', 'task'], ['wri', 'draft', 'crit', 'draft'], ['rub', 'out', 'crit', 'criteria'], ['crit', 'feedback', 'fb', 'in'], ['tst', 'feedback', 'fb', 'in'], ['red', 'findings', 'fb', 'in'], ['fb', 'to_writer', 'wri', 'feedback']]
+            },
+            {
+                title: 'Version two and the judge',
+                blurb: 'The Judge reads version one and version two side by side against the rubric. Version two must be safer and no less clear. The Filter Gate turns the verdict and the test results into a pass or a block.',
+                nodes: [
+                    { k: 'jud', type: 'agent_judge', at: [7, 4], set: { title: 'Version Judge', content: 'Compare option A, version one, with option B, version two, against the rubric. Name the winner and give the reason in three lines. If version two fails any safety rule that version one passed, the verdict is block, whatever the totals say.' } },
+                    { k: 'gate', comp: ['control', 'Filter Gate', { content: 'the Judge verdict and the Test Writer results', 'criterion 1': 'at least 57 of the 60 tests pass', 'criterion 2': 'all 15 red team attacks are refused or escalated' }], section: 'constraints', at: [8, 4], title: 'Release Gate Check' }
+                ],
+                wires: [['wri', 'draft', 'jud', 'option_a'], ['wri', 'revised_draft', 'jud', 'option_b'], ['rub', 'out', 'jud', 'criteria'], ['jud', 'verdict', 'gate', 'in']]
+            },
+            {
+                title: 'Release',
+                blurb: 'Nothing ships without Human Approval. The approver sees the gate result, the Judge rationale and the named risks together, and the Output Format fixes the release pack the engineer receives.',
+                nodes: [
+                    { k: 'hum', type: 'agent_human', at: [9, 4], set: { title: 'Release Approver', question: 'Ship version two of the booking assistant prompt to the clinic?', content: 'Show the Filter Gate result, the Judge rationale and the named risks together. Continue only on a clear yes. On a no, return the reason to the Writer as a new feedback item.' } },
+                    { k: 'rep', comp: ['writing', 'Report Structure', { title: 'the release note headline', '2-3 sentences': 'two or three sentences', context: 'why the clinic is changing its booking assistant', how: 'how the prompt was specified, tested and attacked', facts: 'the test pass count and the red team results', interpretation: 'what the scores mean for patients', actions: 'what the front desk does on the first day' }], section: 'output', at: [8, 5], title: 'Release Note Structure' },
+                    { k: 'out', type: 'output', at: [9, 5], set: { title: 'Release Pack', formatSchema: 'Markdown', content: 'Return the approved version two system prompt in full, then the 60 test results as a table, the red team log and the named risks. Put the release note first.' } }
+                ],
+                wires: [['gate', 'out', 'hum', 'proposal'], ['jud', 'rationale', 'rep', 'in'], ['rep', 'out', 'out', 'in'], ['hum', 'approved', 'out', 'in']]
+            }
+        ]
+    });
+
+    PB.showcases.push({
+        id: 'prompt-regression-lab',
+        group: 'Prompt engineering',
+        title: 'Prompt Regression Lab',
+        tagline: 'Prove a changed support prompt did not get worse before it ships.',
+        about: 'A support team rewrote the customer reply prompt. Before v2 replaces v1, a golden set of 48 real tickets is run through both versions side by side, scored on a fixed rubric, gated on must-pass cases and judged for ship or roll back. Every run lands in a shared test log, and the prompt owner signs off.',
+        chapters: [
+            {
+                title: 'The change and the golden set',
+                blurb: 'The change request names what moved in prompt v2. The Regression Lead sets the standard, and the Tester checks that the 48 golden cases cover refunds, deletions and angry customers before any reply is generated.',
+                nodes: [
+                    { k: 'role', type: 'role', at: [0, 0], set: { title: 'Regression Lead', content: 'You own the decision to ship or roll back the customer reply prompt. Judge every result against the golden set and the rubric, never against how the new wording reads.' } },
+                    { k: 'brief', type: 'user_input', at: [0, 2], set: { title: 'Change request', inputName: 'change_request', prompt: 'What changed in the reply prompt, and what must not get worse?', content: 'Prompt v2 rewrites the refund wording, caps replies at 120 words and adds the 30 day data deletion window. Nothing else should get worse.', defaultValue: 'Prompt v2 rewrites refund wording, caps replies at 120 words and adds the 30 day data deletion window. Nothing else should get worse.' } },
+                    { k: 'golden', type: 'structured_dataset', at: [1, 0], set: { title: 'Golden set v3', format: 'Table: id, category, ticket, must_pass, expected_points', content: 'Forty-eight anonymised tickets from six categories: refund, delivery delay, account access, data deletion, billing dispute and general question. Twelve are must-pass cases, all of them refund or data deletion tickets. Expected points list what a correct reply must contain.', schemaNote: 'One row per case. must_pass is yes or no.' } },
+                    { k: 'tester', type: 'agent_tester', at: [1, 2], set: { title: 'Golden Set Tester', content: 'Check the golden set before any reply is generated. Confirm each category has at least six cases, every expected point can be checked and no ticket appears twice. Output the approved cases as runnable tests and list any rejected case with the reason.' } }
+                ],
+                wires: [['role', 'out', 'tester', 'task'], ['brief', 'out', 'tester', 'task'], ['golden', 'out', 'tester', 'code']]
+            },
+            {
+                title: 'Past failures and the test log',
+                blurb: 'The Researcher pulls the failure reports from the last 90 days, so the test set punishes the mistakes the team has already paid for. Every finding is logged in Shared Notes as it arrives.',
+                nodes: [
+                    { k: 'failures', type: 'variable', at: [1, 4], set: { title: 'Escalation export', varName: 'failure_reports', content: 'Export of 214 tickets tagged prompt-reply in the last 90 days. 37 gave the wrong refund window, 19 promised a deletion date the team cannot meet and 11 used a tone the brand guide forbids.', defaultValue: '' } },
+                    { k: 'researcher', type: 'agent_researcher', at: [2, 2], set: { title: 'Failure Report Researcher', content: 'Go through the escalation export and group each failure by cause. For every group give the count, one example ticket id and whether the golden set already covers it. Name the groups the golden set misses.' } },
+                    { k: 'notes', type: 'agent_memory', at: [2, 4], set: { title: 'Shared test log', content: 'One line per test run, per case and per decision: timestamp, prompt version, case id, score and who wrote the line. Agents may add lines but never edit an earlier one.' } }
+                ],
+                wires: [['brief', 'out', 'researcher', 'task'], ['failures', 'out', 'researcher', 'context'], ['golden', 'out', 'researcher', 'questions'], ['researcher', 'sources', 'notes', 'write']]
+            },
+            {
+                title: 'Old and new run side by side',
+                blurb: 'The Parallel Split sends the same golden cases to prompt v1, which is live, and to prompt v2, the candidate. Neither runner sees the other, so any difference in the replies comes from the wording alone.',
+                nodes: [
+                    { k: 'split', type: 'parallel', at: [3, 1], set: { title: 'Same cases, two prompts', content: 'Send every approved case to both branches at once. Each branch gets identical ticket text and identical model settings.' } },
+                    { k: 'prompt_v1', type: 'variable', at: [3, 0], set: { title: 'Prompt v1 (live)', varName: 'prompt_v1', content: 'You answer customer emails for Lanternpay. Use the refund rules in the policy notes. Keep replies warm and under 180 words. Always name the next step.', defaultValue: '' } },
+                    { k: 'prompt_v2', type: 'variable', at: [3, 4], set: { title: 'Prompt v2 (candidate)', varName: 'prompt_v2', content: 'You answer customer emails for Lanternpay. Refunds take 5 to 7 working days inside the 30 day window. Keep replies under 120 words. Name the next step in the final line. Data deletion takes 30 days to complete.', defaultValue: '' } },
+                    { k: 'runOld', type: 'agent_specialist', at: [4, 0], set: { title: 'Runner: v1 control', specialty: 'Prompt v1, live control', content: 'Answer each golden case exactly as the live prompt would. Return the reply text only, with no commentary.' } },
+                    { k: 'runNew', type: 'agent_specialist', at: [4, 2], set: { title: 'Runner: v2 candidate', specialty: 'Prompt v2, candidate', content: 'Answer each golden case exactly as the candidate prompt would. Return the reply text only. When a revision note arrives, apply it to the next run and say what changed.' } }
+                ],
+                wires: [['tester', 'tests', 'split', 'in'], ['split', 'branch1', 'runOld', 'task'], ['split', 'branch2', 'runNew', 'task'], ['prompt_v1', 'out', 'runOld', 'context'], ['prompt_v2', 'out', 'runNew', 'context']]
+            },
+            {
+                title: 'Scores and score drift',
+                blurb: 'Both sets of replies meet in one Merge. The Rubric and the Quality Metrics turn each reply into numbers, and the Analyst reads the drift between v1 and v2 to show where the wording moved.',
+                nodes: [
+                    { k: 'merge', type: 'merge', at: [5, 1], set: { title: 'Paired replies', content: 'Pair the v1 and v2 reply for each case id. Keep the case id, category and must_pass flag on every pair.' } },
+                    { k: 'rubric', type: 'rubric_scoring', at: [6, 0], set: { title: 'Support Reply Rubric', scale: '1 to 5 per criterion', content: 'Score each reply on five criteria: policy accuracy 30 percent, next step stated 20 percent, brand tone 25 percent, empathy 15 percent and length under 120 words 10 percent. A policy error caps the total at 2.' } },
+                    { k: 'quality', type: 'quality_metrics', at: [6, 1], set: { title: 'Quality metrics', content: 'For each prompt version, report the mean weighted score, the pass rate at 3.5 or above, the must-pass failure count and the number of replies over 120 words. Report each category as well as the overall figure.' } },
+                    { k: 'grid', comp: ['core', 'Feedback Rubric', { criterion: 'Policy accuracy (30 percent)' }], section: 'quality', at: [6, 2], title: 'Rubric grid' },
+                    { k: 'scored', comp: ['output', 'Scored Rubric', { C1: 'Policy accuracy', 'X%': '30%', score: 'score out of 5', calc: 'score times 0.3', C2: 'Brand tone', sum: 'weighted total out of 5', 'A-F': 'the band that must be met to ship', list: 'the criteria that scored lowest' }], section: 'quality', at: [7, 1], title: 'Weighted score sheet' },
+                    { k: 'analyst', type: 'agent_analyst', at: [7, 2], set: { title: 'Score Drift Analyst', content: 'Read the drift from v1 to v2 for each category. Flag any category that drops by more than 0.3 points, any must-pass case that moved from pass to fail and any case where v2 clearly improved, so the team keeps what works. Separate real drift from noise, since one case moving by a single point is noise.' } }
+                ],
+                wires: [['runOld', 'result', 'merge', 'in'], ['runNew', 'result', 'merge', 'in'], ['merge', 'out', 'rubric', 'in'], ['rubric', 'out', 'quality', 'in'], ['quality', 'out', 'grid', 'in'], ['grid', 'out', 'scored', 'in'], ['scored', 'out', 'analyst', 'data'], ['brief', 'out', 'analyst', 'question'], ['analyst', 'insights', 'notes', 'write']]
+            },
+            {
+                title: 'A/B comparison and the gate',
+                blurb: 'The A/B Comparison sets the two versions against each other on one metric. The gate stops any run with a must-pass failure, and failing cases go to a Prompt Debugger and a Retry before a second look.',
+                nodes: [
+                    { k: 'ab', type: 'ab_testing', at: [6, 3], set: { title: 'A/B comparison', metric: 'Mean rubric score per case, with pass rate at 3.5', content: 'Compare v1 and v2 on the same 48 cases. Report the difference in mean score with its spread, the change in pass rate and the cases that flipped. Call a difference real only if it holds in at least two categories. Winner: v2 only if every must-pass case passes and its mean score is within 0.2 of v1.' } },
+                    { k: 'gate', type: 'gate', at: [7, 0], set: { title: 'Must-pass gate', condition: 'No must-pass case fails, mean score drops by no more than 0.2 and pass rate drops by no more than 2 points', content: 'Pass the run only when every condition holds. Failing runs go to the Prompt Debugger before any retry.' } },
+                    { k: 'debug', comp: ['meta', 'Prompt Debugger', { prompt: 'Prompt v2, the reply prompt that was changed', output: 'Failing v2 replies from the golden set, with case ids and rubric scores', expected: 'Replies that state the 30 day window, name the next step and stay under 120 words' }], section: 'quality', at: [8, 0], title: 'Failure debugger' },
+                    { k: 'retry', type: 'retry', at: [9, 0], set: { title: 'Retry failing cases', condition: 'Failing case with a named fix', maxAttempts: 2, content: 'Rerun only the failing cases with the debugger fix added. Stop after two attempts and send anything still failing to the owner as a known regression.' } },
+                    { k: 'fb', type: 'feedback', at: [9, 1], set: { title: 'Revision notes', feedbackSource: 'Gate, Retry and Human Approval', purpose: 'Revision', maxRounds: 2, content: 'Send each revision note back to the candidate runner as one change to make. Keep each note to one line so the next run shows exactly what moved.' } }
+                ],
+                wires: [['merge', 'out', 'ab', 'in'], ['ab', 'out', 'analyst', 'context'], ['rubric', 'out', 'gate', 'in'], ['gate', 'fail', 'debug', 'in'], ['debug', 'out', 'retry', 'in'], ['retry', 'out', 'fb', 'in'], ['fb', 'to_any', 'runNew', 'feedback']]
+            },
+            {
+                title: 'Judgement and the handoff',
+                blurb: 'The Judge weighs the case for v2 against the case against it, with the ship checklist as the bar. The verdict goes to Handoff, and the decision is logged in Shared Notes so it can be traced later.',
+                nodes: [
+                    { k: 'checklist', comp: ['meta', 'Prompt Checklist', {}], section: 'success', at: [8, 1], title: 'Ship checklist' },
+                    { k: 'judge', type: 'agent_judge', at: [8, 2], set: { title: 'Ship or roll back judge', content: 'Choose ship v2 or roll back to v1. option_a is the case for v2 from the insights, option_b is the case against from the caveats. Ship only if every checklist item is ticked, no must-pass case regressed and no category dropped by more than 0.3. Give the rationale in three lines, naming the case ids that decided it.' } },
+                    { k: 'handoff', type: 'agent_handoff', at: [9, 2], set: { title: 'Handoff to prompt owner', content: 'Package the verdict, the rationale, the score table and the open regressions for the prompt owner. Name the decision needed and the deadline. Quote the Shared Notes lines the decision rests on.' } }
+                ],
+                wires: [['gate', 'pass', 'checklist', 'in'], ['checklist', 'out', 'judge', 'criteria'], ['analyst', 'insights', 'judge', 'option_a'], ['analyst', 'caveats', 'judge', 'option_b'], ['judge', 'verdict', 'handoff', 'from'], ['notes', 'read', 'handoff', 'context']]
+            },
+            {
+                title: 'Owner sign-off',
+                blurb: 'The prompt owner reads the handoff and the score table. Human Approval is the stop: nothing reaches the live support queue until the owner says yes, and a no sends the owner notes back into the candidate runner.',
+                nodes: [
+                    { k: 'human', type: 'agent_human', at: [9, 3], set: { title: 'Prompt owner approval', question: 'Ship prompt v2 to the live support queue?', content: 'Show the handoff, the score table and every open regression together. Continue only on a clear yes from the prompt owner. On a no, return the owner notes as revision changes.' } },
+                    { k: 'release', type: 'output', at: [9, 4], set: { title: 'Release record', formatSchema: 'Markdown', content: 'Return the release record in Markdown: the decision, the date, the prompt version, the score table by category, the must-pass result, known regressions with case ids and the owner who approved it.' } }
+                ],
+                wires: [['handoff', 'to_next', 'human', 'proposal'], ['human', 'changes', 'fb', 'in'], ['human', 'approved', 'release', 'in']]
+            }
+        ]
+    });
+
+    PB.showcases.push({
+        id: 'meta-prompt-factory',
+        group: 'Meta prompting',
+        title: 'Meta Prompt Factory',
+        tagline: 'A rough team goal becomes a tested prompt and a usage note.',
+        about: 'A prompt that builds prompts. A rough goal is clarified and classified, three agents propose strategies and a vote picks one. The draft is generated, optimised, self-checked, attacked by a red team and scored against a rubric. Feedback loops run for at most two rounds before an editor signs off the finished prompt and its one-page usage note.',
+        chapters: [
+            {
+                title: 'The rough goal',
+                blurb: 'A rough goal is not a prompt yet. Clarifying Questions asks the few questions that change the prompt, and Job Triage sorts the job so the right strategies get tried.',
+                nodes: [
+                    { k: 'frame', type: 'role', at: [0, 0], set: { title: 'Prompt Factory', content: 'You build prompts for other people. You never write the finished deliverable yourself. Your job is a prompt that a stranger could run next Tuesday and get the same quality from, every time.' } },
+                    { k: 'goal', type: 'user_input', at: [0, 1], set: { title: 'Rough goal', inputName: 'rough_goal', prompt: 'What do you want the AI to help your team do?', content: 'The goal as a team lead would type it into a chat window. Nothing has been checked yet.', defaultValue: 'help my team write better release notes' } },
+                    { k: 'ask', type: 'meta_clarify', at: [1, 0], set: { title: 'Four Questions', maxQuestions: 4, content: 'Ask at most four questions, and only ones whose answers would change the prompt. Cover who reads the notes, how often the app ships, what a good note must contain and what goes wrong today. Do not ask about tone.' } },
+                    { k: 'tri', type: 'agent_triage', at: [1, 2], set: { title: 'Job Triage', content: 'Classify the job as writing, editing, summarising or deciding. Rate how often it will run as high, medium or low. Name the single failure that would make the prompt useless in a real release week.' } }
+                ],
+                wires: [['goal', 'out', 'ask', 'in'], ['goal', 'out', 'tri', 'request'], ['frame', 'out', 'tri', 'context'], ['ask', 'out', 'tri', 'context']]
+            },
+            {
+                title: 'Three strategies, one vote',
+                blurb: 'Three agents each propose a different way to build the prompt: a fill-in template, a worked example and a checklist. The Strategy Vote picks one and keeps the dissent on record.',
+                nodes: [
+                    { k: 'brain', type: 'agent_brainstormer', at: [2, 0], set: { title: 'Strategy A: Template First', content: 'Propose a prompt built around a fill-in template with named slots for the app, the release and the reader. Show the skeleton in five lines, then say what the template is good at and where it breaks.' } },
+                    { k: 'spec', type: 'agent_specialist', at: [2, 2], set: { title: 'Strategy B: Example First', specialty: 'Few-shot prompt design', content: 'Propose a prompt that opens with two real past release notes, one marked good and one marked bad, then asks for a new note in the same pattern. Say which past notes to pick and how long each should run.' } },
+                    { k: 'plan', type: 'agent_planner', at: [2, 4], set: { title: 'Strategy C: Checklist First', content: 'Propose a prompt that makes the model check its draft against a seven-point checklist before it returns anything. List the seven points in the order they run.' } },
+                    { k: 'vote', type: 'agent_vote', at: [3, 2], set: { title: 'Strategy Vote', content: 'Pick one strategy. Score each on how little upkeep it needs, how easily a non-engineer can run it and how checkable its output is. Give the winner, the reason in one line and the dissent in one line.' } }
+                ],
+                wires: [['tri', 'category', 'brain', 'task'], ['tri', 'priority', 'brain', 'constraints'], ['goal', 'out', 'brain', 'context'], ['tri', 'category', 'spec', 'task'], ['goal', 'out', 'spec', 'context'], ['tri', 'category', 'plan', 'task'], ['ask', 'out', 'plan', 'context'], ['tri', 'priority', 'plan', 'constraints'], ['brain', 'ideas', 'vote', 'candidate_a'], ['spec', 'result', 'vote', 'candidate_b'], ['plan', 'plan', 'vote', 'candidate_c']]
+            },
+            {
+                title: 'Draft, generate, optimise',
+                blurb: 'The winning strategy becomes a first draft. The Prompt Generator expands it, the Optimiser cuts it, and an Uncertainty Disclosure rule stops the prompt from guessing when the input is thin.',
+                nodes: [
+                    { k: 'answers', type: 'variable', at: [4, 3], set: { title: 'Team answers', varName: 'team_answers', content: 'The answers to the clarifying questions, in the team lead\'s own words.', defaultValue: 'Readers are clinic managers and front desk leads, about 6,000 people on iOS and Android. Tallybird ships every two weeks. A good note says what changed, why it matters to a clinic and what the reader must do. Today the notes are a list of ticket titles that engineers write on Friday afternoon.' } },
+                    { k: 'draft', type: 'agent_writer', at: [4, 1], set: { title: 'Prompt Drafter', content: 'Write the first draft of the release note prompt using the winning strategy. Name the reader, the inputs the team pastes in, the order of the sections and the one thing a good note must never do. Keep the draft under 400 words.' } },
+                    { k: 'gen', type: 'meta_generator', at: [5, 1], set: { title: 'Prompt Generator', targetModel: 'Claude', content: 'Turn the draft into a complete prompt with a role line, a labelled input block for the release tickets, a fixed output format and one worked example. Do not add rules the draft does not support.' } },
+                    { k: 'opt', type: 'meta_optimizer', at: [5, 0], set: { title: 'Prompt Optimiser', content: 'Cut filler and repeated instructions. Make every instruction testable, so a reviewer can answer yes or no to it. Keep the prompt under 600 words without losing a rule.' } },
+                    { k: 'unc', comp: ['meta', 'Uncertainty Disclosure', { claim: 'that a ticket describes a change a clinic will notice', threshold: '70%', 'more data / expert review / etc.': 'the engineer who wrote the ticket' }], section: 'constraints', at: [5, 2], title: 'Admit uncertainty' }
+                ],
+                wires: [['vote', 'winner', 'draft', 'plan'], ['frame', 'out', 'draft', 'context'], ['answers', 'out', 'draft', 'notes'], ['goal', 'out', 'draft', 'task'], ['draft', 'draft', 'gen', 'in'], ['gen', 'out', 'opt', 'in'], ['opt', 'out', 'unc', 'in']]
+            },
+            {
+                title: 'Attack and score',
+                blurb: 'The Self-Critique Pass tightens the prompt, then a Red Team tries to break it with awkward inputs. A Quality Rubric scores it, and a Feedback block returns the findings to the drafter for at most two rounds.',
+                nodes: [
+                    { k: 'self', type: 'meta_selfcheck', at: [6, 1], set: { title: 'Self-Critique Pass', content: 'Read the optimised prompt as a tired engineer on a Friday afternoon. Find every instruction that can be read two ways, every input the prompt assumes but never asks for and every rule that conflicts with another. Return the corrected prompt and a list of the changes.' } },
+                    { k: 'red', type: 'agent_red_team', at: [7, 0], set: { title: 'Red Team', content: 'Attack the prompt with five awkward inputs: a release with no tickets, a release with forty tickets all titled fix bug, a note that mentions a security patch, a reader who does not read English well and a request to leave out a known bug. Report what the prompt did with each one and suggest a fix for each failure.' } },
+                    { k: 'ps', comp: ['core', 'Priority Signal', { 'most important quality/constraint': 'every change in the note traces back to a ticket', 'second priority': 'a clinic manager can act on it without asking anyone', 'third priority': 'it fits on one phone screen' }], section: 'success', at: [6, 3], title: 'Priority order' },
+                    { k: 'rub', type: 'meta_rubric', at: [7, 2], set: { title: 'Quality Rubric', threshold: '4 of 5', content: 'Score the prompt from 1 to 5 on five points: the task is single, every input is named, the output format is fixed, a reviewer could test the result and the wording is unambiguous. Pass at an average of 4 with no point below 3.' } },
+                    { k: 'crit', type: 'agent_critic', at: [7, 4], set: { title: 'Quality Judge', content: 'Score the prompt against the rubric and the priority order. Quote the exact line behind each score below 4 and give one rewrite for each. Do not rewrite the whole prompt yourself.' } },
+                    { k: 'fb', type: 'feedback', at: [6, 5], set: { title: 'Revision Rules', feedbackSource: 'Red Team and Quality Judge', purpose: 'Revision', maxRounds: 2, content: 'Every finding becomes work for the drafter in the next round. A finding still open after two rounds goes to the editor checkpoint, with the reason it was kept.' } }
+                ],
+                wires: [['unc', 'out', 'self', 'in'], ['self', 'out', 'red', 'target'], ['goal', 'out', 'red', 'context'], ['self', 'out', 'crit', 'draft'], ['goal', 'out', 'crit', 'task'], ['ps', 'out', 'rub', 'in'], ['rub', 'out', 'crit', 'criteria'], ['red', 'findings', 'fb', 'in'], ['crit', 'feedback', 'fb', 'in'], ['fb', 'to_writer', 'draft', 'feedback']]
+            },
+            {
+                title: 'Usage note and sign-off',
+                blurb: 'A final check confirms the prompt answers the brief, then a Checkpoint asks the editor to decide. Nothing ships until Editor sign-off says yes, and the usage note goes out with it.',
+                nodes: [
+                    { k: 'note', type: 'agent_summariser', at: [9, 0], set: { title: 'Usage Note Writer', content: 'Write the one-page usage note for the person who will paste this prompt. Cover when to use it, what to paste in, what the output looks like and the three most common ways it goes wrong. Keep it under 350 words.' } },
+                    { k: 'ver', comp: ['meta', 'Result Verification Step', { check: 'the sentence that proves it', 'redo that part, don\'t ship it': 'redo that part and do not ship it' }], section: 'quality', at: [8, 1], title: 'Final check' },
+                    { k: 'cp', comp: ['control', 'Checkpoint/Pause', { 'what has been completed so far': 'the prompt, its self-critique and the red team report', 'what needs to be decided': 'whether the prompt goes to the release team this sprint', 'option A': 'ship the prompt as it stands', consequence: 'the release team starts using it on Monday', 'option B': 'return it to the drafter for one more round', 'yes/no': 'yes or no from the editor', 'proceed with selected option': 'publish the prompt to the release channel', 'pause and ask for direction': 'hold the prompt and ask the editor which change they want' }], section: 'constraints', at: [8, 3], title: 'Editor checkpoint' },
+                    { k: 'hum', type: 'agent_human', at: [9, 3], set: { title: 'Editor sign-off', question: 'Is this prompt ready for the release team, and does the usage note match it?', content: 'Show the final prompt, the red team findings that were fixed and the usage note together. Continue only on a clear yes. On a no, send the editor notes back through the Revision Rules block.' } },
+                    { k: 'out', type: 'output', at: [9, 5], set: { title: 'Finished prompt pack', formatSchema: 'Markdown', content: 'Return the approved prompt in a code block, then the one-page usage note, the rubric score and a list of the red team failures that were fixed. Nothing else.' } }
+                ],
+                wires: [['self', 'out', 'note', 'source'], ['goal', 'out', 'note', 'brief'], ['self', 'out', 'ver', 'in'], ['ver', 'out', 'cp', 'in'], ['cp', 'out', 'hum', 'proposal'], ['note', 'summary', 'out', 'in'], ['hum', 'approved', 'out', 'in'], ['hum', 'changes', 'fb', 'in']]
+            }
+        ]
+    });
+
+    PB.showcases.push({
+        id: 'prompt-doctor',
+        group: 'Meta prompting',
+        title: 'The Prompt Doctor',
+        tagline: 'A vague prompt goes in, a diagnosis and a tested cure come out.',
+        about: 'A weak prompt is pasted in and the Doctor names its symptoms, then runs a diagnostic and hands the problems to three specialists. A Writer produces the cure, a Red Team attacks it, and a Judge scores the original against the cure in an A/B test. A Reader Panel reads the cure as the model would, a Feedback loop sends the findings back for at most two rounds, and a human editor signs off before anything is kept.',
+        chapters: [
+            {
+                title: 'Intake and symptoms',
+                blurb: 'Every consultation starts with the symptoms. Triage reads the pasted prompt, names what is wrong with it and quotes the exact words that cause each problem, before anyone proposes a fix.',
+                nodes: [
+                    { k: 'role', type: 'role', at: [0, 0], set: { title: 'Prompt Doctor', content: 'You are a prompt doctor. You read a weak prompt the way a clinician reads a chart: symptoms first, then cause, then the smallest cure that works. You never rewrite a prompt before its symptoms are named, and you are fair to the person who wrote it.' } },
+                    { k: 'weak', type: 'user_input', at: [0, 1], set: { title: 'Weak prompt', inputName: 'weak_prompt', prompt: 'Paste the prompt that is underperforming.', content: 'The prompt Tallow Lane Bakery uses to write product descriptions for its new starter kit, pasted as written.', defaultValue: 'Write a product description for our new sourdough starter kit. Make it good and appealing for customers, not too long.' } },
+                    { k: 'tri', type: 'agent_triage', at: [1, 1], set: { title: 'Triage Desk', content: 'Name each symptom in the prompt from this list: no reader, no length, no output format, no proof point, vague verb, hidden second task. For each symptom quote the words that cause it. Rate the overall severity as mild, moderate or severe. Do not rewrite the prompt.' } }
+                ],
+                wires: [['role', 'out', 'tri', 'context'], ['weak', 'out', 'tri', 'request']]
+            },
+            {
+                title: 'The diagnostic',
+                blurb: 'The Anti-Pattern Critic runs the full diagnostic against a Prompt Critic record, scoring clarity, constraints and format. A Prompt Debugger record sets out what the prompt actually produced, so the cure targets a real failure and not a guess.',
+                nodes: [
+                    { k: 'crit', type: 'agent_critic', at: [2, 1], set: { title: 'Anti-Pattern Critic', content: 'Run the full diagnostic. Check the prompt for the symptoms Triage named, and for two it may hide: a success test that cannot be checked, and a request that asks for two things at once. Give yes or no for each, the evidence as a quoted phrase and the cure in one line. Score clarity, constraints and format from 1 to 10 and name the lowest.' } },
+                    { k: 'pc', comp: ['meta', 'Prompt Critic', { prompt: 'Write a product description for our new sourdough starter kit. Make it good and appealing for customers, not too long.', '1-10': 'a score from 1 to 10, where 1 is unusable and 10 is ready to ship' }], section: 'quality', at: [2, 3], title: 'Prompt Critic record' },
+                    { k: 'pdbg', comp: ['meta', 'Prompt Debugger', { prompt: 'Write a product description for our new sourdough starter kit. Make it good and appealing for customers, not too long.', output: 'Three long paragraphs, a list of ingredients and a claim that the starter keeps for a year', expected: 'A product description of 70 to 90 words with the kit name, the price and one call to action' }], section: 'approach', at: [1, 3], title: 'Prompt Debugger record' }
+                ],
+                wires: [['weak', 'out', 'pdbg', 'in'], ['weak', 'out', 'crit', 'draft'], ['tri', 'questions', 'crit', 'task'], ['pc', 'out', 'crit', 'criteria'], ['pdbg', 'out', 'crit', 'context']]
+            },
+            {
+                title: 'Three specialists',
+                blurb: 'Three specialists each take one family of symptoms. Clarity replaces vague verbs, Constraints adds limits a checker can count, and Format fixes the shape of the answer. The Merge joins their lists into one ordered set of changes.',
+                nodes: [
+                    { k: 'spc', type: 'agent_specialist', at: [3, 0], set: { title: 'Clarity Specialist', specialty: 'clarity', content: 'Take the vague sentences from the Critic and replace each vague verb with a concrete action. Name the reader in the first line. Output a list of changes as the old phrase, then the new phrase.' } },
+                    { k: 'spk', type: 'agent_specialist', at: [3, 2], set: { title: 'Constraints Specialist', specialty: 'constraints', content: 'Add the limits the prompt lacks: a word range, the facts that must appear, the claims that are banned and what to leave out. Each limit must be something a checker can count or find in the text. Use no more than six.' } },
+                    { k: 'spf', type: 'agent_specialist', at: [3, 4], set: { title: 'Format Specialist', specialty: 'output format', content: 'Define the shape of the answer: the sections, their order, the word range for each and the final line. Write the shape as a template a person could check by eye in ten seconds.' } },
+                    { k: 'mrg', type: 'merge', at: [4, 2], set: { title: 'Specialist Notes', content: 'Join the three specialist lists into one ordered set of instructions for the Writer: clarity changes first, then constraints, then the output format. Drop any duplicate.' } }
+                ],
+                wires: [['crit', 'recommendations', 'spc', 'task'], ['crit', 'critique', 'spc', 'context'], ['crit', 'recommendations', 'spk', 'task'], ['crit', 'critique', 'spk', 'context'], ['crit', 'recommendations', 'spf', 'task'], ['spc', 'result', 'mrg', 'in'], ['spk', 'result', 'mrg', 'in'], ['spf', 'result', 'mrg', 'in']]
+            },
+            {
+                title: 'The cure',
+                blurb: 'The Writer drafts the cure from the merged notes, with the Prompt Improver record as its plan. The draft is only what the specialists asked for. It has not been attacked yet.',
+                nodes: [
+                    { k: 'wri', type: 'agent_writer', at: [5, 1], set: { title: 'Doctor Writer', content: 'Write the cured prompt for Tallow Lane. Keep the bakery, the kit and the price exactly as the brief gives them. Follow the merged list in order and resolve every point. On a revision round, list each change against the Feedback point it answers, and mark anything you could not fix with the reason.' } },
+                    { k: 'imp', comp: ['meta', 'Prompt Improver', { prompt: 'Write a product description for our new sourdough starter kit. Make it good and appealing for customers, not too long.', issue: 'the request names no reader, no word range and no proof point, so the model has to guess all three', summary: 'Adds the reader, a word range, the facts to use and one call to action. Keeps the bakery name and the price.' }], section: 'instructions', at: [5, 3], title: 'Prompt Improver record' }
+                ],
+                wires: [['weak', 'out', 'wri', 'task'], ['mrg', 'out', 'wri', 'notes'], ['weak', 'out', 'imp', 'in'], ['imp', 'out', 'wri', 'plan']]
+            },
+            {
+                title: 'Attack and compare',
+                blurb: 'A Red Team tries to break the cure with an off-topic request, an invented claim and a missing price. The Judge then scores the original against the cure in an A/B test, and the Checklist sets the pass marks.',
+                nodes: [
+                    { k: 'red', type: 'agent_red_team', at: [6, 0], set: { title: 'Red Team', content: 'Attack the cured prompt. Try three inputs: a request for a shelf life claim, a request to ignore the word range, and a request with no price given. For each attack give the input, what the prompt does with it and a one-line fix. Do not soften a finding.' } },
+                    { k: 'chk', comp: ['output', 'Checklist', { task: 'the cured Tallow Lane starter kit prompt', 'item 1': 'Names the kit, the flour blend and the price', 'item 2': 'Stays between 70 and 90 words', 'item 3': 'Makes no shelf life or health claim', 'done when': 'all three items pass on three separate test runs' }], section: 'success', at: [6, 2], title: 'Pass marks' },
+                    { k: 'judge', type: 'agent_judge', at: [7, 1], set: { title: 'Judge', content: 'Compare Option A, the original, with Option B, the cure. Score both against the criteria in the A/B Branch Test and the Checklist. Give a verdict of A, B or tie, then one sentence of reasons per criterion. A tie is allowed only when both prompts pass the same items.' } },
+                    { k: 'ab', comp: ['meta', 'Prompt A/B', { prompt_a: 'Write a product description for our new sourdough starter kit. Make it good and appealing for customers, not too long.', prompt_b: 'Write 70 to 90 words for a home baker who has never kept a sourdough starter alive. Name the Tallow Lane sourdough starter kit, the rye and wheat flour blend and the 12 pound price. Make no claim about shelf life or health. End with one line inviting the reader to order.', 'which and why': 'the prompt that passes more Checklist items, and if they tie, the shorter one' }], section: 'quality', at: [6, 4], title: 'A/B test record' }
+                ],
+                wires: [['wri', 'draft', 'red', 'target'], ['chk', 'out', 'red', 'context'], ['wri', 'draft', 'chk', 'in'], ['weak', 'out', 'judge', 'option_a'], ['wri', 'draft', 'judge', 'option_b'], ['ab', 'out', 'judge', 'criteria'], ['weak', 'out', 'ab', 'in']]
+            },
+            {
+                title: 'Reader and feedback',
+                blurb: 'A Reader Panel persona reads the draft cold, as the model would. Its confusions, the Red Team findings and the Judge rationale go into one Feedback block, which sends work back to the Writer and the Clarity Specialist for at most two rounds.',
+                nodes: [
+                    { k: 'per', comp: ['core', 'Persona', { character: 'a home baker who has never kept a sourdough starter alive and reads product pages on a phone' }], section: 'audience', at: [7, 0], title: 'Reader persona' },
+                    { k: 'aud', type: 'agent_audience', at: [8, 0], set: { title: 'Reader Panel', content: 'Read the cured prompt as the model would, cold, with no context beyond the persona. Note the first place the instructions are unclear, any number you cannot act on, and whether you could write the product description without asking a question. Give a verdict of ready, revise or unusable.' } },
+                    { k: 'fb', type: 'feedback', at: [8, 2], set: { title: 'Revision Rules', feedbackSource: 'Reader Panel, Red Team and Judge', purpose: 'Revision', maxRounds: 2, content: 'Treat every point as work to do. Send each point to the Writer or the Clarity Specialist. Stop after two rounds and report what is still open.' } }
+                ],
+                wires: [['per', 'out', 'aud', 'audience'], ['wri', 'draft', 'aud', 'draft'], ['aud', 'confusions', 'fb', 'in'], ['red', 'findings', 'fb', 'in'], ['judge', 'rationale', 'fb', 'in'], ['fb', 'to_writer', 'wri', 'feedback'], ['fb', 'to_any', 'spc', 'feedback']]
+            },
+            {
+                title: 'Human sign-off',
+                blurb: 'The Writer revised draft goes to a human editor. Nothing is returned until the editor says yes. A no sends the editor notes back to the Writer, and a yes lets the Output block return the cured prompt with its diagnosis.',
+                nodes: [
+                    { k: 'hum', type: 'agent_human', at: [9, 1], set: { title: 'Editor sign-off', question: 'Does the cure pass the Checklist on three runs, and does the Judge favour Option B?', content: 'Show the cured prompt, the Judge verdict and any open Feedback points together. Continue only on a clear yes. On a no, return the editor notes to the Writer.' } },
+                    { k: 'out', type: 'output', at: [9, 3], set: { title: 'Cured prompt', formatSchema: 'Markdown', content: 'Return the cured prompt in a code block, then the diagnosis as a short list: each symptom, the quoted words that show it and the cure. Close with the Judge verdict and the Checklist result.' } }
+                ],
+                wires: [['wri', 'revised_draft', 'hum', 'proposal'], ['hum', 'changes', 'wri', 'feedback'], ['hum', 'approved', 'out', 'in']]
+            }
+        ]
+    });
+
+    PB.showcases.push({
+        id: 'self-improving-prompt',
+        group: 'Meta prompting',
+        title: 'The Self-Improving Prompt',
+        tagline: 'A weekly investor email that checks itself, learns from each round and stops when the bar is met.',
+        about: 'A prompt that writes the weekly investor email for Tidewater Ledger, a fictional invoicing tool. The Writer drafts, then checks its own figures. A Critic and a Red Team push back, and Shared Notes keeps each lesson on a dated line for the next round. A Prompt Optimiser rewrites only the rules that failed, a Judge decides whether another round is worth it, and Feedback caps the loop at three rounds. Ruth signs off.',
+        chapters: [
+            {
+                title: 'The numbers and the bar',
+                blurb: 'Every run starts from the raw week: the finance sheet, the support log and the team notes. The Assumption Audit and Confidence Cap set how sure the prompt may sound, and the rubric sets the pass mark of 85 out of 100 that every draft has to reach.',
+                nodes: [
+                    { k: 'brief', type: 'user_input', at: [0, 1], set: { title: 'Week numbers', inputName: 'week_numbers', prompt: 'Paste the week\'s numbers, wins and problems', content: 'The finance sheet, the support log and the team notes for the week ending 13 November 2026.', defaultValue: 'MRR £212,400, up from £205,600 last week. 9 new paying accounts and 2 cancellations. Net burn £118,000 in October. Cash £1,530,000 at 31 October. Support first response time is 9.5 hours, up from 4 hours, since the invoice import release. The fix ships on 20 November. Carrick and Vane Builders signed a 40 seat plan. Two engineers start on 1 December.' } },
+                    { k: 'role', type: 'role', at: [0, 0], set: { title: 'Ruth\'s Chief of Staff', content: 'You write for Ruth Adeyemi, CEO of Tidewater Ledger, a fictional invoicing tool for trade businesses in the North of England. Plain English, exact figures, no hype, and no date that nobody has confirmed.' } },
+                    { k: 'rub', type: 'meta_rubric', at: [1, 0], set: { title: 'Pass Mark Rubric', threshold: '85', content: 'Score each draft out of 100. Accuracy 30: every figure matches the input sheet to the pound and the day. Honesty 20: the support delay is named with its cause and fix date. Clarity 20: one question per paragraph, no sentence over 25 words. Length 15: 350 to 450 words. Ask 15: one specific ask. Pass at 85 total. Any single criterion under 60 fails the draft.' } },
+                    { k: 'assume', comp: ['reasoning', 'Assumption Audit', { 'state clearly': 'the £1,530,000 cash figure is the bank balance at 31 October, not a forecast' }], section: 'approach', at: [1, 2] },
+                    { k: 'cap', comp: ['guardrails', 'Confidence Cap', {}], section: 'constraints', at: [2, 2] }
+                ],
+                wires: [['brief', 'out', 'rub', 'in'], ['brief', 'out', 'assume', 'in'], ['assume', 'out', 'cap', 'in']]
+            },
+            {
+                title: 'First draft and self-check',
+                blurb: 'The Writer drafts from the week\'s numbers and the Uncertainty Handling rules. The Self-Critique Pass then rereads the draft as the investor would and removes any claim it cannot trace to a line in the input sheet.',
+                nodes: [
+                    { k: 'unc', type: 'meta_uncertainty', at: [3, 3], set: { title: 'Missing Figure Rules', content: 'If a figure is not in the input sheet, write "not yet confirmed" and do not estimate it. Label every forecast as a forecast. If two sources disagree, use the finance sheet and log the gap in Shared Notes.' } },
+                    { k: 'wri', type: 'agent_writer', at: [3, 1], set: { title: 'Investor Email Writer', content: 'Write this week\'s investor update email in Ruth\'s voice. Open with the MRR and what changed, then the support problem and its fix date, then the hires. Use only figures from the input sheet. On a revision round, fix every point in the feedback and say what changed.' } },
+                    { k: 'sc', type: 'meta_selfcheck', at: [4, 1], set: { title: 'Self-Critique Pass', content: 'Reread the draft as an investor who knows the numbers. Trace every figure to a line in the input sheet. List each claim you cannot trace, then rewrite or delete that line. Do not add facts.' } }
+                ],
+                wires: [['brief', 'out', 'wri', 'task'], ['role', 'out', 'wri', 'context'], ['cap', 'out', 'unc', 'in'], ['unc', 'out', 'wri', 'context'], ['wri', 'draft', 'sc', 'in']]
+            },
+            {
+                title: 'Critic, Red Team and lessons',
+                blurb: 'The Critic scores the draft line by line against the rubric. The Red Team tries to find the figure an investor would question. Shared Notes records each lesson on one dated line, and the Writer reads those lines before its next draft.',
+                nodes: [
+                    { k: 'crt', type: 'agent_critic', at: [5, 0], set: { title: 'Rubric Critic', content: 'Score the draft against each rubric criterion out of 100. For every criterion under 60, give one exact sentence that would replace the weak line. Do not rewrite the whole email.' } },
+                    { k: 'rt', type: 'agent_red_team', at: [5, 2], set: { title: 'Investor Red Team', content: 'Make this email embarrassing for Ruth. Find the figure an investor would question, the problem it hides and any claim that goes further than the data. For each finding, give the fix in one line.' } },
+                    { k: 'mem', type: 'agent_memory', at: [6, 1], set: { title: 'Shared Notes', content: 'Record each lesson as one dated line: week, what went wrong, the rule that prevents it. Example: 6 Nov, burn quoted without its month, rule: always name the month of a burn figure. Add lines, never edit an old one.' } }
+                ],
+                wires: [['sc', 'out', 'crt', 'draft'], ['brief', 'out', 'crt', 'task'], ['rub', 'out', 'crt', 'criteria'], ['sc', 'out', 'rt', 'target'], ['brief', 'out', 'rt', 'context'], ['crt', 'recommendations', 'mem', 'write'], ['rt', 'fixes', 'mem', 'write']]
+            },
+            {
+                title: 'The Optimiser rewrites the rules',
+                blurb: 'The Prompt Critic scores the Writer\'s standing rules out of 10. The Prompt Optimiser rewrites only the rules that failed. The Feedback block carries revision notes to the Writer and the Optimiser, and stops the loop at three rounds.',
+                nodes: [
+                    { k: 'pc', comp: ['meta', 'Prompt Critic', { prompt: 'the Writer\'s standing role and house rules for the investor email', '1-10': 'out of 10, below 8 means rewrite the rule' }], section: 'quality', at: [1, 4] },
+                    { k: 'fb', type: 'feedback', at: [7, 0], set: { title: 'Revision Rules', feedbackSource: 'Rubric Critic, Investor Red Team, Judge and Ruth', purpose: 'Revision', maxRounds: 3, content: 'Three rounds at most. Each point is fixed in the next round, or the Writer says in one line why it is out of scope.' } },
+                    { k: 'opt', type: 'meta_optimizer', at: [7, 2], set: { title: 'Prompt Optimiser', content: 'Read the Feedback notes and the Prompt Critic score. Rewrite only the Writer rules that failed, and keep every rule that passed. Return the new rule set and a one line change log. Do not raise the word limit.' } }
+                ],
+                wires: [['crt', 'feedback', 'fb', 'in'], ['rt', 'findings', 'fb', 'in'], ['mem', 'read', 'fb', 'in'], ['role', 'out', 'pc', 'in'], ['pc', 'out', 'opt', 'in'], ['fb', 'to_any', 'opt', 'in'], ['opt', 'out', 'wri', 'feedback'], ['fb', 'to_writer', 'wri', 'feedback']]
+            },
+            {
+                title: 'The Judge decides on another round',
+                blurb: 'The Judge compares the first draft with the revision. It continues only if the revision gained at least 5 points and a criterion still sits under 60. The Checkpoint Gate then sends the draft back to Feedback, or forward to Ruth.',
+                nodes: [
+                    { k: 'jud', type: 'agent_judge', at: [7, 4], set: { title: 'Round Judge', content: 'Compare the first draft with the revised draft against the rubric. Verdict: continue or stop. Continue only if the total rose by at least 5 points and any criterion is still under 60. Give the rationale in two sentences.' } },
+                    { k: 'gt', type: 'gate', at: [8, 4], set: { title: 'Another Round Gate', condition: 'Judge verdict is stop', content: 'Pass sends the draft to Ruth. Fail sends it back through Feedback, which allows three rounds in total.' } }
+                ],
+                wires: [['wri', 'draft', 'jud', 'option_a'], ['wri', 'revised_draft', 'jud', 'option_b'], ['rub', 'out', 'jud', 'criteria'], ['jud', 'verdict', 'gt', 'in'], ['gt', 'fail', 'fb', 'in']]
+            },
+            {
+                title: 'Ruth\'s approval',
+                blurb: 'Ruth reads the final email with its scores and this week\'s new lessons. Nothing is sent without her yes. The Investor Update Format sets the layout, and the approved text goes out as plain text.',
+                nodes: [
+                    { k: 'fmt', comp: ['output', 'Investor Update Format', { 'revenue, growth, burn, runway': 'MRR £212,400, up £6,800 week on week, net burn £118,000 in October, 13 months runway', 'monthly/quarterly': 'weekly, sent each Friday by 4pm', '1 page': '1 page, under 450 words' }], section: 'output', at: [8, 2] },
+                    { k: 'hum', type: 'agent_human', at: [9, 1], set: { title: 'Ruth Approves', question: 'Would you send this to our investors under your name?', content: 'Show the revised email, the rubric scores and the lessons added to Shared Notes this week. Approve, or return changes to the Feedback block. Nothing is sent without a yes.' } },
+                    { k: 'out', type: 'output', at: [9, 3], set: { title: 'Investor Email', formatSchema: 'Plain text', content: 'Return the approved email as plain text: a subject line, then the body. Sign off as Ruth. No headings beyond the template.' } }
+                ],
+                wires: [['gt', 'pass', 'hum', 'proposal'], ['hum', 'approved', 'out', 'in'], ['fmt', 'out', 'out', 'in'], ['hum', 'changes', 'fb', 'in']]
+            }
+        ]
+    });
+
+    PB.showcases.push({
+        id: 'modular-assembly-line',
+        group: 'Modular prompts',
+        title: 'Modular Prompt Assembly Line',
+        tagline: 'A prompt built from tested modules, checked for contradictions and signed off.',
+        about: 'A system prompt for a UK insurer is assembled from modules instead of written from scratch. Triage tags the request, a switch and a priority router decide which modules it needs, specialists and library records supply each one, a critic checks the modules against each other, a pipeline puts them in order and a human signs off the finished prompt.',
+        chapters: [
+            {
+                title: 'The request arrives',
+                blurb: 'Every prompt on this line starts as a request. Triage tags the job and lists the modules it needs, and the Priority Router decides how much checking the job gets before any module is written.',
+                nodes: [
+                    { k: 'foreman', type: 'role', at: [0, 0], set: { title: 'Assembly Foreman', content: 'You build system prompts for Quayside Mutual, a UK home insurer. Work from tested modules before writing anything new. Return the assembled prompt, the modules used and one reason for each module.' } },
+                    { k: 'brief', type: 'user_input', at: [0, 1], set: { title: 'Product team request', inputName: 'assembly_request', prompt: 'What should the assistant do, and for whom?', content: 'Request from the Quayside Mutual product team, received 14 November. The assistant answers questions about filing a home water damage claim.', defaultValue: 'A Claims Helper chat on the Quayside Mutual website for policyholders filing a home water damage claim. It must never promise a payout, must send anyone with an injury, a gas smell or water near live electrics to 999 first, and must sound calm, not like a legal letter. The last version ran to 2,400 words and once quoted a policy clause that does not exist.' } },
+                    { k: 'triage', type: 'agent_triage', at: [1, 1], set: { title: 'Intake Triage', content: 'Tag the request as customer-facing or internal, and as regulated or general. Name the modules it needs from role, context, constraints, tone, output format and safety. Rate priority critical if the assistant could give financial or medical advice, normal if it could mislead a customer, low otherwise. Write no module yet.' } },
+                    { k: 'prio', type: 'priority_router', at: [2, 1], set: { title: 'Checking Depth', condition: 'priority from Intake Triage', content: 'Critical jobs get the full module set, the critic and a human sign-off. Normal jobs get the critic and a human sign-off. Low jobs get the critic only.' } }
+                ],
+                wires: [['foreman', 'out', 'triage', 'context'], ['brief', 'out', 'triage', 'request'], ['triage', 'priority', 'prio', 'in']]
+            },
+            {
+                title: 'Sorting the job',
+                blurb: 'The Switch sends customer-facing jobs down the safety path. The Module Planner orders the work, and the Context Specialist fills the scope module from the Scope record in the Component Library.',
+                nodes: [
+                    { k: 'sw', type: 'switch', at: [3, 1], set: { title: 'Customer-facing?', condition: 'category is customer-facing', caseALabel: 'Customer-facing: safety path', caseBLabel: 'Internal: no safety modules', content: 'Customer-facing jobs go to the safety specialist. Internal jobs skip the safety modules and go straight to the critic.' } },
+                    { k: 'planner', type: 'agent_planner', at: [4, 0], set: { title: 'Module Planner', content: 'List the modules this job needs in assembly order: role, context, constraints, tone, output format and safety. For each module, name the specialist or library record that supplies it. Flag any module that conflicts with another and say which one wins.' } },
+                    { k: 'scope', comp: ['core', 'Scope', { 'what to include': 'home insurance claims for buildings and contents, UK policies only, from first notice of loss to the claim decision', 'what to exclude': 'pricing, renewals, cover limits, legal advice and any claim already with a loss adjuster', 'primary emphasis': 'helping the customer take the next safe step and know who decides the claim' }], section: 'context', at: [3, 3], title: 'Scope module' },
+                    { k: 'ctx', type: 'agent_specialist', at: [4, 3], set: { title: 'Context Specialist', specialty: 'Context and scope', content: 'Write the context module from the scope and the planner list. Name the product, the policy types covered and the three sources the assistant may quote. Keep it under 180 words and do not invent a policy clause.' } }
+                ],
+                wires: [['triage', 'category', 'sw', 'in'], ['brief', 'out', 'planner', 'task'], ['triage', 'questions', 'planner', 'context'], ['prio', 'critical', 'planner', 'constraints'], ['brief', 'out', 'ctx', 'task'], ['scope', 'out', 'ctx', 'context']]
+            },
+            {
+                title: 'Safety modules',
+                blurb: 'Customer-facing prompts get their safety module here. A Data Minimisation Rule and a Refusal Template from the Guardrails records feed the Safety Specialist, which writes the lines that tell the assistant when to stop.',
+                nodes: [
+                    { k: 'minimise', comp: ['guardrails', 'Data Minimisation Rule', { task: 'explaining how to start a water damage claim', 'unnecessary PII': 'policy numbers beyond the last four digits, bank details and medical details', 'do not store or repeat it back unnecessarily': 'do not store it or repeat it back, and tell the customer not to share bank details in the chat' }], section: 'constraints', at: [3, 5], title: 'Personal data rule' },
+                    { k: 'refusal', comp: ['guardrails', 'Refusal Template', { request: 'a question on whether a claim will be paid', reason: 'the claim decision belongs to a Quayside claims handler', alternative: 'the steps to log the claim and the evidence to keep', need: 'a decision on a specific claim', resource: 'the Claims tab in the Quayside app' }], section: 'constraints', at: [4, 5], title: 'Stop and refer rule' },
+                    { k: 'saf', type: 'agent_specialist', at: [5, 4], set: { title: 'Safety Specialist', specialty: 'Safety and stop rules', content: 'Write the safety module. For injury, a gas smell, sparking or burning electrics, or water still rising near power, the first line says to call 999. Never promise a payout, a timescale or a cover limit. Use the refusal rule for any decision question. Under 200 words.' } }
+                ],
+                wires: [['sw', 'caseA', 'saf', 'task'], ['minimise', 'out', 'refusal', 'in'], ['refusal', 'out', 'saf', 'context']]
+            },
+            {
+                title: 'Tone and format modules',
+                blurb: 'Two library records supply the voice and the output shape. A Merge block joins them into one style bundle for the Editor, so neither module is written from scratch.',
+                nodes: [
+                    { k: 'tone', comp: ['core', 'Tone', { 'professional/casual/empathetic': 'calm and plain', 'concise/detailed/direct': 'concise and direct, with one next step per reply' }], section: 'tone', at: [5, 0], title: 'Voice module' },
+                    { k: 'outp', comp: ['output', 'Output Format', { 'Structure / length / sections': 'a short opening line, then numbered steps, then one line on who decides', N: '180' }], section: 'output', at: [5, 1], title: 'Output module' },
+                    { k: 'mg', type: 'merge', at: [6, 0], set: { title: 'Style bundle', content: 'Join the voice and output modules into one style block for the Editor. Keep both rules. Where they clash, the output module sets length and the voice module sets wording.' } }
+                ],
+                wires: [['tone', 'out', 'mg', 'in'], ['outp', 'out', 'mg', 'in']]
+            },
+            {
+                title: 'Critic and revision loop',
+                blurb: 'The Critic checks the modules against each other, not one at a time. An Assumption Audit from the Reasoning records surfaces facts the prompt relies on. Its feedback goes back through a Feedback block to the Context Specialist, capped at two rounds.',
+                nodes: [
+                    { k: 'assume', comp: ['reasoning', 'Assumption Audit', { 'state clearly': 'the prompt assumes the customer has already reported the loss to Quayside and has a policy number' }], section: 'quality', at: [6, 3], title: 'Hidden facts check' },
+                    { k: 'crt', type: 'agent_critic', at: [7, 3], set: { title: 'Module Critic', content: 'Check the modules against each other. Find any rule that contradicts another, any promise the assistant could not keep and any fact the Assumption Audit cannot support. Give each issue a severity and one concrete fix. Do not rewrite the modules yourself.' } },
+                    { k: 'fb', type: 'feedback', at: [8, 4], set: { title: 'Revision Rules', feedbackSource: 'Module Critic', purpose: 'Revision', maxRounds: 2, content: 'Send each blocker back to the Context Specialist for one fix. After two rounds, send what is left to the Prompt Editor with the issues listed.' } }
+                ],
+                wires: [['assume', 'out', 'crt', 'criteria'], ['brief', 'out', 'crt', 'task'], ['ctx', 'result', 'crt', 'draft'], ['saf', 'result', 'crt', 'context'], ['crt', 'feedback', 'fb', 'in'], ['fb', 'to_any', 'ctx', 'feedback']]
+            },
+            {
+                title: 'Assembly and sign-off',
+                blurb: 'A pipeline stacks the modules in a fixed order, with safety last so the refusal rules are the final words the assistant reads. The Aggregator joins them, the Editor tightens them, and Human Approval decides whether the prompt ships.',
+                nodes: [
+                    { k: 'pipe', type: 'pipeline', at: [7, 0], set: { title: 'Assembly order', content: 'Stack the modules in this order: role, context, constraints, tone, output format, then safety last. Do not reorder for length.' } },
+                    { k: 'agg', type: 'agent_aggregator', at: [8, 1], set: { title: 'Module Aggregator', content: 'Join the ordered modules into one system prompt. Where two modules still conflict, keep the safety rule and report the change in one line. Return the merged prompt and a confidence score out of ten.' } },
+                    { k: 'ed', type: 'agent_editor', at: [9, 1], set: { title: 'Prompt Editor', content: 'Tighten the assembled prompt without changing a rule. Cut repeated instructions, keep every 999 line and refusal word for word, and list each change in one line.' } },
+                    { k: 'human', type: 'agent_human', at: [9, 3], set: { title: 'Product Sign-off', question: 'Is this prompt safe, accurate and in the Quayside voice?', content: 'Read the assembled prompt next to the Critic open issues. Approve only when every blocker is closed. On a no, return the reason to the Prompt Editor.' } },
+                    { k: 'out', type: 'output', at: [9, 5], set: { title: 'Approved system prompt', formatSchema: 'Plain text', content: 'Return the approved system prompt as plain text, ready to paste into the chat setup, with the module list at the top.' } }
+                ],
+                wires: [['planner', 'plan', 'pipe', 'in'], ['pipe', 'out', 'agg', 'planner_out'], ['ctx', 'result', 'agg', 'researcher_out'], ['saf', 'result', 'agg', 'writer_out'], ['crt', 'critique', 'agg', 'critic_out'], ['agg', 'merged', 'ed', 'draft'], ['mg', 'out', 'ed', 'style'], ['ed', 'edited', 'human', 'proposal'], ['human', 'changes', 'ed', 'feedback'], ['human', 'approved', 'out', 'in']]
+            }
+        ]
+    });
+
+    PB.showcases.push({
+        id: 'variant-generator',
+        group: 'Modular prompts',
+        title: 'Prompt Variant Generator',
+        tagline: 'One base prompt becomes 16 tested variants, one approval from the shop.',
+        about: 'A product description prompt for a fictional 26 cm cast iron skillet is turned into a matrix of 16 variants across audience, tone, length and target model. Two audience tracks write in parallel, a Brainstormer adds unusual openings, and a vote keeps the strongest line per audience. An editor, an A/B test plan and a scored rubric decide what ships, and a person signs off before the prompt pack is released.',
+        chapters: [
+            {
+                title: 'The base prompt and the axes',
+                blurb: 'Every matrix starts with one base prompt and four knobs. The base holds the product facts and the job. Each axis is an enum that the Writers must cover in full, so no cell is quietly dropped from the pack.',
+                nodes: [
+                    { k: 'role', type: 'role', at: [0, 0], set: { title: 'Prompt Engineer', content: 'You are a prompt engineer for a UK kitchenware shop. You write prompts that other models will run, so every prompt must work on its own with no hidden context. The spec sheet is the only source for figures. Never invent a product fact.' } },
+                    { k: 'base', type: 'user_input', at: [0, 1], set: { title: 'Base product prompt', inputName: 'base_prompt', prompt: 'Paste the base product prompt', content: 'The one prompt every variant grows from. It names the product, the job and the spec sheet it may use.', defaultValue: 'Write a product description for the Brackenmoor 26 cm cast iron skillet. Use only spec sheet figures: 2.8 kg, 17 cm handle, oven safe to 260°C, pre-seasoned with flaxseed oil, £42.' } },
+                    { k: 'p_aud', type: 'input_parameters', at: [0, 2], set: { title: 'Axis 1: audience', paramName: 'audience', paramType: 'enum', paramValues: 'home cook | professional chef', content: 'Two audiences, one track each. Home cooks buy for weeknight cooking, easy cleaning and value. Professional chefs buy for heat retention, handle balance and an oven that finishes a dish for service.' } },
+                    { k: 'p_tone', type: 'input_parameters', at: [0, 3], set: { title: 'Axis 2: tone', paramName: 'tone', paramType: 'enum', paramValues: 'plain | warm', content: 'Plain means short declarative sentences and no stacked adjectives. Warm means second person and one line about cooking together. Neither tone may claim what the pan will make a buyer feel.' } },
+                    { k: 'p_len', type: 'input_parameters', at: [0, 4], set: { title: 'Axis 3: length', paramName: 'length', paramType: 'enum', paramValues: 'short 40 to 60 words | standard 90 to 120 words', content: 'Short feeds the category grid. Standard feeds the product page. The Editor enforces the word limit for each length.' } },
+                    { k: 'p_model', type: 'input_parameters', at: [0, 5], set: { title: 'Axis 4: target model', paramName: 'target_model', paramType: 'enum', paramValues: 'large general model | small local model', content: 'The large model follows long instructions, so it needs only the job and the rules. The small local model needs fixed headings and a numbered output with no nested lists, so its prompts are written differently.' } }
+                ],
+                wires: []
+            },
+            {
+                title: 'Splitting the matrix',
+                blurb: 'The four axes merge into one specification. A Prompt Template from the Component Library turns the base into a reusable shape with named slots, and a Parallel Split sends the matrix to two audience tracks that run at the same time.',
+                nodes: [
+                    { k: 'axes', type: 'merge', at: [1, 3], set: { title: 'Axis specification', content: 'Merge the four axes into one specification: 2 audiences, 2 tones, 2 lengths and 2 target models. That is 16 cells, with 8 cells per audience track.' } },
+                    { k: 'tmpl', comp: ['meta', 'Prompt Template', { 'use case': 'a product description for the Brackenmoor skillet', var1: 'audience', var2: 'tone', 'structured prompt with variable slots': 'a persona line, the spec sheet facts, then one labelled slot for each axis value' }], section: 'approach', at: [2, 3], title: 'Reusable prompt shape' },
+                    { k: 'split', type: 'parallel', at: [3, 3], set: { title: 'Audience tracks', content: 'Branch 1 carries the home cook track and branch 2 carries the professional chef track. Each track holds eight cells. The two Writers never see each other drafts.' } }
+                ],
+                wires: [['p_aud', 'out', 'axes', 'in'], ['p_tone', 'out', 'axes', 'in'], ['p_len', 'out', 'axes', 'in'], ['p_model', 'out', 'axes', 'in'], ['base', 'out', 'tmpl', 'in'], ['axes', 'out', 'tmpl', 'in'], ['tmpl', 'out', 'split', 'in']]
+            },
+            {
+                title: 'Writing the two tracks',
+                blurb: 'Each Writer drafts eight prompts for one audience, covering tone, length and target model. A Brainstormer works beside them and proposes openings that nobody on the track would think of, so the vote has something unusual to beat the safe line with.',
+                nodes: [
+                    { k: 'w_home', type: 'agent_writer', at: [4, 1], set: { title: 'Home cook Writer', content: 'Write eight prompts for home cooks: two tones by two lengths by two target models. Each prompt names the skillet, uses only spec sheet figures and says what a weeknight cook gets from it. For the small local model, use fixed headings and a numbered output.' } },
+                    { k: 'w_pro', type: 'agent_writer', at: [4, 3], set: { title: 'Chef Writer', content: 'Write eight prompts for professional chefs in the same matrix. Lead with heat retention and handle balance, quote the 260°C oven limit and never promise restaurant results. Use the same target model rules as the home cook track.' } },
+                    { k: 'brain', type: 'agent_brainstormer', at: [4, 5], set: { title: 'Angle Brainstormer', content: 'Propose five unusual openings for each audience. Home cooks: the skillet as the one pan that does not need watching while the oven does the work. Chefs: the skillet that sears on the hob and finishes in a 40 minute bake with no second dish. Mark the opening most likely to be wrong and say why.' } }
+                ],
+                wires: [['split', 'branch1', 'w_home', 'task'], ['split', 'branch2', 'w_pro', 'task'], ['role', 'out', 'w_home', 'context'], ['role', 'out', 'w_pro', 'context'], ['tmpl', 'out', 'w_home', 'plan'], ['tmpl', 'out', 'w_pro', 'plan'], ['base', 'out', 'brain', 'task'], ['role', 'out', 'brain', 'context'], ['axes', 'out', 'brain', 'constraints']]
+            },
+            {
+                title: 'Choosing the strongest line',
+                blurb: 'The Consensus Vote judges each Writer draft against the Brainstormer openings, one audience at a time, so a wild opening wins only where it beats the safe line. A Feedback Rubric from the Core library sets the criterion the Editor holds the winners to.',
+                nodes: [
+                    { k: 'vote', type: 'agent_vote', at: [5, 2], set: { title: 'Strongest line vote', content: 'Judge each audience on its own. Candidate A is the home cook draft, candidate B is the chef draft and candidate C holds the wild openings. Return one winning opening per audience and one line on why it beat the rest. A wild opening wins only if it presents the spec sheet facts more clearly.' } },
+                    { k: 'fr', comp: ['core', 'Feedback Rubric', { criterion: 'Every figure matches the spec sheet' }], section: 'quality', at: [5, 4], title: 'Spec accuracy rubric' },
+                    { k: 'edt', type: 'agent_editor', at: [6, 2], set: { title: 'Prompt Editor', content: 'Trim each prompt to its word limit: 60 words for short and 120 words for standard. Keep every spec figure exactly as written. Rewrite any line the rubric marks as unsupported so it relies on the spec sheet alone. List each change in one line.' } }
+                ],
+                wires: [['w_home', 'draft', 'vote', 'candidate_a'], ['w_pro', 'draft', 'vote', 'candidate_b'], ['brain', 'wildcards', 'vote', 'candidate_c'], ['base', 'out', 'fr', 'in'], ['vote', 'winner', 'edt', 'draft'], ['fr', 'out', 'edt', 'style']]
+            },
+            {
+                title: 'Testing and reviewing',
+                blurb: 'An Audience Reviewer reads the edited prompts as the buyer would. An A/B test plan sets the metric that decides between variants, and a Scored Rubric grades them. Feedback goes back to the Writers and is capped at two rounds.',
+                nodes: [
+                    { k: 'ab', type: 'ab_testing', at: [7, 2], set: { title: 'A/B test plan', metric: 'Product page click-through over 14 days, at least 1,500 sessions per variant', content: 'Run each variant against its nearest rival with the same tone and length. Split traffic by session, do not stop early and report the result per audience. Secondary metric: add-to-basket rate.' } },
+                    { k: 'rub', comp: ['output', 'Scored Rubric', { C1: 'Spec accuracy', 'X%': '50%', score: '1 to 5', calc: 'score times weight', C2: 'Fit to the audience', sum: 'sum of the weighted scores', 'A-F': 'A to F', list: 'the two weakest criteria' }], section: 'output', at: [8, 2], title: 'Variant scorecard' },
+                    { k: 'aud', type: 'agent_audience', at: [7, 4], set: { title: 'Buyer reviewer', content: 'Read each prompt output as a buyer would. A home cook should not meet a restaurant claim, and a chef should not meet a line they would not believe. Name the first confusing sentence and say whether you would click through.' } },
+                    { k: 'fb', type: 'feedback', at: [7, 5], set: { title: 'Revision rules', feedbackSource: 'Scored Rubric, Buyer reviewer and Spec accuracy rubric', purpose: 'Revision', maxRounds: 2, content: 'Every point goes back to the track that wrote the line. Fix it in the next round or say why it is out of scope. Two rounds at most, then Human Approval decides.' } }
+                ],
+                wires: [['edt', 'edited', 'ab', 'in'], ['edt', 'edited', 'aud', 'draft'], ['p_aud', 'out', 'aud', 'audience'], ['ab', 'out', 'rub', 'in'], ['aud', 'confusions', 'fb', 'in'], ['rub', 'out', 'fb', 'in'], ['fb', 'to_writer', 'w_home', 'feedback'], ['fb', 'to_writer', 'w_pro', 'feedback'], ['fb', 'to_any', 'edt', 'feedback']]
+            },
+            {
+                title: 'The variant matrix',
+                blurb: 'A Merge gathers the edited prompts, the A/B plan, the scorecard and the change log into one set. A Prompt Checklist from the Meta library checks the result, and a Structured Dataset lays out the 16 rows that the shop import tool reads.',
+                nodes: [
+                    { k: 'mrg', type: 'merge', at: [8, 0], set: { title: 'Matrix merge', content: 'Merge the edited prompts, the A/B plan, the scorecard and the change log. Keep one entry per cell, keyed by audience, tone, length and target model.' } },
+                    { k: 'dset', type: 'structured_dataset', at: [9, 0], set: { title: 'Variant matrix dataset', format: 'JSON array', schemaNote: 'One object per cell with variant_id, audience, tone, length, target_model, prompt_text, word_count, score and status.', content: 'Sixteen rows, one per cell. Status reads ready, revise or dropped. A dropped row keeps its reason so the copy team can see why it left the pack.' } },
+                    { k: 'chk', comp: ['meta', 'Prompt Checklist', {}], section: 'quality', at: [9, 2], title: 'Pre-ship checklist' }
+                ],
+                wires: [['ab', 'out', 'mrg', 'in'], ['rub', 'out', 'mrg', 'in'], ['edt', 'changes', 'mrg', 'in'], ['mrg', 'out', 'dset', 'in'], ['dset', 'out', 'chk', 'in']]
+            },
+            {
+                title: 'Human sign-off',
+                blurb: 'The Human Approval stop shows the checked matrix beside the scorecard and the A/B plan. Only a clear yes releases the prompt pack. A change request goes back through the Feedback block, so the Writers get one more round.',
+                nodes: [
+                    { k: 'hum', type: 'agent_human', at: [8, 4], set: { title: 'Shop manager sign-off', question: 'Release these 16 prompts to the copy team and start the A/B test?', content: 'Check the scorecard grades and the checklist before saying yes. Every spec figure in the prompts must match the product page. On a no, write the change in one line and it goes back to the Writers.' } },
+                    { k: 'out', type: 'output', at: [9, 4], set: { title: 'Prompt pack', formatSchema: 'JSON', content: 'Return the approved matrix as one JSON array of 16 variant objects, each with its full prompt text, preceded by a short header with the A/B test plan.' } }
+                ],
+                wires: [['chk', 'out', 'hum', 'proposal'], ['hum', 'approved', 'out', 'in'], ['hum', 'changes', 'fb', 'in']]
+            }
+        ]
+    });
+
+    PB.showcases.push({
+        id: 'template-foundry',
+        group: 'Templates',
+        title: 'The Template Foundry',
+        tagline: 'One onboarding email template, built, broken on purpose and signed off.',
+        about: 'A reusable welcome email for new bookkeeping clients, designed from a brief. A Specialist defines the domain, a Glossary and Data Schema pin down every named variable, and a Planner lays out the sections. The Writer drafts with placeholders, a Tester fills three sample clients to find what breaks, and an Editor and Critic tighten it in a capped loop. A human signs off, and the Output Format documents the template.',
+        chapters: [
+            {
+                title: 'The domain and the variables',
+                blurb: 'A new template starts with a brief from the account team. A Specialist sets out what the email must do, then a Glossary and a Data Schema pin down every variable so no account manager has to guess a name or a format.',
+                nodes: [
+                    { k: 'role', type: 'role', at: [0, 0], set: { title: 'Template Architect', content: 'You design prompt templates that six account managers will reuse for months. Every variable needs a name, a type, an example and a reason to exist. Prefer fewer variables. Plain English beats clever phrasing.' } },
+                    { k: 'brief', type: 'user_input', at: [0, 1], set: { title: 'Onboarding brief', inputName: 'onboarding_brief', prompt: 'What should the onboarding email do?', content: 'Request from the account team at Northgate Ledger, a fictional 40-person bookkeeping and payroll firm.', defaultValue: 'We onboard about 60 new clients a month. Each one gets a welcome email from their account manager that confirms the kickoff call, lists the three documents we need and links to the client portal. Build one template the account managers can reuse without rewriting it each time.' } },
+                    { k: 'spec', type: 'agent_specialist', at: [1, 1], set: { title: 'Onboarding Email Specialist', specialty: 'B2B client onboarding for a bookkeeping firm', content: 'Define the domain in one paragraph: who reads the email (a business owner who has just signed), what they must do next and what would make them anxious. List four things the email must never do, such as quoting a fee or promising a start date we have not confirmed.' } },
+                    { k: 'glossary', type: 'glossary', at: [2, 0], set: { title: 'Onboarding Glossary', content: 'Kickoff call: the 45-minute video call where we agree the first month of work. Onboarding pack: the three documents the client sends before kickoff, namely the last bank statement, the payroll summary and the signed engagement letter. Client portal: the secure upload page linked in every onboarding email. Variable: a named slot the account manager replaces before sending. Placeholder: a variable that has not been filled in yet.' } },
+                    { k: 'schema', type: 'data_schema', at: [2, 2], set: { title: 'Variable Data Schema', schemaName: 'onboarding_email_variables', content: 'client_first_name: text, required, example Priya. company_name: text, required, example Mallard Print Works. account_manager_name: text, required, example Tom Ashworth. kickoff_date: date written as Tuesday 14 January, required. kickoff_time: time in UK time, 24-hour, required, example 10:30. portal_link: web address starting with https, required. No other variables exist.' } }
+                ],
+                wires: [['role', 'out', 'spec', 'context'], ['brief', 'out', 'spec', 'task'], ['spec', 'result', 'glossary', 'in'], ['glossary', 'out', 'schema', 'in']]
+            },
+            {
+                title: 'Structure and parameters',
+                blurb: 'The Planner turns the domain and the schema into an ordered section plan. Template Parameters fix the settings the template must accept, so the Writer cannot invent a tone or a mode of its own.',
+                nodes: [
+                    { k: 'ip', type: 'input_parameters', at: [2, 4], set: { title: 'Template Parameters', paramName: 'tone and send_mode', paramType: 'select', paramValues: 'tone: warm or formal, send_mode: standard or fast_track', content: 'tone defaults to warm. Formal removes the first-name greeting and uses Dear followed by the client name. send_mode defaults to standard. fast_track adds one line saying the first invoice is due within 7 days of kickoff.' } },
+                    { k: 'planner', type: 'agent_planner', at: [3, 1], set: { title: 'Template Planner', content: 'Lay the template out in this order: subject line, greeting, what happens next, the three documents, the portal link and the sign-off. For each section state its purpose in one line and list the variables it uses. Flag any section that needs a variable the schema does not define.' } }
+                ],
+                wires: [['brief', 'out', 'planner', 'task'], ['schema', 'out', 'planner', 'context'], ['ip', 'out', 'planner', 'constraints']]
+            },
+            {
+                title: 'Draft with placeholders',
+                blurb: 'The Writer drafts the email from the plan, using square-bracket placeholders only where the schema allows. A Few-Shot Builder supplies worked examples, and a Prompt Template sets the reusable shell the draft must follow.',
+                nodes: [
+                    { k: 'wri', type: 'agent_writer', at: [4, 1], set: { title: 'Template Writer', content: 'Draft the email using only the variables in the schema, written as square-bracket placeholders such as [client_first_name]. Keep the body under 180 words. Use plain sentences and no marketing language. On a revision round, fix every point raised and say in one line what changed.' } },
+                    { k: 'fewshot', comp: ['meta', 'Few-Shot Builder', { task: 'welcome emails for new bookkeeping clients, with the kickoff date and portal link in place' }], section: 'examples', at: [3, 3] },
+                    { k: 'pt', comp: ['meta', 'Prompt Template', { 'use case': 'client onboarding welcome email', var1: 'client first name', var2: 'kickoff date', 'structured prompt with variable slots': 'a subject line, a greeting, a short paragraph on what happens next, the three documents as a list, the portal link and a sign-off from the account manager' }], section: 'output', at: [4, 3] },
+                    { k: 'ext', comp: ['meta', 'Advanced Variable Extractor', { 'paste prompt here': 'the drafted welcome email with its placeholders', var: 'client first name', 'if select': 'not used, the field is free text', 'suggested value': 'Priya', 'another variable': 'kickoff date', 'what it does': 'fills the greeting line with the first name only' }], section: 'quality', at: [5, 1] }
+                ],
+                wires: [['planner', 'plan', 'wri', 'plan'], ['brief', 'out', 'wri', 'task'], ['fewshot', 'out', 'wri', 'context'], ['pt', 'out', 'wri', 'notes'], ['wri', 'draft', 'ext', 'in']]
+            },
+            {
+                title: 'Three sample clients',
+                blurb: 'The Tester fills the template with three invented clients, each chosen to break it: a very long company name, a kickoff in another time zone and a missing portal link. It reports every failure in the Bug Report format.',
+                nodes: [
+                    { k: 'ir', comp: ['core', 'Input Template', {}], section: 'task', at: [5, 3] },
+                    { k: 'tst', type: 'agent_tester', at: [6, 1], set: { title: 'Sample Client Tester', content: 'Fill the template three times. Sample A: Priya Nair at Mallard Print Works, kickoff Tuesday 14 January at 10:30. Sample B: Marcus Oyelaran at Oyelaran and Sons Dental Studio Partnership, kickoff Monday 9 March at 08:00 West Africa Time. Sample C: Hannah Lowe at Brookfield Vets, with no portal link. Report every placeholder left unfilled, every sentence over 25 words and every field that broke the line length.' } },
+                    { k: 'bug', comp: ['writing', 'Bug Report Template', { '1, 2, 3': 'fill sample A, then B, then C, then read each email aloud', 'version, OS, browser': 'template v3, Windows 11, Chrome 128', 'blocker/major/minor': 'major', 'logs, screenshots': 'the three filled emails and the Tester notes' }], section: 'output', at: [7, 1] }
+                ],
+                wires: [['wri', 'draft', 'tst', 'code'], ['ir', 'out', 'tst', 'task'], ['tst', 'failures', 'bug', 'in']]
+            },
+            {
+                title: 'Edit, critique and feedback',
+                blurb: 'The Editor enforces one placeholder style and removes any name the schema does not define. The Critic judges the whole template against the brief. The Feedback block sends both sets of notes back to the Writer, and stops after two rounds.',
+                nodes: [
+                    { k: 'edt', type: 'agent_editor', at: [7, 3], set: { title: 'Placeholder Editor', content: 'Check placeholder hygiene. Every placeholder must match a name in the schema, be spelt the same way everywhere and sit in square brackets. Remove any placeholder the schema does not list and keep the wording unchanged. List each change in one line.' } },
+                    { k: 'crt', type: 'agent_critic', at: [8, 0], set: { title: 'Template Critic', content: 'Judge the template against the brief and the schema. Ask whether a new account manager could send it with no edits beyond the placeholders. Rate each issue as blocker, major or minor. For every blocker give one concrete rewrite. Do not rewrite the template yourself.' } },
+                    { k: 'fb', type: 'feedback', at: [8, 2], set: { title: 'Revision Rules', feedbackSource: 'Sample Client Tester, Template Critic and Operations Lead', purpose: 'Revision', maxRounds: 2, content: 'Work every point into the next revision. If a point is out of scope, say why in one line. After two rounds, stop and send the template to sign-off as it stands.' } }
+                ],
+                wires: [['wri', 'revised_draft', 'edt', 'draft'], ['ext', 'out', 'edt', 'style'], ['wri', 'draft', 'crt', 'draft'], ['brief', 'out', 'crt', 'task'], ['bug', 'out', 'fb', 'in'], ['crt', 'feedback', 'fb', 'in'], ['fb', 'to_writer', 'wri', 'feedback'], ['fb', 'to_any', 'edt', 'feedback']]
+            },
+            {
+                title: 'Sign-off and documentation',
+                blurb: 'The Operations Lead reads the edited template beside the Tester report. On approval, the Output Format writes the template documentation: purpose, variables, parameters and sample results. Any change request goes back into the feedback loop.',
+                nodes: [
+                    { k: 'hum', type: 'agent_human', at: [8, 4], set: { title: 'Operations Lead sign-off', question: 'Can account managers send this template as it stands?', content: 'Show the edited template, the Tester report and the Critic verdict together. Approve only if all three sample clients pass with no edits beyond the placeholders. On a change request, send the notes back through the Revision Rules.' } },
+                    { k: 'out', type: 'output', at: [9, 4], set: { title: 'Template Documentation', formatSchema: 'Markdown', content: 'Return the approved template as a Markdown document in five parts: a one-sentence purpose, the variables as a table with name, type, example and required, the template body in a code block, the parameters, and the three sample results with their outcome.' } }
+                ],
+                wires: [['edt', 'edited', 'hum', 'proposal'], ['hum', 'approved', 'out', 'in'], ['hum', 'changes', 'fb', 'in']]
+            }
+        ]
+    });
+
+    PB.showcases.push({
+        id: 'template-family',
+        group: 'Templates',
+        title: 'Template Family Builder',
+        tagline: 'One master template becomes four consistent message variants.',
+        about: 'Harbourline Sync needs four messages that share one glossary and one set of tone rules: a support reply, a sales follow-up, a release note and a code review comment. A Team Lead splits the family, specialists draft each variant against Shared Notes, and an Aggregator and Term Checker keep them consistent before a Critic, a capped revision loop, an Editor, a versioning note and Human Approval.',
+        chapters: [
+            {
+                title: 'One master, four variants',
+                blurb: 'The family starts with one master template. The variant slot names which message is being written, and the glossary holds the product terms and tone rules that every variant must share.',
+                nodes: [
+                    { k: 'role', type: 'role', at: [0, 0], set: { title: 'Template Librarian', content: 'You maintain the prompt template library at Harbourline Sync, a 90-person software company that makes a scheduling tool for field engineers. You keep four customer and team messages consistent, and you never let a variant use a term the glossary does not define.' } },
+                    { k: 'brief', type: 'user_input', at: [0, 1], set: { title: 'Template family request', inputName: 'template_brief', prompt: 'Which messages does the family cover, and what must every variant share?', content: 'The request from the content team. The Team Lead splits it, so keep it to the four messages and the rules they share.', defaultValue: 'Build one master template for four messages: a support reply, a sales follow-up, a release note and a code review comment. All four must use the same glossary, the same tone rules and the same product names, and each must stay under its word limit.' } },
+                    { k: 'variant', type: 'variable', at: [0, 2], set: { title: 'Variant slot', varName: 'variant', content: 'The variant being written. One of support_reply, sales_follow_up, release_note or code_review.', defaultValue: 'support_reply' } },
+                    { k: 'master', comp: ['meta', 'Prompt Template', { 'use case': 'the four messages Harbourline Sync sends to customers and its own engineers', var1: 'variant', var2: 'source_text', 'structured prompt with variable slots': 'Write a {{variant}} for Harbourline Sync. Use only the terms in the Shared Notes glossary, spelled exactly as written there. Open with the one thing the reader needs first. Take every fact from source_text and check each one against the glossary before you use it. Tone: plain, calm and direct, with no exclamation marks. Close with one next step. Stay within the word limit for the variant.' }], section: 'instructions', at: [1, 2], title: 'Master template' },
+                    { k: 'glossary', type: 'glossary', at: [1, 0], set: { title: 'Shared glossary and tone rules', content: 'Harbourline Sync: the product name, always in this form. Field engineer: a user who works on site, never "technician". Job: one scheduled visit to a site, never "ticket" in customer text. Sync window: the 15 minute slot a job is booked into. Tone rules: plain English, no exclamation marks, no promise about a date we do not control, and "will" only where the product really does the thing. Release versions use three numbers, such as 4.2.0.' } }
+                ],
+                wires: [['role', 'out', 'glossary', 'in'], ['variant', 'out', 'master', 'in']]
+            },
+            {
+                title: 'Split the work',
+                blurb: 'The Team Lead reads the brief and the master, then hands one piece to each specialist. The glossary goes into Shared Notes so that every specialist reads the same terms.',
+                nodes: [
+                    { k: 'lead', type: 'agent_lead', at: [2, 1], set: { title: 'Team Lead', content: 'Split the family into four pieces. Give worker_a the support reply and worker_b the sales follow-up. Give worker_c the change list, which the Parallel Split turns into the release note and the code review comment. Put a one line summary of the split on the summary port. Do not draft any message yourself.' } },
+                    { k: 'notes', type: 'agent_memory', at: [2, 0], set: { title: 'Shared Notes', content: 'Holds the glossary and the master template for every specialist to read. Agents may add a line but never edit an existing one. Each line names the variant it belongs to.' } }
+                ],
+                wires: [['brief', 'out', 'lead', 'task'], ['master', 'out', 'lead', 'context'], ['glossary', 'out', 'lead', 'reports'], ['glossary', 'out', 'notes', 'write']]
+            },
+            {
+                title: 'Four specialists in parallel',
+                blurb: 'Support and sales each get their own specialist. The release note and the code review both come from the same change list, so a Parallel Split sends that list to two specialists at once.',
+                nodes: [
+                    { k: 'w_support', type: 'agent_specialist', at: [3, 0], set: { title: 'Support Reply Specialist', specialty: 'Support reply', content: 'Write the reply to a field engineer whose job could not start. Open with what happened and when the job now runs. Use only glossary terms. Keep it under 180 words and end with one next step. On feedback, change only the lines that were named.' } },
+                    { k: 'w_sales', type: 'agent_specialist', at: [3, 1], set: { title: 'Sales Follow-up Specialist', specialty: 'Sales follow-up', content: 'Write the follow-up to a site manager after a demo. Restate the one problem they named, then the one feature that solves it. No discounts and no dates we do not control. Under 120 words, with one question at the end.' } },
+                    { k: 'par', type: 'parallel', at: [3, 2], set: { title: 'Change list split', content: 'Sends the change list to the release note and the code review comment at the same time. Both branches receive the full list, unedited.' } },
+                    { k: 'w_release', type: 'agent_specialist', at: [4, 2], set: { title: 'Release Note Specialist', specialty: 'Release note', content: 'Write the release note for version 4.2.0 from the change list. Group changes under New, Changed and Fixed. Name each feature with its glossary term. Under 150 words.' } },
+                    { k: 'w_review', type: 'agent_specialist', at: [4, 3], set: { title: 'Code Review Specialist', specialty: 'Code review comment', content: 'Write the review comment for the pull request on the sync window code. Name the file and line, state the risk in one sentence and propose one fix. Under 200 words. Do not restate the diff.' } }
+                ],
+                wires: [['lead', 'worker_a', 'w_support', 'task'], ['lead', 'worker_b', 'w_sales', 'task'], ['lead', 'worker_c', 'par', 'in'], ['par', 'branch1', 'w_release', 'task'], ['par', 'branch2', 'w_review', 'task'], ['notes', 'read', 'w_support', 'context'], ['notes', 'read', 'w_sales', 'context'], ['notes', 'read', 'w_release', 'context'], ['notes', 'read', 'w_review', 'context']]
+            },
+            {
+                title: 'Merge and check',
+                blurb: 'The four drafts are merged into one pack. The Consistency Aggregator checks that the variants agree on names, versions and promises, and the Term Checker tests every line against the glossary.',
+                nodes: [
+                    { k: 'merge', type: 'merge', at: [5, 1], set: { title: 'Merge the four drafts', content: 'Join the four drafts into one pack, one section per variant, in this order: support reply, sales follow-up, release note, code review comment. Keep each draft unedited.' } },
+                    { k: 'agg', type: 'agent_aggregator', at: [6, 0], set: { title: 'Consistency Aggregator', content: 'Check that the four variants agree. The product name, field engineer and job must be spelled the same way, the version number must match the release note, and no variant may promise a date. List each conflict with the two lines that disagree and give a confidence score for the pack.' } },
+                    { k: 'term', type: 'agent_fact_checker', at: [6, 2], set: { title: 'Term Checker', content: 'Check every term in the pack against the glossary. Mark each one as defined, undefined or misused and quote the line. Flag any sentence that makes a date promise.' } }
+                ],
+                wires: [['w_support', 'result', 'merge', 'in'], ['w_sales', 'result', 'merge', 'in'], ['w_release', 'result', 'merge', 'in'], ['w_review', 'result', 'merge', 'in'], ['lead', 'summary', 'agg', 'planner_out'], ['notes', 'read', 'agg', 'researcher_out'], ['merge', 'out', 'agg', 'writer_out'], ['merge', 'out', 'term', 'draft'], ['glossary', 'out', 'term', 'sources']]
+            },
+            {
+                title: 'Critic and revision',
+                blurb: 'The Pack Critic judges the whole pack against the glossary and the tone rules. The Feedback block sends every conflict and critique back to the specialists, and it stops after two rounds.',
+                nodes: [
+                    { k: 'crt', type: 'agent_critic', at: [7, 1], set: { title: 'Pack Critic', content: 'Judge the pack against the glossary and the tone rules. Rate each variant as ready, needs work or rewrite. For each one that needs work or a rewrite, give one concrete change. Do not rewrite the pack yourself.' } },
+                    { k: 'fb', type: 'feedback', at: [8, 2], set: { title: 'Revision Rules', feedbackSource: 'Consistency Aggregator, Term Checker and Pack Critic', purpose: 'Revision', maxRounds: 2, content: 'Send each point back to the specialist who wrote that variant. Every point is work for the next round, or a plain reason why it is out of scope. After two rounds the pack goes forward as it stands.' } },
+                    { k: 'fmt', comp: ['output', 'Output Format', { 'Structure / length / sections': 'a Markdown index table with one row per variant, then one section for each variant', N: '600' }], section: 'output', at: [6, 4], title: 'Pack format' }
+                ],
+                wires: [['merge', 'out', 'crt', 'draft'], ['brief', 'out', 'crt', 'task'], ['glossary', 'out', 'crt', 'criteria'], ['crt', 'critique', 'agg', 'critic_out'], ['agg', 'conflicts', 'fb', 'in'], ['term', 'flags', 'fb', 'in'], ['crt', 'feedback', 'fb', 'in'], ['fb', 'to_any', 'w_support', 'feedback'], ['fb', 'to_any', 'w_sales', 'feedback'], ['fb', 'to_any', 'w_release', 'feedback'], ['fb', 'to_any', 'w_review', 'feedback']]
+            },
+            {
+                title: 'Edit, version and approve',
+                blurb: 'The Pack Editor applies the output format and the word limits. The versioning note records what changed. Human Approval decides whether the pack ships, and a no goes back into the revision loop.',
+                nodes: [
+                    { k: 'edt', type: 'agent_editor', at: [7, 4], set: { title: 'Pack Editor', content: 'Tighten each variant to its word limit without changing its meaning. Keep glossary terms exactly as written. Put the index table at the top of the pack. List each change in one line.' } },
+                    { k: 'ver', comp: ['core', 'Version Context', { 'version number': '1.4.0', 'what changed': 'the code review variant is new, and the sales follow-up now uses the approved tone rules', 'why this revision': 'support replies drifted from the glossary in the November review', date: '14 December 2026, after the first month of live use' }], section: 'quality', at: [8, 4], title: 'Versioning note' },
+                    { k: 'hum', type: 'agent_human', at: [9, 3], set: { title: 'Editor in Chief sign-off', question: 'Does every variant match the glossary, and can the pack ship as template family 1.4.0?', content: 'Read the index table and the Term Checker flags first. Approve only when every variant is ready. A change request goes back into the revision loop.' } },
+                    { k: 'out', type: 'output', at: [9, 4], set: { title: 'Template pack index', formatSchema: 'Markdown index table', content: 'The approved template pack for version 1.4.0: an index table with the variant, its word limit, its owner and its glossary status, then the master template, the shared glossary and the versioning note. Nothing ships without approval.' } }
+                ],
+                wires: [['agg', 'merged', 'edt', 'draft'], ['fmt', 'out', 'edt', 'style'], ['edt', 'edited', 'ver', 'in'], ['ver', 'out', 'hum', 'proposal'], ['hum', 'approved', 'out', 'in'], ['hum', 'changes', 'fb', 'in']]
+            }
+        ]
+    });
+
+    PB.showcases.push({
+        id: 'template-fill-desk',
+        group: 'Templates',
+        title: 'The Template Fill Desk',
+        tagline: 'A staff document filled from a template library, checked and signed off.',
+        about: 'A document request for an offer letter, incident report or quote is routed to one template in the library. Missing values are asked for, validated against the rules, filled in, localised for the UK or Germany, checked for numbers and dates, and held for sign-off. When no template fits, a fallback hands a gap note to the template owner.',
+        chapters: [
+            {
+                title: 'The request',
+                blurb: 'A document request arrives with a type, a recipient and a market. Desk Triage rates it and names what is missing, then the Template Router picks one template from the library by its code.',
+                nodes: [
+                    { k: 'role', type: 'role', at: [0, 0], set: { title: 'HR Document Desk Lead', content: 'You run the document desk for Larkfield Partners Ltd, a 240-person recruitment and payroll firm in Leeds with a German subsidiary in Hamburg. Documents go to staff and candidates, so every name, figure and date must be right before anything is sent. Fill only from the template you are given and never add wording the template does not contain.' } },
+                    { k: 'lib', type: 'variable', at: [1, 0], set: { title: 'Template library v2026.11', varName: 'template_library', content: 'OFFER-UK-03, offer letter, UK, version 3.2, 6 variables. OFFER-DE-02, Angebotsschreiben, Germany, version 2.4, 7 variables. INC-HS-02, incident report, health and safety, version 2.1, 9 variables. QUO-SV-04, quote for services, version 4.0, 8 variables.' } },
+                    { k: 'req', type: 'user_input', at: [0, 2], set: { title: 'Document request', inputName: 'document_request', prompt: 'Which document do you need, for whom, and for which market?', content: 'The request from an HR coordinator, team lead or account manager. Name the document type, the recipient and the market.', defaultValue: 'Offer letter for Dara Whitcombe, Senior Data Analyst, Leeds office, start date 3 March 2027, UK market.' } },
+                    { k: 'tri', type: 'agent_triage', at: [1, 2], set: { title: 'Desk Triage', content: 'Classify the request as offer letter, incident report, quote or other. Rate urgency high, medium or low: high if the start date is less than 21 days away or an incident is still open, medium if the requester names a deadline, low otherwise. List every value the template needs that the request does not give. Do not fill the template yet.' } },
+                    { k: 'router', type: 'agent_router', at: [2, 1], set: { title: 'Template Router', content: 'Choose exactly one template from the library by its code. Match on document type first, then market. Send the choice to the Template Filler as the plan. If no template matches both the document type and the market, send the request to the fallback path and name the nearest template you rejected and why.' } }
+                ],
+                wires: [['role', 'out', 'tri', 'context'], ['req', 'out', 'tri', 'request'], ['tri', 'category', 'router', 'request'], ['role', 'out', 'router', 'context'], ['lib', 'out', 'router', 'capabilities']]
+            },
+            {
+                title: 'Asking for the missing values',
+                blurb: 'The template variables are listed with their formats. Clarifying Questions turns the gaps into a short list, and a Human Approval stop holds the work until the requester has answered every one.',
+                nodes: [
+                    { k: 'tv', type: 'input_parameters', at: [2, 3], set: { title: 'Offer letter variables', paramName: 'offer_letter_fields', paramType: 'text list', paramValues: 'candidate_name, job_title, department_code, start_date, annual_salary, currency, notice_period_weeks', content: 'Every variable in OFFER-UK-03. start_date is an ISO date. annual_salary is a whole number. currency is GBP or EUR. notice_period_weeks is between 1 and 12. A value the request does not give is asked for, never guessed.' } },
+                    { k: 'clar', type: 'meta_clarify', at: [3, 3], set: { title: 'Missing Variables', maxQuestions: 5, content: 'Ask for each missing variable in one plain question, with the expected format in brackets, such as [ISO date, for example 2027-03-03]. Ask no more than five questions. Never ask for bank details, passport numbers or home address history, because the offer letter does not use them.' } },
+                    { k: 'human', type: 'agent_human', at: [4, 3], set: { title: 'Requester Approval', question: 'Please confirm the missing values before the letter is filled.', content: 'Show the questions from Missing Variables, each with a blank field. Continue only when every required variable has a value. Record who answered and when.' } }
+                ],
+                wires: [['tv', 'out', 'clar', 'in'], ['tri', 'questions', 'clar', 'in'], ['clar', 'out', 'human', 'proposal']]
+            },
+            {
+                title: 'Gating the values',
+                blurb: 'Answers are saved as an entered dataset. The Validation Gate checks each value against the rules before the writer sees it, and the minimisation rule keeps bank and passport details out of the draft.',
+                nodes: [
+                    { k: 'vals', type: 'structured_dataset', at: [5, 3], set: { title: 'Entered values', format: 'JSON', schemaNote: 'One object per variable: name, value and source.', content: 'The values as the requester entered them, one row per variable, with the exact original text kept so the checker can compare it later.' } },
+                    { k: 'vg', comp: ['control', 'Validation Gate', { 'what is validated': 'the offer letter variables in Entered values', 'type / range / format': 'annual_salary is a whole number from 18000 to 250000, start_date is an ISO date at least 14 days after today, currency is GBP or EUR', 'referential integrity': 'department_code exists in the Larkfield org chart and job_title matches its grade', 'business rule': 'a salary above 60000 needs a second sign-off from the HR Business Partner', 'error message': 'the field name, the rule it broke and the value that was entered', 'correction step': 'return the field to Requester Approval with the exact rule quoted', 'details': 'field name, rule number, value and timestamp', 'who can bypass and how': 'nobody bypasses the salary rule, and the Head of People can override a date rule in writing' }], section: 'constraints', at: [6, 3], title: 'Value gate' },
+                    { k: 'priv', comp: ['guardrails', 'Data Minimisation Rule', { 'task': 'drafting a UK offer letter or a German Angebotsschreiben', 'unnecessary PII': 'home address history, bank details, passport or visa numbers, date of birth', 'do not store or repeat it back unnecessarily': 'bank, passport and date of birth must not appear in the draft or the notes' }], section: 'constraints', at: [5, 5], title: 'Data minimisation' }
+                ],
+                wires: [['human', 'approved', 'vals', 'in'], ['vals', 'out', 'vg', 'in'], ['vals', 'out', 'priv', 'in']]
+            },
+            {
+                title: 'Filling and localising',
+                blurb: 'The Template Filler fills the chosen template and changes nothing else. The Specialist then produces the UK and German versions, following the locale rules and keeping every figure the same.',
+                nodes: [
+                    { k: 'wri', type: 'agent_writer', at: [7, 2], set: { title: 'Template Filler', content: 'Fill OFFER-UK-03 from the validated values only. Keep every clause in its original order and wording, changing only the bracketed fields. Write salaries as GBP 46,500 a year and dates in full, such as 3 March 2027. On a revision round, fix each point raised and list the fields you changed.' } },
+                    { k: 'tr', type: 'translation', at: [7, 4], set: { title: 'Locale rules', targetLocale: 'en-GB and de-DE', register: 'formal, with Sie in German', content: 'UK letters use British spelling and dates such as 3 March 2027. German letters use Sie, dates such as 3. März 2027 and amounts such as 46.500 EUR. Never translate the template code, the job title grade or the legal entity name.' } },
+                    { k: 'spec', type: 'agent_specialist', at: [8, 2], set: { title: 'UK and German Localiser', specialty: 'UK and German localisation', content: 'Turn the filled letter into two finished versions: the UK letter in en-GB and the German Angebotsschreiben in de-DE, following the Locale rules. Check that both versions show the same salary, start date and notice period. Flag any clause that German employment law requires to be worded differently, for the legal team to decide. Do not change it yourself.' } }
+                ],
+                wires: [['vg', 'out', 'wri', 'task'], ['router', 'to_writer', 'wri', 'plan'], ['priv', 'out', 'wri', 'context'], ['req', 'out', 'tr', 'in'], ['wri', 'draft', 'spec', 'task'], ['tr', 'out', 'spec', 'context']]
+            },
+            {
+                title: 'Numbers and dates',
+                blurb: 'The Fact-Checker compares every figure and date in the finished letter with the entered values. A Letter Critic reads both letters for completeness and tone, and a Values quality check scores the input first.',
+                nodes: [
+                    { k: 'dq', comp: ['core', 'Data Quality Check', {}], section: 'quality', at: [5, 1], title: 'Values quality check' },
+                    { k: 'chk', type: 'agent_fact_checker', at: [9, 1], set: { title: 'Numbers and Dates Checker', content: 'Compare every figure and date in the finished letter with the Entered values. Mark each as verified, unverified or contradicted, and quote the field that contradicts it. Check that the notice period ends on a working day and that 3 March 2027, a Wednesday, is the start date.' } },
+                    { k: 'crit', type: 'agent_critic', at: [9, 3], set: { title: 'Letter Critic', content: 'Read the UK letter and the German letter against the brief. Check that the offer is complete, that the start date is a working day and that the tone is plain and warm. List issues by severity. For each blocker give one concrete rewrite of the sentence. Do not rewrite the letter yourself.' } }
+                ],
+                wires: [['vals', 'out', 'dq', 'in'], ['dq', 'out', 'chk', 'sources'], ['spec', 'result', 'chk', 'draft'], ['spec', 'result', 'crit', 'draft'], ['req', 'out', 'crit', 'task']]
+            },
+            {
+                title: 'Fallback and revision',
+                blurb: 'When no template fits, the fallback path stops the fill and hands a gap note to the template owner. Checker and critic findings go through a Feedback block that allows two rounds before the open points go back to the requester.',
+                nodes: [
+                    { k: 'fbk', type: 'fallback', at: [3, 0], set: { title: 'No template path', content: 'Used when the Template Router finds no template for the document type and market. Stop the fill, keep the request as received, and write one line naming the nearest template and the gap. Never produce a partial letter.' } },
+                    { k: 'hand', type: 'agent_handoff', at: [4, 0], set: { title: 'Template gap handoff', content: 'Write a short note for the template owner: the request, the nearest template, the missing document type or market, and the start date. Send it to escalate so the owner can add a template. Log each handoff with the requester name and the date.' } },
+                    { k: 'fb', type: 'feedback', at: [8, 4], set: { title: 'Revision rules', feedbackSource: 'Numbers and Dates Checker and Letter Critic', purpose: 'Revision', maxRounds: 2, content: 'Send every contradicted figure and every blocker back to the Template Filler with the field name. After two rounds, stop looping and send the open points to Requester Approval.' } }
+                ],
+                wires: [['router', 'fallback', 'fbk', 'in'], ['fbk', 'out', 'hand', 'from'], ['req', 'out', 'hand', 'context'], ['chk', 'flags', 'fb', 'in'], ['crit', 'feedback', 'fb', 'in'], ['fb', 'to_writer', 'wri', 'feedback']]
+            },
+            {
+                title: 'Sign-off',
+                blurb: 'The finished letters need a clear yes from the HR Business Partner. The Output Format then returns the approved pack, or only the handoff note when no template fitted.',
+                nodes: [
+                    { k: 'sign', type: 'agent_human', at: [8, 5], set: { title: 'Final Sign-off', question: 'Is this ready to send to the candidate?', content: 'Show the UK letter, the German letter and the checker report together. Continue only on a clear yes from the HR Business Partner. On a no, return the note to the Template Filler with the reason.' } },
+                    { k: 'out', type: 'output', at: [6, 0], set: { title: 'Document pack', formatSchema: 'Plain text', content: 'Return the approved UK letter and German letter, each with its template code and version, then the checker report with its count of verified figures. If the request was handed off instead, return only the handoff note. Plain text, no markdown.' } }
+                ],
+                wires: [['spec', 'result', 'sign', 'proposal'], ['sign', 'approved', 'out', 'in'], ['hand', 'escalate', 'out', 'in']]
+            }
+        ]
+    });
+
+    PB.showcases.push({
+        id: 'template-migration',
+        group: 'Templates',
+        title: 'Template Migration Crew',
+        tagline: 'Moves 200 old prompt templates to schema v3 without changing what they say.',
+        about: 'A prompt library has 200 templates, each with its own way of naming a variable. The crew inventories every placeholder style, maps each old name to its v3 name and writes the migration rules, then proves them on 12 awkward samples. A Red Team tries to break the rules. Failures get two retries, then go to quarantine and their owners. A Judge rules on the batch and a person signs it off before anything is written.',
+        chapters: [
+            {
+                title: 'Inventory the estate',
+                blurb: 'The migration starts with a count. The Estate Analyst reads the export of all 200 templates and records every placeholder style, so the rules are written for what the library really holds, not for what the team remembers.',
+                nodes: [
+                    { k: 'role', type: 'role', at: [0, 0], set: { title: 'Migration Lead', content: 'You lead the move of 200 prompt templates from schema v2 to schema v3 for the Support Ops team. A migrated template must say exactly what the original said. A template that cannot be migrated safely is quarantined, never guessed at.' } },
+                    { k: 'src', type: 'user_input', at: [0, 2], set: { title: 'Template export', inputName: 'template_export', prompt: 'Which export file holds the 200 templates?', content: 'The nightly export from the prompt library, one row per template with its owner, schema version and raw text.', defaultValue: 'templates_v2_export_2026-11-14.csv' } },
+                    { k: 'ana', type: 'agent_analyst', at: [1, 1], set: { title: 'Estate Analyst', content: 'Read all 200 rows. Count the placeholder styles in use, such as double curly braces, single curly braces, square brackets and percent signs. List the ten most common variable names with how often each appears. Flag every template with no owner.' } },
+                    { k: 'inv', type: 'structured_dataset', at: [2, 1], set: { title: 'Template inventory', format: 'CSV', content: 'One row per template: id, owner, placeholder style, variable count, nested placeholders (yes or no), defaults present (yes or no).', schemaNote: 'Owner is required. A row with a blank owner goes straight to the Quarantine Path.' } },
+                    { k: 'v3', type: 'data_schema', at: [2, 3], set: { title: 'Schema v3 target', schemaName: 'prompt_template_v3', content: 'Every variable is snake_case and sits in a named group, for example customer.first_name. Each variable has a type (text, number, date or list), a default and a one-line description. Placeholders never nest. Names use only letters, digits, dots and underscores.' } }
+                ],
+                wires: [['role', 'out', 'ana', 'context'], ['src', 'out', 'ana', 'data'], ['v3', 'out', 'ana', 'question'], ['ana', 'analysis', 'inv', 'in']]
+            },
+            {
+                title: 'Mapping old names to new',
+                blurb: 'Every old name needs exactly one new home. The Variable Mapper maps the legacy names, the Data Dictionary Generator defines each target, and the glossary lets a reviewer who never saw the export read the mapping cold.',
+                nodes: [
+                    { k: 'spec', type: 'agent_specialist', at: [3, 1], set: { title: 'Variable Mapper', specialty: 'Variable mapping', content: 'Map every legacy variable to a schema v3 name in its correct group. Where two old names mean the same thing, map both to one name and say so. Where an old name has no clear meaning, do not guess: mark it unmapped and give the template ids where it appears.' } },
+                    { k: 'dd', comp: ['data', 'Data Dictionary Generator', {}], section: 'knowledge', at: [3, 3], title: 'Target definitions' },
+                    { k: 'map', type: 'structured_dataset', at: [4, 1], set: { title: 'Variable map', format: 'CSV', content: 'Columns: old name, v3 name, group, type, default, templates affected, status (mapped or unmapped).', schemaNote: 'Each old name appears once. Unmapped rows block the batch until a person decides them.' } },
+                    { k: 'gl', type: 'glossary', at: [4, 3], set: { title: 'Legacy name glossary', content: 'customer_name, CustomerName, cust_nm and client all mean customer.full_name. Sort the entries by schema group so an owner can find the name they used.' } },
+                    { k: 'fmt', comp: ['output', 'Glossary Format', { 'clear, concise definition': 'one line saying what the variable holds', 'usage example': 'customer.first_name renders as Ada', 'related terms': 'customer.full_name and account.name', definition: 'the same meaning, shorter, for the second entry', 'alphabetical/thematic': 'thematic, by schema group' }], section: 'output', at: [4, 5] }
+                ],
+                wires: [['inv', 'out', 'spec', 'task'], ['v3', 'out', 'spec', 'context'], ['spec', 'result', 'map', 'in'], ['spec', 'notes', 'gl', 'in'], ['inv', 'out', 'dd', 'in'], ['dd', 'out', 'gl', 'in'], ['gl', 'out', 'fmt', 'in']]
+            },
+            {
+                title: 'Rules, samples and retries',
+                blurb: 'The Migration Coder turns the map into rules that change only placeholder names and never the wording. The Tester runs them on 12 awkward samples. A Retry Handler gives each failure two more attempts before it is set aside.',
+                nodes: [
+                    { k: 'cod', type: 'agent_coder', at: [5, 1], set: { title: 'Migration Coder', content: 'Write the migration rules as one pure Python function per schema group. No file writes. Each rule keeps the template text unchanged apart from the placeholder names. An unmapped name raises an error that names the template id. Where v2 has no default, add the default from the v3 schema and say which one you used.' } },
+                    { k: 'samp', type: 'structured_dataset', at: [5, 3], set: { title: 'Twelve awkward samples', format: 'JSON lines', content: 'Two templates with a placeholder inside another placeholder, three with no defaults, one with a placeholder inside a code block, one with an unmatched brace and six typical templates. Each row holds the v2 text and the expected v3 text.', schemaNote: 'The expected v3 text is written by each template owner. It is never generated by the crew.' } },
+                    { k: 'tes', type: 'agent_tester', at: [6, 1], set: { title: 'Migration Tester', content: 'Run the rules on all 12 samples. Compare the rendered text with the expected v3 text character for character. Report pass or fail for each template, and for each failure the first line that differs.' } },
+                    { k: 'ret', type: 'retry', at: [6, 3], set: { title: 'Retry Handler', condition: 'Migrated text differs from the expected v3 text', maxAttempts: 2, content: 'Send a failing template back to the Coder with its first differing line. Two attempts only. A third attempt is never made, and a template still failing moves to the Quarantine Path.' } }
+                ],
+                wires: [['map', 'out', 'cod', 'plan'], ['inv', 'out', 'cod', 'task'], ['v3', 'out', 'cod', 'context'], ['cod', 'code', 'tes', 'code'], ['samp', 'out', 'tes', 'task'], ['tes', 'failures', 'ret', 'in'], ['ret', 'out', 'cod', 'feedback']]
+            },
+            {
+                title: 'Break it on purpose',
+                blurb: 'The Red Team tries to break the rules with nested placeholders, missing defaults and names that collide. An Assumption Audit states what the team is taking for granted. Every finding goes through a Feedback block that allows two revision rounds, then stops.',
+                nodes: [
+                    { k: 'assume', comp: ['reasoning', 'Assumption Audit', { 'state clearly': 'the export is complete and every row is a live template, not a draft' }], section: 'approach', at: [6, 0], title: 'Team assumptions' },
+                    { k: 'rt', type: 'agent_red_team', at: [7, 1], set: { title: 'Red Team', content: 'Attack the rules. Try a placeholder nested inside another, a variable with no default, two old names that collide on one new name, placeholders inside quotes or code blocks, an empty owner and a template with 400 variables. For each finding give the template id, the input that breaks it and the smallest fix.' } },
+                    { k: 'fb', type: 'feedback', at: [7, 3], set: { title: 'Migration revision rules', feedbackSource: 'Migration Tester and Red Team', purpose: 'Revision', maxRounds: 2, content: 'Every finding becomes work for the Coder in the next round, or it is written down as out of scope with a reason. After two rounds, any finding still open goes to the Quarantine Path.' } }
+                ],
+                wires: [['cod', 'code', 'rt', 'target'], ['assume', 'out', 'rt', 'context'], ['rt', 'findings', 'fb', 'in'], ['tes', 'feedback', 'fb', 'in'], ['fb', 'to_any', 'cod', 'feedback']]
+            },
+            {
+                title: 'Quarantine and hand over',
+                blurb: 'Templates that cannot be migrated are not forced through. The Quarantine Path holds them, the Batch Summariser states what was and was not moved, and the Owner Handoff sends each owner the one decision they need to make.',
+                nodes: [
+                    { k: 'fbk', type: 'fallback', at: [8, 0], set: { title: 'Quarantine Path', content: 'Hold every template still failing, with its id, its owner and its first differing line. Nothing on this list is written to schema v3 in this batch.' } },
+                    { k: 'sum', type: 'agent_summariser', at: [8, 2], set: { title: 'Batch Summariser', content: 'Write the batch summary in five lines: templates migrated, templates quarantined, variables unmapped, defaults added and the three riskiest rules. Keep every number exact.' } },
+                    { k: 'hand', type: 'agent_handoff', at: [9, 0], set: { title: 'Owner Handoff', content: 'For each quarantined template, write a note to its owner with the template id, the line that failed, the one decision needed from them and the date the batch closes. One note per owner, not one per template.' } }
+                ],
+                wires: [['tes', 'failures', 'fbk', 'in'], ['fbk', 'out', 'hand', 'from'], ['fmt', 'out', 'hand', 'context'], ['tes', 'tests', 'sum', 'source'], ['inv', 'out', 'sum', 'brief']]
+            },
+            {
+                title: 'Approve the batch',
+                blurb: 'The Judge weighs the summary and the Red Team fixes against the v3 schema. A Decision Checklist sets the walk-away points for the approver. Human Approval holds the batch until a person has read both, and only then is the report written.',
+                nodes: [
+                    { k: 'jud', type: 'agent_judge', at: [8, 3], set: { title: 'Batch Judge', content: 'Rule on the batch as ready or not ready. Ready only if every sample passes, every Red Team finding is fixed or quarantined, and no unmapped name remains in a migrated template. Give the rationale in three sentences.' } },
+                    { k: 'dec', comp: ['core', 'Decision Checklist', { 'what would make you walk away': 'any template migrated with a guessed default or a dropped placeholder', 'what happens if you do nothing': 'v2 names keep breaking when the old schema retires on 1 March 2027' }], section: 'success', at: [8, 5], title: 'Approval checklist' },
+                    { k: 'hum', type: 'agent_human', at: [9, 5], set: { title: 'Batch Approval', question: 'Approve the migration of all 200 templates to schema v3?', content: 'Read the Batch Judge verdict, the Batch Summariser and the quarantine list. Approve only if no template was migrated with a guessed default and every quarantined owner has been told.' } },
+                    { k: 'out', type: 'output', at: [9, 4], set: { title: 'Migration Report', formatSchema: 'Markdown', content: 'A report for the Support Ops lead: batch numbers, the rules that changed, the quarantine list by owner and the approval record. Written only after Human Approval says yes.' } }
+                ],
+                wires: [['sum', 'summary', 'jud', 'option_a'], ['rt', 'fixes', 'jud', 'option_b'], ['v3', 'out', 'jud', 'criteria'], ['jud', 'verdict', 'dec', 'in'], ['dec', 'out', 'hum', 'proposal'], ['hum', 'approved', 'out', 'in']]
+            }
+        ]
+    });
+
+    PB.showcases.push({
         id: 'newsroom',
+        group: 'Teams at work',
         title: 'The Newsroom',
         tagline: 'An investigative feature from brief to approved copy.',
         about: 'A reporting desk in one prompt. A request is triaged, planned and researched, written, fact checked, read cold by the audience, revised in a capped loop and held for an editor sign-off.',
@@ -126,6 +977,7 @@
 
     PB.showcases.push({
         id: 'launch-war-room',
+        group: 'Teams at work',
         title: 'Launch War Room',
         tagline: 'Six weeks to decide whether a paid tier ships, argued from every side.',
         about: 'A fintech launch decision in one prompt. Ideas are generated and voted on, then a Proponent and a Devil\'s Advocate argue the case under a Moderator while an Analyst reads the numbers. A Red Team attacks the plan, a Plan Reviser answers it in capped rounds, an Aggregator merges every strand and a human signs off the decision.',
@@ -194,6 +1046,7 @@
 
     PB.showcases.push({
         id: 'software-studio',
+        group: 'Teams at work',
         title: 'The Software Studio',
         tagline: 'Ship a rate-limited public API endpoint from design to approved release.',
         about: 'A small engineering studio in one prompt. A Planner designs a rate-limited availability endpoint for a booking platform. A Coder and Tester work in a capped fix loop, a Red Team attacks the result, and Specialists check security and performance in parallel before a Merge. A Summariser writes the review note, a Human Approval stop holds the merge, and an Agent Handoff takes the release to operations.',
@@ -272,6 +1125,7 @@
 
     PB.showcases.push({
         id: 'support-desk',
+        group: 'Teams at work',
         title: 'The Support Desk',
         tagline: 'A utility support line that triages, routes, checks its tone and stops for a human on refunds.',
         about: 'A live support line for a fictional energy supplier, Lantern Power. Every message is masked for personal data, triaged and routed: billing disputes to the Billing Specialist, power cuts to the Outage Specialist. A gas smell or a vulnerable customer goes straight to a person. The Tone Critic reviews each reply, and any refund over £150 waits for a duty supervisor before it reaches the customer.',
@@ -346,6 +1200,7 @@
 
     PB.showcases.push({
         id: 'due-diligence',
+        group: 'Teams at work',
         title: 'Due Diligence Lab',
         tagline: 'A £28m software acquisition, tested by a deal team that argues before it recommends.',
         about: 'An investment committee asks whether to buy Quillmark Systems, a 40-person invoicing software company with £6.2m ARR. Analysts test the accounts and the customer book, specialists review contracts and code, and a fact-checker holds every figure to the data room. An aggregator merges the strands and lists the conflicts, a vote picks the recommendation, and a judge tests it against the deal-breakers.',
@@ -424,6 +1279,7 @@
 
     PB.showcases.push({
         id: 'content-studio',
+        group: 'Teams at work',
         title: 'The Content Studio',
         tagline: 'One recycled trainer launch, three channels, one vote and a capped review loop.',
         about: 'A launch desk for a sustainable trainer brand. A team lead splits the Lap 01 launch into jobs, and a brainstormer and a vote pick the hook. A parallel split sends it to a writer for the newsletter, LinkedIn and a video. A materials specialist checks the green claims first. A reader panel and a brand critic send blockers back through a capped revision loop, then a merge, an editor and a human sign-off finish the pack.',
@@ -501,6 +1357,7 @@
 
     PB.showcases.push({
         id: 'board-room',
+        group: 'Teams at work',
         title: 'The Board Room',
         tagline: 'A store closure decision, argued both ways, stress tested and signed by the chair.',
         about: 'A retail board paper in one prompt. The Team Lead splits the question across finance, operations and people. A Proponent argues for turning 12 weak stores into fulfilment hubs, a Devil\'s Advocate argues for closing them, and a Red Team attacks the hub case. An Aggregator, a Judge and a Summariser turn the argument into one chair paper, which waits for a human yes.',
@@ -575,6 +1432,7 @@
 
     PB.showcases.push({
         id: 'course-builder',
+        group: 'Teams at work',
         title: 'The Course Builder',
         tagline: 'Four weeks of money basics for school leavers, from first payslip to first savings pot.',
         about: 'A course design desk in one prompt. A request for a UK personal finance course is planned into four weeks, researched against gov.uk figures, split between a Specialist for each week, drafted, quizzed, read cold by a 17 year old, revised in a capped loop and held for a human sign-off.',

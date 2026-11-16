@@ -319,6 +319,11 @@
     </div>
   </div>
   <div class="ws-header-actions">
+    <div class="pbp-retarget">
+      <input id="pbp-retarget-input" class="form-input pbp-retarget-input" aria-label="Retarget the blocks with AI" placeholder="Retarget with AI: say what it should become" autocomplete="off" maxlength="400">
+      <button class="icon-btn" data-act="retargetOpen" aria-label="Retarget the blocks with AI" title="Rewrite the block text for a new focus. You review every change first.">${ms('auto_fix_high')}</button>
+      <button class="icon-btn" data-act="retargetUndo" id="pbp-retarget-undo" aria-label="Undo the last AI rewrite" title="Undo the last AI rewrite" hidden>${ms('undo')}</button>
+    </div>
     <input id="pbp-workflow-title" class="form-input pbp-title-input" aria-label="Workflow title" placeholder="Untitled prompt" autocomplete="off">
     <select id="pbp-template-select" class="form-input pbp-template-select" aria-label="Load a template"></select>
     <button class="icon-btn" data-act="startTour" aria-label="Show the quick tour" title="Quick tour">${ms('tour')}</button>
@@ -456,6 +461,12 @@
   <div class="pbp-dlg-foot"><button class="btn pbp-push-left" id="pbp-json-pick">Choose a file</button><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-accent" id="pbp-json-action">Copy JSON</button></div>
 </dialog>
 
+<dialog class="pbp-dialog" id="pbp-retarget-dialog" aria-labelledby="pbp-retarget-title">
+  <div class="pbp-dlg-head"><span class="pbp-dlg-title" id="pbp-retarget-title">Retarget with AI</span><button class="icon-btn" data-close aria-label="Close">${ms('close')}</button></div>
+  <div class="pbp-dlg-body" id="pbp-retarget-body"></div>
+  <div class="pbp-dlg-foot" id="pbp-retarget-foot"></div>
+</dialog>
+
 <dialog class="pbp-dialog" id="pbp-confirm-dialog" aria-labelledby="pbp-confirm-title">
   <div class="pbp-dlg-head"><span class="pbp-dlg-title" id="pbp-confirm-title">Clear the canvas?</span></div>
   <div class="pbp-dlg-body"><p>Every block and wire is removed. Export the workflow first if you want to keep it.</p></div>
@@ -472,7 +483,8 @@
       <tr><td>Do I need a Conductor?</td><td>No. It is optional. Use it when you want one block that briefs four agents from a single task.</td></tr>
       <tr><td>If I add a Conductor, do I still need the agent blocks?</td><td>Yes. A Conductor only hands out work. Select it and press "Add its agents and wire them" to get all four in one go.</td></tr>
       <tr><td>Conductor, Team Lead or Router?</td><td>Conductor briefs a fixed four. Team Lead splits a job across any three agents you choose. Router sends each request to one agent only. Use one at most.</td></tr>
-      <tr><td>Is there a hands-on tutorial?</td><td>Yes. Open the Learn tab on the right. Lessons build one kind of team step by step: do a step yourself or press Show me. Showcases builds eight complete workflows, chapter by chapter, using every agent block and real blocks from the Component Library.</td></tr>
+      <tr><td>Is there a hands-on tutorial?</td><td>Yes. Open the Learn tab on the right. Lessons build one kind of team step by step: do a step yourself or press Show me. Showcases builds complete workflows, chapter by chapter: prompt engineering, meta prompting, modular prompts, templates and whole teams at work. They use every agent block and real blocks from the Component Library.</td></tr>
+      <tr><td>Can AI rewrite the blocks for a new focus?</td><td>Yes, if an API key is saved in Settings. Type the new focus in the box at the top, for example "make this a prompt engineering board". You see a token estimate first, then every suggested change, and nothing is applied until you tick it. Undo sits next to the box.</td></tr>
       <tr><td>Does anything actually run?</td><td>No. The builder writes a prompt. The AI you paste it into plays every agent in order, which is why the prompt spells out who hands what to whom.</td></tr>
     </tbody></table>
 
@@ -1457,13 +1469,20 @@
         function showListHtml() {
             const list = showcases();
             if (!list.length) return '<p class="pbp-show-about">No showcases are loaded.</p>';
+            // Headings follow the order the showcases are listed in.
+            const groups = [];
+            list.forEach((x, i) => {
+                let g = groups.find(y => y.name === (x.group || 'More'));
+                if (!g) groups.push(g = { name: x.group || 'More', items: [] });
+                g.items.push([x, i]);
+            });
             return `<div class="pbp-learn-intro"><b>Watch a whole workflow built</b><p>Each showcase builds a complete multi-agent workflow chapter by chapter: agent teams, logic and real blocks from the Component Library. Play it, step through it, then open any block to see what it does. Showcases add their own blocks beside yours and never change what you have built.</p></div>
-                <ul class="pbp-lessons">${list.map((x, i) => {
+                ${groups.map(g => `<h4 class="pbp-group-title">${esc(g.name)}</h4><ul class="pbp-lessons">${g.items.map(([x, i]) => {
                     const st = showStats(x);
                     return `<li><button class="pbp-lesson" data-act="showOpen" data-show="${esc(x.id)}">
                         <span class="pbp-lesson-n" ${showDone.includes(x.id) ? 'data-done' : ''}>${showDone.includes(x.id) ? ms('check') : i + 1}</span>
                         <span class="pbp-lesson-text"><b>${esc(x.title)}</b><small>${esc(x.tagline)}</small><small class="pbp-show-stats">${st.blocks} blocks · ${st.agents} agent types · ${st.comps} library components · ${st.chapters} chapters</small></span>${ms('chevron_right')}</button></li>`;
-                }).join('')}</ul>`;
+                }).join('')}</ul>`).join('')}`;
         }
         const chapterBuilt = ci => !!exh.plan[ci] && exh.plan[ci].nodes.length > 0 && exh.plan[ci].nodes.every(n => exh.built[n.k] && node(exh.built[n.k]));
         function showOpen(id) {
@@ -1758,6 +1777,119 @@
             }
         }
 
+        /* ---------- Retarget with AI ----------
+           One small call. Block text goes out as short clipped lines, only the blocks that need to change come back, and nothing is
+           applied until the changes are reviewed. Wires, block types and {{placeholders}} are never touched. Uses the key from Settings. */
+        const RT_MAX_BLOCKS = 40, RT_CLIP = 400, RT_OUT = 2500;
+        const RT = { instruction: '', scope: 'all', stage: 'check', error: '', changes: [], title: null, skipped: 0, run: 0, undo: null };
+        const rtClip = (t, n) => { const x = String(t || '').replace(/\s+/g, ' ').trim(); return x.length > n ? x.slice(0, n) + '…' : x; };
+        const rtVars = t => [...new Set(String(t).match(/\{\{[^}]+\}\}/g) || [])].sort().join();
+        const RT_SYSTEM = 'You retarget the blocks of a prompt workflow to a new focus. Change only the blocks whose title or text must change for the new focus, and keep each block\'s job in the workflow. Keep every {{placeholder}} exactly as written. Keep the style and about the same length. Text ending in … was cut for brevity: if you rewrite it, write a complete replacement. Use UK English and no dashes as punctuation. Reply with JSON only: {"title":"new workflow title, or empty","changes":[{"id":"...","title":"...","text":"..."}]}. List only blocks you changed, and leave out "title" or "text" in a change if that part stays.';
+        function rtPlan() {
+            const pool = RT.scope === 'selected' && state.selected ? state.nodes.filter(n => n.id === state.selected) : state.nodes;
+            const items = pool.filter(n => BLOCKS[n.type] && String(n.config.content || '').trim()).slice(0, RT_MAX_BLOCKS);
+            const lines = items.map(n => `${n.id}|${BLOCKS[n.type].label}|${rtClip(PE.titleOf(n), 60)}|${rtClip(n.config.content, RT_CLIP)}`);
+            const user = `New focus: ${RT.instruction}\nWorkflow: ${state.title || 'Untitled'}\nBlocks (id|kind|title|text):\n${lines.join('\n')}`;
+            return { items, user, tokensIn: Math.ceil((RT_SYSTEM.length + user.length) / 4) };
+        }
+        function rtRender() {
+            const body = $('#pbp-retarget-body'), foot = $('#pbp-retarget-foot');
+            const ai = window.PL_ai ? window.PL_ai.info() : null;
+            if (RT.stage === 'check') {
+                const plan = rtPlan();
+                const sel = state.selected && node(state.selected);
+                const hasKey = !!(ai && ai.hasKey);
+                body.innerHTML = `<p>Say what the workflow should become. Only block titles and text change. Wires, block types and your variables stay exactly as they are, and you review every change before it is applied.</p>
+                    <textarea id="pbp-rt-text" class="form-textarea" rows="3" maxlength="400" aria-label="What the workflow should become" placeholder="Make the board room a prompt engineering board that reviews system prompts">${esc(RT.instruction)}</textarea>
+                    ${sel ? `<div class="pbp-rt-scope"><label><input type="radio" name="pbp-rt-scope" value="all" ${RT.scope === 'all' ? 'checked' : ''}> Every block with text</label>
+                        <label><input type="radio" name="pbp-rt-scope" value="selected" ${RT.scope === 'selected' ? 'checked' : ''}> Only the selected block: ${esc(PE.titleOf(sel))}</label></div>` : ''}
+                    <p class="pbp-rt-estimate">${plan.items.length} block${plan.items.length === 1 ? '' : 's'} sent, about ${plan.tokensIn.toLocaleString()} tokens in, up to ${RT_OUT.toLocaleString()} back. ${hasKey ? `Uses your ${esc(ai.provider)} key, model ${esc(ai.model)}.` : ''}</p>
+                    ${hasKey ? '' : '<p class="pbp-danger-text" role="alert">No API key is saved yet. Add one in Settings (bottom left of the library), then come back.</p>'}
+                    ${RT.error ? `<p class="pbp-danger-text" role="alert">${esc(RT.error)}</p>` : ''}`;
+                foot.innerHTML = `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-accent" data-act="retargetSend" ${hasKey && plan.items.length ? '' : 'disabled'}>${ms('send')}<span>Send</span></button>`;
+            } else if (RT.stage === 'busy') {
+                body.innerHTML = `<p class="pbp-rt-estimate">Asking ${esc(ai ? ai.model : 'the model')}. Nothing changes until you review the result.</p>`;
+                foot.innerHTML = `<button class="btn btn-ghost" data-act="retargetBack">Cancel</button>`;
+            } else {
+                const n = RT.changes.filter(c => c.on).length + (RT.title && RT.title.on ? 1 : 0);
+                const total = RT.changes.length + (RT.title ? 1 : 0);
+                body.innerHTML = `<p>${total ? `${total} change${total === 1 ? '' : 's'} suggested. Untick any you do not want.` : 'The model suggested no changes for that focus.'}${RT.skipped ? ` ${RT.skipped} suggestion${RT.skipped === 1 ? ' was' : 's were'} skipped because the block was unknown, a {{placeholder}} changed or the text grew too long.` : ''}</p>
+                    <div class="pbp-rt-list">
+                    ${RT.title ? `<label class="pbp-rt-row"><input type="checkbox" data-rt-title ${RT.title.on ? 'checked' : ''}><span><b>Workflow title</b><small>${esc(state.title || 'Untitled')} to ${esc(RT.title.value)}</small></span></label>` : ''}
+                    ${RT.changes.map((c, i) => { const nd = node(c.id); return `<div class="pbp-rt-row"><input type="checkbox" data-rt-i="${i}" ${c.on ? 'checked' : ''} aria-label="Apply this change"><details><summary><b>${esc(c.title || PE.titleOf(nd))}</b><small>${esc(BLOCKS[nd.type].label)}${c.text && c.title ? ', title and text' : c.title ? ', title' : ', text'}</small></summary>
+                        <div class="pbp-rt-diff"><div><span class="pbp-label">Before</span><pre>${esc(c.title ? PE.titleOf(nd) + (c.text ? '\n\n' : '') : '')}${esc(c.text ? nd.config.content : '')}</pre></div><div><span class="pbp-label">After</span><pre>${esc(c.title ? c.title + (c.text ? '\n\n' : '') : '')}${esc(c.text || '')}</pre></div></div></details></div>`; }).join('')}
+                    </div>`;
+                foot.innerHTML = `<button class="btn btn-ghost pbp-push-left" data-act="retargetBack">Back</button><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-accent" data-act="retargetApply" ${n ? '' : 'disabled'}>Apply ${n || ''} change${n === 1 ? '' : 's'}</button>`;
+            }
+        }
+        function retargetOpen() {
+            const typed = $('#pbp-retarget-input').value.trim();
+            if (!typed) { $('#pbp-retarget-input').focus(); return toast('Type what the workflow should become first', 'info'); }
+            if (!state.nodes.length) return toast('Build or load some blocks first', 'warning');
+            Object.assign(RT, { instruction: typed, stage: 'check', error: '', scope: state.selected && RT.scope === 'selected' ? 'selected' : 'all' });
+            rtRender();
+            $('#pbp-retarget-dialog').showModal();
+        }
+        async function retargetSend() {
+            const t = $('#pbp-rt-text');
+            if (t) RT.instruction = t.value.trim();
+            if (!RT.instruction) { RT.error = 'Say what the workflow should become.'; return rtRender(); }
+            const plan = rtPlan();
+            if (!plan.items.length) return;
+            const run = ++RT.run;
+            RT.stage = 'busy'; rtRender();
+            try {
+                const raw = await window.PL_ai.ask(RT_SYSTEM, plan.user, RT_OUT);
+                if (run !== RT.run) return;
+                const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
+                if (a < 0 || b < a) throw new Error('The reply was not in the expected form. Try again.');
+                const data = JSON.parse(raw.slice(a, b + 1));
+                const byId = new Map(plan.items.map(n => [n.id, n]));
+                const changes = [];
+                let skipped = 0;
+                (Array.isArray(data.changes) ? data.changes : []).forEach(c => {
+                    const n = c && byId.get(c.id);
+                    if (!n) { skipped++; return; }
+                    const title = typeof c.title === 'string' ? c.title.trim().slice(0, 80) : '';
+                    const text = typeof c.text === 'string' ? c.text.trim() : '';
+                    const old = String(n.config.content || '');
+                    if (text && (text.length > 4000 || text.length > Math.max(400, old.length * 3) || rtVars(text) !== rtVars(old))) { skipped++; return; }
+                    const nt = title && title !== PE.titleOf(n) ? title : '';
+                    const tx = text && text !== old.trim() ? text : '';
+                    if (nt || tx) changes.push({ id: n.id, on: true, title: nt, text: tx });
+                });
+                const newTitle = typeof data.title === 'string' ? data.title.trim().slice(0, 80) : '';
+                Object.assign(RT, { stage: 'review', changes, skipped, title: newTitle && newTitle !== state.title ? { on: true, value: newTitle } : null });
+            } catch (e) {
+                if (run !== RT.run) return;
+                Object.assign(RT, { stage: 'check', error: e instanceof SyntaxError ? 'The reply could not be read. Try again.' : (e && e.message) || 'That did not work.' });
+            }
+            rtRender();
+        }
+        function retargetApply() {
+            const chosen = RT.changes.filter(c => c.on && node(c.id));
+            const retitle = RT.title && RT.title.on;
+            if (!chosen.length && !retitle) return $('#pbp-retarget-dialog').close();
+            RT.undo = { title: state.title, items: chosen.map(c => { const n = node(c.id); return { id: c.id, title: n.config.title, content: n.config.content }; }) };
+            chosen.forEach(c => { const n = node(c.id); if (c.title) n.config.title = c.title; if (c.text) n.config.content = c.text; });
+            if (retitle) { state.title = RT.title.value; $('#pbp-workflow-title').value = state.title; }
+            $('#pbp-retarget-dialog').close();
+            $('#pbp-retarget-undo').hidden = false;
+            $('#pbp-retarget-input').value = '';
+            render();
+            toast(`${chosen.length} block${chosen.length === 1 ? '' : 's'} rewritten. Undo is next to the box.`, 'success');
+        }
+        function retargetUndo() {
+            if (!RT.undo) return;
+            RT.undo.items.forEach(o => { const n = node(o.id); if (n) { n.config.title = o.title; n.config.content = o.content; } });
+            state.title = RT.undo.title;
+            $('#pbp-workflow-title').value = state.title;
+            RT.undo = null;
+            $('#pbp-retarget-undo').hidden = true;
+            render();
+            toast('The AI rewrite was undone', 'success');
+        }
+
         /* ---------- trace ---------- */
         let tracing = false;
         async function runTrace() {
@@ -1997,6 +2129,11 @@
                 renderLearn();
             },
             learnClear,
+            retargetOpen,
+            retargetSend,
+            retargetApply,
+            retargetUndo,
+            retargetBack: () => { RT.run++; RT.stage = 'check'; rtRender(); },
             learnMode: t => { learn.mode = t.dataset.mode; renderLearn(); },
             showOpen: t => showOpen(t.dataset.show),
             showClose: () => { exh.run++; exh.playing = false; exh.id = null; renderLearn(); },
@@ -2010,6 +2147,15 @@
             showClear
         };
 
+        root.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && e.target.id === 'pbp-retarget-input') { e.preventDefault(); retargetOpen(); }
+        });
+        root.addEventListener('change', e => {
+            const t = e.target;
+            if (t.matches && t.matches('input[name="pbp-rt-scope"]')) { const x = $('#pbp-rt-text'); if (x) RT.instruction = x.value; RT.scope = t.value; rtRender(); }
+            else if (t.matches && t.matches('[data-rt-i]')) { RT.changes[+t.dataset.rtI].on = t.checked; rtRender(); }
+            else if (t.matches && t.matches('[data-rt-title]')) { RT.title.on = t.checked; rtRender(); }
+        });
         root.addEventListener('click', e => {
             $$('.pbp-menu[open]').forEach(m => { if (!m.querySelector('summary').contains(e.target)) m.open = false; });
             if (libraryOpen() && e.target.closest('#pcwGallery')) return;

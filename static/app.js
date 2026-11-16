@@ -22625,6 +22625,17 @@ Must avoid: [Anything sensitive or previously declined]`
         throw new Error('advisor did not finish');
     }
 
+    // Small bridge for Prompt Builder Pro: what is set up, and one plain JSON call with no second opinion
+    window.PL_ai = {
+        info: function() {
+            const provider = localStorage.getItem('pl_ai_provider') || 'openai';
+            return { provider: provider, model: _aiModel(provider), hasKey: !!localStorage.getItem('pl_api_key_' + provider) };
+        },
+        ask: function(systemPrompt, userMsg, maxTokens) {
+            return callAI(systemPrompt, userMsg, maxTokens, { json: true, plain: true });
+        }
+    };
+
     async function callAI(systemPrompt, userMsg, maxTokens, opts) {
         maxTokens = maxTokens || 1200;
         opts = opts || {};
@@ -22662,7 +22673,7 @@ Must avoid: [Anything sensitive or previously declined]`
             return (data.choices?.[0]?.message?.content || '').trim();
 
         } else if (provider === 'anthropic') {
-            if (localStorage.getItem('pl_ai_advisor') === '1' && maxTokens >= 1500) {
+            if (localStorage.getItem('pl_ai_advisor') === '1' && maxTokens >= 1500 && !opts.plain) {
                 try {
                     return await _aiAnthropicAdvised(apiKey, model, systemPrompt, userMsg, maxTokens);
                 } catch (e) {

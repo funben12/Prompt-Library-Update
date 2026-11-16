@@ -22,6 +22,7 @@ const COL = 354, ROW = 190;
 const outIds = t => { const b = BLOCKS[t]; return Array.isArray(b.outputs) ? b.outputs.map(p => p.id) : b.outputs === false ? [] : ['out']; };
 const inIds = t => { const b = BLOCKS[t]; return b.inputs === true ? ['in'] : Array.isArray(b.inputs) ? b.inputs.map(p => p.id) : []; };
 const isAgent = t => BLOCKS[t] && BLOCKS[t].category === 'agents';
+const GROUPS = ['Teams at work', 'Prompt engineering', 'Meta prompting', 'Modular prompts', 'Templates'];
 const DASH = /[‒–—―]|\s-\s/;
 
 function strings(v, out = []) {
@@ -35,6 +36,7 @@ function validate(sc) {
     const errors = [], warnings = [];
     const err = m => errors.push(m);
     ['id', 'title', 'tagline', 'about'].forEach(k => { if (!sc[k] || typeof sc[k] !== 'string') err(`missing text field: ${k}`); });
+    if (!GROUPS.includes(sc.group)) err(`group must be one of: ${GROUPS.join(', ')}`);
     if (sc.title && sc.title.length > 34) err(`title longer than 34 characters (${sc.title.length})`);
     if (sc.tagline && sc.tagline.length > 120) err(`tagline longer than 120 characters (${sc.tagline.length})`);
     if (sc.about && sc.about.length > 420) err(`about longer than 420 characters (${sc.about.length})`);
@@ -62,7 +64,7 @@ function validate(sc) {
             const own = (sc.chapters[ci].nodes.find(x => x.k === n.k) || {});
             strings(own.set || {}).concat(own.comp ? strings(own.comp[2] || {}) : []).concat(own.title ? [own.title] : []).forEach(s => { if (DASH.test(s)) err(`${label}: dash punctuation in ${n.k}: "${s.slice(0, 60)}"`); });
             if (n.type.startsWith('component_')) {
-                const left = (n.config.content.match(/\[[^\]\n]+\]/g) || []);
+                const left = (n.config.content.match(/\[\[[^\]\n]+\]\]|\[[^\[\]\n]+\]/g) || []).filter(x => x.replace(/[\[\]\s]/g, '') !== '' && x !== '[x]');
                 if (left.length) err(`${label}: ${n.k} still has unfilled blanks ${left.join(' ')}`);
             }
         });
