@@ -338,6 +338,8 @@
     const vals = faceValues(g);
     if (!vals.length) return;
     relayout(g);
+    // a new roll starts with no face marked as landed, so a stale highlight never stays behind
+    g.querySelectorAll('.vd3-f.win').forEach(x => x.classList.remove('win'));
     const n = +g.dataset.count, sides = +g.dataset.sides, G = geom(sides), pips = usePips(g);
     // the result is chosen here, before any animation, so the motion never decides it
     const ks = Array.from({ length: n }, () => rand(vals.length));
