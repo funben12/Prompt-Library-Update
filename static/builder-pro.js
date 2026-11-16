@@ -158,7 +158,10 @@
     <section class="pbp-workshop" aria-label="Workshop">
       <div class="pbp-pane-head-row">
         <span class="pbp-label">Workshop <span class="pbp-mono pbp-count" id="pbp-ws-count">0</span></span>
-        <button class="btn pbp-btn-xs" data-act="openLibrary" title="Browse the Component Library">${ms('storefront')}<span>Open library</span></button>
+        <span class="pbp-ws-tools">
+          <button class="btn pbp-btn-xs" data-act="openContext" title="Add a block from the Context Bank">${ms('database')}<span>Context</span></button>
+          <button class="btn pbp-btn-xs" data-act="openLibrary" title="Browse the Component Library">${ms('storefront')}<span>Open library</span></button>
+        </span>
       </div>
       <div class="pbp-ws-list" id="pbp-ws-list"></div>
     </section>
@@ -747,14 +750,21 @@
             renderWorkshop();
         }
         // The Workshop item stays where it is. The canvas gets its own block built from the record.
-        function addComponent(it, x, y) {
+        function addComponent(it, x, y, section) {
             if (!it) return;
             const before = state.nodes.length;
-            addNode(COMPONENT + guessSection(it), x, y);
+            addNode(COMPONENT + (section || guessSection(it)), x, y);
             const n = node(state.selected);
             if (!n || state.nodes.length === before) return;
             n.config = { title: it.label, content: it.text, original: it.text, source: { label: it.label, cat: it.cat, icon: it.icon, badge: it.badge } };
             render();
+        }
+
+        // A Context Bank block becomes a Component block printed under Context.
+        const contextBlock = b => addComponent({ label: b.title, text: b.content, cat: b.category, icon: 'database', badge: 'Context Bank' }, undefined, undefined, 'context');
+        function openContext(btn) {
+            if (!window.PL_ctxPicker) return toast('The Context Bank is not available.', 'error');
+            window.PL_ctxPicker(btn, null, { onPick: contextBlock });
         }
 
         // Borrow the gallery that Prompt Components owns. It goes back the moment it closes.
@@ -1374,6 +1384,7 @@
                 render();
                 toast('Default text restored', 'success');
             },
+            openContext: t => openContext(t),
             openGuide: () => { $('#pbp-guide-dialog').showModal(); $('.pbp-guide-body').scrollTop = 0; }
         };
 
@@ -1563,7 +1574,7 @@
             $$('.pbp-menu[open]').forEach(m => { m.open = false; });
         }
 
-        return { state, get result() { return result; }, get workshop() { return workshop; }, get panes() { return panes; }, buildExport, render, connect, addNode, loadTemplate, select, show, closeDialogs };
+        return { state, get result() { return result; }, get workshop() { return workshop; }, get panes() { return panes; }, buildExport, render, connect, addNode, contextBlock, loadTemplate, select, show, closeDialogs };
     }
 
     function ensure() {
@@ -1591,6 +1602,7 @@
         api.show();
     };
     window.PL_closeBuilderPro = closeWorkspace;
+    window.PL_bpAddContext = function (b) { if (ensure() && api) api.contextBlock(b); };
     Object.defineProperty(window, '__pb', { configurable: true, get: () => api });
 
     // Build the hidden markup once the page is idle, so the first open only has to paint.

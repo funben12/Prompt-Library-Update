@@ -953,7 +953,8 @@
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
-#builderProWorkspace .pbp-workshop .pbp-pane-head-row { padding: 0 var(--sp-2) var(--sp-2); }
+#builderProWorkspace .pbp-workshop .pbp-pane-head-row { padding: 0 var(--sp-2) var(--sp-2); flex-wrap: wrap; gap: var(--sp-2); }
+#builderProWorkspace .pbp-ws-tools { display: inline-flex; gap: var(--sp-1); }
 #builderProWorkspace .pbp-workshop .pbp-count { margin-left: var(--sp-1); letter-spacing: 0; }
 #builderProWorkspace .pbp-ws-list { overflow-y: auto; min-height: 0; }
 #builderProWorkspace .pbp-ws-item {
