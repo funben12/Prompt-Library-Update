@@ -8586,6 +8586,47 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     // ── Export and import ────────────────────────────────────────────────────────
+    // Send the open block to another workspace: canvases get a node, text workspaces get it on the clipboard.
+    const _CTX_TARGETS = [
+        ['Prompt Builder Pro', 'openBuilderProWorkspace', 'PL_bpAddContext'],
+        ['Prompt Components', 'openComponentsWorkspace', 'PL_pcwAddContext'],
+        ['Prompt Forge', 'openForgeWorkspace', null],
+        ['Quick Fill', 'openFillWorkspace', null]
+    ];
+
+    function _ctxUseInWorkspace(i) {
+        const t = _CTX_TARGETS[i], block = _ctxEditorBlock();
+        if (!t || !window[t[1]]) return;
+        if (!block) return toast('Nothing to use yet', 'warning');
+        const plain = { id: _ctxActiveId, title: block.title || 'Untitled', category: block.category, content: block.content, wrapped: _ctxWrapText(block) };
+        _ctxGuard(async () => {
+            _ctxCloseNow();
+            window[t[1]]();
+            if (t[2]) {
+                if (window[t[2]]) window[t[2]](plain);
+                return;
+            }
+            if (await copyToClipboard(plain.wrapped)) toast('Block copied, paste it into the workspace', 'success');
+        });
+    }
+
+    function _ctxInitUseMenu() {
+        const bar = $('.ctxb-actions');
+        if (!bar || $('#ctxUseWsBtn')) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'ctxb-usews';
+        wrap.innerHTML = '<button type="button" class="btn btn-ghost" id="ctxUseWsBtn" aria-haspopup="menu" aria-expanded="false" title="Use this block in a workspace"><span class="material-symbols-outlined">dashboard_customize</span> Use in a workspace</button>' +
+            '<div class="ctxb-usews-menu" id="ctxUseWsMenu" role="menu" hidden>' + _CTX_TARGETS.map((t, i) =>
+                '<button type="button" role="menuitem" data-ws="' + i + '">' + escapeHtml(t[0]) + '</button>').join('') + '</div>';
+        bar.appendChild(wrap);
+        const btn = wrap.querySelector('#ctxUseWsBtn'), menu = wrap.querySelector('#ctxUseWsMenu');
+        const hide = () => { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); };
+        btn.addEventListener('click', e => { e.stopPropagation(); menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); });
+        menu.addEventListener('click', e => { const b = e.target.closest('[data-ws]'); if (!b) return; hide(); _ctxUseInWorkspace(+b.dataset.ws); });
+        document.addEventListener('click', e => { if (!wrap.contains(e.target)) hide(); });
+        wrap.addEventListener('keydown', e => { if (e.key === 'Escape' && !menu.hidden) { e.stopPropagation(); hide(); btn.focus(); } });
+    }
+
     async function _ctxExport() {
         if (!_ctxBlocks.length) {
             toast('No blocks to export', 'warning');
@@ -8719,6 +8760,7 @@ Must avoid: [Anything sensitive or previously declined]`
         $('#ctxPinBtn')?.addEventListener('click', _ctxTogglePin);
         $('#ctxCopyBtn')?.addEventListener('click', () => _ctxCopy(_ctxEditorBlock()));
         $('#ctxInsertBtn')?.addEventListener('click', () => _ctxUseInNewPrompt(_ctxEditorBlock()));
+        _ctxInitUseMenu();
         $('#ctxExportBtn')?.addEventListener('click', _ctxExport);
         $('#ctxImportBtn')?.addEventListener('click', () => $('#ctxImportFile')?.click());
         $('#ctxImportFile')?.addEventListener('change', e => {
@@ -13309,6 +13351,25 @@ Must avoid: [Anything sensitive or previously declined]`
             var ws = $('#componentsWorkspace');
             if (!ws) return;
             ws._pcwWired = true;
+
+            // Context Bank: a block becomes a canvas block carrying its text
+            window.PL_pcwAddContext = function(b) {
+                addBlock(b.title, b.content, 'Context');
+                _pcwFitView();
+                toast('Context block added to the canvas', 'success');
+            };
+            var _pcwBrowse = $('#pcwBrowseBtn');
+            if (_pcwBrowse && window.PL_ctxPicker && !$('#pcwContextBtn')) {
+                var _pcwCtx = document.createElement('button');
+                _pcwCtx.className = 'btn btn-ghost';
+                _pcwCtx.id = 'pcwContextBtn';
+                _pcwCtx.title = 'Add a block from the Context Bank';
+                _pcwCtx.innerHTML = '<span class="material-symbols-outlined">database</span> Context';
+                _pcwBrowse.parentNode.insertBefore(_pcwCtx, _pcwBrowse);
+                _pcwCtx.addEventListener('click', function() {
+                    window.PL_ctxPicker(_pcwCtx, null, { onPick: window.PL_pcwAddContext });
+                });
+            }
 
             // Search input
             if ($('#pcwPaletteSearch')) {
