@@ -69,7 +69,6 @@ html.wsv-js .wsv .wsv-stage { transform: scale(var(--wsv-s, 0.3)); }
 .wsv .wsv-mono.wsv-wn { color: var(--warn); }
 .wsv .wsv-title { font-family: var(--ff-display); font-weight: 600; font-size: 28px; letter-spacing: -0.02em; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 560px; line-height: 1.15; }
 .wsv .wsv-title.wsv-sub { font-size: 22px; font-weight: 500; }
-.wsv .wsv-pg { font-family: var(--ff-display); font-weight: 600; color: var(--ink); letter-spacing: -0.02em; white-space: nowrap; }
 
 .wsv .wsv-ic {
   font-family: 'Material Symbols Outlined', 'Material Symbols Outlined Fallback', system-ui;
@@ -280,7 +279,6 @@ html.wsv-js .wsv .wsv-stage { transform: scale(var(--wsv-s, 0.3)); }
 .wsv .wsv-stat { display: flex; flex-direction: column; gap: 8px; flex: 1 1 0; min-width: 0; padding: 14px 16px; border-radius: 12px; border: 2px solid var(--wsv-edge); background: var(--surface); }
 .wsv .wsv-sheet { display: flex; flex-direction: column; margin: 0 auto; min-height: 0; gap: 12px; flex: 1 1 0; }
 .wsv.wsv-sm .wsv-sheet { width: 88% !important; }
-.wsv .wsv-up { text-transform: uppercase; }
 
 /* ---------- small size: chunkier atoms for a quick read at phone width ---------- */
 .wsv.wsv-sm .wsv-title { font-size: 34px; max-width: 520px; }

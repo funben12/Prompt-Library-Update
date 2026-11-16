@@ -304,10 +304,12 @@
                     if (ins.some(e => e.map.some(m => m.in === i.name))) return;
                     const pool = [];
                     ins.forEach(e => producedBy(wf, e.from).forEach(o => pool.push({ o, e })));
-                    const pick = pool.find(x => norm(x.o.name) === norm(i.name)) || (pool.length === 1 ? pool[0] : pool.find(x => x.o.name === 'result'));
+                    const used = new Set();
+                    ins.forEach(e => e.map.forEach(m => used.add(`${e.id}|${m.out}`)));
+                    const pick = pool.find(x => norm(x.o.name) === norm(i.name)) || pool.find(x => x.o.name === 'result' && !used.has(`${x.e.id}|result`));
                     const it = { level: 'warning', nodeId: n.id, text: `${nm} needs "${i.name}" but nothing is mapped to it.` };
                     if (pick) it.fix = { act: 'mapInput', nodeId: n.id, edgeId: pick.e.id, out: pick.o.name, input: i.name, label: `Map ${pick.o.name} to ${i.name}` };
-                    else if (!ins.length) it.fix = { act: 'addInputNode', nodeId: n.id, input: i.name, label: `Add an Input node for ${i.name}` };
+                    else it.fix = { act: 'addInputNode', nodeId: n.id, input: i.name, label: `Add an Input node for ${i.name}` };
                     add(it);
                 });
             }
@@ -1231,7 +1233,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
             return { x: ((r.width || 700) / 2 - v.x) / v.z, y: ((r.height || 500) / 2 - v.y) / v.z };
         }
         const measure = n => { const el = nodeEl(n.id); return el && el.offsetHeight ? el.offsetHeight : (n.kind === 'prompt' ? 150 : 112); };
-        function fit() {
+        function fit(floor = MIN_Z) {
             const w = wf();
             const r = els.canvas.getBoundingClientRect();
             if (!r.width) { S.needFit = true; return; }
@@ -1241,7 +1243,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
             const bw = Math.max(...w.nodes.map(n => n.x + NODE_W)) - minX;
             const bh = Math.max(...w.nodes.map(n => n.y + measure(n))) - minY;
             const padX = 48, top = 76, bottom = 64;
-            const z = clamp(Math.min((r.width - padX * 2) / bw, (r.height - top - bottom) / bh), MIN_Z, 1);
+            const z = clamp(Math.min((r.width - padX * 2) / bw, (r.height - top - bottom) / bh), floor, 1);
             w.view = { z, x: Math.max(padX, (r.width - bw * z) / 2) - minX * z, y: top + Math.max(0, (r.height - top - bottom - bh * z) / 2) - minY * z };
             applyView();
             changed(false);
@@ -1271,7 +1273,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
             if (!wf().nodes.length) return;
             layoutWorkflow(wf(), measure);
             refresh();
-            fit();
+            fit(0.5);
             if (!quiet) toast('Stages laid out left to right', 'success');
         }
 
@@ -1582,7 +1584,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
             closeRail();
             applyView();
             refresh({ inspector: true, touch: false });
-            if (layout) { layoutWorkflow(wf(), measure); refresh({ inspector: true }); S.needFit = true; fit(); }
+            if (layout) { layoutWorkflow(wf(), measure); refresh({ inspector: true }); S.needFit = true; fit(0.5); }
             renderRail();
             if (S.tab === 'docs') renderDoc();
             flush();
@@ -2065,7 +2067,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
                 renderNodes();
                 renderWires();
                 if (S.needFit) { S.needFit = false; fit(); }
-                const f = isMobile() ? $('#pws-tab-stages') : els.canvas;
+                const f = isMobile() ? $('#pws-tab-stages') : $('#pws-tab-canvas');
                 if (f) f.focus({ preventScroll: true });
             });
             if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (isOpen()) renderWires(); });
