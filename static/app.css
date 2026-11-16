@@ -75,6 +75,12 @@
 
     --gold:         oklch(70%   0.14  85);   /* ratings, premium */
 
+    /* Prompt Components canvas: recessed well so cards read against it */
+    --canvas-well:  var(--surface-3);
+    --canvas-edge:  color-mix(in srgb, var(--ink-3) 65%, var(--surface-3));  /* about 2.4:1 on the well */
+    --canvas-dot:   color-mix(in srgb, var(--ink-3) 50%, transparent);
+    --canvas-text:  var(--ink-2);
+
     --c-red:    oklch(60% 0.17 25);
     --c-orange: oklch(70% 0.15 55);
     --c-yellow: oklch(80% 0.13 90);
@@ -176,6 +182,11 @@
     --success-soft: oklch(24%   0.06  140);
 
     --gold:         oklch(80%   0.14  85);
+
+    --canvas-well:  var(--bg);
+    --canvas-edge:  var(--line);
+    --canvas-dot:   color-mix(in srgb, var(--ink-4, #999) 30%, transparent);
+    --canvas-text:  var(--ink-3);
 
     --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.5);
     --shadow-md: 0 8px 24px -10px oklch(0% 0 0 / 0.65), 0 2px 8px oklch(0% 0 0 / 0.4);
@@ -6627,7 +6638,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--bg);
+  background: var(--canvas-well);
   position: relative;
   overflow: hidden;
 }
@@ -6645,7 +6656,7 @@
   flex-direction: column;
   gap: var(--sp-3);
   min-height: 200px;
-  border: 2px dashed var(--line);
+  border: 2px dashed var(--canvas-edge);
   border-radius: 12px;
   padding: var(--sp-4);
   transition: border-color 150ms, background 150ms;
@@ -6662,22 +6673,22 @@
   gap: var(--sp-2);
   flex: 1;
   padding: var(--sp-10, 40px);
-  color: var(--ink-3);
+  color: var(--canvas-text);
   pointer-events: none;
 }
-.pcw-drop-hint .material-symbols-outlined { font-size: 44px; opacity: .5; }
-.pcw-drop-hint p { font-size: var(--fs-sm); text-align: center; line-height: 1.5; }
+.pcw-drop-hint .material-symbols-outlined { font-size: 44px; opacity: .7; }
+.pcw-drop-hint p { font-size: var(--fs-sm); text-align: center; line-height: 1.5; text-shadow: 0 0 3px var(--canvas-well), 0 0 3px var(--canvas-well), 0 0 7px var(--canvas-well); }
 
 /* ── Canvas block cards ──────────────────────────────────────────────────── */
 .pcw-canvas-block {
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--canvas-edge);
   border-left: 3px solid var(--blk-color, var(--accent));
   border-radius: 10px;
   overflow: hidden;
   animation: canvas-block-in 220ms var(--ease-out-expo) both;
   transition: border-color var(--t-fast), box-shadow var(--t-fast);
-  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  box-shadow: 0 1px 2px rgba(0,0,0,.14), 0 4px 12px rgba(0,0,0,.08);
 }
 .pcw-canvas-block:hover {
   border-color: var(--blk-color, var(--accent));
@@ -7795,7 +7806,8 @@
   font-weight: 700;
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: var(--ink-4);
+  color: var(--canvas-text);
+  text-shadow: 0 0 3px var(--canvas-well), 0 0 3px var(--canvas-well), 0 0 7px var(--canvas-well);
 }
 .pcw-qs-btn {
   display: inline-flex;
@@ -8140,7 +8152,7 @@
   overflow: hidden;
   padding: 0;
   cursor: grab;
-  background-image: radial-gradient(color-mix(in srgb, var(--ink-4, #999) 30%, transparent) 1px, transparent 1px);
+  background-image: radial-gradient(var(--canvas-dot) 1.2px, transparent 1.2px);
   background-size: 22px 22px;
 }
 .pcw-drop-zone.pcw-infinite.panning { cursor: grabbing; }
@@ -8155,7 +8167,7 @@
 .pcw-canvas-block.pcw-float {
   position: absolute;
   width: 380px;
-  box-shadow: 0 3px 10px rgba(0,0,0,.10);
+  box-shadow: 0 1px 2px rgba(0,0,0,.14), 0 6px 16px rgba(0,0,0,.12);
 }
 .pcw-canvas-block.pcw-float.dragging {
   box-shadow: 0 10px 28px rgba(0,0,0,.22);
@@ -8177,7 +8189,7 @@
   align-items: center;
   gap: 4px;
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--canvas-edge);
   border-radius: 999px;
   padding: 3px 8px;
   box-shadow: 0 4px 14px rgba(0,0,0,.12);

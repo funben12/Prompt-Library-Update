@@ -24014,6 +24014,101 @@ Must avoid: [Anything sensitive or previously declined]`
         };
     })();
 
+    /* ============================================================================
+       SHIFT+F3 CASE CYCLE
+       Select text in any editable text box, press Shift+F3 to step through
+       Title Case, lowercase, UPPERCASE, Capitalised Each Word, Sentence case.
+       [[variables]], {{variables}} and ((variables)) are left untouched.
+       ============================================================================ */
+    (function initCaseCycle() {
+        const MODES = [
+            ['title', 'Title Case'],
+            ['lower', 'lowercase'],
+            ['upper', 'UPPERCASE'],
+            ['capital', 'Capitalised Each Word'],
+            ['sentence', 'Sentence case']
+        ];
+        const MINOR = new Set(['a', 'an', 'the', 'and', 'but', 'or', 'nor', 'for', 'so', 'yet', 'as', 'at', 'by', 'in', 'of', 'off', 'on', 'per', 'to', 'up', 'via', 'vs', 'about', 'above', 'across', 'after', 'against', 'along', 'among', 'around', 'before', 'behind', 'below', 'between', 'beyond', 'during', 'from', 'inside', 'into', 'onto', 'near', 'outside', 'over', 'since', 'through', 'toward', 'under', 'until', 'upon', 'with', 'within', 'without']);
+        const WORD = /[\p{L}\p{N}][\p{L}\p{N}'\u2019]*/gu;
+        const PROTECTED = /\[\[[^\]]*\]\]|\{\{[^}]*\}\}|\(\([^)]*\)\)/g;
+        const HOLD = '\uE000';
+        const WORD_OR_HOLD = /\uE000|[\p{L}\p{N}][\p{L}\p{N}'\u2019]*/gu;
+        let last = null;
+
+        const capWord = (w) => w.charAt(0).toUpperCase() + w.slice(1);
+
+        function transform(mode, src) {
+            const held = [];
+            const text = src.replace(PROTECTED, (m) => { held.push(m); return HOLD; });
+            let out;
+            if (mode === 'lower') out = text.toLowerCase();
+            else if (mode === 'upper') out = text.toUpperCase();
+            else if (mode === 'capital') out = text.toLowerCase().replace(WORD, capWord);
+            else if (mode === 'title') {
+                const low = text.toLowerCase();
+                const total = (low.match(WORD_OR_HOLD) || []).length;
+                let i = 0;
+                out = low.replace(WORD_OR_HOLD, (w, off) => {
+                    const edge = i === 0 || i === total - 1;
+                    i++;
+                    const afterBreak = /[:.!?]\s+$/.test(low.slice(0, off));
+                    return edge || afterBreak || !MINOR.has(w) ? capWord(w) : w;
+                });
+            } else {
+                out = text.toLowerCase()
+                    .replace(/(^|\n)([ \t]*(?:(?:[-*\u2022>#]+|\d+[.)])[ \t]+)?)(\p{L})/gu, (m, a, b, c) => a + b + c.toUpperCase())
+                    .replace(/([.!?]["')\]]*[ \t]+)(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
+            }
+            let n = 0;
+            return out.replace(/\uE000/g, () => held[n++]);
+        }
+
+        function editableTarget() {
+            const el = document.activeElement;
+            if (!el || el.readOnly || el.disabled) return null;
+            if (el.tagName === 'TEXTAREA') return el;
+            if (el.tagName === 'INPUT' && /^(text|search|url|tel)$/.test(el.type)) return el;
+            return null;
+        }
+
+        function replaceSelection(el, start, end, text) {
+            el.setSelectionRange(start, end);
+            let done = false;
+            try { done = document.execCommand('insertText', false, text); } catch (_) { done = false; }
+            if (!done || el.value.slice(start, start + text.length) !== text) {
+                el.setRangeText(text, start, end, 'end');
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            el.setSelectionRange(start, start + text.length);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'F3' || !e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+            const el = editableTarget();
+            if (!el) return;
+            e.preventDefault();
+            const start = el.selectionStart;
+            const end = el.selectionEnd;
+            if (start === end) {
+                toast('Select some text first, then press Shift+F3', 'info');
+                return;
+            }
+            const src = el.value.slice(start, end);
+            let idx = 0;
+            if (last && last.el === el && last.start === start && last.text === src) idx = (last.idx + 1) % MODES.length;
+            for (let tries = 0; tries < MODES.length; tries++) {
+                const at = (idx + tries) % MODES.length;
+                const out = transform(MODES[at][0], src);
+                if (out === src) continue;
+                replaceSelection(el, start, end, out);
+                last = { el, start, idx: at, text: out };
+                toast(MODES[at][1], 'info');
+                return;
+            }
+            toast('Nothing to change in this selection', 'info');
+        }, true);
+    })();
+
 })();
 
 
