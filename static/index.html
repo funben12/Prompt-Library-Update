@@ -11,8 +11,9 @@
 
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/app.css?v=04f17354-plx">
-<link rel="stylesheet" href="/static/builder-pro.css?v=20261116a">
+<link rel="stylesheet" href="/static/app.css?v=cbc29ad8-plx">
+<link rel="stylesheet" href="/static/builder-pro.css?v=20261116k">
+<link rel="stylesheet" href="/static/combine-prompts.css?v=20261116a">
 </head>
 <body>
 
@@ -1108,6 +1109,23 @@
      ============================================================ -->
 <div class="modal-overlay" id="promptModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
   <div class="modal-main-wrap" id="promptModalWrap">
+  <!-- Fill form preview side panel (left) -->
+  <div class="modal-side-panel" id="promptVarPreviewPanel">
+    <div class="modal-side-panel-inner">
+      <div class="sp-header">
+        <span class="sp-title">
+          <span class="material-symbols-outlined">preview</span>
+          Fill form preview
+        </span>
+        <button type="button" class="icon-btn" id="closeVarPreviewPanel" aria-label="Close fill form preview">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <p class="pvp-sub" id="pvpSub" hidden>How <span class="pvp-name" id="pvpName"></span> looks when the prompt is filled in.</p>
+      <p class="pvp-empty" id="pvpEmpty">Open a variable in the Variables panel to preview it here.</p>
+      <div class="pvp-stage" id="pvpField"></div>
+    </div>
+  </div>
   <div class="modal-box">
     <div class="modal-header">
       <div>
@@ -1126,6 +1144,11 @@
         <button type="button" class="panel-toggle-btn" id="snipPanelToggleBtn" title="Snippets — insert a saved snippet at the cursor">
           <span class="material-symbols-outlined">bolt</span>
           Snippets
+        </button>
+        <button type="button" class="panel-toggle-btn" id="varsPanelToggleBtn" title="Variable settings: type, default and options for each variable">
+          <span class="material-symbols-outlined">data_object</span>
+          Variables
+          <span class="panel-toggle-count" id="varsPanelCount" hidden>0</span>
         </button>
       </div>
       <button class="icon-btn" id="closePromptModal" aria-label="Close">
@@ -1306,31 +1329,13 @@
           <div class="advanced-body">
 
             <nav class="editor-tabs" id="editorTabs" style="margin-bottom: var(--sp-3);">
-              <button type="button" class="editor-tab active" data-pane="variables">Variables</button>
-              <button type="button" class="editor-tab premium-locked" data-pane="chain" data-premium="true">Chain</button>
+              <button type="button" class="editor-tab active premium-locked" data-pane="chain" data-premium="true">Chain</button>
               <button type="button" class="editor-tab premium-locked" data-pane="meta" data-premium="true">Rating &amp; notes</button>
               <button type="button" class="editor-tab premium-locked" data-pane="score" data-premium="true">Prompt Score</button>
               <button type="button" class="editor-tab premium-locked" data-pane="tokens" data-premium="true">Token Counter</button>
             </nav>
 
-            <div class="editor-pane active" id="pane-variables">
-              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: var(--sp-3);">
-                <span class="form-label" style="margin-bottom:0;">Detected variables</span>
-                <div style="display:flex; gap: var(--sp-2);">
-                  <button type="button" class="btn btn-ghost" id="loadVarTemplateBtn">
-                    <span class="material-symbols-outlined">download</span> Load template
-                  </button>
-                  <button type="button" class="btn btn-ghost" id="saveVarTemplateBtn">
-                    <span class="material-symbols-outlined">save</span> Save as template
-                  </button>
-                </div>
-              </div>
-              <div id="varMetaList">
-                <p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>
-              </div>
-            </div>
-
-            <div class="editor-pane" id="pane-chain">
+            <div class="editor-pane active" id="pane-chain">
               <p style="font-size: var(--fs-sm); color: var(--ink-3); margin-bottom: var(--sp-3);">
                 Add prompts that should run after this one.
               </p>
@@ -1422,6 +1427,9 @@
           <option value="plain">Plain</option>
           <option value="labelled">Labelled</option>
           <option value="xml">XML tags</option>
+          <option value="markdown">Markdown</option>
+          <option value="brackets">Brackets</option>
+          <option value="custom">Custom</option>
         </select>
       </label>
       <div class="ctx-panel-list" id="ctxPanelList"></div>
@@ -1517,6 +1525,33 @@
             </button>
           </div>
         </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- Variables side panel -->
+  <div class="modal-side-panel" id="promptVarsPanel">
+    <div class="modal-side-panel-inner">
+      <div class="sp-header">
+        <span class="sp-title">
+          <span class="material-symbols-outlined">data_object</span>
+          Variables
+        </span>
+        <button type="button" class="icon-btn" id="closeVarsPanel" aria-label="Close Variables panel">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <p class="vars-panel-hint">Every <code>[[name]]</code> in your prompt is listed here. Set how each one is filled in: its type, default and options.</p>
+      <div class="vars-panel-actions">
+        <button type="button" class="btn btn-ghost btn-sm" id="loadVarTemplateBtn">
+          <span class="material-symbols-outlined">download</span> Load template
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm" id="saveVarTemplateBtn">
+          <span class="material-symbols-outlined">save</span> Save as template
+        </button>
+      </div>
+      <div id="varMetaList">
+        <p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>
       </div>
     </div>
   </div>
@@ -2852,9 +2887,16 @@
                   <button type="button" data-ctx-wrap="plain">Plain</button>
                   <button type="button" data-ctx-wrap="labelled">Labelled</button>
                   <button type="button" data-ctx-wrap="xml">XML tags</button>
+                  <button type="button" data-ctx-wrap="markdown">Markdown</button>
+                  <button type="button" data-ctx-wrap="brackets">Brackets</button>
+                  <button type="button" data-ctx-wrap="custom">Custom</button>
                 </div>
               </div>
-              <code class="ctxb-wrap-hint" id="ctxWrapHint"></code>
+              <div class="ctxb-starts">
+                <label for="ctxStartsWith">Starts with</label>
+                <input id="ctxStartsWith" class="ctxb-starts-input" type="text" spellcheck="false" autocomplete="off" readonly />
+              </div>
+              <code class="ctxb-wrap-hint" id="ctxWrapHint" hidden></code>
             </div>
           </div>
           <div class="ctxb-actions">
@@ -3187,7 +3229,7 @@
       <span class="material-symbols-outlined ws-header-icon">extension</span>
       <div>
         <h2 class="ws-title">Prompt Components</h2>
-        <p class="ws-subtitle">Browse the library, pick your components, and build your prompt on the canvas.</p>
+        <p class="ws-subtitle">Pick components, then wire them together on an endless canvas. The prompt follows your wires.</p>
       </div>
     </div>
     <div class="ws-header-actions">
@@ -3205,7 +3247,20 @@
       <div class="pcw-canvas-inner">
         <div class="pcw-drop-zone pcw-infinite" id="pcwDropZone">
           <div class="pcw-world" id="pcwWorld"><!-- canvas blocks injected here --></div>
+          <div class="pcw-help" id="pcwHelp" hidden>
+            <div class="pcw-help-head"><b>How wiring works</b><button type="button" class="icon-btn" id="pcwHelpClose" aria-label="Hide this help"><span class="material-symbols-outlined">close</span></button></div>
+            <ol class="pcw-help-steps">
+              <li><span class="pcw-key pcw-key-flow" aria-hidden="true"></span><div><b>Order.</b> Drag from a block's top right dot to the next block. The prompt follows the arrows. Click that dot to add the next block.</div></li>
+              <li><span class="pcw-key pcw-key-bg" aria-hidden="true"></span><div><b>Background.</b> Drag from the lower right dot to a block it should support. The background block is placed just before it.</div></li>
+              <li><span class="pcw-key pcw-key-num" aria-hidden="true">3</span><div><b>The number</b> on each block is its place in the final prompt. Blocks with no wire go last.</div></li>
+            </ol>
+            <label class="pcw-help-opt"><input type="checkbox" id="pcwAutoLink" checked> New blocks join the end of the chain</label>
+          </div>
           <div class="pcw-view-tools">
+            <button type="button" class="icon-btn" id="pcwHelpBtn" title="How wiring works"><span class="material-symbols-outlined">help</span></button>
+            <button type="button" class="icon-btn" id="pcwChainBtn" title="Wire the blocks together in reading order"><span class="material-symbols-outlined">cable</span></button>
+            <button type="button" class="icon-btn" id="pcwUnlinkBtn" title="Remove all wires"><span class="material-symbols-outlined">link_off</span></button>
+            <span class="pcw-tools-sep" aria-hidden="true"></span>
             <button type="button" class="icon-btn" id="pcwZoomOutBtn" title="Zoom out"><span class="material-symbols-outlined">remove</span></button>
             <span class="pcw-zoom-label" id="pcwZoomLabel">100%</span>
             <button type="button" class="icon-btn" id="pcwZoomInBtn" title="Zoom in"><span class="material-symbols-outlined">add</span></button>
@@ -3213,7 +3268,7 @@
           </div>
           <div class="pcw-drop-hint" id="pcwDropHint">
             <span class="material-symbols-outlined">drag_indicator</span>
-            <p>Your canvas is empty.<br>Open the library and pick your components.</p>
+            <p>Your canvas is empty.<br>Open the library and pick your components, then wire them with the dots on each block.</p>
             <div class="pcw-quickstarts" id="pcwQuickstarts">
               <button type="button" class="pcw-qs-btn pcw-qs-primary" id="pcwBrowseBtnEmpty"><span class="material-symbols-outlined">storefront</span> Open component library</button>
               <span class="pcw-qs-label">Quick start</span>
@@ -4622,6 +4677,13 @@
       </span>
         <span class="launcher-card-pro">PRO</span>
       </button>
+      <button class="launcher-card" data-open="openCombineWorkspace">
+        <span class="material-symbols-outlined launcher-card-icon">compare_arrows</span>
+        <span class="launcher-card-text">
+        <span class="launcher-card-title">Combine Prompts</span>
+        <span class="launcher-card-desc">Merge two similar prompts, keep the best of each</span>
+      </span>
+      </button>
       <button class="launcher-card" data-open="openSpliceWorkspace" data-premium="true">
         <span class="material-symbols-outlined launcher-card-icon">call_merge</span>
         <span class="launcher-card-text">
@@ -5004,7 +5066,7 @@
 
 <!-- ============================================================
      ONBOARDING SPOTLIGHT TOUR
-     13 steps. localStorage key: promptlib.tourDone
+     17 cards. localStorage key: promptlib.tourDone, mirrored in the database
      Replay via #tourBtn in sidebar footer.
      ============================================================ -->
 <div id="onboardingOverlay" aria-modal="true" role="dialog" aria-label="App tour">
@@ -5022,6 +5084,22 @@
       <button class="btn btn-ghost" id="obSkipBtn" onclick="window.PL_skipOnboarding()">Skip tour</button>
       <button class="btn btn-accent" id="obNextBtn" onclick="window.PL_onboardNext()">Next</button>
     </div>
+  </div>
+</div>
+<!-- First launch licence screen. Shown until a valid key is saved; no free tier inside the app. -->
+<div id="activationGate" role="dialog" aria-modal="true" aria-labelledby="gateTitle" hidden>
+  <div class="gate-card">
+    <img class="gate-mark" src="/static/logo-mark.png" alt="" width="56" height="56">
+    <span class="gate-eyebrow">Welcome</span>
+    <h1 id="gateTitle">Activate Prompt Library Pro</h1>
+    <p class="gate-lead">Enter the licence key from your purchase email. It is checked and saved on this computer, so you only do this once.</p>
+    <form id="gateForm" autocomplete="off">
+      <label class="form-label" for="gateKeyInput">Licence key</label>
+      <input id="gateKeyInput" class="form-input" type="text" placeholder="PROMPTLIB-PRO-XXXX-XXXX-XXXX" spellcheck="false" autocomplete="off" />
+      <p class="gate-error" id="gateError" role="alert" hidden></p>
+      <button type="submit" class="btn btn-accent gate-submit" id="gateSubmit"><span class="material-symbols-outlined">vpn_key</span> Activate</button>
+    </form>
+    <p class="gate-foot">No account and no internet needed. No key yet? <a href="https://payhip.com/b/WKSLO" target="_blank" rel="noopener">Buy Prompt Library Pro</a></p>
   </div>
 </div>
 <div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
@@ -5061,7 +5139,8 @@
 
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
-<script defer src="/static/app.js?v=ad9dc5be"></script>
+<script defer src="/static/combine-prompts.js?v=5620e7a8"></script>
+<script defer src="/static/app.js?v=e11903c3"></script>
 <script defer src="/static/randomiser-motion.js?v=b58f9ac7"></script>
 <script defer src="/static/vartypes-3d.js?v=8848706c"></script>
 <script defer src="/static/deck-shuffles.js?v=23f50d79"></script>
@@ -5075,7 +5154,7 @@
   if (typeof window.createFolderInline !== 'function') window.createFolderInline = function () {};
   if (typeof window.clearAllFilters    !== 'function') window.clearAllFilters    = function () {};
   (function(){ var s=document.createElement("script"); s.src="/static/gauntlet-suite.js?v=20261005b"; s.defer=true; document.head.appendChild(s); })();
-  ["builder-pro-engine.js", "builder-pro.js"].forEach(function(f){ var s=document.createElement("script"); s.src="/static/"+f+"?v=20261116a"; s.async=false; document.head.appendChild(s); });
+  ["builder-pro-engine.js", "builder-pro.js", "builder-pro-showcases.js"].forEach(function(f){ var s=document.createElement("script"); s.src="/static/"+f+"?v=20261116k"; s.async=false; document.head.appendChild(s); });
 </script>
 
 </body>

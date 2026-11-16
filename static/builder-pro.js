@@ -51,6 +51,10 @@
         rubric_scoring: 'scoreboard', feedback_format: 'comment', quality_metrics: 'speed', ab_testing: 'compare_arrows'
     };
     const iconName = v => (/^[a-z0-9_]+$/.test(String(v || '')) ? v : '');
+    Object.assign(ICONS, {
+        agent_proponent: 'thumb_up', agent_red_team: 'security', agent_audience: 'visibility', agent_brainstormer: 'emoji_objects',
+        agent_summariser: 'summarize', agent_coder: 'code', agent_tester: 'bug_report', agent_triage: 'emergency', agent_moderator: 'forum'
+    });
     const glyph = (type, n) => `<span class="pbp-glyph material-symbols-outlined" aria-hidden="true">${iconName(n && n.config && n.config.source && n.config.source.icon) || ICONS[type] || 'widgets'}</span>`;
 
     /* ---------- Component Library link ----------
@@ -65,8 +69,192 @@
         { target: '.pbp-workshop', side: 'right', title: 'Bring in components', text: 'Open library to browse the Component Library. What you select lands here in the Workshop, ready to drag onto the canvas.' },
         { target: '#pbp-canvas', side: 'inside', title: 'Wire the flow', text: 'Drag from the dot on one block to another block to connect them. Select a block to edit its text. Blocks that are not wired in are left out of the prompt.' },
         { target: '#pbp-pane-right', side: 'left', title: 'Read the live prompt', text: 'The prompt compiles as you build. Checks lists anything to fix. When the badge says Ready to copy, copy it or use Export.' },
+        { target: '#pbp-right-tabs [data-tab="learn"]', side: 'left', title: 'Learn by doing', text: 'The Learn tab has hands-on lessons on the agent blocks, and Showcases: whole workflows built chapter by chapter while you watch. Do each lesson step yourself, or press Show me. Your own blocks are never touched.' },
         { target: '#pbp-template-select', side: 'below', title: 'Start from a template', text: 'Templates load a working flow, including ready-made agent teams. Guide explains teams and loops. The tour button beside it replays these steps.' }
     ];
+    /* ---------- more multi-agent blocks ----------
+       Added here, the compile engine is left as it was: it treats any block in the "agents" category as a team member. */
+    const agentBody = (label, rows) => ({ key: 'content', label, type: 'textarea', rows, placeholder: '' });
+    const MORE_AGENTS = [
+        {
+            type: 'agent_proponent', kind: 'worker', label: 'Proponent Agent', hint: 'Argue the strongest case for', glyph: 'PRO',
+            about: 'The other side of a debate. It makes the strongest honest case in favour of a proposal, so a Judge has two real positions to weigh.',
+            use: ["Pair it with a Devil's Advocate and let a Judge decide.", "Wire Case into Position A of a Judge and the Devil's Advocate's Objections into Position B.", 'Wire Objections in, then use Rebuttal for a second round.'],
+            inputs: [{ id: 'proposal', label: 'Proposal in' }, { id: 'context', label: 'Context in' }, { id: 'objections', label: 'Objections in' }],
+            outputs: [{ id: 'case', label: 'Case' }, { id: 'rebuttal', label: 'Rebuttal' }],
+            fields: [agentBody('Rules of advocacy', 5)],
+            defaults: { title: 'Proponent Agent', content: 'Make the strongest honest case in favour of the proposal. Give your three best arguments in order of strength, each with the evidence behind it. If objections arrive, answer each one directly and concede any you cannot answer.' }
+        },
+        {
+            type: 'agent_red_team', kind: 'reviewer', label: 'Red Team Agent', hint: 'Try to break it', glyph: 'RED',
+            about: 'Adversarial testing. It tries to make the work fail through misuse, edge cases, ambiguity and bad inputs, then reports what broke and how to fix it.',
+            use: ['Point it at a draft or plan before anyone relies on it.', "Wire Findings into a Writer's Feedback input to harden the work.", 'Use it beside a Critic: the Critic checks quality, the Red Team looks for ways to break it.'],
+            inputs: [{ id: 'target', label: 'Target in' }, { id: 'context', label: 'Context in' }],
+            outputs: [{ id: 'findings', label: 'Findings' }, { id: 'fixes', label: 'Suggested fixes' }],
+            fields: [agentBody('Attack rules', 5)],
+            defaults: { title: 'Red Team Agent', content: 'Try to break the work: misuse it, feed it awkward inputs, read it in bad faith. List each failure with how you triggered it and how serious it is. Do not rewrite the work, report what broke and suggest one fix per failure.' }
+        },
+        {
+            type: 'agent_audience', kind: 'reviewer', label: 'Audience Reviewer', hint: 'Read it as the reader', glyph: 'AUD',
+            about: 'Plays your target reader. It reads the draft cold and says where it got confused, bored or lost, which a Critic who knows the brief cannot see.',
+            use: ['Wire the draft in and describe the reader in Audience in.', 'Wire Confusion points into a Writer so unclear passages get rewritten.', 'Use Would they act? as the last gate for anything meant to persuade.'],
+            inputs: [{ id: 'draft', label: 'Draft in' }, { id: 'audience', label: 'Audience in' }],
+            outputs: [{ id: 'reactions', label: 'Reactions' }, { id: 'confusions', label: 'Confusion points' }, { id: 'verdict', label: 'Would they act?' }],
+            fields: [agentBody('How to read', 5)],
+            defaults: { title: 'Audience Reviewer', content: 'Read the draft as the intended reader, knowing only what they know. Note the first place you got lost, anything you did not believe, and what you would do next. Say it in the reader\'s own words, not as an editor.' }
+        },
+        {
+            type: 'agent_brainstormer', kind: 'worker', label: 'Brainstormer Agent', hint: 'Many ideas before any judging', glyph: 'BRN',
+            about: 'Diverges before anyone converges. It produces many different ideas quickly, including a few odd ones, and does not judge them.',
+            use: ['Feed Ideas into a Judge or Consensus Vote to pick the best.', 'Wire Wild cards into a Specialist for a second look at the odd ones.', 'Wire Constraints in to keep the ideas inside your limits.'],
+            inputs: [{ id: 'task', label: 'Task in' }, { id: 'context', label: 'Context in' }, { id: 'constraints', label: 'Constraints' }],
+            outputs: [{ id: 'ideas', label: 'Ideas' }, { id: 'wildcards', label: 'Wild cards' }],
+            fields: [agentBody('Brainstorming rules', 5)],
+            defaults: { title: 'Brainstormer Agent', content: 'Give ten different ideas, each in one line. Cover safe, bold and strange angles. Do not rank, filter or criticise. Mark the three strangest as wild cards.' }
+        },
+        {
+            type: 'agent_summariser', kind: 'worker', label: 'Summariser Agent', hint: 'Shrink long material faithfully', glyph: 'SUM',
+            about: 'Compresses long material for the next agent. It keeps what matters to the brief and says what it left out.',
+            use: ['Place it between a Researcher and a Writer when the findings are long.', 'Wire a Brief in so it keeps only what the next agent needs.', 'Use Key points as a short briefing note in a handoff.'],
+            inputs: [{ id: 'source', label: 'Source in' }, { id: 'brief', label: 'Brief' }],
+            outputs: [{ id: 'summary', label: 'Summary' }, { id: 'keypoints', label: 'Key points' }],
+            fields: [agentBody('Summarising rules', 5)],
+            defaults: { title: 'Summariser Agent', content: 'Summarise for the brief, not for everyone. Keep names, figures and decisions exactly as written. Cut background and repetition. End with one line saying what you left out.' }
+        },
+        {
+            type: 'agent_coder', kind: 'worker', label: 'Coder Agent', hint: 'Write and revise the code', glyph: 'COD',
+            about: 'Writes the code. It follows the plan, explains its choices briefly, and revises when a Tester sends feedback.',
+            use: ["Wire a Planner's Plan in so the code follows a design.", "Wire a Tester's Feedback into Feedback to create a fix loop.", 'Use Notes to record assumptions the Tester should check.'],
+            inputs: [{ id: 'task', label: 'Task in' }, { id: 'plan', label: 'Plan in' }, { id: 'context', label: 'Context in' }, { id: 'feedback', label: 'Feedback' }],
+            outputs: [{ id: 'code', label: 'Code' }, { id: 'notes', label: 'Notes' }],
+            fields: [agentBody('Coding rules', 5)],
+            defaults: { title: 'Coder Agent', content: 'Write the smallest working solution that meets the task. Follow the plan, name things clearly and handle the obvious failure cases. When feedback arrives, fix every failure raised and say what changed.' }
+        },
+        {
+            type: 'agent_tester', kind: 'reviewer', label: 'Tester Agent', hint: 'Test the code against the brief', glyph: 'TST',
+            about: 'Checks the code against the requirements. It writes the test cases, runs them in its head, and reports each failure.',
+            use: ['Wire Feedback into a Coder to create a fix loop.', 'Wire the requirements in as Requirements so it tests what was asked for.', 'Use Test cases as part of the final deliverable.'],
+            inputs: [{ id: 'code', label: 'Code in' }, { id: 'task', label: 'Requirements' }],
+            outputs: [{ id: 'tests', label: 'Test cases' }, { id: 'failures', label: 'Failures' }, { id: 'feedback', label: 'Feedback' }],
+            fields: [agentBody('Testing rules', 5)],
+            defaults: { title: 'Tester Agent', content: 'Write test cases for the requirements, including edge cases and bad input. Walk the code through each one and report every case that fails, with the input, the expected result and the actual result.' }
+        },
+        {
+            type: 'agent_triage', kind: 'worker', label: 'Triage Agent', hint: 'Sort and rank incoming requests', glyph: 'TRI',
+            about: 'The front desk. It reads a request, says what kind it is, how urgent it is and what it still needs to know before anyone starts.',
+            use: ['Place it in front of a Router so each request reaches the right agent.', 'Wire Open questions into a Human Approval block to ask the user first.', 'Use Priority to decide which agents to bother at all.'],
+            inputs: [{ id: 'request', label: 'Request in' }, { id: 'context', label: 'Context in' }],
+            outputs: [{ id: 'category', label: 'Category' }, { id: 'priority', label: 'Priority' }, { id: 'questions', label: 'Open questions' }],
+            fields: [agentBody('Triage rules', 5)],
+            defaults: { title: 'Triage Agent', content: 'Classify the request in one word, rate its urgency as high, medium or low with one reason, and list anything you would need to know before starting. Do not begin the work.' }
+        },
+        {
+            type: 'agent_moderator', kind: 'coordinator', label: 'Debate Moderator', hint: 'Optional. Runs a debate you add', glyph: 'MOD',
+            about: 'Optional. A Moderator runs a structured debate: it hands the topic to a Proponent and a Devil\'s Advocate, then to a Judge. The agents are separate blocks: add them and wire one to each output.',
+            use: ['Settle a decision with two real positions and a verdict.', 'Set the number of rounds and the speaking order in one place.', 'Feed a Judge\'s verdict back in to open a second round.'],
+            inputs: [{ id: 'task', label: 'Topic in' }, { id: 'context', label: 'Context in' }, { id: 'feedback', label: 'Feedback in' }],
+            outputs: [{ id: 'pro', label: 'Proponent' }, { id: 'con', label: 'Opponent' }, { id: 'judge', label: 'Judge' }, { id: 'summary', label: 'Sign-off' }],
+            fields: [agentBody('Debate rules', 6)],
+            defaults: { title: 'Debate Moderator', content: 'Run the debate in two rounds. The Proponent speaks first, the Opponent answers, then each replies once. The Judge decides only after both have finished. Keep every speaker under 150 words a turn.' }
+        }
+    ];
+    MORE_AGENTS.forEach(d => {
+        if (BLOCKS[d.type]) return;
+        const b = { inputs: true, outputs: [{ id: 'out', label: 'Next' }], category: 'agents', section: 'agents', ...d };
+        BLOCKS[b.type] = b;
+        LIBRARY.push(b);
+    });
+
+    /* ---------- Learn: hands-on lessons on the agent blocks ----------
+       Each step can be done by hand or by pressing Show me. a = add [key, block type, column, row, name], w = wire
+       [from key, from port, to key, to port], u = unwire, spawn = press "Add its agents", info = read only. */
+    const LESSONS = [
+        {
+            id: 'pair', title: 'Two agents make a team', blurb: 'Writer into Critic: the smallest team there is.',
+            steps: [
+                { t: 'Add a Writer', d: 'An agent block is one team member with one job. Find the Writer Agent in the Block library (search "writer") and select it, or press Show me.', a: [['w', 'agent_writer', 0, 0]] },
+                { t: 'Add a Critic', d: 'The Critic reviews what the Writer produces. Add a Critic Agent the same way.', a: [['c', 'agent_critic', 1, 0]] },
+                { t: 'Wire them together', d: 'Drag from the dot beside Draft on the Writer to the dot beside Draft in on the Critic. That wire is the hand-off.', w: [['w', 'draft', 'c', 'draft']] },
+                { t: 'Read what you built', d: 'Every agent entry now says who it receives from and who it hands to. That is all a team is: blocks with hand-offs between them.', info: true }
+            ]
+        },
+        {
+            id: 'loop', title: 'Close a revision loop', blurb: 'Let the Critic send work back, with a limit on the rounds.',
+            steps: [
+                { t: 'Start with a team', d: 'You need a Writer and a Critic with Draft wired across. Build it, or press Show me.', a: [['w', 'agent_writer', 0, 0], ['c', 'agent_critic', 1, 0]], w: [['w', 'draft', 'c', 'draft']] },
+                { t: 'Send feedback back', d: 'Drag from the Critic\'s Feedback output back to the Writer\'s Feedback input. A wire that returns into a Feedback input is a loop: it is drawn dotted and the prompt gains a "Revision loop" entry. Here it passes through a Feedback block, so you can set the rounds.', a: [['f', 'feedback', 1, 1]], w: [['c', 'feedback', 'f', 'in'], ['f', 'to_writer', 'w', 'feedback']] },
+                { t: 'Cap the rounds', d: 'Loops run for 2 rounds unless told otherwise. Select the Feedback block and set Max rounds in its settings. Press Show me to select it.', info: true, show: 'select', sel: 'f' }
+            ]
+        },
+        {
+            id: 'plan', title: 'Plan, research, then write', blurb: 'Three specialists share one task and feed a Writer.',
+            steps: [
+                { t: 'Give the team a task', d: 'Wire the task into more than one agent. The Planner and the Researcher both need the original task, not only each other\'s output.', a: [['t', 'task', 0, 1], ['p', 'agent_planner', 1, 0], ['r', 'agent_researcher', 1, 2]], w: [['t', 'out', 'p', 'task'], ['t', 'out', 'r', 'task']] },
+                { t: 'Bring in the Writer', d: 'The Writer takes the Plan for structure and the Findings for evidence. Wire Plan to Plan in, and Findings to Context in.', a: [['w', 'agent_writer', 2, 1]], w: [['p', 'plan', 'w', 'plan'], ['r', 'findings', 'w', 'context']] },
+                { t: 'Give the Writer the task too', d: 'Without the original task, the Writer only knows what the others told it. Wire the task in as well.', w: [['t', 'out', 'w', 'task']] },
+                { t: 'End on an output format', d: 'The team needs to know what the finished deliverable looks like. Add an Output Format block after the Writer.', a: [['o', 'output', 3, 1]], w: [['w', 'draft', 'o', 'in']] }
+            ]
+        },
+        {
+            id: 'conductor', title: 'Let a Conductor brief the team', blurb: 'One block hands out the work to four agents.',
+            steps: [
+                { t: 'Add a task and a Conductor', d: 'A Conductor is optional. It only hands out work, so it needs a task to hand out.', a: [['t', 'task', 0, 1], ['m', 'multi_agent', 1, 1]], w: [['t', 'out', 'm', 'task']] },
+                { t: 'Add its agents', d: 'Select the Conductor and press "Add its agents and wire them" in its settings, or press Show me. You get a Planner, Researcher, Writer and Critic, one on each output.', spawn: 'm' },
+                { t: 'Wire the team to each other', d: 'The Conductor does not connect the agents to each other. Use Workflow, then "Wire loose blocks" to let the builder join them, or drag the wires yourself.', info: true, show: 'wire' }
+            ]
+        },
+        {
+            id: 'router', title: 'Route each request to one agent', blurb: 'A Router picks exactly one agent instead of briefing them all.',
+            steps: [
+                { t: 'Add a task and a Router', d: 'Where a Conductor briefs every agent, a Router chooses one for each request.', a: [['t', 'task', 0, 1], ['rt', 'agent_router', 1, 1]], w: [['t', 'out', 'rt', 'request']] },
+                { t: 'Add the agents it can choose', d: 'Select the Router and press "Add its agents and wire them", or press Show me. The Fallback output catches anything unclear and asks a question.', spawn: 'rt' },
+                { t: 'Check the prompt', d: 'The Router entry now says to choose exactly one agent. Add a Triage Agent in front of it when requests arrive messy.', info: true }
+            ]
+        },
+        {
+            id: 'debate', title: 'Debate, then judge', blurb: 'Two positions, one verdict.',
+            steps: [
+                { t: 'Set up two debaters', d: 'A Proponent argues for the proposal and a Devil\'s Advocate argues against it. Wire the same task into both.', a: [['t', 'task', 0, 1], ['pr', 'agent_proponent', 1, 0], ['dv', 'agent_advocate', 1, 2]], w: [['t', 'out', 'pr', 'proposal'], ['t', 'out', 'dv', 'proposal']] },
+                { t: 'Add the Judge', d: 'The Judge weighs Position A against Position B. Wire the Proponent\'s Case into A and the Advocate\'s Objections into B.', a: [['j', 'agent_judge', 2, 1]], w: [['pr', 'case', 'j', 'option_a'], ['dv', 'objections', 'j', 'option_b']] },
+                { t: 'Let the Proponent answer back', d: 'Wire the Objections into the Proponent\'s Objections in. It now rebuts before the Judge decides.', w: [['dv', 'objections', 'pr', 'objections']] }
+            ]
+        },
+        {
+            id: 'team', title: 'Split the job, then merge', blurb: 'A Team Lead shares the work and signs it off.',
+            steps: [
+                { t: 'Add a task and a Team Lead', d: 'A Team Lead splits a job across up to three agents and checks the results.', a: [['t', 'task', 0, 1], ['l', 'agent_lead', 1, 1]], w: [['t', 'out', 'l', 'task']] },
+                { t: 'Hand out two assignments', d: 'Add two Specialists and wire Assignment A and B to them. Give each one a different specialism in its settings.', a: [['s1', 'agent_specialist', 2, 0, 'Specialist A'], ['s2', 'agent_specialist', 2, 2, 'Specialist B']], w: [['l', 'worker_a', 's1', 'task'], ['l', 'worker_b', 's2', 'task']] },
+                { t: 'Merge the results', d: 'An Aggregator joins what the Specialists produced and calls out where they disagree.', a: [['g', 'agent_aggregator', 3, 1]], w: [['s1', 'result', 'g', 'planner_out'], ['s2', 'result', 'g', 'researcher_out']] },
+                { t: 'Report back to the lead', d: 'Wire the merged result into the Team Lead\'s Reports in. That is a reporting line, so the lead signs off the combined work.', w: [['g', 'merged', 'l', 'reports']] }
+            ]
+        },
+        {
+            id: 'approve', title: 'Pause for a person', blurb: 'Stop for approval before the expensive step.',
+            steps: [
+                { t: 'Plan first', d: 'Add a task and a Planner. The plan is the cheap thing to get approved.', a: [['t', 'task', 0, 1], ['p', 'agent_planner', 1, 1]], w: [['t', 'out', 'p', 'task']] },
+                { t: 'Add the approval stop', d: 'A Human Approval block shows the work to the user and waits. Wire the Plan into For approval.', a: [['h', 'agent_human', 2, 1]], w: [['p', 'plan', 'h', 'proposal']] },
+                { t: 'Write only after a yes', d: 'Wire Approved into the Writer\'s Plan in. The prompt tells the model to continue only on a clear yes.', a: [['w', 'agent_writer', 3, 1]], w: [['h', 'approved', 'w', 'plan'], ['t', 'out', 'w', 'task']] }
+            ]
+        },
+        {
+            id: 'dev', title: 'A small dev team', blurb: 'A Coder and a Tester in a fix loop.',
+            steps: [
+                { t: 'Add the Coder', d: 'The Coder turns a task into code. Wire the task into it.', a: [['t', 'task', 0, 1], ['c', 'agent_coder', 1, 1]], w: [['t', 'out', 'c', 'task']] },
+                { t: 'Add the Tester', d: 'The Tester checks the code against the requirements. Wire Code to Code in, and the task to Requirements.', a: [['te', 'agent_tester', 2, 1]], w: [['c', 'code', 'te', 'code'], ['t', 'out', 'te', 'task']] },
+                { t: 'Close the fix loop', d: 'Wire the Tester\'s Feedback back into the Coder\'s Feedback. Failures now go back for another round.', w: [['te', 'feedback', 'c', 'feedback']] }
+            ]
+        },
+        {
+            id: 'harden', title: 'Stress-test a draft', blurb: 'A Red Team and a reader review the Writer\'s work.',
+            steps: [
+                { t: 'Start with a draft', d: 'A Writer produces the draft. Add one, or press Show me.', a: [['w', 'agent_writer', 0, 1]] },
+                { t: 'Add a Red Team', d: 'The Red Team tries to break the draft. Wire Draft into Target in.', a: [['rd', 'agent_red_team', 1, 0]], w: [['w', 'draft', 'rd', 'target']] },
+                { t: 'Add an Audience Reviewer', d: 'It reads the draft as your reader and says where it got lost. Wire Draft into Draft in.', a: [['au', 'agent_audience', 1, 2]], w: [['w', 'draft', 'au', 'draft']] },
+                { t: 'Send the findings back', d: 'Wire Findings and Confusion points into the Writer\'s Feedback. Both are loops, so the Writer revises before finishing.', w: [['rd', 'findings', 'w', 'feedback'], ['au', 'confusions', 'w', 'feedback']] }
+            ]
+        }
+    ];
+
     const COMPONENT = 'component_';
     const COMPONENT_SECTIONS = ['system', 'role', 'audience', 'context', 'knowledge', 'task', 'instructions', 'approach', 'examples', 'constraints', 'tone', 'output', 'quality', 'success'];
     const sectionTitle = id => (PE.SECTIONS.find(x => x.id === id) || {}).title || id;
@@ -131,6 +319,11 @@
     </div>
   </div>
   <div class="ws-header-actions">
+    <div class="pbp-retarget">
+      <input id="pbp-retarget-input" class="form-input pbp-retarget-input" aria-label="Retarget the blocks with AI" placeholder="Retarget with AI: say what it should become" autocomplete="off" maxlength="400">
+      <button class="icon-btn" data-act="retargetOpen" aria-label="Retarget the blocks with AI" title="Rewrite the block text for a new focus. You review every change first.">${ms('auto_fix_high')}</button>
+      <button class="icon-btn" data-act="retargetUndo" id="pbp-retarget-undo" aria-label="Undo the last AI rewrite" title="Undo the last AI rewrite" hidden>${ms('undo')}</button>
+    </div>
     <input id="pbp-workflow-title" class="form-input pbp-title-input" aria-label="Workflow title" placeholder="Untitled prompt" autocomplete="off">
     <select id="pbp-template-select" class="form-input pbp-template-select" aria-label="Load a template"></select>
     <button class="icon-btn" data-act="startTour" aria-label="Show the quick tour" title="Quick tour">${ms('tour')}</button>
@@ -201,6 +394,7 @@
           <button class="pbp-tab" role="tab" data-tab="prompt" aria-selected="true">Prompt</button>
           <button class="pbp-tab" role="tab" data-tab="checks" aria-selected="false">Checks<small id="pbp-check-count"></small></button>
           <button class="pbp-tab" role="tab" data-tab="trace" aria-selected="false">Trace</button>
+          <button class="pbp-tab" role="tab" data-tab="learn" aria-selected="false">Learn</button>
         </div>
         <span class="pbp-badge" id="pbp-health" role="status"></span>
       </div>
@@ -212,6 +406,7 @@
         </div>
         <div class="pbp-toggles">
           <label class="pbp-toggle">Sample values<button class="pbp-switch" role="switch" id="pbp-sample-switch" aria-checked="false" aria-label="Fill variables with sample values"></button></label>
+          <label class="pbp-toggle" title="Adds your blocks to the end of a copied or exported prompt as a hidden comment, so Import can give the same blocks back. Turn it off for a clean prompt to paste into a model.">Keep blocks in copy<button class="pbp-switch" role="switch" id="pbp-embed-switch" aria-checked="true" aria-label="Add the blocks to the end of a copied or exported prompt so it can be imported again"></button></label>
           <label class="pbp-toggle">Follow wire order<button class="pbp-switch" role="switch" id="pbp-order-switch" aria-checked="false" aria-label="Order sections by wiring instead of the standard prompt structure"></button></label>
         </div>
       </div>
@@ -236,6 +431,7 @@
         <div class="pbp-empty"><b>Step through the flow</b>Run a trace to watch each wired block light up in the order the prompt uses it.</div>
       </div>
     </div>
+    <div class="pbp-tabpanel" id="pbp-panel-learn" role="tabpanel" hidden></div>
     <div class="pbp-pane-foot">
       <span><b class="pbp-mono" id="pbp-count-tokens">0</b> tokens, <b class="pbp-mono" id="pbp-count-chars">0</b> chars</span>
       <span class="pbp-foot-actions">
@@ -265,6 +461,12 @@
   <div class="pbp-dlg-foot"><button class="btn pbp-push-left" id="pbp-json-pick">Choose a file</button><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-accent" id="pbp-json-action">Copy JSON</button></div>
 </dialog>
 
+<dialog class="pbp-dialog" id="pbp-retarget-dialog" aria-labelledby="pbp-retarget-title">
+  <div class="pbp-dlg-head"><span class="pbp-dlg-title" id="pbp-retarget-title">Retarget with AI</span><button class="icon-btn" data-close aria-label="Close">${ms('close')}</button></div>
+  <div class="pbp-dlg-body" id="pbp-retarget-body"></div>
+  <div class="pbp-dlg-foot" id="pbp-retarget-foot"></div>
+</dialog>
+
 <dialog class="pbp-dialog" id="pbp-confirm-dialog" aria-labelledby="pbp-confirm-title">
   <div class="pbp-dlg-head"><span class="pbp-dlg-title" id="pbp-confirm-title">Clear the canvas?</span></div>
   <div class="pbp-dlg-body"><p>Every block and wire is removed. Export the workflow first if you want to keep it.</p></div>
@@ -281,6 +483,8 @@
       <tr><td>Do I need a Conductor?</td><td>No. It is optional. Use it when you want one block that briefs four agents from a single task.</td></tr>
       <tr><td>If I add a Conductor, do I still need the agent blocks?</td><td>Yes. A Conductor only hands out work. Select it and press "Add its agents and wire them" to get all four in one go.</td></tr>
       <tr><td>Conductor, Team Lead or Router?</td><td>Conductor briefs a fixed four. Team Lead splits a job across any three agents you choose. Router sends each request to one agent only. Use one at most.</td></tr>
+      <tr><td>Is there a hands-on tutorial?</td><td>Yes. Open the Learn tab on the right. Lessons build one kind of team step by step: do a step yourself or press Show me. Showcases builds complete workflows, chapter by chapter: prompt engineering, meta prompting, modular prompts, templates and whole teams at work. They use every agent block and real blocks from the Component Library.</td></tr>
+      <tr><td>Can AI rewrite the blocks for a new focus?</td><td>Yes, if an API key is saved in Settings. Type the new focus in the box at the top, for example "make this a prompt engineering board". You see a token estimate first, then every suggested change, and nothing is applied until you tick it. Undo sits next to the box.</td></tr>
       <tr><td>Does anything actually run?</td><td>No. The builder writes a prompt. The AI you paste it into plays every agent in order, which is why the prompt spells out who hands what to whom.</td></tr>
     </tbody></table>
 
@@ -340,7 +544,7 @@
 
         const state = {
             title: '', nodes: [], edges: [], selected: null,
-            format: 'markdown', order: 'canonical', sample: false,
+            format: 'markdown', order: 'canonical', sample: false, embed: true,
             pan: { x: 24, y: 72 }, zoom: .85, nextId: 1,
             tab: 'prompt', cat: 'all', query: ''
         };
@@ -360,7 +564,7 @@
             try {
                 localStorage.setItem(STORE, JSON.stringify({
                     title: state.title, nodes: state.nodes, edges: state.edges,
-                    format: state.format, order: state.order, sample: state.sample
+                    format: state.format, order: state.order, sample: state.sample, embed: state.embed
                 }));
             } catch (e) { /* storage full or blocked, the canvas still works */ }
         }
@@ -372,6 +576,7 @@
                 Object.assign(state, {
                     title: raw.title || '',
                     nodes: clean.nodes, edges: clean.edges,
+                    embed: raw.embed !== false,
                     format: raw.format || 'markdown',
                     order: raw.order || 'canonical',
                     sample: !!raw.sample
@@ -610,6 +815,7 @@
         const SPAWN = {
             multi_agent: { planner: ['agent_planner', 'task'], researcher: ['agent_researcher', 'task'], writer: ['agent_writer', 'task'], critic: ['agent_critic', 'task'] },
             agent_router: { to_planner: ['agent_planner', 'task'], to_researcher: ['agent_researcher', 'task'], to_writer: ['agent_writer', 'task'], to_critic: ['agent_critic', 'task'], fallback: ['meta_clarify', 'in'] },
+            agent_moderator: { pro: ['agent_proponent', 'proposal'], con: ['agent_advocate', 'proposal'], judge: ['agent_judge', 'criteria'] },
             agent_lead: { worker_a: ['agent_specialist', 'task', 'Specialist A'], worker_b: ['agent_specialist', 'task', 'Specialist B'], worker_c: ['agent_specialist', 'task', 'Specialist C'] }
         };
         function missingAgents(n) {
@@ -651,6 +857,7 @@
             renderChecks();
             renderStatus();
             if (inspector) renderInspector();
+            if (state.tab === 'learn') renderLearn();
             save();
         }
         let raf = 0;
@@ -699,8 +906,9 @@
         function setTab(t) {
             state.tab = t;
             $$('#pbp-right-tabs [data-tab]').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t));
-            ['prompt', 'checks', 'trace'].forEach(p => { $(`#pbp-panel-${p}`).hidden = p !== t; });
+            ['prompt', 'checks', 'trace', 'learn'].forEach(p => { $(`#pbp-panel-${p}`).hidden = p !== t; });
             $('#pbp-prompt-toolbar').hidden = t !== 'prompt';
+            if (t === 'learn') renderLearn();
         }
 
         /* ---------- workshop: components picked in the Component Library ---------- */
@@ -963,9 +1171,27 @@
                 t.remove();
             }
         }
+        /* ---------- round trip: the blocks travel with the prompt ----------
+           A hidden comment at the end holds every block, its settings, position and wires, plus a fingerprint of the visible text.
+           Import restores them exactly when the text is unchanged, and rebuilds from the text when it was edited. */
+        const GRAPH_RE = /<!--\s*prompt-builder-pro:graph v1\s*([\s\S]*?)\s*-->/;
+        const plainText = t => String(t).replace(/\r\n?/g, '\n').split('\n').map(l => l.replace(/\s+$/, '')).join('\n').trim();
+        const fingerprint = t => {
+            let h = 0x811c9dc5;
+            const x = plainText(t);
+            for (let i = 0; i < x.length; i++) { h ^= x.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+            return h.toString(16).padStart(8, '0');
+        };
+        function withBlocks(text) {
+            if (!state.embed || !state.nodes.length) return text;
+            const visible = String(text).replace(/\s+$/, '');
+            // Two dashes cannot appear inside a comment, so they are written as escapes. JSON reads them back unchanged.
+            const data = JSON.stringify({ v: 1, h: fingerprint(visible), title: state.title, order: state.order, nodes: state.nodes, edges: state.edges }).replace(/--/g, '\\u002d\\u002d');
+            return `${visible}\n\n<!-- prompt-builder-pro:graph v1 ${data} -->\n`;
+        }
         async function copyPrompt(btn) {
             if (!result.text.trim()) return toast('Wire some blocks together first', 'warning');
-            await copyText(result.text);
+            await copyText(state.format === 'json' ? result.text : withBlocks(result.text));
             const issues = result.diagnostics.filter(d => d.level !== 'info').length;
             toast(issues ? `Copied, with ${issues} open check${issues === 1 ? '' : 's'}` : 'Prompt copied', 'success');
             const label = btn && btn.querySelector('.pbp-btn-label');
@@ -980,7 +1206,7 @@
         function buildExport(kind) {
             const opts = { order: state.order, sample: state.sample, title: state.title };
             const md = PE.compilePrompt(compileNodes(), state.edges, { ...opts, format: 'markdown' });
-            if (kind === 'md') return md.text;
+            if (kind === 'md') return withBlocks(md.text);
             if (kind === 'txt') return md.text.replace(/^##\s+(.*)$/gm, (m, t) => t.toUpperCase()).replace(/^#{1,6}\s+/gm, '');
             if (kind === 'json') {
                 const text = PE.compilePrompt(compileNodes(), state.edges, { ...opts, format: 'json' }).text;
@@ -997,7 +1223,9 @@
             const text = `<?xml version="1.0" encoding="UTF-8"?>\n<prompt title="${xmlEsc(state.title || 'Untitled prompt').replace(/"/g, '&quot;')}">\n${body}\n</prompt>\n`;
             const doc = new DOMParser().parseFromString(text, 'application/xml');
             if (doc.querySelector('parsererror') || doc.documentElement.nodeName !== 'prompt') throw new Error('xml');
-            return text;
+            const tagged = withBlocks(text);
+            if (tagged !== text && new DOMParser().parseFromString(tagged, 'application/xml').querySelector('parsererror')) throw new Error('xml');
+            return tagged;
         }
         function exportAs(kind) {
             if (!result.text.trim()) return toast('Wire some blocks together first', 'warning');
@@ -1038,10 +1266,369 @@
         } catch (e) { /* default: both open */ }
         applyPanes();
 
+        /* ---------- Learn tab ---------- */
+        const LEARN_STORE = 'prompt-builder-pro.learn.v1';
+        const learn = { mode: 'lessons', lesson: null, step: 0, keys: {}, types: {}, made: [], seen: {}, origin: { x: 40, y: 80 } };
+        let learnDone = [];
+        (function loadLearn() {
+            try { learnDone = JSON.parse(localStorage.getItem(LEARN_STORE) || '[]'); } catch (e) { learnDone = []; }
+            if (!Array.isArray(learnDone)) learnDone = [];
+            const saved = window.PL_prefs && window.PL_prefs.ready ? window.PL_prefs.ready : null;
+            if (saved) saved.then(() => {
+                try {
+                    JSON.parse(window.PL_prefs.get('builder_learn') || '[]').forEach(id => { if (!learnDone.includes(id)) learnDone.push(id); });
+                    if (state.tab === 'learn') renderLearn();
+                } catch (e) { /* nothing saved yet */ }
+            });
+        })();
+        function saveLearn() {
+            try { localStorage.setItem(LEARN_STORE, JSON.stringify(learnDone)); } catch (e) { /* kept in the database below */ }
+            if (window.PL_prefs) window.PL_prefs.set('builder_learn', JSON.stringify(learnDone));
+        }
+        const lessonById = id => LESSONS.find(l => l.id === id);
+        // A lesson reuses your own blocks when they match, and only ever removes the ones it made itself.
+        function lFind(key, type) {
+            const own = state.nodes.find(n => n.id === learn.keys[key]);
+            if (own) return own;
+            const taken = new Set(Object.values(learn.keys));
+            const hit = state.nodes.find(n => n.type === type && !taken.has(n.id));
+            if (hit) learn.keys[key] = hit.id;
+            return hit || null;
+        }
+        function lEnsure(key, type, col, row, title) {
+            const have = lFind(key, type);
+            if (have) return have;
+            const n = {
+                id: uid('node'), type,
+                x: Math.round((learn.origin.x + col * (NODE_W + 90)) / 8) * 8,
+                y: Math.round((learn.origin.y + row * 190) / 8) * 8,
+                config: JSON.parse(JSON.stringify(BLOCKS[type].defaults))
+            };
+            if (title) n.config.title = title;
+            state.nodes.push(n);
+            learn.keys[key] = n.id;
+            learn.made.push(n.id);
+            return n;
+        }
+        const lEdge = (w, a, b) => state.edges.find(e => e.from === a.id && e.fromPort === w[1] && e.to === b.id && (e.toPort || 'in') === w[3]);
+        function lWired(w) {
+            const a = lFind(w[0], learn.types[w[0]]), b = lFind(w[2], learn.types[w[2]]);
+            return !!(a && b && lEdge(w, a, b));
+        }
+        function stepDone(s, i) {
+            if (s.info) return !!learn.seen[i];
+            if (s.spawn) {
+                const m = lFind(s.spawn, learn.types[s.spawn]);
+                return !!m && missingAgents(m).length === 0;
+            }
+            return (s.a || []).every(a => !!lFind(a[0], a[1])) && (s.w || []).every(lWired) && (s.u || []).every(w => !lWired(w));
+        }
+        const focusLesson = () => focusIds(Object.values(learn.keys));
+        function focusIds(ids, floor = .35, h = 190) {
+            const list = state.nodes.filter(n => ids.includes(n.id));
+            if (!list.length) return;
+            const r = els.canvas.getBoundingClientRect();
+            const minX = Math.min(...list.map(n => n.x)), maxX = Math.max(...list.map(n => n.x)) + NODE_W;
+            const minY = Math.min(...list.map(n => n.y)), maxY = Math.max(...list.map(n => n.y)) + h;
+            const z = Math.max(floor, Math.min(.9, r.width / (maxX - minX + 120), r.height / (maxY - minY + 140)));
+            state.zoom = z;
+            state.pan = { x: (r.width - (maxX - minX) * z) / 2 - minX * z, y: (r.height - (maxY - minY) * z) / 2 - minY * z };
+            els.viewport.classList.add('pbp-is-gliding');
+            applyView();
+            renderWires();
+            setTimeout(() => els.viewport.classList.remove('pbp-is-gliding'), 260);
+        }
+        function stepRun(s) {
+            (s.a || []).forEach(a => lEnsure(a[0], a[1], a[2], a[3], a[4]));
+            (s.w || []).forEach(w => {
+                if (lWired(w)) return;
+                const a = lEnsure(w[0], learn.types[w[0]], 0, 0), b = lEnsure(w[2], learn.types[w[2]], 1, 0);
+                state.edges.push({ id: uid('edge'), from: a.id, fromPort: w[1], to: b.id, toPort: w[3] });
+            });
+            (s.u || []).forEach(w => {
+                const a = lFind(w[0], learn.types[w[0]]), b = lFind(w[2], learn.types[w[2]]);
+                if (a && b) state.edges = state.edges.filter(e => !(e.from === a.id && e.fromPort === w[1] && e.to === b.id && (e.toPort || 'in') === w[3]));
+            });
+            if (s.spawn) {
+                const m = lEnsure(s.spawn, learn.types[s.spawn], 0, 1);
+                state.selected = m.id;
+                addAgents();
+                // The agents it adds belong to the lesson, so removing the lesson's blocks removes them too.
+                state.edges.filter(e => e.from === m.id).forEach(e => { if (!learn.made.includes(e.to)) learn.made.push(e.to); learn.keys['_' + e.to] = e.to; });
+            } else if (s.show === 'wire') {
+                autoWire();
+            } else if (s.show === 'select') {
+                const n = lFind(s.sel, learn.types[s.sel]);
+                if (n) select(n.id, { reveal: true });
+                return;
+            } else {
+                render();
+            }
+            focusLesson();
+        }
+        function learnOpen(id) {
+            const lesson = lessonById(id);
+            if (!lesson) return;
+            learn.lesson = id; learn.step = 0; learn.keys = {}; learn.made = []; learn.seen = {};
+            learn.types = {};
+            lesson.steps.forEach(s => (s.a || []).forEach(a => { learn.types[a[0]] = a[1]; }));
+            learn.origin = state.nodes.length ? { x: Math.max(...state.nodes.map(n => n.x)) + NODE_W + 140, y: 80 } : { x: 40, y: 80 };
+            renderLearn();
+        }
+        function learnNext() {
+            const lesson = lessonById(learn.lesson);
+            if (!lesson) return;
+            learn.seen[learn.step] = true;
+            if (learn.step >= lesson.steps.length - 1) {
+                if (!learnDone.includes(lesson.id)) { learnDone.push(lesson.id); saveLearn(); }
+                toast(`Lesson complete: ${lesson.title}`, 'success');
+                learn.lesson = null;
+            } else {
+                learn.step++;
+            }
+            renderLearn();
+        }
+        function learnClear() {
+            const gone = new Set(learn.made);
+            if (!gone.size) return toast('This lesson has not added any blocks', 'info');
+            state.nodes = state.nodes.filter(n => !gone.has(n.id));
+            state.edges = state.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+            learn.keys = {}; learn.made = [];
+            state.selected = null;
+            render();
+            toast('Lesson blocks removed. Your own blocks are untouched.', 'success');
+        }
+        function renderLearn() {
+            const el = $('#pbp-panel-learn');
+            if (!el || el.hidden) return;
+            if (exh.id) return renderShowDetail(el);
+            const lesson = lessonById(learn.lesson);
+            if (!lesson) {
+                const seg = `<div class="pbp-tabs pbp-learn-seg" role="group" aria-label="Learn section">
+                    <button class="pbp-tab" data-act="learnMode" data-mode="lessons" aria-pressed="${learn.mode !== 'showcases'}">Lessons</button>
+                    <button class="pbp-tab" data-act="learnMode" data-mode="showcases" aria-pressed="${learn.mode === 'showcases'}">Showcases</button></div>`;
+                if (learn.mode === 'showcases') { el.innerHTML = `<div class="pbp-learn">${seg}${showListHtml()}</div>`; return; }
+                el.innerHTML = `<div class="pbp-learn">${seg}
+                    <div class="pbp-learn-intro"><b>Learn the agent blocks</b><p>Short hands-on lessons. Each step you can do yourself, or press Show me and the builder does it. Lessons add their own blocks beside yours and never change what you have built.</p></div>
+                    <ul class="pbp-lessons">${LESSONS.map((l, i) => `<li><button class="pbp-lesson" data-act="learnOpen" data-lesson="${l.id}">
+                        <span class="pbp-lesson-n" ${learnDone.includes(l.id) ? 'data-done' : ''}>${learnDone.includes(l.id) ? ms('check') : i + 1}</span>
+                        <span class="pbp-lesson-text"><b>${esc(l.title)}</b><small>${esc(l.blurb)} ${l.steps.length} steps</small></span>${ms('chevron_right')}</button></li>`).join('')}</ul></div>`;
+                return;
+            }
+            const s = lesson.steps[learn.step];
+            const done = stepDone(s, learn.step);
+            const team = result.sections.find(x => x.id === 'agents');
+            const excerpt = team ? team.parts.map(p => p.text).join('\n\n').slice(0, 900) : '';
+            el.innerHTML = `<div class="pbp-learn">
+                <button class="pbp-learn-back" data-act="learnClose">${ms('arrow_back')}<span>All lessons</span></button>
+                <h3 class="pbp-learn-title">${esc(lesson.title)}</h3>
+                <ol class="pbp-steps">${lesson.steps.map((x, i) => `<li data-state="${stepDone(x, i) ? 'done' : i === learn.step ? 'now' : 'todo'}"><button data-act="learnGo" data-step="${i}"><i>${stepDone(x, i) ? ms('check') : i + 1}</i><span>${esc(x.t)}</span></button></li>`).join('')}</ol>
+                <div class="pbp-step-card" data-done="${done}">
+                    <span class="pbp-label">Step ${learn.step + 1} of ${lesson.steps.length}${done ? ' · done' : ''}</span>
+                    <b>${esc(s.t)}</b>
+                    <p>${esc(s.d)}</p>
+                    <div class="pbp-step-actions">
+                        ${s.info && !s.show ? '' : `<button class="btn btn-accent pbp-btn-xs" data-act="learnShow">${ms('auto_fix_high')}<span>Show me</span></button>`}
+                        <button class="btn pbp-btn-xs pbp-push-left" data-act="learnPrev" ${learn.step ? '' : 'disabled'}>Back</button>
+                        <button class="btn pbp-btn-xs" data-act="learnNext">${learn.step >= lesson.steps.length - 1 ? 'Finish' : 'Next'}</button>
+                    </div>
+                </div>
+                <div class="pbp-now"><span class="pbp-label">What the prompt says now</span>${excerpt ? `<pre>${esc(excerpt)}</pre>` : '<p>Nothing yet. Once two agent blocks are wired together, their hand-offs appear here.</p>'}</div>
+                <div class="pbp-learn-foot"><button class="btn btn-ghost pbp-btn-xs" data-act="learnExample">Build the whole example</button><button class="btn btn-ghost pbp-btn-xs" data-act="learnClear">Remove lesson blocks</button></div>
+            </div>`;
+        }
+
+        /* ---------- Showcases: whole workflows, built chapter by chapter ----------
+           The data is in builder-pro-showcases.js. A showcase adds its own blocks beside yours and only ever removes those. */
+        const SHOW_STORE = 'prompt-builder-pro.showcase.v1';
+        const exh = { id: null, chapter: 0, built: {}, made: [], plan: [], origin: { x: 40, y: 80 }, run: 0, playing: false };
+        let showDone = [];
+        (function loadShow() {
+            try { showDone = JSON.parse(localStorage.getItem(SHOW_STORE) || '[]'); } catch (e) { showDone = []; }
+            if (!Array.isArray(showDone)) showDone = [];
+            const saved = window.PL_prefs && window.PL_prefs.ready ? window.PL_prefs.ready : null;
+            if (saved) saved.then(() => {
+                try {
+                    JSON.parse(window.PL_prefs.get('builder_showcases') || '[]').forEach(id => { if (!showDone.includes(id)) showDone.push(id); });
+                    if (state.tab === 'learn') renderLearn();
+                } catch (e) { /* nothing saved yet */ }
+            });
+        })();
+        function saveShow() {
+            try { localStorage.setItem(SHOW_STORE, JSON.stringify(showDone)); } catch (e) { /* kept in the database below */ }
+            if (window.PL_prefs) window.PL_prefs.set('builder_showcases', JSON.stringify(showDone));
+        }
+        const showcases = () => PB.showcases || [];
+        const showById = id => showcases().find(x => x.id === id);
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        function showStats(sc) {
+            const all = sc.chapters.flatMap(c => c.nodes);
+            const types = new Set(all.filter(n => !n.comp && BLOCKS[n.type] && BLOCKS[n.type].category === 'agents').map(n => n.type));
+            return { blocks: all.length, agents: types.size, comps: all.filter(n => n.comp).length, chapters: sc.chapters.length };
+        }
+        function showListHtml() {
+            const list = showcases();
+            if (!list.length) return '<p class="pbp-show-about">No showcases are loaded.</p>';
+            // Headings follow the order the showcases are listed in.
+            const groups = [];
+            list.forEach((x, i) => {
+                let g = groups.find(y => y.name === (x.group || 'More'));
+                if (!g) groups.push(g = { name: x.group || 'More', items: [] });
+                g.items.push([x, i]);
+            });
+            return `<div class="pbp-learn-intro"><b>Watch a whole workflow built</b><p>Each showcase builds a complete multi-agent workflow chapter by chapter: agent teams, logic and real blocks from the Component Library. Play it, step through it, then open any block to see what it does. Showcases add their own blocks beside yours and never change what you have built.</p></div>
+                ${groups.map(g => `<h4 class="pbp-group-title">${esc(g.name)}</h4><ul class="pbp-lessons">${g.items.map(([x, i]) => {
+                    const st = showStats(x);
+                    return `<li><button class="pbp-lesson" data-act="showOpen" data-show="${esc(x.id)}">
+                        <span class="pbp-lesson-n" ${showDone.includes(x.id) ? 'data-done' : ''}>${showDone.includes(x.id) ? ms('check') : i + 1}</span>
+                        <span class="pbp-lesson-text"><b>${esc(x.title)}</b><small>${esc(x.tagline)}</small><small class="pbp-show-stats">${st.blocks} blocks · ${st.agents} agent types · ${st.comps} library components · ${st.chapters} chapters</small></span>${ms('chevron_right')}</button></li>`;
+                }).join('')}</ul>`).join('')}`;
+        }
+        const chapterBuilt = ci => !!exh.plan[ci] && exh.plan[ci].nodes.length > 0 && exh.plan[ci].nodes.every(n => exh.built[n.k] && node(exh.built[n.k]));
+        function showOpen(id) {
+            const sc = showById(id);
+            if (!sc) return;
+            exh.run++;
+            Object.assign(exh, { id, chapter: 0, built: {}, made: [], plan: PB.showcaseBuild(sc), playing: false });
+            exh.origin = state.nodes.length ? { x: Math.max(...state.nodes.map(n => n.x)) + NODE_W + 140, y: 80 } : { x: 40, y: 80 };
+            // Blocks this showcase made earlier (before a reload, say) are picked up again, not built twice.
+            state.nodes.filter(n => n.showcase && n.showcase.id === id).forEach(n => {
+                exh.built[n.showcase.k] = n.id;
+                exh.made.push(n.id);
+                const at = exh.plan.flatMap(c => c.nodes).find(x => x.k === n.showcase.k);
+                if (at && exh.made.length === 1) exh.origin = { x: n.x - at.x, y: n.y - at.y };
+            });
+            renderLearn();
+        }
+        function showPlace(n) {
+            const id = uid('node');
+            state.nodes.push({
+                id, type: n.type, showcase: { id: exh.id, k: n.k }, config: JSON.parse(JSON.stringify(n.config)),
+                x: Math.round((exh.origin.x + n.x) / 8) * 8, y: Math.round((exh.origin.y + n.y) / 8) * 8
+            });
+            exh.built[n.k] = id;
+            exh.made.push(id);
+            return id;
+        }
+        function showWire(w) {
+            const a = exh.built[w[0]], b = exh.built[w[2]];
+            if (!a || !b || !node(a) || !node(b)) return false;
+            if (state.edges.some(e => e.from === a && e.fromPort === w[1] && e.to === b && (e.toPort || 'in') === w[3])) return false;
+            state.edges.push({ id: uid('edge'), from: a, fromPort: w[1], to: b, toPort: w[3] });
+            return true;
+        }
+        const chapterIds = ci => builtIds(exh.plan[ci].nodes.map(n => n.k));
+        const builtIds = keys => keys.map(k => exh.built[k]).filter(Boolean);
+        // Blocks and wires appear one at a time while the view follows them. Returns false when stopped or closed.
+        async function showChapter(ci, animate, token) {
+            const ch = exh.plan[ci];
+            const live = () => token === exh.run && isOpen();
+            for (const n of ch.nodes) {
+                if (exh.built[n.k] && node(exh.built[n.k])) continue;
+                const id = showPlace(n);
+                if (!animate) continue;
+                render({ inspector: false });
+                const el = nodeEl(id);
+                if (el) el.classList.add('pbp-node-new');
+                focusIds(chapterIds(ci), .4, 300);
+                await sleep(360);
+                if (!live()) return false;
+                // Wires draw as soon as both ends exist, so a block arrives already connected.
+                for (const w of ch.wires) {
+                    if (!showWire(w)) continue;
+                    render({ inspector: false });
+                    await sleep(170);
+                    if (!live()) return false;
+                }
+            }
+            for (const w of ch.wires) {
+                if (!showWire(w) || !animate) continue;
+                render({ inspector: false });
+                await sleep(170);
+                if (!live()) return false;
+            }
+            render({ inspector: false });
+            focusIds(chapterIds(ci), .4, 300);
+            return live();
+        }
+        async function showRun(from, to, animate) {
+            const token = ++exh.run;
+            exh.playing = animate;
+            for (let ci = 0; ci < from; ci++) if (!chapterBuilt(ci)) await showChapter(ci, false, token);
+            for (let ci = from; ci <= to; ci++) {
+                exh.chapter = ci;
+                renderLearn();
+                if (!await showChapter(ci, animate, token)) { if (token === exh.run) exh.playing = false; return renderLearn(); }
+                if (animate && ci < to) await sleep(900);
+            }
+            exh.playing = false;
+            const sc = showById(exh.id);
+            if (sc && exh.plan.every((c, i) => chapterBuilt(i)) && !showDone.includes(sc.id)) {
+                showDone.push(sc.id);
+                saveShow();
+                toast(`${sc.title} is built. Open the Prompt tab to read what it compiles to.`, 'success');
+            }
+            if (exh.plan.every((c, i) => chapterBuilt(i))) focusIds(exh.made, .15, 300);
+            render();
+            renderLearn();
+        }
+        function renderShowDetail(el) {
+            const sc = showById(exh.id);
+            if (!sc) { exh.id = null; return renderLearn(); }
+            const ch = exh.plan[exh.chapter];
+            const st = showStats(sc);
+            const done = chapterBuilt(exh.chapter);
+            const last = exh.chapter >= exh.plan.length - 1;
+            const chip = n => {
+                const kind = n.type.startsWith(COMPONENT) ? 'component' : BLOCKS[n.type].category === 'agents' ? 'agent' : 'block';
+                const icon = iconName(n.config.source && n.config.source.icon) || ICONS[n.type] || 'widgets';
+                return `<li class="pbp-chip" data-kind="${kind}">${ms(icon)}<span>${esc(n.config.title || BLOCKS[n.type].label)}</span><small>${kind === 'component' ? 'Component Library' : esc(BLOCKS[n.type].label)}</small></li>`;
+            };
+            el.innerHTML = `<div class="pbp-learn">
+                <button class="pbp-learn-back" data-act="showClose">${ms('arrow_back')}<span>All showcases</span></button>
+                <h3 class="pbp-learn-title">${esc(sc.title)}</h3>
+                <p class="pbp-show-about">${esc(sc.about)}</p>
+                <p class="pbp-show-stats">${st.blocks} blocks · ${st.agents} agent types · ${st.comps} library components</p>
+                <ol class="pbp-steps">${exh.plan.map((c, i) => `<li data-state="${chapterBuilt(i) ? 'done' : i === exh.chapter ? 'now' : 'todo'}"><button data-act="showGo" data-chapter="${i}"><i>${chapterBuilt(i) ? ms('check') : i + 1}</i><span>${esc(c.title)}</span></button></li>`).join('')}</ol>
+                <div class="pbp-step-card" data-done="${done}">
+                    <span class="pbp-label">Chapter ${exh.chapter + 1} of ${exh.plan.length}${done ? ' · built' : ''}</span>
+                    <b>${esc(ch.title)}</b>
+                    <p>${esc(ch.blurb)}</p>
+                    <ul class="pbp-chips" aria-label="Blocks in this chapter">${ch.nodes.map(chip).join('')}</ul>
+                    <div class="pbp-step-actions pbp-wrap">
+                        ${exh.playing
+                            ? `<button class="btn pbp-btn-xs" data-act="showStop">${ms('stop')}<span>Stop</span></button>`
+                            : `<button class="btn btn-accent pbp-btn-xs" data-act="showPlay" ${done ? 'disabled' : ''}>${ms('play_arrow')}<span>Build chapter</span></button>
+                               <button class="btn pbp-btn-xs" data-act="showPlayAll">${ms('fast_forward')}<span>Play all</span></button>`}
+                        <button class="btn pbp-btn-xs pbp-push-left" data-act="showPrev" ${exh.chapter && !exh.playing ? '' : 'disabled'}>Back</button>
+                        <button class="btn pbp-btn-xs" data-act="showNext" ${last || exh.playing ? 'disabled' : ''}>Next</button>
+                    </div>
+                </div>
+                <div class="pbp-learn-foot"><button class="btn btn-ghost pbp-btn-xs" data-act="showPrompt">${ms('article')}<span>See the prompt</span></button><button class="btn btn-ghost pbp-btn-xs" data-act="showClear">Remove showcase blocks</button></div>
+            </div>`;
+        }
+        function showClear() {
+            exh.run++;
+            exh.playing = false;
+            const gone = new Set(exh.made);
+            if (!gone.size) return toast('This showcase has not added any blocks', 'info');
+            state.nodes = state.nodes.filter(n => !gone.has(n.id));
+            state.edges = state.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+            exh.built = {}; exh.made = [];
+            state.selected = null;
+            render();
+            renderLearn();
+            toast('Showcase blocks removed. Your own blocks are untouched.', 'success');
+        }
+
         /* ---------- first run tutorial, replayed from the tour button ---------- */
         let tourAt = -1, tourPanes = null;
         const tourOn = () => tourAt >= 0;
-        const tourSeen = () => { try { return localStorage.getItem(TOUR_STORE) === '1'; } catch (e) { return true; } };
+        // Remembered in the database as well: WebView storage can reset between launches, and the tour must not come back.
+        const tourSeen = () => {
+            try { if (localStorage.getItem(TOUR_STORE) === '1') return true; } catch (e) { /* ask the database */ }
+            return !!(window.PL_prefs && window.PL_prefs.get('builder_tour') === '1');
+        };
         function placeTour() {
             if (!tourOn()) return;
             const step = TOUR_STEPS[tourAt];
@@ -1086,7 +1673,8 @@
             if (!tourOn()) return;
             tourAt = -1;
             $('#pbp-tour').hidden = true;
-            try { localStorage.setItem(TOUR_STORE, '1'); } catch (e) { /* it will simply show again next time */ }
+            try { localStorage.setItem(TOUR_STORE, '1'); } catch (e) { /* the database copy below still holds */ }
+            if (window.PL_prefs) window.PL_prefs.set('builder_tour', '1');
             if (tourPanes) {
                 if (panes.left !== tourPanes.left) togglePane('left', false);
                 if (panes.right !== tourPanes.right) togglePane('right', false);
@@ -1102,7 +1690,7 @@
             $('#pbp-json-title').textContent = mode === 'export' ? 'Export backup' : 'Import a prompt';
             $('#pbp-json-desc').textContent = mode === 'export'
                 ? 'This is the full canvas: every block, its settings, its position and its wires. Keep it as a backup. To share the prompt itself, use Export prompt (Markdown).'
-                : 'Paste a prompt written in Markdown. Each heading becomes a block, wired in the order you wrote them. XML tags and a JSON backup work too.';
+                : 'Paste a prompt written in Markdown. A prompt copied or exported from here gives the same blocks back. Otherwise each heading becomes a block, wired in the order you wrote them. XML tags and a JSON backup work too.';
             $('#pbp-json-text').value = mode === 'export' ? JSON.stringify({ title: state.title, nodes: state.nodes, edges: state.edges }, null, 2) : '';
             $('#pbp-json-text').placeholder = MD_EXAMPLE;
             $('#pbp-json-action').textContent = mode === 'export' ? 'Copy JSON' : 'Build blocks';
@@ -1110,8 +1698,29 @@
             $('#pbp-json-dialog').showModal();
         }
         function importText(text) {
-            const src = text.trim();
+            let src = text.trim();
             if (!src) throw new Error('blank');
+            let edited = false;
+            const mark = src.match(GRAPH_RE);
+            if (mark) {
+                const visible = src.replace(GRAPH_RE, '');
+                let raw = null;
+                try { raw = JSON.parse(mark[1]); } catch (e) { raw = null; }
+                if (raw && raw.v === 1 && Array.isArray(raw.nodes) && Array.isArray(raw.edges)) {
+                    if (raw.h === fingerprint(visible)) {
+                        const clean = PE.sanitizeGraph(raw.nodes.map(n => ({ ...n, x: +n.x || 0, y: +n.y || 0, config: n.config || {} })), raw.edges);
+                        if (clean.nodes.length) {
+                            return {
+                                title: raw.title || 'Imported prompt', nodes: clean.nodes, edges: clean.edges, restored: true,
+                                order: raw.order === 'wire' ? 'wire' : 'canonical',
+                                notes: clean.dropped ? [`${clean.dropped} broken item${clean.dropped === 1 ? ' was' : 's were'} skipped.`] : []
+                            };
+                        }
+                    } else edited = true;
+                }
+                src = visible.trim();
+                if (!src) throw new Error('blank');
+            }
             if (src[0] === '{') {
                 let raw;
                 try { raw = JSON.parse(src); } catch (e) { throw new Error('json'); }
@@ -1131,7 +1740,7 @@
             const ids = new Map(parsed.nodes.map(n => [n.id, uid('node')]));
             return {
                 title: parsed.title || 'Imported prompt',
-                notes: parsed.notes,
+                notes: edited ? ['The text was edited after it was exported, so the blocks were rebuilt from the text.'].concat(parsed.notes) : parsed.notes,
                 nodes: parsed.nodes.map(n => ({ ...n, id: ids.get(n.id) })),
                 edges: parsed.edges.map(e => ({ ...e, id: uid('edge'), from: ids.get(e.from), to: ids.get(e.to) }))
             };
@@ -1146,13 +1755,17 @@
             try {
                 const got = importText($('#pbp-json-text').value);
                 Object.assign(state, { title: got.title, nodes: got.nodes, edges: got.edges, selected: null });
+                if (got.restored) {
+                    state.order = got.order;
+                    $('#pbp-order-switch').setAttribute('aria-checked', state.order === 'wire');
+                }
                 $('#pbp-workflow-title').value = state.title;
                 $('#pbp-json-dialog').close();
                 render();
                 fit();
                 importNotes = got.notes;
                 renderChecks();
-                toast(`${got.nodes.length} block${got.nodes.length === 1 ? '' : 's'} built${got.notes.length ? `. ${got.notes.length} note${got.notes.length === 1 ? '' : 's'} in Checks.` : ''}`, 'success');
+                toast(`${got.nodes.length} block${got.nodes.length === 1 ? '' : 's'} ${got.restored ? 'restored exactly from the Markdown' : 'built'}${got.notes.length ? `. ${got.notes.length} note${got.notes.length === 1 ? '' : 's'} in Checks.` : ''}`, 'success');
             } catch (e) {
                 err.hidden = false;
                 err.textContent = {
@@ -1162,6 +1775,119 @@
                     empty: 'No sections with text were found. Add a heading such as "## Task" with a line under it.'
                 }[e.message] || 'That could not be read.';
             }
+        }
+
+        /* ---------- Retarget with AI ----------
+           One small call. Block text goes out as short clipped lines, only the blocks that need to change come back, and nothing is
+           applied until the changes are reviewed. Wires, block types and {{placeholders}} are never touched. Uses the key from Settings. */
+        const RT_MAX_BLOCKS = 40, RT_CLIP = 400, RT_OUT = 2500;
+        const RT = { instruction: '', scope: 'all', stage: 'check', error: '', changes: [], title: null, skipped: 0, run: 0, undo: null };
+        const rtClip = (t, n) => { const x = String(t || '').replace(/\s+/g, ' ').trim(); return x.length > n ? x.slice(0, n) + '…' : x; };
+        const rtVars = t => [...new Set(String(t).match(/\{\{[^}]+\}\}/g) || [])].sort().join();
+        const RT_SYSTEM = 'You retarget the blocks of a prompt workflow to a new focus. Change only the blocks whose title or text must change for the new focus, and keep each block\'s job in the workflow. Keep every {{placeholder}} exactly as written. Keep the style and about the same length. Text ending in … was cut for brevity: if you rewrite it, write a complete replacement. Use UK English and no dashes as punctuation. Reply with JSON only: {"title":"new workflow title, or empty","changes":[{"id":"...","title":"...","text":"..."}]}. List only blocks you changed, and leave out "title" or "text" in a change if that part stays.';
+        function rtPlan() {
+            const pool = RT.scope === 'selected' && state.selected ? state.nodes.filter(n => n.id === state.selected) : state.nodes;
+            const items = pool.filter(n => BLOCKS[n.type] && String(n.config.content || '').trim()).slice(0, RT_MAX_BLOCKS);
+            const lines = items.map(n => `${n.id}|${BLOCKS[n.type].label}|${rtClip(PE.titleOf(n), 60)}|${rtClip(n.config.content, RT_CLIP)}`);
+            const user = `New focus: ${RT.instruction}\nWorkflow: ${state.title || 'Untitled'}\nBlocks (id|kind|title|text):\n${lines.join('\n')}`;
+            return { items, user, tokensIn: Math.ceil((RT_SYSTEM.length + user.length) / 4) };
+        }
+        function rtRender() {
+            const body = $('#pbp-retarget-body'), foot = $('#pbp-retarget-foot');
+            const ai = window.PL_ai ? window.PL_ai.info() : null;
+            if (RT.stage === 'check') {
+                const plan = rtPlan();
+                const sel = state.selected && node(state.selected);
+                const hasKey = !!(ai && ai.hasKey);
+                body.innerHTML = `<p>Say what the workflow should become. Only block titles and text change. Wires, block types and your variables stay exactly as they are, and you review every change before it is applied.</p>
+                    <textarea id="pbp-rt-text" class="form-textarea" rows="3" maxlength="400" aria-label="What the workflow should become" placeholder="Make the board room a prompt engineering board that reviews system prompts">${esc(RT.instruction)}</textarea>
+                    ${sel ? `<div class="pbp-rt-scope"><label><input type="radio" name="pbp-rt-scope" value="all" ${RT.scope === 'all' ? 'checked' : ''}> Every block with text</label>
+                        <label><input type="radio" name="pbp-rt-scope" value="selected" ${RT.scope === 'selected' ? 'checked' : ''}> Only the selected block: ${esc(PE.titleOf(sel))}</label></div>` : ''}
+                    <p class="pbp-rt-estimate">${plan.items.length} block${plan.items.length === 1 ? '' : 's'} sent, about ${plan.tokensIn.toLocaleString()} tokens in, up to ${RT_OUT.toLocaleString()} back. ${hasKey ? `Uses your ${esc(ai.provider)} key, model ${esc(ai.model)}.` : ''}</p>
+                    ${hasKey ? '' : '<p class="pbp-danger-text" role="alert">No API key is saved yet. Add one in Settings (bottom left of the library), then come back.</p>'}
+                    ${RT.error ? `<p class="pbp-danger-text" role="alert">${esc(RT.error)}</p>` : ''}`;
+                foot.innerHTML = `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-accent" data-act="retargetSend" ${hasKey && plan.items.length ? '' : 'disabled'}>${ms('send')}<span>Send</span></button>`;
+            } else if (RT.stage === 'busy') {
+                body.innerHTML = `<p class="pbp-rt-estimate">Asking ${esc(ai ? ai.model : 'the model')}. Nothing changes until you review the result.</p>`;
+                foot.innerHTML = `<button class="btn btn-ghost" data-act="retargetBack">Cancel</button>`;
+            } else {
+                const n = RT.changes.filter(c => c.on).length + (RT.title && RT.title.on ? 1 : 0);
+                const total = RT.changes.length + (RT.title ? 1 : 0);
+                body.innerHTML = `<p>${total ? `${total} change${total === 1 ? '' : 's'} suggested. Untick any you do not want.` : 'The model suggested no changes for that focus.'}${RT.skipped ? ` ${RT.skipped} suggestion${RT.skipped === 1 ? ' was' : 's were'} skipped because the block was unknown, a {{placeholder}} changed or the text grew too long.` : ''}</p>
+                    <div class="pbp-rt-list">
+                    ${RT.title ? `<label class="pbp-rt-row"><input type="checkbox" data-rt-title ${RT.title.on ? 'checked' : ''}><span><b>Workflow title</b><small>${esc(state.title || 'Untitled')} to ${esc(RT.title.value)}</small></span></label>` : ''}
+                    ${RT.changes.map((c, i) => { const nd = node(c.id); return `<div class="pbp-rt-row"><input type="checkbox" data-rt-i="${i}" ${c.on ? 'checked' : ''} aria-label="Apply this change"><details><summary><b>${esc(c.title || PE.titleOf(nd))}</b><small>${esc(BLOCKS[nd.type].label)}${c.text && c.title ? ', title and text' : c.title ? ', title' : ', text'}</small></summary>
+                        <div class="pbp-rt-diff"><div><span class="pbp-label">Before</span><pre>${esc(c.title ? PE.titleOf(nd) + (c.text ? '\n\n' : '') : '')}${esc(c.text ? nd.config.content : '')}</pre></div><div><span class="pbp-label">After</span><pre>${esc(c.title ? c.title + (c.text ? '\n\n' : '') : '')}${esc(c.text || '')}</pre></div></div></details></div>`; }).join('')}
+                    </div>`;
+                foot.innerHTML = `<button class="btn btn-ghost pbp-push-left" data-act="retargetBack">Back</button><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-accent" data-act="retargetApply" ${n ? '' : 'disabled'}>Apply ${n || ''} change${n === 1 ? '' : 's'}</button>`;
+            }
+        }
+        function retargetOpen() {
+            const typed = $('#pbp-retarget-input').value.trim();
+            if (!typed) { $('#pbp-retarget-input').focus(); return toast('Type what the workflow should become first', 'info'); }
+            if (!state.nodes.length) return toast('Build or load some blocks first', 'warning');
+            Object.assign(RT, { instruction: typed, stage: 'check', error: '', scope: state.selected && RT.scope === 'selected' ? 'selected' : 'all' });
+            rtRender();
+            $('#pbp-retarget-dialog').showModal();
+        }
+        async function retargetSend() {
+            const t = $('#pbp-rt-text');
+            if (t) RT.instruction = t.value.trim();
+            if (!RT.instruction) { RT.error = 'Say what the workflow should become.'; return rtRender(); }
+            const plan = rtPlan();
+            if (!plan.items.length) return;
+            const run = ++RT.run;
+            RT.stage = 'busy'; rtRender();
+            try {
+                const raw = await window.PL_ai.ask(RT_SYSTEM, plan.user, RT_OUT);
+                if (run !== RT.run) return;
+                const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
+                if (a < 0 || b < a) throw new Error('The reply was not in the expected form. Try again.');
+                const data = JSON.parse(raw.slice(a, b + 1));
+                const byId = new Map(plan.items.map(n => [n.id, n]));
+                const changes = [];
+                let skipped = 0;
+                (Array.isArray(data.changes) ? data.changes : []).forEach(c => {
+                    const n = c && byId.get(c.id);
+                    if (!n) { skipped++; return; }
+                    const title = typeof c.title === 'string' ? c.title.trim().slice(0, 80) : '';
+                    const text = typeof c.text === 'string' ? c.text.trim() : '';
+                    const old = String(n.config.content || '');
+                    if (text && (text.length > 4000 || text.length > Math.max(400, old.length * 3) || rtVars(text) !== rtVars(old))) { skipped++; return; }
+                    const nt = title && title !== PE.titleOf(n) ? title : '';
+                    const tx = text && text !== old.trim() ? text : '';
+                    if (nt || tx) changes.push({ id: n.id, on: true, title: nt, text: tx });
+                });
+                const newTitle = typeof data.title === 'string' ? data.title.trim().slice(0, 80) : '';
+                Object.assign(RT, { stage: 'review', changes, skipped, title: newTitle && newTitle !== state.title ? { on: true, value: newTitle } : null });
+            } catch (e) {
+                if (run !== RT.run) return;
+                Object.assign(RT, { stage: 'check', error: e instanceof SyntaxError ? 'The reply could not be read. Try again.' : (e && e.message) || 'That did not work.' });
+            }
+            rtRender();
+        }
+        function retargetApply() {
+            const chosen = RT.changes.filter(c => c.on && node(c.id));
+            const retitle = RT.title && RT.title.on;
+            if (!chosen.length && !retitle) return $('#pbp-retarget-dialog').close();
+            RT.undo = { title: state.title, items: chosen.map(c => { const n = node(c.id); return { id: c.id, title: n.config.title, content: n.config.content }; }) };
+            chosen.forEach(c => { const n = node(c.id); if (c.title) n.config.title = c.title; if (c.text) n.config.content = c.text; });
+            if (retitle) { state.title = RT.title.value; $('#pbp-workflow-title').value = state.title; }
+            $('#pbp-retarget-dialog').close();
+            $('#pbp-retarget-undo').hidden = false;
+            $('#pbp-retarget-input').value = '';
+            render();
+            toast(`${chosen.length} block${chosen.length === 1 ? '' : 's'} rewritten. Undo is next to the box.`, 'success');
+        }
+        function retargetUndo() {
+            if (!RT.undo) return;
+            RT.undo.items.forEach(o => { const n = node(o.id); if (n) { n.config.title = o.title; n.config.content = o.content; } });
+            state.title = RT.undo.title;
+            $('#pbp-workflow-title').value = state.title;
+            RT.undo = null;
+            $('#pbp-retarget-undo').hidden = true;
+            render();
+            toast('The AI rewrite was undone', 'success');
         }
 
         /* ---------- trace ---------- */
@@ -1372,6 +2098,7 @@
                 const n = node(state.selected);
                 if (!n) return;
                 const c = { ...JSON.parse(JSON.stringify(n)), id: uid('node'), x: n.x + 32, y: n.y + 32 };
+                delete c.showcase;
                 state.nodes.push(c);
                 state.selected = c.id;
                 render();
@@ -1385,9 +2112,50 @@
                 toast('Default text restored', 'success');
             },
             openContext: t => openContext(t),
-            openGuide: () => { $('#pbp-guide-dialog').showModal(); $('.pbp-guide-body').scrollTop = 0; }
+            openGuide: () => { $('#pbp-guide-dialog').showModal(); $('.pbp-guide-body').scrollTop = 0; },
+            learnOpen: t => learnOpen(t.dataset.lesson),
+            learnClose: () => { learn.lesson = null; renderLearn(); },
+            learnGo: t => { learn.step = +t.dataset.step; renderLearn(); },
+            learnPrev: () => { if (learn.step) { learn.step--; renderLearn(); } },
+            learnNext,
+            learnShow: () => {
+                const lesson = lessonById(learn.lesson);
+                if (lesson) stepRun(lesson.steps[learn.step]);
+            },
+            learnExample: () => {
+                const lesson = lessonById(learn.lesson);
+                if (!lesson) return;
+                lesson.steps.forEach((s, i) => { stepRun(s); learn.seen[i] = true; });
+                renderLearn();
+            },
+            learnClear,
+            retargetOpen,
+            retargetSend,
+            retargetApply,
+            retargetUndo,
+            retargetBack: () => { RT.run++; RT.stage = 'check'; rtRender(); },
+            learnMode: t => { learn.mode = t.dataset.mode; renderLearn(); },
+            showOpen: t => showOpen(t.dataset.show),
+            showClose: () => { exh.run++; exh.playing = false; exh.id = null; renderLearn(); },
+            showGo: t => { if (exh.playing) return; exh.chapter = +t.dataset.chapter; renderLearn(); },
+            showPrev: () => { if (exh.chapter && !exh.playing) { exh.chapter--; renderLearn(); } },
+            showNext: () => { if (exh.chapter < exh.plan.length - 1 && !exh.playing) { exh.chapter++; renderLearn(); } },
+            showPlay: () => showRun(exh.chapter, exh.chapter, true),
+            showPlayAll: () => showRun(exh.chapter, exh.plan.length - 1, true),
+            showStop: () => { exh.run++; exh.playing = false; renderLearn(); },
+            showPrompt: () => setTab('prompt'),
+            showClear
         };
 
+        root.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && e.target.id === 'pbp-retarget-input') { e.preventDefault(); retargetOpen(); }
+        });
+        root.addEventListener('change', e => {
+            const t = e.target;
+            if (t.matches && t.matches('input[name="pbp-rt-scope"]')) { const x = $('#pbp-rt-text'); if (x) RT.instruction = x.value; RT.scope = t.value; rtRender(); }
+            else if (t.matches && t.matches('[data-rt-i]')) { RT.changes[+t.dataset.rtI].on = t.checked; rtRender(); }
+            else if (t.matches && t.matches('[data-rt-title]')) { RT.title.on = t.checked; rtRender(); }
+        });
         root.addEventListener('click', e => {
             $$('.pbp-menu[open]').forEach(m => { if (!m.querySelector('summary').contains(e.target)) m.open = false; });
             if (libraryOpen() && e.target.closest('#pcwGallery')) return;
@@ -1495,7 +2263,8 @@
 
         for (const [id, key, on, off] of [
             ['pbp-sample-switch', 'sample', true, false],
-            ['pbp-order-switch', 'order', 'wire', 'canonical']
+            ['pbp-order-switch', 'order', 'wire', 'canonical'],
+            ['pbp-embed-switch', 'embed', true, false]
         ]) {
             $('#' + id).addEventListener('click', e => {
                 e.preventDefault();
@@ -1551,6 +2320,7 @@
             $$('[data-format]').forEach(b => b.setAttribute('aria-pressed', b.dataset.format === state.format));
             $('#pbp-sample-switch').setAttribute('aria-checked', state.sample);
             $('#pbp-order-switch').setAttribute('aria-checked', state.order === 'wire');
+            $('#pbp-embed-switch').setAttribute('aria-checked', state.embed);
         }
 
         // The canvas measures the DOM, so the first paint waits until the workspace is on screen.
@@ -1562,7 +2332,8 @@
                 else loadTemplate('default', true);
                 document.fonts?.ready.then(() => { if (isOpen()) renderWires(); });
                 // First run only. The tour button in the header replays it.
-                if (!tourSeen()) setTimeout(() => { if (isOpen()) startTour(); }, 350);
+                const prefsReady = window.PL_prefs && window.PL_prefs.ready ? window.PL_prefs.ready : Promise.resolve();
+                prefsReady.then(() => { if (!tourSeen()) setTimeout(() => { if (isOpen()) startTour(); }, 350); });
             } else {
                 renderWires();
             }
