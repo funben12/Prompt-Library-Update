@@ -8950,6 +8950,27 @@ Must avoid: [Anything sensitive or previously declined]`
         document.addEventListener('keydown', _ctxPickerClose, true);
     };
 
+    // Context button in text workspaces: [data-ctx-pick="last"|selector] [data-ctx-default=selector], Pro only.
+    const _ctxLastField = new WeakMap();
+    const _ctxFieldSel = 'textarea:not([readonly]), input[type="text"]:not([readonly])';
+    document.addEventListener('focusin', e => {
+        const t = e.target, ws = t.closest && t.closest('[role="dialog"]');
+        if (ws && t.matches && t.matches(_ctxFieldSel)) _ctxLastField.set(ws, t);
+    });
+    document.addEventListener('click', e => {
+        const btn = e.target.closest && e.target.closest('[data-ctx-pick]');
+        if (!btn) return;
+        if (!state.isPremium) { showPremiumModal(); return; }
+        const ws = btn.closest('[role="dialog"]') || document;
+        const shown = el => el && el.offsetParent !== null;
+        window.PL_ctxPicker(btn, () => {
+            const want = btn.dataset.ctxPick;
+            let t = want === 'last' ? _ctxLastField.get(ws) : ws.querySelector(want);
+            if (!shown(t) || !t.matches(_ctxFieldSel)) t = ws.querySelector(btn.dataset.ctxDefault || _ctxFieldSel);
+            return shown(t) ? t : null;
+        });
+    });
+
     function _ctxPanelSaveNew() {
         const title = ($('#ctxPanelNewTitle')?.value || '').trim();
         const category = $('#ctxPanelNewCat')?.value || 'Other';
