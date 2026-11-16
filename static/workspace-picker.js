@@ -144,7 +144,7 @@
 
     /* ---------- previews (isolated: the only place that touches PLWS_PREVIEW) ---------- */
     function previewHtml(id, variant) {
-        const size = variant === 'featured' ? 'lg' : 'sm';
+        const size = 'card';
         const key = id + '|' + size;
         if (previewCache.has(key)) return previewCache.get(key);
         let out = '';

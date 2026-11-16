@@ -5164,6 +5164,7 @@ Here are my prompts:
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
             '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace', '#gauntletWorkspace',
             '#promptIdeWorkspace', '#promptForkingWorkspace', '#builderProWorkspace',
+            '#promptPackBuilderWorkspace', '#promptBookBuilderWorkspace', '#promptWorkflowStudioWorkspace', '#contextPackBuilderWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5263,7 +5264,8 @@ Here are my prompts:
                     return;
                 }
                 if (v === 'workspaces') {
-                    window.openWorkspacesLauncher();
+                    if (typeof window.PL_openWorkspacePicker === 'function') window.PL_openWorkspacePicker();
+                    else window.openWorkspacesLauncher();
                     return;
                 }
                 if (v === 'fill') {
@@ -5746,7 +5748,7 @@ Here are my prompts:
             const tag = e.target.tagName;
             const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable;
 
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'k') {
                 e.preventDefault();
                 const isOpen = $('#cmdPalette').classList.contains('active');
                 isOpen ? closeCmdPalette() : openCmdPalette();

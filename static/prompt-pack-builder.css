@@ -25,6 +25,7 @@
 #promptPackBuilderWorkspace :where(button, summary, [tabindex], a, input, textarea, select):focus-visible { outline: none; box-shadow: var(--ring); }
 #promptPackBuilderWorkspace .btn:focus-visible { box-shadow: var(--btn-rest), var(--ring); }
 #promptPackBuilderWorkspace .btn[aria-disabled="true"] { opacity: 0.55; }
+:root[data-theme="dark"] #promptPackBuilderWorkspace .btn-accent { color: var(--bg); }
 #promptPackBuilderWorkspace .btn:disabled, #promptPackBuilderWorkspace .icon-btn:disabled { opacity: 0.4; pointer-events: none; }
 #promptPackBuilderWorkspace .ppb-sr {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
@@ -510,9 +511,10 @@
   #promptPackBuilderWorkspace .ppb-section-actions { width: 100%; }
   #promptPackBuilderWorkspace .ppb-section-actions .btn { flex: 1; justify-content: center; }
   #promptPackBuilderWorkspace .ppb-tab { font-size: var(--fs-xs); padding-inline: var(--sp-1); }
+  #promptPackBuilderWorkspace .ppb-preview-head { flex-direction: column; align-items: stretch; gap: var(--sp-2); }
+  #promptPackBuilderWorkspace .ppb-fmt { white-space: nowrap; }
   #promptPackBuilderWorkspace .ppb-export-grid { grid-template-columns: minmax(0, 1fr); }
-  #promptPackBuilderWorkspace .ppb-pick { flex-wrap: wrap; }
-  #promptPackBuilderWorkspace .ppb-pick-act { width: 100%; justify-content: flex-end; }
+  #promptPackBuilderWorkspace .ppb-pick-act { flex-direction: column-reverse; align-items: flex-end; gap: 2px; }
   #promptPackBuilderWorkspace .ppb-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
 }
 

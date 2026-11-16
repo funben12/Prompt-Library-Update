@@ -8,7 +8,7 @@
     const SCHEMA = 'prompt-workflow-studio';
     const VERSION = 1;
     const GRID = 16;
-    const NODE_W = 220;
+    const NODE_W = 208;
     const MAX_NODES = 200;
     const MIN_Z = 0.3, MAX_Z = 1.8;
     const TYPES = ['text', 'list', 'number', 'json'];
@@ -88,7 +88,7 @@
     function blankNode(kind, x, y) {
         const base = { id: rid('n'), kind, x: snap(x || 0), y: snap(y || 0), title: KINDS[kind].label };
         switch (kind) {
-            case 'prompt': return { ...base, title: 'New prompt', source: 'typed', promptId: null, text: '', inputs: [], outputs: [{ name: 'result', type: 'text' }] };
+            case 'prompt': return { ...base, title: 'New prompt', source: 'typed', promptId: null, text: '', inputs: [], outputs: [{ name: 'result', type: 'text' }], dismissed: [] };
             case 'context': return { ...base, mode: 'text', text: '', ref: '' };
             case 'validation': return { ...base, title: 'Validation checkpoint', rules: [], pass: 'all', threshold: 1, retryLimit: 0 };
             case 'verification': return { ...base, title: 'Verification checkpoint', performer: 'person', checker: '', checkerId: null, checklist: [], retryLimit: 0 };
@@ -117,6 +117,7 @@
             n.text = s(r.text, 40000);
             n.inputs = ioList(r.inputs, true);
             n.outputs = ioList(r.outputs, false);
+            n.dismissed = lines(r.dismissed, 30);
         } else if (k === 'context') {
             n.mode = oneOf(r.mode, ['text', 'reference'], 'text');
             n.text = s(r.text, 40000);
@@ -533,7 +534,11 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
     // Layered left to right layout: a column per step of depth, columns centred on each other.
     function layoutWorkflow(wf, heightOf) {
         if (!wf.nodes.length) return;
-        const order = orderNodes(wf), idx = {}, layer = {};
+        const all = orderNodes(wf), idx = {}, layer = {};
+        // Recovery steps that only receive fail paths sit in their own row below the chain.
+        const lane = all.filter(n => n.kind === 'recovery' && insOf(wf, n.id).length && insOf(wf, n.id).every(e => e.label === 'fail'));
+        const order = all.filter(n => !lane.includes(n));
+        if (!order.length) return;
         order.forEach((n, i) => { idx[n.id] = i; layer[n.id] = 0; });
         order.forEach(n => outsOf(wf, n.id).forEach(e => { if (idx[e.to] > idx[n.id]) layer[e.to] = Math.max(layer[e.to], layer[n.id] + 1); }));
         // Sources sit one column before what they feed.
@@ -544,7 +549,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
         const cols = {};
         order.forEach(n => { (cols[layer[n.id]] = cols[layer[n.id]] || []).push(n); });
         const keys = Object.keys(cols).map(Number).sort((a, b) => a - b);
-        const GAP_X = 72, GAP_Y = 32, TOP = 40;
+        const GAP_X = 64, GAP_Y = 32, TOP = 48;
         const totals = keys.map(k => cols[k].reduce((t, n) => t + heightOf(n) + GAP_Y, -GAP_Y));
         const tallest = Math.max(...totals);
         const centre = {};
@@ -558,11 +563,19 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
             let y = TOP + (tallest - totals[ki]) / 2;
             list.forEach(n => {
                 const h = heightOf(n);
-                n.x = 40 + ki * (NODE_W + GAP_X);
+                n.x = 48 + ki * (NODE_W + GAP_X);
                 n.y = snap(y);
                 centre[n.id] = y + h / 2;
                 y += h + GAP_Y;
             });
+        });
+        let bottom = Math.max(...order.map(n => n.y + heightOf(n)));
+        let nextX = -Infinity;
+        // One column to the right of its rightmost source, so every fail path runs forward and down.
+        lane.map(n => ({ n, x: Math.max(...insOf(wf, n.id).map(e => byId(wf, e.from)).filter(Boolean).map(c => c.x)) + NODE_W + GAP_X })).sort((a, b) => a.x - b.x).forEach(({ n, x }) => {
+            n.x = snap(Math.max(x, nextX));
+            n.y = snap(bottom + 88);
+            nextX = n.x + NODE_W + 48;
         });
     }
 
@@ -894,7 +907,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
         function renderNodes() {
             const a = document.activeElement;
             const keep = a && root.contains(a) && a.classList.contains('pws-node') ? a.dataset.id : null;
-            els.nodes.innerHTML = [...wf().nodes].sort(pos).map(nodeHtml).join('');
+            els.nodes.innerHTML = [...wf().nodes].sort((a, b) => Math.round(a.x / 120) - Math.round(b.x / 120) || a.y - b.y || a.x - b.x).map(nodeHtml).join('');
             if (keep) { const el = nodeEl(keep); if (el) el.focus({ preventScroll: true }); }
             $('#pws-empty').hidden = wf().nodes.length > 0;
             $('#pws-stat-nodes').textContent = wf().nodes.length;
@@ -1086,7 +1099,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
                         : `${ms('edit_note')}<span>Typed in this workflow</span>`}</div>
                     <div class="pws-field-row">${lib('text', 'Choose from library')}</div>
                     ${field('pws-f-text', 'Prompt text', areaIn('text', n.text, 9, 'placeholder="Write the prompt. Variables such as [[topic]] become inputs."'))}
-                    ${ioRows(n, 'inputs')}${ioRows(n, 'outputs')}`;
+                    <div id="pws-io-wrap">${ioRows(n, 'inputs')}${ioRows(n, 'outputs')}</div>`;
                 case 'context': return `
                     ${field('pws-f-mode', 'Kind of context', `<select class="form-input" id="pws-f-mode" data-f="mode">${opt([['text', 'Text'], ['reference', 'Reference']], n.mode)}</select>`)}
                     ${n.mode === 'reference' ? field('pws-f-ref', 'Reference', textIn('ref', n.ref, 'placeholder="A document, link or file name"'), 'Named in the documentation. Nothing is fetched.') : ''}
@@ -1225,7 +1238,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
             S.tab = t;
             root.dataset.tab = t;
             $$('#pws-tabs [data-tab]').forEach(b => { const on = b.dataset.tab === t; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
-            if (t === 'canvas') requestAnimationFrame(() => { if (S.needFit) { S.needFit = false; fit(); } renderWires(); });
+            if (t === 'canvas') requestAnimationFrame(() => { if (S.needFit) fit(S.needFit); renderWires(); });
             if (t === 'docs' && S.docStale) renderDoc();
         }
         function viewCentre() {
@@ -1236,7 +1249,8 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
         function fit(floor = MIN_Z) {
             const w = wf();
             const r = els.canvas.getBoundingClientRect();
-            if (!r.width) { S.needFit = true; return; }
+            if (!r.width) { S.needFit = floor; return; }
+            S.needFit = false;
             if (!w.nodes.length) { w.view = { x: 40, y: 56, z: 1 }; return applyView(); }
             const xs = w.nodes.map(n => n.x), ys = w.nodes.map(n => n.y);
             const minX = Math.min(...xs), minY = Math.min(...ys);
@@ -1584,7 +1598,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
             closeRail();
             applyView();
             refresh({ inspector: true, touch: false });
-            if (layout) { layoutWorkflow(wf(), measure); refresh({ inspector: true }); S.needFit = true; fit(0.5); }
+            if (layout) { layoutWorkflow(wf(), measure); refresh({ inspector: true }); fit(0.5); }
             renderRail();
             if (S.tab === 'docs') renderDoc();
             flush();
@@ -1699,12 +1713,14 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
             },
             ioDel: t => {
                 const n = node(S.sel.id), which = t.dataset.io;
-                n[which].splice(Number(t.dataset.i), 1);
+                const gone = n[which].splice(Number(t.dataset.i), 1)[0];
+                if (which === 'inputs' && gone && !n.dismissed.includes(gone.name)) n.dismissed = [...n.dismissed, gone.name].slice(-30);
                 refresh({ inspector: true });
             },
             ioDetect: t => {
                 const n = node(S.sel.id), which = t.dataset.io;
                 const found = which === 'inputs' ? detectVars(n.text) : detectOutputs(n.text);
+                n.dismissed = n.dismissed.filter(d => !found.includes(d));
                 const added = found.filter(name => !n[which].some(o => o.name === name));
                 added.forEach(name => n[which].push(which === 'inputs' ? { name, type: guessType(name), required: true } : { name, type: guessType(name) }));
                 refresh({ inspector: true });
@@ -1796,8 +1812,26 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
                 n.name = v;
             } else n[key] = value;
         }
+        // While a prompt is typed, variables it mentions become inputs unless the user removed them.
+        let detT = 0;
+        function autoDetect(id) {
+            const n = node(id);
+            if (!n || n.kind !== 'prompt' || !S.sel || S.sel.id !== id) return;
+            let changedIO = false;
+            detectVars(n.text).slice(0, 30).forEach(name => {
+                if (n.inputs.length < 30 && !n.inputs.some(i => i.name === name) && !n.dismissed.includes(name)) { n.inputs.push({ name, type: guessType(name), required: true }); changedIO = true; }
+            });
+            const outs = detectOutputs(n.text).slice(0, 10);
+            const untouched = n.outputs.length === 1 && n.outputs[0].name === 'result';
+            if (outs.length && untouched) { n.outputs = outs.map(name => ({ name, type: guessType(name) })); changedIO = true; }
+            if (!changedIO) return;
+            const wrap = $('#pws-io-wrap');
+            if (wrap) wrap.innerHTML = ioRows(n, 'inputs') + ioRows(n, 'outputs');
+            refresh();
+        }
         root.addEventListener('input', e => {
             const t = e.target;
+            if (t.dataset.f === 'text' && S.sel && S.sel.t === 'node') { clearTimeout(detT); const id = S.sel.id; detT = setTimeout(() => autoDetect(id), 600); }
             if (t.id === 'pws-name') { wf().name = t.value; $('#pws-mobile-name').textContent = t.value || 'Untitled workflow'; renderRail(); docDirty(); changed(); return; }
             if (t.dataset.wfF) { wf()[t.dataset.wfF] = t.value; if (t.dataset.wfF === 'name') { renderRail(); $('#pws-name').value = t.value; } docDirty(); changed(); return; }
             if (t.id === 'pws-pick-search') { pick.q = t.value; return renderPick(); }
@@ -2066,7 +2100,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
             requestAnimationFrame(() => {
                 renderNodes();
                 renderWires();
-                if (S.needFit) { S.needFit = false; fit(); }
+                if (S.needFit) fit(S.needFit);
                 const f = isMobile() ? $('#pws-tab-stages') : $('#pws-tab-canvas');
                 if (f) f.focus({ preventScroll: true });
             });
