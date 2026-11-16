@@ -1,0 +1,456 @@
+/* ============================================================================
+   PROMPT BOOK BUILDER WORKSPACE  [PRO]
+   Everything is scoped under #promptBookBuilderWorkspace and uses app.css tokens only.
+   Shared pieces come from app.css: ws-header, btn, icon-btn, form-input, form-textarea.
+   ============================================================================ */
+#promptBookBuilderWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+  color: var(--ink);
+  font-family: var(--ff-sans);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+#promptBookBuilderWorkspace.open {
+  display: flex;
+  animation: pl-ws-open 240ms var(--ease-out-expo) both;
+}
+#promptBookBuilderWorkspace:focus { outline: none; }
+#promptBookBuilderWorkspace * { scrollbar-width: thin; scrollbar-color: var(--line) transparent; box-sizing: border-box; }
+#promptBookBuilderWorkspace :where(button:not(.btn):not(.icon-btn), summary, [tabindex]):focus-visible { outline: none; box-shadow: var(--ring); }
+
+/* ---------- shared bits ---------- */
+#promptBookBuilderWorkspace .pbb-label {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+#promptBookBuilderWorkspace .pbb-mono { font-family: var(--ff-mono); font-variant-numeric: tabular-nums; }
+#promptBookBuilderWorkspace .pbb-count { font-size: var(--fs-xs); color: var(--ink-3); margin-left: var(--sp-1); }
+#promptBookBuilderWorkspace .pbb-wide { width: 100%; justify-content: center; }
+#promptBookBuilderWorkspace .pbb-xs { padding: 4px var(--sp-3); font-size: var(--fs-xs); }
+#promptBookBuilderWorkspace .btn:disabled,
+#promptBookBuilderWorkspace .icon-btn:disabled { opacity: 0.4; pointer-events: none; }
+#promptBookBuilderWorkspace .form-input,
+#promptBookBuilderWorkspace .form-textarea { padding: 8px var(--sp-3); }
+#promptBookBuilderWorkspace .form-textarea { line-height: 1.55; resize: vertical; }
+#promptBookBuilderWorkspace .pbb-empty { color: var(--ink-3); padding: var(--sp-4); margin: 0; font-size: var(--fs-sm); }
+#promptBookBuilderWorkspace .pbb-help { margin: 0; font-size: var(--fs-xs); color: var(--ink-3); }
+#promptBookBuilderWorkspace .pbb-chip {
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  padding: 1px var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+}
+#promptBookBuilderWorkspace .pbb-chip .material-symbols-outlined { font-size: 13px; }
+
+/* ---------- header ---------- */
+#promptBookBuilderWorkspace .pbb-header .ws-header-actions { justify-content: flex-end; min-width: 0; }
+#promptBookBuilderWorkspace .pbb-menu { position: relative; }
+#promptBookBuilderWorkspace .pbb-menu-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 290px;
+  padding: var(--sp-1);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  animation: pbb-pop var(--t-fast) var(--ease-out-quart);
+}
+#promptBookBuilderWorkspace .pbb-menu-list[hidden] { display: none; }
+#promptBookBuilderWorkspace .pbb-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+#promptBookBuilderWorkspace .pbb-menu-item .material-symbols-outlined { font-size: 20px; color: var(--accent); }
+#promptBookBuilderWorkspace .pbb-menu-item:hover { background: var(--surface-2); }
+#promptBookBuilderWorkspace .pbb-menu-text { display: grid; line-height: 1.35; }
+#promptBookBuilderWorkspace .pbb-menu-text b { font-weight: 600; }
+#promptBookBuilderWorkspace .pbb-menu-text small { color: var(--ink-3); font-size: var(--fs-xs); }
+@keyframes pbb-pop { from { opacity: 0; transform: translateY(-4px); } }
+
+/* ---------- tabs, only on narrow screens ---------- */
+#promptBookBuilderWorkspace .pbb-tabs { display: none; }
+
+/* ---------- four pane body ---------- */
+#promptBookBuilderWorkspace .pbb-body {
+  display: grid;
+  grid-template-columns: 216px 244px minmax(0, 1.1fr) minmax(0, 0.9fr);
+  min-height: 0;
+  flex: 1;
+}
+@media (min-width: 1360px) {
+  #promptBookBuilderWorkspace .pbb-body { grid-template-columns: 232px 264px minmax(0, 1fr) minmax(0, 1fr); }
+}
+#promptBookBuilderWorkspace .pbb-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border-right: 1px solid var(--line);
+}
+#promptBookBuilderWorkspace .pbb-books,
+#promptBookBuilderWorkspace .pbb-outline { background: var(--surface-2); }
+#promptBookBuilderWorkspace .pbb-editor { background: var(--bg); }
+#promptBookBuilderWorkspace .pbb-preview { background: var(--surface-sunk); border-right: 0; }
+#promptBookBuilderWorkspace .pbb-pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-height: 52px;
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+#promptBookBuilderWorkspace .pbb-pane-foot { padding: var(--sp-3); border-top: 1px solid var(--line); flex-shrink: 0; }
+#promptBookBuilderWorkspace .pbb-pane-scroll { flex: 1; min-height: 0; overflow: auto; }
+#promptBookBuilderWorkspace .pbb-hint { margin: 0; padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--line); font-size: var(--fs-xs); color: var(--ink-3); flex-shrink: 0; }
+
+/* ---------- books rail ---------- */
+#promptBookBuilderWorkspace .pbb-book-list { list-style: none; margin: 0; padding: var(--sp-2); flex: 1; min-height: 0; overflow: auto; display: grid; align-content: start; gap: var(--sp-1); }
+#promptBookBuilderWorkspace .pbb-book-item {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+}
+#promptBookBuilderWorkspace .pbb-book-item:hover { background: var(--surface); border-color: var(--line); }
+#promptBookBuilderWorkspace .pbb-book-item.is-current { background: var(--surface); border-color: var(--accent-line); box-shadow: var(--shadow-sm); }
+#promptBookBuilderWorkspace .pbb-book-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: var(--sp-3);
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+#promptBookBuilderWorkspace .pbb-book-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#promptBookBuilderWorkspace .pbb-book-item.is-current .pbb-book-title { color: var(--accent); }
+#promptBookBuilderWorkspace .pbb-book-meta { display: flex; gap: var(--sp-3); font-size: var(--fs-xs); color: var(--ink-3); }
+#promptBookBuilderWorkspace .pbb-book-actions {
+  position: absolute; right: var(--sp-1); top: var(--sp-1);
+  display: none; gap: 2px;
+}
+#promptBookBuilderWorkspace .pbb-book-item:hover .pbb-book-actions,
+#promptBookBuilderWorkspace .pbb-book-item:focus-within .pbb-book-actions { display: flex; }
+#promptBookBuilderWorkspace .pbb-book-actions .icon-btn { width: 28px; height: 28px; }
+#promptBookBuilderWorkspace .pbb-rename { margin: var(--sp-2); width: calc(100% - var(--sp-4)); }
+
+/* ---------- outline ---------- */
+#promptBookBuilderWorkspace #pbb-outline-list { padding: var(--sp-2); }
+#promptBookBuilderWorkspace .pbb-ol-front,
+#promptBookBuilderWorkspace .pbb-ol-main,
+#promptBookBuilderWorkspace .pbb-ol-block {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  min-height: 36px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+#promptBookBuilderWorkspace .pbb-ol-front .material-symbols-outlined { font-size: 18px; color: var(--ink-3); }
+#promptBookBuilderWorkspace .pbb-ol-front:hover,
+#promptBookBuilderWorkspace .pbb-ol-main:hover,
+#promptBookBuilderWorkspace .pbb-ol-block:hover { background: var(--surface); color: var(--ink); }
+#promptBookBuilderWorkspace .pbb-ol-front.is-current,
+#promptBookBuilderWorkspace .pbb-ol-ch.is-current .pbb-ol-main { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+#promptBookBuilderWorkspace .pbb-ol-sec { display: flex; align-items: center; padding: var(--sp-4) var(--sp-3) var(--sp-2); }
+#promptBookBuilderWorkspace .pbb-ol-ch { display: flex; align-items: center; border-radius: var(--r-md); position: relative; }
+#promptBookBuilderWorkspace .pbb-ol-grip { display: grid; place-items: center; width: 18px; color: var(--ink-4); cursor: grab; flex-shrink: 0; touch-action: none; }
+#promptBookBuilderWorkspace .pbb-ol-grip .material-symbols-outlined { font-size: 16px; }
+#promptBookBuilderWorkspace .pbb-ol-num { font-size: var(--fs-xs); color: var(--ink-3); min-width: 1.5em; }
+#promptBookBuilderWorkspace .pbb-ol-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#promptBookBuilderWorkspace .pbb-ol-title.is-empty { color: var(--ink-3); font-style: italic; }
+#promptBookBuilderWorkspace .pbb-ol-n { font-size: var(--fs-xs); color: var(--ink-3); }
+#promptBookBuilderWorkspace .pbb-ol-blocks { display: grid; gap: 1px; margin: 0 0 var(--sp-2) 30px; padding-left: var(--sp-2); border-left: 1px solid var(--line); }
+#promptBookBuilderWorkspace .pbb-ol-block { min-height: 30px; padding: 4px var(--sp-2); font-size: var(--fs-xs); }
+#promptBookBuilderWorkspace .pbb-ol-block .material-symbols-outlined { font-size: 15px; color: var(--ink-3); flex-shrink: 0; }
+#promptBookBuilderWorkspace .pbb-ol-block span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- drag feedback ---------- */
+#promptBookBuilderWorkspace .is-dragging { opacity: 0.45; }
+#promptBookBuilderWorkspace .pbb-drop-before { box-shadow: 0 -3px 0 0 var(--accent); }
+#promptBookBuilderWorkspace .pbb-drop-after { box-shadow: 0 3px 0 0 var(--accent); }
+
+/* ---------- editor ---------- */
+#promptBookBuilderWorkspace .pbb-editor-inner { max-width: 48rem; margin: 0 auto; padding: var(--sp-5) var(--sp-5) var(--sp-8); }
+#promptBookBuilderWorkspace .pbb-edit-head,
+#promptBookBuilderWorkspace .pbb-chap-bar { display: flex; align-items: center; justify-content: space-between; min-height: 34px; margin-bottom: var(--sp-2); }
+#promptBookBuilderWorkspace .pbb-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+#promptBookBuilderWorkspace .pbb-span2 { grid-column: 1 / -1; }
+#promptBookBuilderWorkspace .pbb-field { display: grid; gap: var(--sp-1); align-content: start; }
+#promptBookBuilderWorkspace .pbb-field-label { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); }
+#promptBookBuilderWorkspace .pbb-title-input { font-family: var(--ff-display); font-size: var(--fs-lg); font-weight: 600; padding: var(--sp-3) var(--sp-4); }
+#promptBookBuilderWorkspace .pbb-chap-title { font-family: var(--ff-display); font-size: var(--fs-xl); font-weight: 600; letter-spacing: -0.015em; padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-5); }
+#promptBookBuilderWorkspace .pbb-actions { display: inline-flex; gap: 2px; align-items: center; }
+#promptBookBuilderWorkspace .pbb-actions .icon-btn,
+#promptBookBuilderWorkspace .pbb-md-tools .icon-btn {
+  width: 30px; height: 30px;
+  background: transparent; border-color: transparent; box-shadow: none; transform: none;
+}
+#promptBookBuilderWorkspace .pbb-actions .icon-btn:hover,
+#promptBookBuilderWorkspace .pbb-md-tools .icon-btn:hover { background: var(--surface-2); border-color: var(--line); box-shadow: none; transform: none; }
+#promptBookBuilderWorkspace .pbb-actions .icon-btn.danger:hover { background: var(--danger-soft); border-color: var(--danger); }
+#promptBookBuilderWorkspace .pbb-actions .icon-btn:focus-visible,
+#promptBookBuilderWorkspace .pbb-md-tools .icon-btn:focus-visible { box-shadow: var(--ring); }
+#promptBookBuilderWorkspace .pbb-blocks { display: grid; gap: var(--sp-4); }
+#promptBookBuilderWorkspace .pbb-blank { text-align: center; padding: var(--sp-8) var(--sp-5); color: var(--ink-3); display: grid; gap: var(--sp-3); justify-items: center; }
+#promptBookBuilderWorkspace .pbb-blank h3 { font-family: var(--ff-display); font-size: var(--fs-lg); color: var(--ink); margin: 0; }
+#promptBookBuilderWorkspace .pbb-blank p { margin: 0; }
+#promptBookBuilderWorkspace .pbb-blank-sm { padding: var(--sp-6) var(--sp-4); border: 1px dashed var(--line-strong); border-radius: var(--r-lg); }
+
+#promptBookBuilderWorkspace .pbb-block {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  transition: box-shadow var(--t-base) var(--ease-out-quart), border-color var(--t-base);
+}
+#promptBookBuilderWorkspace .pbb-block:focus-within { border-color: var(--accent-line); }
+#promptBookBuilderWorkspace .pbb-block.is-flash { border-color: var(--accent); box-shadow: var(--ring); }
+#promptBookBuilderWorkspace .pbb-block-head {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+}
+#promptBookBuilderWorkspace .pbb-grip {
+  display: grid; place-items: center; width: 28px; height: 28px;
+  border: 0; border-radius: var(--r-sm); background: none; color: var(--ink-3); cursor: grab; touch-action: none;
+}
+#promptBookBuilderWorkspace .pbb-grip:hover { background: var(--surface-3); color: var(--ink); }
+#promptBookBuilderWorkspace .pbb-grip .material-symbols-outlined { font-size: 18px; }
+#promptBookBuilderWorkspace .pbb-block-type { display: inline-flex; align-items: center; gap: var(--sp-2); flex: 1; min-width: 0; font-weight: 600; color: var(--ink); }
+#promptBookBuilderWorkspace .pbb-block-type .material-symbols-outlined { font-size: 18px; color: var(--accent); }
+#promptBookBuilderWorkspace .pbb-block-idx { font-size: var(--fs-xs); color: var(--ink-3); font-weight: 400; }
+#promptBookBuilderWorkspace .pbb-block-body { display: grid; gap: var(--sp-3); padding: var(--sp-4); }
+#promptBookBuilderWorkspace .pbb-auto { field-sizing: content; min-height: 6.5em; max-height: 60vh; }
+#promptBookBuilderWorkspace .pbb-code { font-family: var(--ff-mono); font-size: var(--fs-sm); }
+#promptBookBuilderWorkspace .pbb-md-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); flex-wrap: wrap; }
+#promptBookBuilderWorkspace .pbb-md-tools { display: inline-flex; gap: 2px; }
+#promptBookBuilderWorkspace .pbb-md-tools .icon-btn .material-symbols-outlined { font-size: 18px; }
+#promptBookBuilderWorkspace .pbb-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; background: var(--surface-sunk); width: fit-content; }
+#promptBookBuilderWorkspace .pbb-seg button { padding: 5px var(--sp-4); border: 0; background: none; color: var(--ink-2); font: inherit; font-weight: 600; font-size: var(--fs-xs); cursor: pointer; }
+#promptBookBuilderWorkspace .pbb-seg button + button { border-left: 1px solid var(--line); }
+#promptBookBuilderWorkspace .pbb-seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+#promptBookBuilderWorkspace .pbb-seg button:focus-visible { box-shadow: inset var(--ring); }
+#promptBookBuilderWorkspace .pbb-md-live { padding: var(--sp-3) var(--sp-4); border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface-sunk); min-height: 6.5em; }
+#promptBookBuilderWorkspace .pbb-vars { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+#promptBookBuilderWorkspace .pbb-vars:empty { display: none; }
+#promptBookBuilderWorkspace .pbb-var-chip { font-family: var(--ff-mono); font-size: var(--fs-xs); padding: 1px var(--sp-2); border-radius: var(--r-sm); background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-line); }
+#promptBookBuilderWorkspace .pbb-prompt-foot { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+#promptBookBuilderWorkspace .pbb-add {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2);
+  margin-top: var(--sp-5); padding: var(--sp-4);
+  border: 1px dashed var(--line-strong); border-radius: var(--r-lg);
+}
+#promptBookBuilderWorkspace .pbb-add .pbb-label { margin-right: var(--sp-2); }
+
+/* ---------- reading preview: a book page ---------- */
+#promptBookBuilderWorkspace .pbb-pv-scroll { padding: var(--sp-5); }
+#promptBookBuilderWorkspace .pbb-pv-scroll .pbb-book { max-width: 38rem; margin: 0 auto; display: grid; gap: var(--sp-5); }
+#promptBookBuilderWorkspace .pbb-page {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--sp-7) var(--sp-7);
+  font-family: var(--ff-display);
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+#promptBookBuilderWorkspace .pbb-page-h { font-family: var(--ff-display); font-size: var(--fs-xl); font-weight: 600; line-height: 1.15; letter-spacing: -0.015em; color: var(--ink); margin: 0 0 var(--sp-5); }
+#promptBookBuilderWorkspace .pbb-cover { min-height: 28rem; display: grid; align-items: center; }
+#promptBookBuilderWorkspace .pbb-cover-title { font-size: var(--fs-2xl); font-weight: 600; line-height: 1.05; letter-spacing: -0.025em; color: var(--ink); margin: 0; }
+#promptBookBuilderWorkspace .pbb-cover-sub { margin: var(--sp-4) 0 0; font-size: var(--fs-md); font-style: italic; color: var(--ink-2); }
+#promptBookBuilderWorkspace .pbb-cover-rule { width: 56px; height: 3px; background: var(--accent); margin: var(--sp-6) 0 var(--sp-4); }
+#promptBookBuilderWorkspace .pbb-cover-author { margin: 0; font-size: var(--fs-md); color: var(--ink); }
+#promptBookBuilderWorkspace .pbb-cover-edition { margin: 2px 0 0; font-family: var(--ff-sans); font-size: var(--fs-sm); color: var(--ink-3); }
+#promptBookBuilderWorkspace .pbb-toc-list { list-style: none; margin: 0; padding: 0; }
+#promptBookBuilderWorkspace .pbb-toc-list li { border-bottom: 1px solid var(--line); }
+#promptBookBuilderWorkspace .pbb-toc-list a { display: flex; gap: var(--sp-4); align-items: baseline; padding: var(--sp-3) 0; color: var(--ink); text-decoration: none; }
+#promptBookBuilderWorkspace .pbb-toc-list a:hover .pbb-toc-t { color: var(--accent); text-decoration: underline; }
+#promptBookBuilderWorkspace .pbb-toc-num { flex: 0 0 2em; font-family: var(--ff-mono); font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3); }
+#promptBookBuilderWorkspace .pbb-chap-num { margin: 0 0 var(--sp-1); font-family: var(--ff-sans); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--accent); }
+#promptBookBuilderWorkspace .pbb-chap-num span { font-family: var(--ff-mono); }
+#promptBookBuilderWorkspace .pbb-prose h3, #promptBookBuilderWorkspace .pbb-steps h3 { font-size: var(--fs-lg); font-weight: 600; color: var(--ink); margin: var(--sp-6) 0 var(--sp-2); line-height: 1.25; }
+#promptBookBuilderWorkspace .pbb-prose h4 { font-size: var(--fs-md); font-weight: 600; color: var(--ink); margin: var(--sp-5) 0 var(--sp-2); }
+#promptBookBuilderWorkspace .pbb-prose h5, #promptBookBuilderWorkspace .pbb-prose h6 { font-size: var(--fs-base); font-weight: 600; color: var(--ink); margin: var(--sp-4) 0 var(--sp-1); }
+#promptBookBuilderWorkspace .pbb-prose > :first-child { margin-top: 0; }
+#promptBookBuilderWorkspace .pbb-prose p { margin: 0 0 var(--sp-4); }
+#promptBookBuilderWorkspace .pbb-prose ul, #promptBookBuilderWorkspace .pbb-prose ol { margin: 0 0 var(--sp-4); padding-left: var(--sp-6); }
+#promptBookBuilderWorkspace .pbb-prose li { margin: var(--sp-1) 0; }
+#promptBookBuilderWorkspace .pbb-prose strong { color: var(--ink); font-weight: 600; }
+#promptBookBuilderWorkspace .pbb-steps { margin: var(--sp-5) 0; }
+#promptBookBuilderWorkspace .pbb-steps ol { list-style: none; counter-reset: pbbs; margin: 0; padding: 0; }
+#promptBookBuilderWorkspace .pbb-steps li { counter-increment: pbbs; display: grid; grid-template-columns: 2em 1fr; gap: var(--sp-2); padding: var(--sp-3) 0; border-bottom: 1px solid var(--line); }
+#promptBookBuilderWorkspace .pbb-steps li::before { content: counter(pbbs); font-family: var(--ff-mono); font-size: var(--fs-sm); font-weight: 700; color: var(--accent); line-height: 1.9; }
+#promptBookBuilderWorkspace .pbb-callout { margin: var(--sp-5) 0; padding: var(--sp-4); border: 1px solid var(--accent-line); border-radius: var(--r-md); background: var(--accent-soft); }
+#promptBookBuilderWorkspace .pbb-callout-warning { border-color: color-mix(in oklch, var(--warn) 45%, var(--line)); background: var(--warn-soft); }
+#promptBookBuilderWorkspace .pbb-callout-label { display: flex; align-items: center; gap: var(--sp-2); margin: 0 0 var(--sp-2); font-family: var(--ff-sans); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink); }
+#promptBookBuilderWorkspace .pbb-callout-label::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+#promptBookBuilderWorkspace .pbb-callout-warning .pbb-callout-label::before { background: var(--warn); }
+#promptBookBuilderWorkspace .pbb-callout .pbb-prose > :last-child { margin-bottom: 0; }
+#promptBookBuilderWorkspace .pbb-prompt { margin: var(--sp-5) 0; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-sunk); overflow: hidden; }
+#promptBookBuilderWorkspace .pbb-prompt figcaption { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--line); background: var(--surface-2); font-family: var(--ff-sans); }
+#promptBookBuilderWorkspace .pbb-prompt-label { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--accent); }
+#promptBookBuilderWorkspace .pbb-prompt-title { flex: 1; min-width: 0; font-size: var(--fs-sm); font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#promptBookBuilderWorkspace .pbb-copy { margin-left: auto; padding: 3px var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: 600 var(--fs-xs) var(--ff-sans); cursor: pointer; }
+#promptBookBuilderWorkspace .pbb-copy:hover { border-color: var(--accent); color: var(--accent); }
+#promptBookBuilderWorkspace .pbb-when { margin: 0; padding: var(--sp-3) var(--sp-3) 0; font-family: var(--ff-sans); font-size: var(--fs-sm); color: var(--ink-2); }
+#promptBookBuilderWorkspace .pbb-pre { margin: 0; padding: var(--sp-3); font-family: var(--ff-mono); font-size: var(--fs-sm); line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
+#promptBookBuilderWorkspace .pbb-var { color: var(--accent); font-weight: 600; }
+#promptBookBuilderWorkspace .pbb-empty-note { color: var(--ink-3); font-style: italic; margin: 0; }
+
+/* ---------- status bar ---------- */
+#promptBookBuilderWorkspace .pbb-statusbar {
+  display: flex; align-items: center; gap: var(--sp-5);
+  padding: var(--sp-2) var(--sp-4);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  flex-shrink: 0;
+}
+#promptBookBuilderWorkspace .pbb-st-title { color: var(--ink-2); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 0 1 auto; }
+#promptBookBuilderWorkspace .pbb-st { white-space: nowrap; }
+#promptBookBuilderWorkspace .pbb-st b { color: var(--ink); font-weight: 600; }
+#promptBookBuilderWorkspace .pbb-saved { margin-left: auto; }
+
+/* ---------- dialogs ---------- */
+#promptBookBuilderWorkspace .pbb-scrim {
+  position: absolute; inset: 0; z-index: 30;
+  display: grid; place-items: center; padding: var(--sp-4);
+  background: color-mix(in oklch, var(--ink) 42%, transparent);
+}
+#promptBookBuilderWorkspace .pbb-dialog {
+  display: flex; flex-direction: column; gap: var(--sp-4);
+  width: min(440px, 100%); max-height: min(80vh, 100%);
+  padding: var(--sp-5);
+  border: 1px solid var(--line-strong); border-radius: var(--r-xl);
+  background: var(--surface); box-shadow: var(--shadow-lg);
+  animation: pbb-pop var(--t-base) var(--ease-out-expo);
+}
+#promptBookBuilderWorkspace .pbb-dialog:focus { outline: none; }
+#promptBookBuilderWorkspace .pbb-dialog-wide { width: min(680px, 100%); height: min(640px, 100%); }
+#promptBookBuilderWorkspace .pbb-dlg-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+#promptBookBuilderWorkspace .pbb-dlg-title { margin: 0; font-family: var(--ff-display); font-size: var(--fs-lg); font-weight: 600; color: var(--ink); }
+#promptBookBuilderWorkspace .pbb-dlg-body { margin: 0; color: var(--ink-2); font-size: var(--fs-base); }
+#promptBookBuilderWorkspace .pbb-dlg-foot { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2); }
+#promptBookBuilderWorkspace .pbb-dlg-foot .pbb-count { margin-right: auto; }
+#promptBookBuilderWorkspace .pbb-lib-list { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-sunk); }
+#promptBookBuilderWorkspace .pbb-lib-item {
+  display: flex; align-items: center; gap: var(--sp-3);
+  width: 100%; padding: var(--sp-3) var(--sp-4);
+  border: 0; border-bottom: 1px solid var(--line);
+  background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+  transition: background var(--t-fast);
+}
+#promptBookBuilderWorkspace .pbb-lib-item:last-of-type { border-bottom: 0; }
+#promptBookBuilderWorkspace .pbb-lib-item:hover { background: var(--surface-2); }
+#promptBookBuilderWorkspace .pbb-lib-item.is-added { background: var(--accent-soft); }
+#promptBookBuilderWorkspace .pbb-lib-main { flex: 1; min-width: 0; display: grid; gap: 2px; }
+#promptBookBuilderWorkspace .pbb-lib-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#promptBookBuilderWorkspace .pbb-lib-snip { color: var(--ink-3); font-size: var(--fs-xs); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+#promptBookBuilderWorkspace .pbb-lib-tags { display: flex; gap: var(--sp-1); flex-wrap: wrap; margin-top: 2px; }
+#promptBookBuilderWorkspace .pbb-lib-cta { display: inline-flex; align-items: center; gap: var(--sp-1); font-weight: 600; font-size: var(--fs-xs); color: var(--accent); flex-shrink: 0; }
+#promptBookBuilderWorkspace .pbb-lib-cta .material-symbols-outlined { font-size: 16px; }
+
+/* ---------- narrow screens: stacked tabs ---------- */
+@media (max-width: 1100px) {
+  #promptBookBuilderWorkspace .pbb-tabs { display: flex; border-bottom: 1px solid var(--line); background: var(--surface); flex-shrink: 0; }
+  #promptBookBuilderWorkspace .pbb-tabs button {
+    flex: 1; min-height: 44px; border: 0; border-bottom: 2px solid transparent;
+    background: none; color: var(--ink-3); font: inherit; font-weight: 600; cursor: pointer;
+  }
+  #promptBookBuilderWorkspace .pbb-tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  #promptBookBuilderWorkspace .pbb-tabs button:focus-visible { box-shadow: inset var(--ring); }
+  #promptBookBuilderWorkspace .pbb-body { grid-template-columns: minmax(0, 1fr); }
+  #promptBookBuilderWorkspace .pbb-body > .pbb-pane { display: none; border-right: 0; }
+  #promptBookBuilderWorkspace .pbb-body[data-tab="books"] > #pbb-pane-books,
+  #promptBookBuilderWorkspace .pbb-body[data-tab="outline"] > #pbb-pane-outline,
+  #promptBookBuilderWorkspace .pbb-body[data-tab="write"] > #pbb-pane-write,
+  #promptBookBuilderWorkspace .pbb-body[data-tab="preview"] > #pbb-pane-preview { display: flex; }
+  #promptBookBuilderWorkspace .pbb-book-actions { display: flex; }
+}
+@media (max-width: 700px) {
+  #promptBookBuilderWorkspace .pbb-header .ws-subtitle { display: none; }
+  #promptBookBuilderWorkspace .pbb-header .ws-header-left { flex: 1 1 0; }
+  #promptBookBuilderWorkspace .pbb-header .ws-header-actions { flex: 0 0 auto; flex-wrap: nowrap; }
+  #promptBookBuilderWorkspace .pbb-editor-inner { padding: var(--sp-4) var(--sp-4) var(--sp-8); }
+  #promptBookBuilderWorkspace .pbb-fields { grid-template-columns: 1fr; }
+  #promptBookBuilderWorkspace .pbb-pv-scroll { padding: var(--sp-3); }
+  #promptBookBuilderWorkspace .pbb-page { padding: var(--sp-5) var(--sp-4); }
+  #promptBookBuilderWorkspace .pbb-cover { min-height: 22rem; }
+  #promptBookBuilderWorkspace .pbb-statusbar { gap: var(--sp-3); }
+  #promptBookBuilderWorkspace .pbb-menu-list { position: fixed; right: var(--sp-3); left: var(--sp-3); top: auto; min-width: 0; }
+}
+/* Touch targets of at least 44px. */
+@media (pointer: coarse), (max-width: 700px) {
+  #promptBookBuilderWorkspace .icon-btn,
+  #promptBookBuilderWorkspace .pbb-actions .icon-btn,
+  #promptBookBuilderWorkspace .pbb-md-tools .icon-btn,
+  #promptBookBuilderWorkspace .pbb-book-actions .icon-btn { width: 44px; height: 44px; }
+  #promptBookBuilderWorkspace .btn { min-height: 44px; }
+  #promptBookBuilderWorkspace .pbb-grip { width: 44px; height: 44px; }
+  #promptBookBuilderWorkspace .pbb-ol-front,
+  #promptBookBuilderWorkspace .pbb-ol-main,
+  #promptBookBuilderWorkspace .pbb-ol-block { min-height: 44px; }
+  #promptBookBuilderWorkspace .pbb-ol-grip { width: 28px; }
+  #promptBookBuilderWorkspace .pbb-book-main { min-height: 56px; padding-right: 100px; }
+  #promptBookBuilderWorkspace .pbb-seg button { min-height: 44px; padding: 0 var(--sp-5); }
+  #promptBookBuilderWorkspace .pbb-copy { min-height: 44px; padding: 0 var(--sp-4); }
+  #promptBookBuilderWorkspace .pbb-menu-item { min-height: 52px; }
+  #promptBookBuilderWorkspace .pbb-lib-item { min-height: 56px; }
+  #promptBookBuilderWorkspace .pbb-xs { min-height: 44px; }
+  #promptBookBuilderWorkspace .pbb-block-head { padding: var(--sp-1) var(--sp-2); flex-wrap: wrap; }
+  #promptBookBuilderWorkspace .pbb-book-actions { top: 6px; right: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #promptBookBuilderWorkspace.open,
+  #promptBookBuilderWorkspace .pbb-menu-list,
+  #promptBookBuilderWorkspace .pbb-dialog { animation: none; }
+  #promptBookBuilderWorkspace * { transition-duration: 0.01ms !important; }
+}
