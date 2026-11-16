@@ -69,7 +69,7 @@
         { target: '.pbp-workshop', side: 'right', title: 'Bring in components', text: 'Open library to browse the Component Library. What you select lands here in the Workshop, ready to drag onto the canvas.' },
         { target: '#pbp-canvas', side: 'inside', title: 'Wire the flow', text: 'Drag from the dot on one block to another block to connect them. Select a block to edit its text. Blocks that are not wired in are left out of the prompt.' },
         { target: '#pbp-pane-right', side: 'left', title: 'Read the live prompt', text: 'The prompt compiles as you build. Checks lists anything to fix. When the badge says Ready to copy, copy it or use Export.' },
-        { target: '#pbp-right-tabs [data-tab="learn"]', side: 'left', title: 'Learn by doing', text: 'The Learn tab has short hands-on lessons on the agent blocks. Do each step yourself, or press Show me and the builder does it. Your own blocks are never touched.' },
+        { target: '#pbp-right-tabs [data-tab="learn"]', side: 'left', title: 'Learn by doing', text: 'The Learn tab has hands-on lessons on the agent blocks, and Showcases: whole workflows built chapter by chapter while you watch. Do each lesson step yourself, or press Show me. Your own blocks are never touched.' },
         { target: '#pbp-template-select', side: 'below', title: 'Start from a template', text: 'Templates load a working flow, including ready-made agent teams. Guide explains teams and loops. The tour button beside it replays these steps.' }
     ];
     /* ---------- more multi-agent blocks ----------
@@ -471,7 +471,7 @@
       <tr><td>Do I need a Conductor?</td><td>No. It is optional. Use it when you want one block that briefs four agents from a single task.</td></tr>
       <tr><td>If I add a Conductor, do I still need the agent blocks?</td><td>Yes. A Conductor only hands out work. Select it and press "Add its agents and wire them" to get all four in one go.</td></tr>
       <tr><td>Conductor, Team Lead or Router?</td><td>Conductor briefs a fixed four. Team Lead splits a job across any three agents you choose. Router sends each request to one agent only. Use one at most.</td></tr>
-      <tr><td>Is there a hands-on tutorial?</td><td>Yes. Open the Learn tab on the right. Each lesson builds one kind of team step by step: do a step yourself or press Show me.</td></tr>
+      <tr><td>Is there a hands-on tutorial?</td><td>Yes. Open the Learn tab on the right. Lessons build one kind of team step by step: do a step yourself or press Show me. Showcases builds eight complete workflows, chapter by chapter, using every agent block and real blocks from the Component Library.</td></tr>
       <tr><td>Does anything actually run?</td><td>No. The builder writes a prompt. The AI you paste it into plays every agent in order, which is why the prompt spells out who hands what to whom.</td></tr>
     </tbody></table>
 
@@ -1234,7 +1234,7 @@
 
         /* ---------- Learn tab ---------- */
         const LEARN_STORE = 'prompt-builder-pro.learn.v1';
-        const learn = { lesson: null, step: 0, keys: {}, types: {}, made: [], seen: {}, origin: { x: 40, y: 80 } };
+        const learn = { mode: 'lessons', lesson: null, step: 0, keys: {}, types: {}, made: [], seen: {}, origin: { x: 40, y: 80 } };
         let learnDone = [];
         (function loadLearn() {
             try { learnDone = JSON.parse(localStorage.getItem(LEARN_STORE) || '[]'); } catch (e) { learnDone = []; }
@@ -1289,14 +1289,14 @@
             }
             return (s.a || []).every(a => !!lFind(a[0], a[1])) && (s.w || []).every(lWired) && (s.u || []).every(w => !lWired(w));
         }
-        function focusLesson() {
-            const ids = Object.values(learn.keys);
+        const focusLesson = () => focusIds(Object.values(learn.keys));
+        function focusIds(ids, floor = .35, h = 190) {
             const list = state.nodes.filter(n => ids.includes(n.id));
             if (!list.length) return;
             const r = els.canvas.getBoundingClientRect();
             const minX = Math.min(...list.map(n => n.x)), maxX = Math.max(...list.map(n => n.x)) + NODE_W;
-            const minY = Math.min(...list.map(n => n.y)), maxY = Math.max(...list.map(n => n.y)) + 190;
-            const z = Math.max(.35, Math.min(.9, r.width / (maxX - minX + 120), r.height / (maxY - minY + 140)));
+            const minY = Math.min(...list.map(n => n.y)), maxY = Math.max(...list.map(n => n.y)) + h;
+            const z = Math.max(floor, Math.min(.9, r.width / (maxX - minX + 120), r.height / (maxY - minY + 140)));
             state.zoom = z;
             state.pan = { x: (r.width - (maxX - minX) * z) / 2 - minX * z, y: (r.height - (maxY - minY) * z) / 2 - minY * z };
             els.viewport.classList.add('pbp-is-gliding');
@@ -1367,9 +1367,14 @@
         function renderLearn() {
             const el = $('#pbp-panel-learn');
             if (!el || el.hidden) return;
+            if (exh.id) return renderShowDetail(el);
             const lesson = lessonById(learn.lesson);
             if (!lesson) {
-                el.innerHTML = `<div class="pbp-learn">
+                const seg = `<div class="pbp-tabs pbp-learn-seg" role="group" aria-label="Learn section">
+                    <button class="pbp-tab" data-act="learnMode" data-mode="lessons" aria-pressed="${learn.mode !== 'showcases'}">Lessons</button>
+                    <button class="pbp-tab" data-act="learnMode" data-mode="showcases" aria-pressed="${learn.mode === 'showcases'}">Showcases</button></div>`;
+                if (learn.mode === 'showcases') { el.innerHTML = `<div class="pbp-learn">${seg}${showListHtml()}</div>`; return; }
+                el.innerHTML = `<div class="pbp-learn">${seg}
                     <div class="pbp-learn-intro"><b>Learn the agent blocks</b><p>Short hands-on lessons. Each step you can do yourself, or press Show me and the builder does it. Lessons add their own blocks beside yours and never change what you have built.</p></div>
                     <ul class="pbp-lessons">${LESSONS.map((l, i) => `<li><button class="pbp-lesson" data-act="learnOpen" data-lesson="${l.id}">
                         <span class="pbp-lesson-n" ${learnDone.includes(l.id) ? 'data-done' : ''}>${learnDone.includes(l.id) ? ms('check') : i + 1}</span>
@@ -1397,6 +1402,175 @@
                 <div class="pbp-now"><span class="pbp-label">What the prompt says now</span>${excerpt ? `<pre>${esc(excerpt)}</pre>` : '<p>Nothing yet. Once two agent blocks are wired together, their hand-offs appear here.</p>'}</div>
                 <div class="pbp-learn-foot"><button class="btn btn-ghost pbp-btn-xs" data-act="learnExample">Build the whole example</button><button class="btn btn-ghost pbp-btn-xs" data-act="learnClear">Remove lesson blocks</button></div>
             </div>`;
+        }
+
+        /* ---------- Showcases: whole workflows, built chapter by chapter ----------
+           The data is in builder-pro-showcases.js. A showcase adds its own blocks beside yours and only ever removes those. */
+        const SHOW_STORE = 'prompt-builder-pro.showcase.v1';
+        const exh = { id: null, chapter: 0, built: {}, made: [], plan: [], origin: { x: 40, y: 80 }, run: 0, playing: false };
+        let showDone = [];
+        (function loadShow() {
+            try { showDone = JSON.parse(localStorage.getItem(SHOW_STORE) || '[]'); } catch (e) { showDone = []; }
+            if (!Array.isArray(showDone)) showDone = [];
+            const saved = window.PL_prefs && window.PL_prefs.ready ? window.PL_prefs.ready : null;
+            if (saved) saved.then(() => {
+                try {
+                    JSON.parse(window.PL_prefs.get('builder_showcases') || '[]').forEach(id => { if (!showDone.includes(id)) showDone.push(id); });
+                    if (state.tab === 'learn') renderLearn();
+                } catch (e) { /* nothing saved yet */ }
+            });
+        })();
+        function saveShow() {
+            try { localStorage.setItem(SHOW_STORE, JSON.stringify(showDone)); } catch (e) { /* kept in the database below */ }
+            if (window.PL_prefs) window.PL_prefs.set('builder_showcases', JSON.stringify(showDone));
+        }
+        const showcases = () => PB.showcases || [];
+        const showById = id => showcases().find(x => x.id === id);
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        function showStats(sc) {
+            const all = sc.chapters.flatMap(c => c.nodes);
+            const types = new Set(all.filter(n => !n.comp && BLOCKS[n.type] && BLOCKS[n.type].category === 'agents').map(n => n.type));
+            return { blocks: all.length, agents: types.size, comps: all.filter(n => n.comp).length, chapters: sc.chapters.length };
+        }
+        function showListHtml() {
+            const list = showcases();
+            if (!list.length) return '<p class="pbp-show-about">No showcases are loaded.</p>';
+            return `<div class="pbp-learn-intro"><b>Watch a whole workflow built</b><p>Each showcase builds a complete multi-agent workflow chapter by chapter: agent teams, logic and real blocks from the Component Library. Play it, step through it, then open any block to see what it does. Showcases add their own blocks beside yours and never change what you have built.</p></div>
+                <ul class="pbp-lessons">${list.map((x, i) => {
+                    const st = showStats(x);
+                    return `<li><button class="pbp-lesson" data-act="showOpen" data-show="${esc(x.id)}">
+                        <span class="pbp-lesson-n" ${showDone.includes(x.id) ? 'data-done' : ''}>${showDone.includes(x.id) ? ms('check') : i + 1}</span>
+                        <span class="pbp-lesson-text"><b>${esc(x.title)}</b><small>${esc(x.tagline)}</small><small class="pbp-show-stats">${st.blocks} blocks · ${st.agents} agent types · ${st.comps} library components · ${st.chapters} chapters</small></span>${ms('chevron_right')}</button></li>`;
+                }).join('')}</ul>`;
+        }
+        const chapterBuilt = ci => !!exh.plan[ci] && exh.plan[ci].nodes.length > 0 && exh.plan[ci].nodes.every(n => exh.built[n.k] && node(exh.built[n.k]));
+        function showOpen(id) {
+            const sc = showById(id);
+            if (!sc) return;
+            exh.run++;
+            Object.assign(exh, { id, chapter: 0, built: {}, made: [], plan: PB.showcaseBuild(sc), playing: false });
+            exh.origin = state.nodes.length ? { x: Math.max(...state.nodes.map(n => n.x)) + NODE_W + 140, y: 80 } : { x: 40, y: 80 };
+            renderLearn();
+        }
+        function showPlace(n) {
+            const id = uid('node');
+            state.nodes.push({
+                id, type: n.type, config: JSON.parse(JSON.stringify(n.config)),
+                x: Math.round((exh.origin.x + n.x) / 8) * 8, y: Math.round((exh.origin.y + n.y) / 8) * 8
+            });
+            exh.built[n.k] = id;
+            exh.made.push(id);
+            return id;
+        }
+        function showWire(w) {
+            const a = exh.built[w[0]], b = exh.built[w[2]];
+            if (!a || !b || !node(a) || !node(b)) return false;
+            if (state.edges.some(e => e.from === a && e.fromPort === w[1] && e.to === b && (e.toPort || 'in') === w[3])) return false;
+            state.edges.push({ id: uid('edge'), from: a, fromPort: w[1], to: b, toPort: w[3] });
+            return true;
+        }
+        const chapterIds = ci => builtIds(exh.plan[ci].nodes.map(n => n.k));
+        const builtIds = keys => keys.map(k => exh.built[k]).filter(Boolean);
+        // Blocks and wires appear one at a time while the view follows them. Returns false when stopped or closed.
+        async function showChapter(ci, animate, token) {
+            const ch = exh.plan[ci];
+            const live = () => token === exh.run && isOpen();
+            for (const n of ch.nodes) {
+                if (exh.built[n.k] && node(exh.built[n.k])) continue;
+                const id = showPlace(n);
+                if (!animate) continue;
+                render({ inspector: false });
+                const el = nodeEl(id);
+                if (el) el.classList.add('pbp-node-new');
+                focusIds(chapterIds(ci), .4, 300);
+                await sleep(360);
+                if (!live()) return false;
+                // Wires draw as soon as both ends exist, so a block arrives already connected.
+                for (const w of ch.wires) {
+                    if (!showWire(w)) continue;
+                    render({ inspector: false });
+                    await sleep(170);
+                    if (!live()) return false;
+                }
+            }
+            for (const w of ch.wires) {
+                if (!showWire(w) || !animate) continue;
+                render({ inspector: false });
+                await sleep(170);
+                if (!live()) return false;
+            }
+            render({ inspector: false });
+            focusIds(chapterIds(ci), .4, 300);
+            return live();
+        }
+        async function showRun(from, to, animate) {
+            const token = ++exh.run;
+            exh.playing = animate;
+            for (let ci = 0; ci < from; ci++) if (!chapterBuilt(ci)) await showChapter(ci, false, token);
+            for (let ci = from; ci <= to; ci++) {
+                exh.chapter = ci;
+                renderLearn();
+                if (!await showChapter(ci, animate, token)) { if (token === exh.run) exh.playing = false; return renderLearn(); }
+                if (animate && ci < to) await sleep(900);
+            }
+            exh.playing = false;
+            const sc = showById(exh.id);
+            if (sc && exh.plan.every((c, i) => chapterBuilt(i)) && !showDone.includes(sc.id)) {
+                showDone.push(sc.id);
+                saveShow();
+                toast(`${sc.title} is built. Open the Prompt tab to read what it compiles to.`, 'success');
+            }
+            if (exh.plan.every((c, i) => chapterBuilt(i))) focusIds(exh.made, .15, 300);
+            render();
+            renderLearn();
+        }
+        function renderShowDetail(el) {
+            const sc = showById(exh.id);
+            if (!sc) { exh.id = null; return renderLearn(); }
+            const ch = exh.plan[exh.chapter];
+            const st = showStats(sc);
+            const done = chapterBuilt(exh.chapter);
+            const last = exh.chapter >= exh.plan.length - 1;
+            const chip = n => {
+                const kind = n.type.startsWith(COMPONENT) ? 'component' : BLOCKS[n.type].category === 'agents' ? 'agent' : 'block';
+                const icon = iconName(n.config.source && n.config.source.icon) || ICONS[n.type] || 'widgets';
+                return `<li class="pbp-chip" data-kind="${kind}">${ms(icon)}<span>${esc(n.config.title || BLOCKS[n.type].label)}</span><small>${kind === 'component' ? 'Component Library' : esc(BLOCKS[n.type].label)}</small></li>`;
+            };
+            el.innerHTML = `<div class="pbp-learn">
+                <button class="pbp-learn-back" data-act="showClose">${ms('arrow_back')}<span>All showcases</span></button>
+                <h3 class="pbp-learn-title">${esc(sc.title)}</h3>
+                <p class="pbp-show-about">${esc(sc.about)}</p>
+                <p class="pbp-show-stats">${st.blocks} blocks · ${st.agents} agent types · ${st.comps} library components</p>
+                <ol class="pbp-steps">${exh.plan.map((c, i) => `<li data-state="${chapterBuilt(i) ? 'done' : i === exh.chapter ? 'now' : 'todo'}"><button data-act="showGo" data-chapter="${i}"><i>${chapterBuilt(i) ? ms('check') : i + 1}</i><span>${esc(c.title)}</span></button></li>`).join('')}</ol>
+                <div class="pbp-step-card" data-done="${done}">
+                    <span class="pbp-label">Chapter ${exh.chapter + 1} of ${exh.plan.length}${done ? ' · built' : ''}</span>
+                    <b>${esc(ch.title)}</b>
+                    <p>${esc(ch.blurb)}</p>
+                    <ul class="pbp-chips" aria-label="Blocks in this chapter">${ch.nodes.map(chip).join('')}</ul>
+                    <div class="pbp-step-actions pbp-wrap">
+                        ${exh.playing
+                            ? `<button class="btn pbp-btn-xs" data-act="showStop">${ms('stop')}<span>Stop</span></button>`
+                            : `<button class="btn btn-accent pbp-btn-xs" data-act="showPlay" ${done ? 'disabled' : ''}>${ms('play_arrow')}<span>Build chapter</span></button>
+                               <button class="btn pbp-btn-xs" data-act="showPlayAll">${ms('fast_forward')}<span>Play all</span></button>`}
+                        <button class="btn pbp-btn-xs pbp-push-left" data-act="showPrev" ${exh.chapter && !exh.playing ? '' : 'disabled'}>Back</button>
+                        <button class="btn pbp-btn-xs" data-act="showNext" ${last || exh.playing ? 'disabled' : ''}>Next</button>
+                    </div>
+                </div>
+                <div class="pbp-learn-foot"><button class="btn btn-ghost pbp-btn-xs" data-act="showPrompt">${ms('article')}<span>See the prompt</span></button><button class="btn btn-ghost pbp-btn-xs" data-act="showClear">Remove showcase blocks</button></div>
+            </div>`;
+        }
+        function showClear() {
+            exh.run++;
+            exh.playing = false;
+            const gone = new Set(exh.made);
+            if (!gone.size) return toast('This showcase has not added any blocks', 'info');
+            state.nodes = state.nodes.filter(n => !gone.has(n.id));
+            state.edges = state.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+            exh.built = {}; exh.made = [];
+            state.selected = null;
+            render();
+            renderLearn();
+            toast('Showcase blocks removed. Your own blocks are untouched.', 'success');
         }
 
         /* ---------- first run tutorial, replayed from the tour button ---------- */
@@ -1767,7 +1941,18 @@
                 lesson.steps.forEach((s, i) => { stepRun(s); learn.seen[i] = true; });
                 renderLearn();
             },
-            learnClear
+            learnClear,
+            learnMode: t => { learn.mode = t.dataset.mode; renderLearn(); },
+            showOpen: t => showOpen(t.dataset.show),
+            showClose: () => { exh.run++; exh.playing = false; exh.id = null; renderLearn(); },
+            showGo: t => { if (exh.playing) return; exh.chapter = +t.dataset.chapter; renderLearn(); },
+            showPrev: () => { if (exh.chapter && !exh.playing) { exh.chapter--; renderLearn(); } },
+            showNext: () => { if (exh.chapter < exh.plan.length - 1 && !exh.playing) { exh.chapter++; renderLearn(); } },
+            showPlay: () => showRun(exh.chapter, exh.chapter, true),
+            showPlayAll: () => showRun(exh.chapter, exh.plan.length - 1, true),
+            showStop: () => { exh.run++; exh.playing = false; renderLearn(); },
+            showPrompt: () => setTab('prompt'),
+            showClear
         };
 
         root.addEventListener('click', e => {
