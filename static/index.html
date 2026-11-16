@@ -11,7 +11,7 @@
 
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/app.css?v=e0423987-plx">
+<link rel="stylesheet" href="/static/app.css?v=cbc29ad8-plx">
 <link rel="stylesheet" href="/static/builder-pro.css?v=20261116b">
 <link rel="stylesheet" href="/static/combine-prompts.css?v=20261116a">
 </head>
@@ -1109,6 +1109,23 @@
      ============================================================ -->
 <div class="modal-overlay" id="promptModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
   <div class="modal-main-wrap" id="promptModalWrap">
+  <!-- Fill form preview side panel (left) -->
+  <div class="modal-side-panel" id="promptVarPreviewPanel">
+    <div class="modal-side-panel-inner">
+      <div class="sp-header">
+        <span class="sp-title">
+          <span class="material-symbols-outlined">preview</span>
+          Fill form preview
+        </span>
+        <button type="button" class="icon-btn" id="closeVarPreviewPanel" aria-label="Close fill form preview">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <p class="pvp-sub" id="pvpSub" hidden>How <span class="pvp-name" id="pvpName"></span> looks when the prompt is filled in.</p>
+      <p class="pvp-empty" id="pvpEmpty">Open a variable in the Variables panel to preview it here.</p>
+      <div class="pvp-stage" id="pvpField"></div>
+    </div>
+  </div>
   <div class="modal-box">
     <div class="modal-header">
       <div>
@@ -5123,7 +5140,7 @@
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
 <script defer src="/static/combine-prompts.js?v=5620e7a8"></script>
-<script defer src="/static/app.js?v=48b9185c"></script>
+<script defer src="/static/app.js?v=ee0f70f8"></script>
 <script defer src="/static/randomiser-motion.js?v=b58f9ac7"></script>
 <script defer src="/static/vartypes-3d.js?v=8848706c"></script>
 <script defer src="/static/deck-shuffles.js?v=23f50d79"></script>

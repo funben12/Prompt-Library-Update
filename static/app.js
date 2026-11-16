@@ -1748,8 +1748,9 @@
         return out;
     }
 
-    function renderVariableFields(vars, meta) {
-        const wrap = $('#variableFields');
+    function renderVariableFields(vars, meta, opts) {
+        const pvTarget = opts && opts.target;
+        const wrap = pvTarget || $('#variableFields');
         if (!vars.length) {
             wrap.innerHTML = '';
             return;
@@ -1936,6 +1937,7 @@
     </details>`;
         }).join('');
 
+        if (pvTarget) return;
         // Wire live preview listeners now that the DOM nodes exist
         $$('#variableFields .var-input, #variableFields .var-select, #variableFields .var-checkbox').forEach(inp => {
             inp.addEventListener('input', _updateVarLivePreview);
@@ -3217,14 +3219,79 @@ STYLE/THEME: [[reserved for future use]]`;
     /* ============================================================================
        VARIABLE META EDITOR
        ============================================================================ */
+    // Fill form preview: left panel of the prompt editor shows the selected variable as the fill form draws it
+    let _PL_pvSel = null;
+    let _PL_pvDismissed = false;
+    function _PL_pvOpen(on) {
+        $('#promptVarPreviewPanel')?.classList.toggle('open', !!on);
+        $('#promptModalWrap')?.classList.toggle('pvp-open', !!on);
+    }
+    function _PL_pvSync() {
+        const vp = $('#promptVarsPanel');
+        _PL_pvOpen(!!(vp && vp.classList.contains('open') && _PL_pvSel && !_PL_pvDismissed));
+    }
+    function _PL_pvRefresh() {
+        const host = $('#pvpField');
+        if (!host) return;
+        const empty = $('#pvpEmpty'), nameEl = $('#pvpName'), sub = $('#pvpSub');
+        const row = _PL_pvSel ? $$('#varMetaList .var-meta-row').find(r => r.dataset.var === _PL_pvSel) : null;
+        if (!row) {
+            host.innerHTML = '';
+            if (empty) empty.hidden = false;
+            if (sub) sub.hidden = true;
+            if (nameEl) nameEl.textContent = '';
+            return;
+        }
+        if (empty) empty.hidden = true;
+        if (sub) sub.hidden = false;
+        if (nameEl) nameEl.textContent = _PL_pvSel;
+        try {
+            const meta = Object.assign({}, collectVarMeta()[_PL_pvSel] || {}, { visible: true });
+            renderVariableFields([_PL_pvSel], { [_PL_pvSel]: meta }, { target: host });
+        } catch (err) {
+            host.innerHTML = '<p class="pvp-error">Preview not available for this setup.</p>';
+        }
+    }
+    function initVarPreviewPanel() {
+        const list = $('#varMetaList');
+        if (!list) return;
+        list.addEventListener('click', e => {
+            const sum = e.target.closest('summary.var-meta-summary');
+            if (!sum) return;
+            const row = sum.closest('.var-meta-row');
+            if (!row.open) { _PL_pvSel = row.dataset.var; _PL_pvDismissed = false; }
+            else if (_PL_pvSel === row.dataset.var) _PL_pvSel = null;
+            _PL_pvRefresh();
+            _PL_pvSync();
+        });
+        ['input', 'change'].forEach(ev => list.addEventListener(ev, e => {
+            const row = e.target.closest('.var-meta-row');
+            if (row && row.dataset.var === _PL_pvSel) _PL_pvRefresh();
+        }));
+        $('#closeVarPreviewPanel')?.addEventListener('click', () => { _PL_pvDismissed = true; _PL_pvSync(); });
+        const vp = $('#promptVarsPanel');
+        if (vp) new MutationObserver(_PL_pvSync).observe(vp, { attributes: true, attributeFilter: ['class'] });
+        const modal = $('#promptModal');
+        if (modal) new MutationObserver(() => {
+            if (modal.classList.contains('active')) return;
+            _PL_pvSel = null;
+            _PL_pvDismissed = false;
+            _PL_pvSync();
+            _PL_pvRefresh();
+        }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+    }
+
     function renderVarMetaList(existing) {
         const content = $('#promptContent').value || '';
         const vars = detectVariables(content);
         const list = $('#varMetaList');
         if (!vars.length) {
             list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
+            _PL_pvSel = null;
+            _PL_pvRefresh();
             return;
         }
+        if (_PL_pvSel && !vars.includes(_PL_pvSel)) _PL_pvSel = null;
         const meta = existing || collectVarMeta();
         list.innerHTML = vars.map((v, index) => {
             const m = _PL_normMeta(meta[v] || {});
@@ -3235,7 +3302,7 @@ STYLE/THEME: [[reserved for future use]]`;
             const opts = (m.options || []).join(type === 'choicecards' ? '\n' : ', ');
             const needsOptions = _PL_OPTION_TYPES.includes(type);
             return `
-      <details class="var-meta-row" data-var="${escapeAttr(v)}" ${index === 0 ? 'open' : ''}>
+      <details class="var-meta-row" data-var="${escapeAttr(v)}" ${(_PL_pvSel ? v === _PL_pvSel : index === 0) ? 'open' : ''}>
         <summary class="var-meta-summary">
           <span class="material-symbols-outlined var-meta-chevron">expand_more</span>
           <span class="var-meta-name">${escapeHtml(v)}</span>
@@ -3331,6 +3398,7 @@ STYLE/THEME: [[reserved for future use]]`;
       </details>`;
         }).join('');
         list.querySelectorAll('.var-meta-row').forEach(r => _PL_applyVarTypeUI(r, r.querySelector('[data-field="type"]').value));
+        _PL_pvRefresh();
     }
     function _PL_optPlaceholder(type) {
         return ({
@@ -9199,6 +9267,7 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     function initModalSidePanels() {
+        initVarPreviewPanel();
         // Context Bank panel toggle
         $('#ctxPanelToggleBtn')?.addEventListener('click', () => {
             if ($('#promptCtxPanel')?.classList.contains('open'))
