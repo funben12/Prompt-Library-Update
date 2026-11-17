@@ -377,7 +377,7 @@
                 const o = producedBy(wf, e.from).find(x => x.name === m.out);
                 const pid = o ? o.from : e.from;
                 const pn = byId(wf, pid);
-                return pn && pn.kind === 'input' ? `workflow input ${pn.name}` : `${m.out} from ${label(pid)}`;
+                return pn && pn.kind === 'input' ? `workflow input ${pn.name}` : `${label(pid)} (${m.out})`;
             }
             return null;
         };
@@ -470,7 +470,7 @@
                 b.push({ t: 'code', x: r.text || '(Nothing to show.)' });
             });
         }
-        if (m.outputs.length) b.push({ t: 'h2', x: 'Workflow output' }, { t: 'table', head: ['Name', 'Type', 'Description', 'Comes from'], rows: m.outputs.map(o => [o.name, o.type, o.description || 'None given', insOf(wf, o.id).map(e => { const mp = e.map.find(x => x.in === o.name); return mp ? `${mp.out} from ${m.label(e.from)}` : m.label(e.from); }).join('; ') || 'Not connected']) });
+        if (m.outputs.length) b.push({ t: 'h2', x: 'Workflow output' }, { t: 'table', head: ['Name', 'Type', 'Description', 'Comes from'], rows: m.outputs.map(o => [o.name, o.type, o.description || 'None given', insOf(wf, o.id).map(e => { const mp = e.map.find(x => x.in === o.name); return mp ? `${m.label(e.from)} (${mp.out})` : m.label(e.from); }).join('; ') || 'Not connected']) });
         const run = [];
         if (m.inputs.length) run.push(`Have these ready: ${m.inputs.map(i => i.name).join(', ')}.`);
         m.rows.forEach(r => {
@@ -883,7 +883,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
             if (n.kind === 'validation') return `<p class="pws-node-text"><b class="pws-mono">${n.rules.length}</b> ${n.rules.length === 1 ? 'rule' : 'rules'}, ${passShort(n)}</p>${n.retryLimit ? `<div class="pws-io"><span class="pws-io-k">Limit</span><span class="pws-io-v pws-mono">${n.retryLimit}</span></div>` : ''}`;
             if (n.kind === 'verification') return `<p class="pws-node-text">${n.performer === 'person' ? 'A person checks' : 'A second prompt checks'}, <b class="pws-mono">${n.checklist.length}</b> ${n.checklist.length === 1 ? 'item' : 'items'}</p>`;
             if (n.kind === 'recovery') return `<p class="pws-node-text">${esc(STRATEGY[n.strategy])}</p>${n.retryLimit ? `<div class="pws-io"><span class="pws-io-k">Limit</span><span class="pws-io-v pws-mono">${n.retryLimit}</span></div>` : ''}`;
-            return `<div class="pws-io"><span class="pws-io-k">${n.kind === 'input' ? 'Name' : 'Result'}</span><span class="pws-io-v pws-mono">${esc(n.name)}</span><span class="pws-type pws-mono">${esc(n.type)}</span></div>${n.description ? `<p class="pws-node-text">${esc(clip(n.description, 90))}</p>` : ''}`;
+            return `<div class="pws-io"><span class="pws-io-k">${n.kind === 'input' ? 'Var' : 'Out'}</span><span class="pws-io-v pws-mono">${esc(n.name)}</span><span class="pws-type pws-mono">${esc(n.type)}</span></div>${n.description ? `<p class="pws-node-text">${esc(clip(n.description, 90))}</p>` : ''}`;
         }
         function nodeHtml(n) {
             const k = KINDS[n.kind];
@@ -1173,7 +1173,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
                 const k = KINDS[n.kind];
                 box.innerHTML = `${inspectorHead(k.icon, k.label, k.hint, kindStyle(n.kind))}
                     <div class="pws-insp-body">
-                        ${field('pws-f-title', 'Name', textIn('title', n.title))}
+                        ${field('pws-f-title', n.kind === 'input' || n.kind === 'output' ? 'Label on the canvas' : 'Name', textIn('title', n.title))}
                         ${nodeFields(n)}
                         ${connectionsHtml(n)}
                     </div>
@@ -1195,10 +1195,11 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
 
         /* ---------- selection and view ---------- */
         const sheetOpen = () => root.dataset.sheet === 'open';
-        let sheetOpener = null;
+        let sheetOpener = null, sheetAt = 0;
         function openSheet(opener) {
             if (!isMobile()) return;
             sheetOpener = opener || document.activeElement;
+            sheetAt = Date.now();
             root.dataset.sheet = 'open';
             els.side.setAttribute('role', 'dialog');
             els.side.setAttribute('aria-modal', 'true');
@@ -1397,7 +1398,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
                 if (n) n.retryLimit = fix.value || 2;
             }
             refresh({ inspector: true });
-            toast('Fixed', 'success');
+            toast(`Done: ${fix.label}`, 'success');
         }
 
         /* ---------- dialogs ---------- */
@@ -1642,6 +1643,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
         function openRail() {
             if (!isMobile()) { S.railOpen = true; applyRail(); return; }
             railOpener = document.activeElement;
+            sheetAt = Date.now();
             root.dataset.rail = 'open';
             els.rail.setAttribute('role', 'dialog');
             els.rail.setAttribute('aria-modal', 'true');
@@ -1665,12 +1667,13 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
             if (it.nodeId && !isMobile()) requestAnimationFrame(() => centreOn(it.nodeId));
         };
         const actions = {
-            close: () => closeWorkspace(),
+            close: () => window.PL_closePromptWorkflowStudio(),
             newWf: () => { const w = newWorkflow(`Workflow ${store.workflows.length + 1}`); store.workflows.push(w); switchTo(w.id); toast('New workflow created', 'success'); },
             toggleRail: () => { if (isMobile()) return openRail(); S.railOpen = !S.railOpen; applyRail(); },
             openRail, closeRail,
             closeSheet: () => { if (S.sel && !isMobile()) select(null); closeSheet(); },
-            closeSheets: () => { closeSheet(); closeRail(); },
+            // The click that follows a tap on a node lands on the new backdrop, so it is ignored briefly.
+            closeSheets: () => { if (Date.now() - sheetAt < 450) return; closeSheet(); closeRail(); },
             tabHealth: () => setTab('health'),
             fromPrompts: () => openPicker('multi'),
             tidy: () => tidy(),
@@ -1934,6 +1937,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
                 const n = node(nEl.dataset.id);
                 drag = { mode: 'node', id: n.id, sx: e.clientX, sy: e.clientY, ox: n.x, oy: n.y, moved: false };
                 if (!S.sel || S.sel.t !== 'node' || S.sel.id !== n.id) select({ t: 'node', id: n.id });
+                if (!isMobile()) setRtab('inspect');
             } else drag = { mode: 'pan', sx: e.clientX, sy: e.clientY, ox: v.x, oy: v.y, moved: false, tap: nEl ? nEl.dataset.id : null };
         });
         els.canvas.addEventListener('pointermove', e => {
@@ -2061,13 +2065,13 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
                 if (root.dataset.rail === 'open') { closeRail(); return; }
                 if (typing) { t.blur(); return; }
                 if (S.sel) { select(null); return; }
-                closeWorkspace();
+                window.PL_closePromptWorkflowStudio();
             }
         });
         // Only acts while the studio is open and focus has fallen back to the page.
         document.addEventListener('keydown', e => {
             if (!isOpen()) return;
-            if (e.key === 'Escape' && e.target === document.body && !$('dialog[open]')) closeWorkspace();
+            if (e.key === 'Escape' && e.target === document.body && !$('dialog[open]')) window.PL_closePromptWorkflowStudio();
         });
         $('#pws-pick-dialog').addEventListener('close', () => { pick.cb = null; });
         $$('dialog', root).forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));

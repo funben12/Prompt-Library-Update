@@ -261,6 +261,68 @@
         }
         watch();
         render();
+        try { mountLibrary(); } catch (e) { console.warn('Library organiser not mounted', e); }
+        return true;
+    }
+
+    // Library organiser: the existing prompt Folders, Categories and Tags sections move into one cluster with a shared switch.
+    const LIB_MODES = [['folders', 'Folders'], ['categories', 'Categories'], ['tags', 'Tags']];
+    function libMode() { const m = window.PLWS && window.PLWS.ui('sidebarLibGroup'); return LIB_MODES.some(x => x[0] === m) ? m : 'folders'; }
+    function applyLibMode(root, m) {
+        LIB_MODES.forEach(([k]) => {
+            const lab = root.querySelector('.nav-section-label[data-toggle="' + k + '"]');
+            const sec = lab && lab.closest('.nav-section');
+            if (!sec) return;
+            sec.hidden = k !== m;
+            // The shown section opens, so one click on the switch is enough.
+            const content = document.getElementById(k + '-content');
+            if (k === m && content && content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                lab.setAttribute('aria-expanded', 'true');
+                const chev = lab.querySelector('.chev');
+                if (chev) chev.style.transform = '';
+            }
+        });
+        root.querySelectorAll('.wss-seg-btn').forEach(b => {
+            const on = b.getAttribute('data-lib') === m;
+            b.setAttribute('aria-checked', on ? 'true' : 'false');
+            b.tabIndex = on ? 0 : -1;
+        });
+    }
+    function mountLibrary() {
+        const scroll = document.getElementById('sidebarScroll');
+        if (!scroll) return false;
+        if (document.getElementById('wssPrompts')) return true;
+        const secs = LIB_MODES.map(([k]) => { const lab = scroll.querySelector('.nav-section-label[data-toggle="' + k + '"]'); return lab && lab.closest('.nav-section'); });
+        if (secs.some(x => !x)) return false;
+        const root = h('section', { id: 'wssPrompts', 'aria-label': 'Library organiser' });
+        const seg = h('div', { class: 'wss-seg', role: 'radiogroup', 'aria-label': 'Organise library by' });
+        LIB_MODES.forEach(([k, label]) => seg.appendChild(h('button', { type: 'button', class: 'wss-seg-btn', role: 'radio', 'aria-checked': 'false', 'data-lib': k, text: label })));
+        const full = h('button', { type: 'button', class: 'wss-full', 'aria-label': 'Open the Library Browser', title: 'Browse prompts by folder, category and tag' }, [icon('open_in_full', 'wss-full-ic')]);
+        full.addEventListener('click', () => { if (typeof window.openLibraryBrowserWorkspace === 'function') window.openLibraryBrowserWorkspace(); });
+        root.appendChild(h('div', { class: 'wss-title-row' }, [h('h2', { class: 'wss-title', text: 'Library organiser' }), full]));
+        root.appendChild(seg);
+        secs.forEach(x => root.appendChild(x));
+        seg.addEventListener('click', e => {
+            const b = e.target.closest('.wss-seg-btn');
+            if (!b) return;
+            window.PLWS.ui('sidebarLibGroup', b.getAttribute('data-lib'));
+            applyLibMode(root, b.getAttribute('data-lib'));
+        });
+        seg.addEventListener('keydown', e => {
+            const i = LIB_MODES.findIndex(x => x[0] === libMode());
+            const next = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? i + 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? LIB_MODES.length - 1 : -1;
+            if (next < 0) return;
+            e.preventDefault();
+            const k = LIB_MODES[(next + LIB_MODES.length) % LIB_MODES.length][0];
+            window.PLWS.ui('sidebarLibGroup', k);
+            applyLibMode(root, k);
+            const btn = seg.querySelector('[data-lib="' + k + '"]');
+            if (btn) btn.focus();
+        });
+        const anchorEl = document.getElementById('wssRoot');
+        if (anchorEl) anchorEl.after(root); else scroll.prepend(root);
+        applyLibMode(root, libMode());
         return true;
     }
 

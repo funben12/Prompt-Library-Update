@@ -144,7 +144,7 @@
 
     /* ---------- previews (isolated: the only place that touches PLWS_PREVIEW) ---------- */
     function previewHtml(id, variant) {
-        const size = 'card';
+        const size = window.matchMedia && window.matchMedia('(max-width: 640px)').matches ? 'small' : 'card';
         const key = id + '|' + size;
         if (previewCache.has(key)) return previewCache.get(key);
         let out = '';

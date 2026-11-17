@@ -526,6 +526,7 @@
 }
 #promptWorkflowStudioWorkspace .pws-doc h1 { margin: 0 0 var(--sp-1); font-family: var(--ff-display); font-size: var(--fs-xl); font-weight: 600; letter-spacing: -0.02em; color: var(--ink); line-height: 1.2; }
 #promptWorkflowStudioWorkspace .pws-doc h2 {
+  font-family: var(--ff-sans);
   margin: var(--sp-7) 0 var(--sp-3);
   padding-bottom: var(--sp-2);
   border-bottom: 1px solid var(--line);
@@ -764,6 +765,11 @@
   #promptWorkflowStudioWorkspace .pws-name-input,
   #promptWorkflowStudioWorkspace .pws-save,
   #promptWorkflowStudioWorkspace .pws-header .pws-btn-label { display: none; }
+  #promptWorkflowStudioWorkspace .pws-header { flex-wrap: nowrap; }
+  #promptWorkflowStudioWorkspace .pws-header .ws-header-left { flex: 1 1 auto; }
+  #promptWorkflowStudioWorkspace .pws-header .ws-header-actions { flex: 0 0 auto; flex-wrap: nowrap; }
+  #promptWorkflowStudioWorkspace .pws-header .pws-menu > summary .material-symbols-outlined:last-child { display: none; }
+  #promptWorkflowStudioWorkspace .pws-header .pws-menu-list { min-width: 240px; }
   #promptWorkflowStudioWorkspace .pws-header .ws-title { font-size: var(--fs-md); }
   #promptWorkflowStudioWorkspace .pws-header .ws-header-left { min-width: 0; }
   #promptWorkflowStudioWorkspace .pws-mobilebar {
@@ -843,7 +849,6 @@
   #promptWorkflowStudioWorkspace .pws-pick-body { grid-template-columns: minmax(0, 1fr); }
   #promptWorkflowStudioWorkspace .pws-pick-list { max-height: 36dvh; }
   #promptWorkflowStudioWorkspace .pws-dialog { max-height: calc(100dvh - 24px); width: calc(100vw - 20px); }
-  #promptWorkflowStudioWorkspace .pws-pick-body[data-mode=multi] #pws-pick-right { order: -1; }
   #promptWorkflowStudioWorkspace .pws-wf-acts { display: flex; }
 }
 @media (max-width: 820px), (pointer: coarse) {
