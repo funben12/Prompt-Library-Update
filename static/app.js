@@ -5164,7 +5164,7 @@ Here are my prompts:
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
             '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace', '#gauntletWorkspace',
             '#promptIdeWorkspace', '#promptForkingWorkspace', '#builderProWorkspace',
-            '#promptPackBuilderWorkspace', '#promptBookBuilderWorkspace', '#promptWorkflowStudioWorkspace', '#contextPackBuilderWorkspace',
+            '#promptPackBuilderWorkspace', '#promptWorkflowStudioWorkspace', '#contextPackBuilderWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');

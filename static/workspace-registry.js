@@ -43,7 +43,6 @@
         openBackupWorkspace: { tags: ['tag-safety'] },
         openIntegrityWorkspace: { tags: ['tag-safety'] },
         openPromptPackBuilderWorkspace: { category: 'cat-publish', tags: ['tag-export', 'tag-community'] },
-        openPromptBookBuilderWorkspace: { category: 'cat-publish', tags: ['tag-export', 'tag-community'] },
         openPromptWorkflowStudioWorkspace: { category: 'cat-build', tags: ['tag-canvas', 'tag-workflow', 'tag-quality'] },
         openContextPackBuilderWorkspace: { category: 'cat-publish', tags: ['tag-context', 'tag-export'] }
     };

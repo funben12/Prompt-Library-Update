@@ -17,7 +17,6 @@
 <link rel="stylesheet" href="/static/workspace-sidebar.css?v=20261117a">
 <link rel="stylesheet" href="/static/workspace-previews.css?v=20261116m">
 <link rel="stylesheet" href="/static/prompt-pack-builder.css?v=20261116m">
-<link rel="stylesheet" href="/static/prompt-book-builder.css?v=20261116m">
 <link rel="stylesheet" href="/static/prompt-workflow-studio.css?v=20261116m">
 <link rel="stylesheet" href="/static/context-pack-builder.css?v=20261116m">
 <link rel="stylesheet" href="/static/combine-prompts.css?v=20261116a">
@@ -4612,14 +4611,6 @@
       </span>
         <span class="launcher-card-pro">PRO</span>
       </button>
-      <button class="launcher-card" data-open="openPromptBookBuilderWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">menu_book</span>
-        <span class="launcher-card-text">
-        <span class="launcher-card-title">Prompt Book Builder</span>
-        <span class="launcher-card-desc">Turn prompts and guidance into a book of how to do things</span>
-      </span>
-        <span class="launcher-card-pro">PRO</span>
-      </button>
       <button class="launcher-card" data-open="openPromptWorkflowStudioWorkspace" data-premium="true">
         <span class="material-symbols-outlined launcher-card-icon">conversion_path</span>
         <span class="launcher-card-text">
@@ -5179,7 +5170,7 @@
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
 <script defer src="/static/combine-prompts.js?v=5620e7a8"></script>
-<script defer src="/static/app.js?v=5e744d01"></script>
+<script defer src="/static/app.js?v=3312ecfe"></script>
 <script defer src="/static/randomiser-motion.js?v=b58f9ac7"></script>
 <script defer src="/static/vartypes-3d.js?v=8848706c"></script>
 <script defer src="/static/deck-shuffles.js?v=23f50d79"></script>
@@ -5194,7 +5185,7 @@
   if (typeof window.clearAllFilters    !== 'function') window.clearAllFilters    = function () {};
   (function(){ var s=document.createElement("script"); s.src="/static/gauntlet-suite.js?v=20261005b"; s.defer=true; document.head.appendChild(s); })();
   ["builder-pro-engine.js", "builder-pro.js", "builder-pro-showcases.js"].forEach(function(f){ var s=document.createElement("script"); s.src="/static/"+f+"?v=20261116k"; s.async=false; document.head.appendChild(s); });
-  ["workspace-registry.js", "workspace-previews.js", "workspace-picker.js", "workspace-sidebar.js", "prompt-pack-builder.js", "prompt-book-builder.js", "prompt-workflow-studio.js", "context-pack-builder.js"].forEach(function(f){ var s=document.createElement("script"); s.src="/static/"+f+"?v=20261117a"; s.async=false; document.head.appendChild(s); });
+  ["workspace-registry.js", "workspace-previews.js", "workspace-picker.js", "workspace-sidebar.js", "prompt-pack-builder.js", "prompt-workflow-studio.js", "context-pack-builder.js"].forEach(function(f){ var s=document.createElement("script"); s.src="/static/"+f+"?v=20261117b"; s.async=false; document.head.appendChild(s); });
 </script>
 
 </body>

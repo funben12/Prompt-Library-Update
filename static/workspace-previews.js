@@ -13,7 +13,6 @@
     // The four workspaces being added; used for name and icon until the launcher carries them.
     const NEWS = {
         openPromptPackBuilderWorkspace: { name: 'Prompt Pack Builder', icon: 'inventory_2' },
-        openPromptBookBuilderWorkspace: { name: 'Prompt Book Builder', icon: 'menu_book' },
         openPromptWorkflowStudioWorkspace: { name: 'Prompt Workflow Studio', icon: 'conversion_path' },
         openContextPackBuilderWorkspace: { name: 'Context Pack Builder', icon: 'deployed_code' }
     };
@@ -440,13 +439,6 @@
                 pane({ g: 12, f: 1 }, lab(120), row({ g: 10 }, [['Markdown', 1], ['JSON', 0], ['HTML', 0]].map(f => '<div class="wsv-pane' + (f[1] ? ' wsv-sel' : '') + '" style="flex:1 1 0;gap:9px;padding:14px;' + (f[1] ? 'background:var(--accent-soft)' : '') + '">' + row({ al: 'center', g: 8 }, ic(f[1] ? 'description' : 'data_object', 22, f[1] ? 'wsv-ac' : ''), '<span class="wsv-mono wsv-ink" style="font-size:17px;font-weight:600;' + (f[1] ? 'color:var(--accent)' : '') + '">' + f[0] + '</span>') + bar(70, 'soft') + '</div>').join('')),
                     fine(lab(100)), fine(D('area', { c: 'wsv-out wsv-mono-lines', f: 1 }, [ln([40, 70, 56, 84, 62, 76], 9)])),
                     row({ g: 10, jc: 'flex-end', x: 'flex:none' }, btn('g', 120, true), btn('a', 180, true))))));
-
-    LAY.openPromptBookBuilderWorkspace = id => frame(id, { acts: [['g', 100], ['a', 130], 'sq'], sub: 320 },
-        row({ f: 1, g: 0 },
-            fine(rail({ w: 290 }, row({ jc: 'space-between', al: 'center' }, lab(90), mono('9')), col({ g: 5 }, ['1', '1.1', '1.2', '2', '2.1', '3', '4'].map((n, i) => li({ c: 'wsv-sl' + (i === 2 ? ' wsv-on' : ''), x: 'padding-left:' + (12 + (n.length > 1 ? 22 : 0)) + 'px' }, mono(n, i === 2 ? 'ac' : ''), bar(40 + (i * 17) % 34, i === 2 ? 'acc' : ''))).join('')), li({ c: 'wsv-card', x: 'border-style:dashed;justify-content:center;margin-top:auto' }, ic('add', 20, 'wsv-ac'), bar(40, 'acc')))),
-            '<div class="wsv-cv" style="display:flex;justify-content:center;padding:26px 0 0">' + D('paper', { w: S ? 520 : 560, x: 'height:100%;gap:13px' }, [mono('Chapter 1.2'), hd(70), ln([94, 90, 82, 92, 60], 10),
-                D('pblock', {}, [row({ g: 8, al: 'center' }, ic('terminal', 20, 'wsv-ac'), bar(30, 'acc'), '<span style="flex:1"></span>', chip(44, 'a'), ic('content_copy', 18, 'wsv-faint')), ln([90, 70, 84], 8)]), ln([92, 84, 70], 10), hd(46), ln([94, 88, 74, 90, 62], 10), fine(ln([88, 56], 10)), '<span class="wsv-mono" style="margin-top:auto;align-self:center">4</span>']) + '</div>',
-            fine(rail({ w: 290, c: 'wsv-r' }, lab(90), col({ g: 10 }, rep(7, i => row({ g: 10, al: 'center' }, bar(46 + (i * 13) % 26, i === 2 ? 'hd' : 'soft'), '<span style="flex:1;height:2px;background:var(--line)"></span>', mono(String([1, 3, 4, 7, 9, 12, 15][i]), i === 2 ? 'ac' : ''))))))));
 
     LAY.openPromptWorkflowStudioWorkspace = id => frame(id, { acts: [['g', 110], ['a', 130], 'sq'], sub: 340 },
         row({ f: 1, g: 0 },
