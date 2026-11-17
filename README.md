@@ -188,7 +188,7 @@ Copyright (c) 2026 **Eugene Phillips, trading as MX Phillips**. All rights reser
 
 The current project uses the **Prompt Library Pro Source Available Licence** in [LICENSE](LICENSE). It allows personal, non-commercial use, modification and forks, including public GitHub forks, subject to the licence conditions. Commercial use, resale and commercial redistribution require prior written permission.
 
-Creating a fork does not transfer ownership of the original project materials. Contributors retain copyright in their independently created contributions unless a separate written agreement says otherwise. Third party components remain under their own licences.
+Creating a fork does not transfer ownership of the original project materials. Contributors retain copyright in their independently created contributions unless a separate written assignment says otherwise. Contributions are accepted under the [Individual Contributor License Agreement](CLA.md), which grants the project broad rights to use, modify, distribute, sublicense and commercialise accepted contributions. The CLA is a licence, not a transfer of copyright ownership. See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process. Third party components remain under their own licences.
 
 **Historical MIT permissions:** Earlier copies or versions distributed under the MIT Licence remain subject to the MIT terms that accompanied them. The earlier notice is preserved in [LICENSE-MIT-HISTORICAL.md](LICENSE-MIT-HISTORICAL.md), and the original file remains available in Git history. The new licence does not retrospectively revoke those permissions.
 
