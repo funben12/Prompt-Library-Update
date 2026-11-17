@@ -1,173 +1,197 @@
 # Prompt Library Pro
-## The Prompt Management Powerhouse Your AI Workflow is Missing
 
-Stop losing your best AI prompts to scattered notes and forgotten conversations. **Prompt Library Pro** is the local-first Windows desktop app that turns your AI prompts into a supercharged productivity engine.
+**A local-first workspace for building, organising, testing and reusing AI prompts.**
 
----
+Prompt Library Pro brings prompt libraries, reusable variables, AI personas, prompt workflows and specialist prompt engineering tools into one desktop application. It is designed for people who treat prompts as working assets and want a consistent place to develop and manage them.
 
-## Why You Need This (Before Your Competition Has It)
+The application runs locally on your computer. Your prompt library is stored in a local SQLite database rather than a hosted Prompt Library account.
 
-Every time you craft a great AI prompt, you're making an investment. But if it's sitting in ChatGPT's sidebar or scattered across text files, **you're losing:**
+![Prompt Library Pro interface](showcase/light/01-library-list.jpg)
 
-- ❌ **Time** — Hunting for that perfect prompt you wrote 3 weeks ago
-- ❌ **Consistency** — Using slightly different versions of the same prompt across projects
-- ❌ **Leverage** — Not building on your prompts or learning from what works best
-- ❌ **Competitive Edge** — While others are starting from scratch, you should be optimizing
+[Browse the full interface showcase](showcase/index.html)
 
-**Prompt Library Pro changes everything.** Stop recreating prompts. Start building a system that compounds in value.
+## What it does
 
----
+### Prompt library
 
-## What You Get
+- Create, edit, duplicate and organise prompts.
+- Use folders, categories, tags, colours and favourites to keep a library manageable.
+- Search and filter prompts.
+- Add reusable variables to prompt templates, including `[[variable]]`, `{{variable}}` and `((variable))` formats.
+- Preview and copy prompts with their variable values filled in.
+- Import and export prompt collections, including Prompt Library Pack (`.plp`) files.
 
-### 📚 Prompt Organization That Actually Works
-- Store unlimited prompts, folders, and tags (Pro tier)
-- Colour-code for instant visual identification
-- Favorite your best performers
-- Full-text search across your entire library
-- One-click duplicate to iterate and experiment
+### Roles and AI personas
 
-### 🔄 Smart Variables & Reusability
-- Fill variables dynamically — use one prompt template across 100 different contexts
-- Live preview shows exactly what your filled prompt will look like
-- Support for text, numbers, dates, and dropdowns
-- Pre-fill variables from your roles or previous runs
+Create reusable roles with their own instructions, expertise, tone, skills and supporting knowledge. Attach roles to prompts and reuse them across your workflow.
 
-### ⛓️ Chain Prompting (Build Prompt Workflows)
-- Connect multiple prompts in sequence
-- Pass output from one prompt as input to the next
-- Useful for multi-step thinking, research workflows, content pipelines
-- See exactly what happens at each phase before executing
+### Prompt workflows and workspaces
 
-### 👤 Agents & Roles (Your AI Personas)
-- Define detailed AI "agents" with identity, expertise, constraints
-- Store their knowledge base, skills, voice preferences
-- Swap agents in and out — same prompt, different personality
-- Export in Structured, XML, or Prose formats for different platforms
+The application includes specialist workspaces for prompt creation and development. Depending on the current build and licence level, these include:
 
-### 📦 Multiple Workspaces (Pro Tier)
-- **Playground** — Test and run prompts live against Claude or other models
-- **Prompt Forge** — Structured builder with step-by-step guidance
-- **Prompt Lab** — A/B test variations and compare outputs
-- **Optimizer** — Score prompts across 5 dimensions (Clarity, Specificity, Context, Constraints, Output Format)
-- **Tone Calibrator** — Dial in formality, directness, detail, and empathy with live preview
-- **Context Bank** — Reusable context blocks you can drop into any prompt
-- **Components** — Drag-and-drop block library with 23 proven frameworks (5W2H, AIDA, STAR, CO-STAR, etc.)
-- **Text Expansion** — Keyboard shortcuts that auto-expand to full prompts
+- **Prompt Forge and Prompt Builder Pro**, structured prompt creation and component based building.
+- **Prompt Components**, a library of reusable prompt building blocks.
+- **Prompt Chains**, a way to organise prompts into a multi step workflow.
+- **Playground and Prompt Lab**, spaces for working with prompts and comparing variations.
+- **Prompt Optimizer and Tone Calibrator**, tools for reviewing and refining prompt quality and style.
+- **Context Bank and Snippets**, reusable context and text blocks.
+- **Prompt Board**, a visual way to collect prompts into boards.
+- **Agents and Roles**, reusable AI identities and instructions.
+- **Analytics and version history**, tools for reviewing usage and previous prompt versions.
 
-### 📊 Version History & Analytics
-- Every change is saved — roll back to any previous version instantly
-- See which prompts perform best
-- Track usage patterns and optimization trends
-- Never lose work again
+Some advanced workspaces and features are licence gated. The exact feature set can change between builds.
 
-### 📤 Flexible Export
-- Export as `.plp` packs (portable prompt libraries)
-- Markdown, CSV, or bulk export
-- Share curated collections with your team
-- Copy in multiple formats (Plain text, ChatML, OpenAI JSON)
+### Local data and portability
 
-### 🎯 Template Gallery (Pro Tier)
-- **50+ ready-to-use templates** across 9 categories
-- Writing, coding, marketing, business, research, productivity, prompt engineering
-- Preview before you add — see the full prompt in context
-- Start fast, customize for your needs
+- Prompt data is stored in a SQLite database in your Documents folder, under `PromptLibrary`.
+- Prompt collections can be exported and imported.
+- The application does not require a Prompt Library cloud account.
+- Optional AI features connect to the provider you configure. Those requests are sent to that provider, so they are not offline operations.
 
----
+## Screenshots
 
-## The Workflow (15 Seconds)
+The repository includes a screenshot gallery with light and dark interface captures.
 
-1. **New Prompt** — Ctrl+N, paste your prompt, add variables with `[[brackets]]`
-2. **Organize** — Tag it, add to a folder, colour-code it
-3. **Fill & Preview** — Type in your variables, see real-time preview
-4. **Copy** — One-click copy (filled or raw), paste wherever you need it
-5. **Track** — Watch usage patterns and success rates in Analytics
+| Library | Prompt editor | Prompt Board |
+| --- | --- | --- |
+| ![Library list](showcase/light/01-library-list.jpg) | ![Prompt editor](showcase/light/04-prompt-editor.jpg) | ![Prompt Board](showcase/light/09-prompt-board-home.jpg) |
 
-That's it. Your prompts now work **for you**, not against you.
-
----
-
-## Free vs Pro: What's the Difference?
-
-### Free (Everyone Gets)
-✅ Up to 25 prompts  
-✅ Up to 3 folders  
-✅ Full variable system with live preview  
-✅ Chain prompting (detail panel)  
-✅ Agents & Roles workspace  
-✅ Dashboard with stats  
-✅ Trash & Restore  
-✅ Dark theme  
-✅ Onboarding tour  
-✅ Import/Export  
-
-### Pro (Serious Prompt Engineers)
-✨ **Unlimited prompts, folders, tags**  
-✨ **Command Palette** (Ctrl+K) — jump between 18 commands instantly  
-✨ **Playground** — run prompts live  
-✨ **Forge** — structured builder  
-✨ **Lab** — A/B testing  
-✨ **Optimizer** — scoring & improvement suggestions  
-✨ **Tone Calibrator** — emotional dial-in  
-✨ **Template Gallery** — 50+ templates  
-✨ **Snippets** — quick-capture text blocks  
-✨ **Text Expansion** — system-wide shortcuts  
-✨ **Version History** — restore any previous version  
-✨ **Analytics** — detailed usage insights  
-✨ **Light/Dark theme toggle**  
-✨ And 5 more advanced features  
-
-**Pro is not a subscription.** One-time licence. Own it forever.
-
----
-
-## Why Local-First Matters
-
-No cloud. No accounts. No "we changed the API." Your prompts live on **your computer**, in your SQLite database, under your control. Runs completely offline. Syncs with nothing.
-
-**This is yours.** No surprise shutdowns. No data mining. No sharing with third parties. Full privacy by architecture.
-
----
+More screenshots are available in the [showcase gallery](showcase/index.html).
 
 ## Installation
 
-Download the latest `.exe` installer and run. It handles everything:
-- ✅ Installs to Program Files
-- ✅ Creates Start Menu + Desktop shortcuts
-- ✅ Registers in Add/Remove Programs
-- ✅ Seeds your library with 10 starter templates
+### Windows
 
-Uninstall anytime. Your database stays (or gets cleaned up — your choice).
+If you have a packaged installer supplied by the project maintainer, run the installer and follow its instructions.
 
----
+To run the application from source:
 
-## Made For
+1. Install Python 3.9 or later.
+2. Install the Microsoft Edge WebView2 Runtime if it is not already available on your system.
+3. Download or clone this repository.
+4. Open a terminal in the repository folder.
+5. Run `start.bat`.
 
-- **Content creators** who test prompts across writers, editors, and brand voices
-- **Developers & engineers** building AI-powered tools (test variations, track what works)
-- **Marketers & copywriters** running A/B tests on messaging
-- **Researchers** chaining analysis prompts together
-- **Prompt engineers** who want to treat prompts like code (version, test, optimize)
-- **Teams** sharing prompt libraries and frameworks
+The start script creates a virtual environment if required, installs the pinned Python dependencies and launches the desktop application.
 
----
+You can also run the steps manually:
 
-## You're Losing Time. Right Now.
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python Main.py
+```
 
-Every minute you spend recreating a prompt you wrote before is a minute you're not innovating. Every version of a prompt you lose track of is an experiment you'll have to re-run.
+If PowerShell prevents activation, use the supplied `start.bat` instead.
 
-**What if you had a single source of truth for every AI prompt you've ever written?**
+### macOS
 
-Prompt Library Pro isn't just an app. It's the system that turns scattered prompts into a compounding asset. Your prompts get better. Your process scales. Your team moves faster.
+The repository contains an early macOS packaging configuration in `mac/setup.py`. Building a macOS application must be done on macOS and requires the relevant packaging tools, including `py2app`.
 
-**Stop managing prompts. Start building them.**
+The macOS packaging path is not documented as a supported end user release process yet. The Windows launch and installer scripts are the primary documented workflow.
 
----
+## Building a Windows executable
 
-## Get Started
+The project includes a PyInstaller build script and an Inno Setup installer definition.
 
-[Download Now](#) • [Upgrade to Pro](#) • [View Docs](#)
+1. Use a Windows development machine.
+2. Install Python 3.9 or later.
+3. Install Inno Setup 6.3 or later.
+4. Run `Build.bat` from the repository root to build the executable.
+5. Open `PromptLibrary.iss` in Inno Setup and compile the installer.
 
----
+The executable is written to `dist/PromptLibrary.exe`. The installer output is written to the `installer` folder.
 
-*Prompt Library Pro: Because your best AI prompts deserve better than a notes app.*
+The build scripts may update generated cache identifiers and remove previous build output. Review local changes before committing after a build.
+
+## Technology
+
+| Area | Technology |
+| --- | --- |
+| Desktop shell | PyWebView |
+| Local web application | Flask |
+| Production WSGI server | Waitress |
+| Backend language | Python |
+| Frontend | HTML, CSS and vanilla JavaScript |
+| Local storage | SQLite |
+| Windows executable | PyInstaller |
+| Windows installer | Inno Setup |
+| macOS packaging configuration | py2app |
+
+There is no Node.js or npm build step in the current frontend workflow.
+
+## Repository layout
+
+```text
+.
+├── Main.py                 Desktop application launcher
+├── app.py                  Flask application and API
+├── share_server.py         Local network sharing service
+├── vault_scanner.py        Local Markdown vault scanner
+├── requirements.txt        Pinned Python dependencies
+├── start.bat               Windows development launcher
+├── Build.bat               Windows executable build script
+├── BUILD_INSTALLER.bat     Windows installer build workflow
+├── PromptLibrary.iss       Inno Setup installer definition
+├── static/
+│   ├── index.html           Application interface
+│   ├── app.js               Main frontend logic
+│   ├── app.css              Main frontend styles
+│   └── ...                  Workspace modules and assets
+├── mac/                     macOS packaging configuration
+├── docs/                    Product and development documentation
+├── showcase/                Interface screenshot gallery
+├── tests/                   Automated test files
+└── _rollbacks/               Historical rollback copies
+```
+
+The repository also contains development notes, product specifications, build history and archived versions. These are maintained for project development and are not all required to run the application.
+
+## Python dependencies
+
+The pinned runtime dependencies are listed in `requirements.txt`:
+
+- Flask
+- PyWebView
+- Waitress
+
+The Windows executable build additionally installs PyInstaller. The macOS packaging configuration uses py2app.
+
+## Data, privacy and AI provider connections
+
+Prompt Library Pro is designed around local storage. Its main prompt database is stored at:
+
+```text
+Documents/PromptLibrary/PromptLibrary.db
+```
+
+Back up this folder before reinstalling the application, moving to another computer or testing development builds.
+
+The application can connect to external AI providers when the user configures provider credentials. In that case, the relevant prompt or request is sent to the selected provider for processing and is subject to that provider's own terms and privacy policy. Local-first does not mean that external AI requests are processed offline.
+
+Do not commit API keys, licence key files, personal databases or other private data to this repository.
+
+## Development notes
+
+- Start the application with `start.bat` on Windows.
+- Run Python syntax checks with `python -m py_compile app.py Main.py vault_scanner.py share_server.py`.
+- Check frontend JavaScript syntax with `node --check static/app.js` when Node.js is available.
+- Review `DEPLOYMENT_CHECKLIST.md`, `LICENCE_SYSTEM.md` and the files in `docs/` for additional implementation notes.
+- The `_rollbacks/` directory contains historical copies. Do not use those files as the current application entry points.
+
+The repository is actively developed. Features, licensing tiers, screenshots and build instructions may change as the application evolves.
+
+## Licence
+
+The repository currently includes an MIT licence in the root `LICENSE` file. That licence permits use, modification and redistribution subject to its stated conditions.
+
+**The MIT licence already published with this repository cannot be treated as though it never existed.** Copies obtained under that licence remain subject to the MIT terms that accompanied them. Any future licensing change must also account for third party components, contributions and their respective rights.
+
+See [LICENSE](LICENSE) for the licence text.
+
+## Project
+
+**Prompt Library Pro**  
+Product information: [MX Phillips on Payhip](https://payhip.com/MXPhillips)  
+Source repository: [funben12/Prompt-Library-Update](https://github.com/funben12/Prompt-Library-Update)
