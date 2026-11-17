@@ -49,11 +49,11 @@
 }
 /* The title and organisation control stay in view while the groups scroll */
 #wssRoot .wss-top { position: sticky; top: 0; z-index: 1; background: var(--surface-2); padding-top: var(--sp-1); }
-#wssRoot .wss-title-row {
+:is(#wssRoot, #wssPrompts) .wss-title-row {
     display: flex; align-items: baseline; justify-content: space-between;
     padding: var(--sp-2) var(--sp-3);
 }
-#wssRoot .wss-title {
+:is(#wssRoot, #wssPrompts) .wss-title {
     margin: 0;
     font-family: var(--ff-sans); font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
     color: var(--ink-3);
@@ -61,7 +61,7 @@
 #wssRoot .wss-total { font-family: var(--ff-mono); font-size: var(--fs-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 
 /* Segmented organisation control */
-#wssRoot .wss-seg {
+:is(#wssRoot, #wssPrompts) .wss-seg {
     display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px;
     margin: 0 0 var(--sp-3);
     padding: 2px;
@@ -69,7 +69,7 @@
     border: 1px solid var(--line);
     border-radius: var(--r-md);
 }
-#wssRoot .wss-seg-btn {
+:is(#wssRoot, #wssPrompts) .wss-seg-btn {
     min-height: 28px; padding: 0 var(--sp-1);
     border-radius: var(--r-sm);
     font-family: var(--ff-sans); font-size: var(--fs-sm); font-weight: 600;
@@ -77,12 +77,12 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     transition: background var(--t-fast), color var(--t-fast), box-shadow var(--t-fast);
 }
-#wssRoot .wss-seg-btn:hover { color: var(--ink); }
-#wssRoot .wss-seg-btn[aria-checked="true"] {
+:is(#wssRoot, #wssPrompts) .wss-seg-btn:hover { color: var(--ink); }
+:is(#wssRoot, #wssPrompts) .wss-seg-btn[aria-checked="true"] {
     background: var(--surface); color: var(--ink);
     box-shadow: var(--shadow-sm), 0 0 0 1px var(--line);
 }
-#wssRoot .wss-seg-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+:is(#wssRoot, #wssPrompts) .wss-seg-btn:focus-visible { outline: none; box-shadow: var(--ring); }
 
 /* Groups */
 #wssRoot .wss-list { display: flex; flex-direction: column; gap: 1px; }
@@ -147,7 +147,7 @@
 /* Phone drawer and touch layouts: 44px targets, no horizontal scroll */
 @media (max-width: 820px), (pointer: coarse) {
     #wssSwitcher { min-height: 56px; }
-    #wssRoot .wss-seg-btn { min-height: 44px; }
+    :is(#wssRoot, #wssPrompts) .wss-seg-btn { min-height: 44px; }
     #wssRoot .wss-ghead, #wssRoot .wss-row { min-height: 44px; }
     #wssRoot .wss-count, #wssRoot .wss-total { font-size: var(--fs-sm); }
 }
@@ -155,3 +155,12 @@
 @media (prefers-reduced-motion: reduce) {
     #wssSwitcher, #wssSwitcher *, #wssRoot, #wssRoot * { transition: none !important; animation: none !important; }
 }
+
+/* Library organiser cluster: the prompt Folders, Categories and Tags sections, one at a time */
+#wssPrompts {
+    padding: var(--sp-1) var(--sp-3) var(--sp-4);
+    margin-bottom: var(--sp-3);
+    border-bottom: 1px solid var(--line);
+}
+#wssPrompts .nav-section[hidden] { display: none; }
+#wssPrompts .nav-section + .nav-section { margin-top: 0; }
