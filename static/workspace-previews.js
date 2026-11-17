@@ -440,6 +440,16 @@
                     fine(lab(100)), fine(D('area', { c: 'wsv-out wsv-mono-lines', f: 1 }, [ln([40, 70, 56, 84, 62, 76], 9)])),
                     row({ g: 10, jc: 'flex-end', x: 'flex:none' }, btn('g', 120, true), btn('a', 180, true))))));
 
+    LAY.openLibraryBrowserWorkspace = id => frame(id, { acts: [['g', 110], 'sq'], sub: 320 },
+        row({ f: 1, g: 18, p: '20px 28px' },
+            pane({ w: S ? 300 : 340, g: 10 },
+                row({ g: 8, x: 'flex:none' }, ['Folders', 'Categories', 'Tags'].map((t, i) => '<div class="wsv-pane' + (i === 0 ? ' wsv-sel' : '') + '" style="flex:1 1 0;padding:9px">' + bar(58, i === 0 ? 'hd' : 'soft') + '</div>')),
+                col({ g: 7, f: 1 }, rep(9, i => li({ c: 'wsv-card' }, ic(i < 6 ? 'folder' : 'sell', 20, 'wsv-ac'), bar(36 + (i * 11) % 30, 'soft'), '<span class="wsv-end">' + mono(String(14 - i)) + '</span>')))),
+            col({ f: 1, g: 14 },
+                pane({ g: 8, x: 'flex:none' }, lab(120), row({ g: 18 }, mono('36'), mono('5'), mono('9'), mono('27'))),
+                pane({ g: 10, f: 1 }, lab(150),
+                    col({ g: 8, f: 1 }, rep(6, i => li({ c: 'wsv-card' }, ic('description', 20, 'wsv-faint'), col({ g: 5, f: 1 }, bar(44 + (i * 9) % 30, 'hd'), bar(72, 'soft')), '<span class="wsv-end">' + chips([[40, KS[i % 10]], [44, KS[(i + 3) % 10]]]) + '</span>')))))));
+
     LAY.openPromptWorkflowStudioWorkspace = id => frame(id, { acts: [['g', 110], ['a', 130], 'sq'], sub: 340 },
         row({ f: 1, g: 0 },
             cv(880, 700,

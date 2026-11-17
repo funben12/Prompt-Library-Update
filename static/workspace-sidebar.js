@@ -298,7 +298,9 @@
         const root = h('section', { id: 'wssPrompts', 'aria-label': 'Library organiser' });
         const seg = h('div', { class: 'wss-seg', role: 'radiogroup', 'aria-label': 'Organise library by' });
         LIB_MODES.forEach(([k, label]) => seg.appendChild(h('button', { type: 'button', class: 'wss-seg-btn', role: 'radio', 'aria-checked': 'false', 'data-lib': k, text: label })));
-        root.appendChild(h('div', { class: 'wss-title-row' }, [h('h2', { class: 'wss-title', text: 'Library organiser' })]));
+        const full = h('button', { type: 'button', class: 'wss-full', 'aria-label': 'Open the Library Browser', title: 'Browse prompts by folder, category and tag' }, [icon('open_in_full', 'wss-full-ic')]);
+        full.addEventListener('click', () => { if (typeof window.openLibraryBrowserWorkspace === 'function') window.openLibraryBrowserWorkspace(); });
+        root.appendChild(h('div', { class: 'wss-title-row' }, [h('h2', { class: 'wss-title', text: 'Library organiser' }), full]));
         root.appendChild(seg);
         secs.forEach(x => root.appendChild(x));
         seg.addEventListener('click', e => {
