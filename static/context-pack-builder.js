@@ -491,8 +491,9 @@
     }
 
     /* ---------- downloads and clipboard ---------- */
-    function download(name, data, type) {
+    function download(name, data, type, okMsg) {
         const blob = data instanceof Blob ? data : new Blob([data], { type: type || 'text/plain;charset=utf-8' });
+        if (window.PL_saveBlob) return window.PL_saveBlob(blob, name, okMsg);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -952,8 +953,7 @@
     function exportPackJson() {
         const pk = pack();
         const data = { schema: SCHEMA, version: SCHEMA_VERSION, exported: new Date().toISOString(), pack: pk };
-        download(`${slug(pk.name)}.context-pack.json`, JSON.stringify(data, null, 2), 'application/json');
-        toast('Pack JSON exported', 'success');
+        download(`${slug(pk.name)}.context-pack.json`, JSON.stringify(data, null, 2), 'application/json', 'Pack JSON exported');
     }
     function importPackJson(text) {
         let data;
@@ -1133,7 +1133,7 @@
         downloadFile: el => {
             const f = outFile(el);
             if (!f) return;
-            download(f.name.split('/').pop(), f.text, 'text/markdown;charset=utf-8');
+            download(f.name.split('/').pop(), f.text, 'text/markdown;charset=utf-8', 'File downloaded');
         },
         togglePreview: el => {
             const f = outFile(el);
@@ -1147,13 +1147,11 @@
             const pk = pack();
             const out = lastOut || build(pk);
             if (!out.files.length) return toast('There are no files to zip yet.', 'warning');
-            download(`${slug(pk.name)}-${out.plat.id}.zip`, new Blob([zipBytes(out.files)], { type: 'application/zip' }));
-            toast(`Zip with ${out.files.length} file${out.files.length === 1 ? '' : 's'} downloaded`, 'success');
+            download(`${slug(pk.name)}-${out.plat.id}.zip`, new Blob([zipBytes(out.files)], { type: 'application/zip' }), `Zip with ${out.files.length} file${out.files.length === 1 ? '' : 's'} downloaded`);
         },
         downloadCombined: () => {
             const pk = pack();
-            download(`${slug(pk.name)}-combined.md`, combinedMarkdown(pk), 'text/markdown;charset=utf-8');
-            toast('Combined Markdown downloaded', 'success');
+            download(`${slug(pk.name)}-combined.md`, combinedMarkdown(pk), 'text/markdown;charset=utf-8', 'Combined Markdown downloaded');
         },
         exportJson: () => exportPackJson()
     };

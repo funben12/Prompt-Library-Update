@@ -1568,7 +1568,8 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
 
         /* ---------- files ---------- */
         const slug = t => String(t || 'workflow').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'workflow';
-        function download(name, text, mime) {
+        function download(name, text, mime, okMsg) {
+            if (window.PL_saveBlob) return window.PL_saveBlob(new Blob([text], { type: mime + ';charset=utf-8' }), name, okMsg);
             const a = document.createElement('a');
             const url = URL.createObjectURL(new Blob([text], { type: mime + ';charset=utf-8' }));
             a.href = url;
@@ -1680,9 +1681,9 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
             fit: () => fit(),
             zoomIn: () => zoomBy(0.1),
             zoomOut: () => zoomBy(-0.1),
-            exportMd: () => { if (needStages()) return; download(`${slug(wf().name)}.md`, docMarkdown(wf()), 'text/markdown'); toast('Documentation saved as Markdown', 'success'); },
-            exportHtml: () => { if (needStages()) return; download(`${slug(wf().name)}.html`, docHtml(wf()), 'text/html'); toast('Documentation saved as a web page', 'success'); },
-            exportJson: () => { download(`${slug(wf().name)}.workflow.json`, JSON.stringify({ schema: SCHEMA, version: VERSION, exported: new Date().toISOString(), workflow: wf() }, null, 2), 'application/json'); toast('Workflow saved as JSON', 'success'); },
+            exportMd: () => { if (needStages()) return; download(`${slug(wf().name)}.md`, docMarkdown(wf()), 'text/markdown', 'Documentation saved as Markdown'); },
+            exportHtml: () => { if (needStages()) return; download(`${slug(wf().name)}.html`, docHtml(wf()), 'text/html', 'Documentation saved as a web page'); },
+            exportJson: () => { download(`${slug(wf().name)}.workflow.json`, JSON.stringify({ schema: SCHEMA, version: VERSION, exported: new Date().toISOString(), workflow: wf() }, null, 2), 'application/json', 'Workflow saved as JSON'); },
             importJson: () => openText('import'),
             copyMd: async () => { if (needStages()) return; await copyText(docMarkdown(wf())); toast('Documentation copied as Markdown', 'success'); },
             delNode: t => askDeleteNode(t.dataset.id),

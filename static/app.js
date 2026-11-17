@@ -3030,13 +3030,7 @@
         const blob = new Blob([JSON.stringify(data, null, 2)], {
             type: 'application/json'
         });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${p.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast('Prompt exported', 'success');
+        triggerDownload(blob, `${p.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`, 'Prompt exported');
     }
 
     async function duplicatePrompt(id) {
@@ -4492,18 +4486,7 @@ Here are my prompts:
             const data = isVault ? _vaultExportRows() : await api('/export');
             const filename = `prompts-${new Date().toISOString().slice(0, 10)}.json`;
             const content = JSON.stringify(data, null, 2);
-            const res = await fetch('/api/save-file', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    filename,
-                    content,
-                    mime: 'application/json'
-                }),
-            });
-            const result = await res.json();
+            const result = await plSaveFile(filename, content, 'application/json');
             if (result.saved) {
                 toast(`Saved to ${result.path}`, 'success');
                 closeExportModal();
@@ -4548,18 +4531,7 @@ Here are my prompts:
                 }
             }
 
-            const saveRes = await fetch('/api/save-file', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    filename,
-                    content,
-                    mime
-                }),
-            });
-            const result = await saveRes.json();
+            const result = await plSaveFile(filename, content, mime, mime === 'application/zip');
             if (result.saved) {
                 toast(`Saved to ${result.path}`, 'success');
                 closeExportModal();
@@ -4571,14 +4543,59 @@ Here are my prompts:
         }
     }
 
-    function triggerDownload(blob, filename) {
+    // Native save: the desktop window uses the Python bridge (a real Save As dialog); a plain browser uses the server route.
+    async function plSaveFile(filename, content, mime, isBase64) {
+        const bridge = window.pywebview && window.pywebview.api && window.pywebview.api.save_file;
+        if (bridge) {
+            try {
+                return await window.pywebview.api.save_file(filename, content, !!isBase64);
+            } catch (err) {
+                return { saved: false, error: String((err && err.message) || err) };
+            }
+        }
+        // Plain browser: a normal download, no server side dialog.
+        let blob;
+        if (isBase64) {
+            const bin = atob(content);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            blob = new Blob([bytes], { type: mime || 'application/octet-stream' });
+        } else {
+            blob = new Blob([content], { type: mime || 'text/plain' });
+        }
+        await triggerDownload(blob, filename);
+        return { saved: true, path: filename };
+    }
+
+    // Save a Blob. Desktop window: Save As dialog through the bridge. Browser: a download link kept in the page until the download has started.
+    function triggerDownload(blob, filename, okMsg) {
+        const bridge = window.pywebview && window.pywebview.api && window.pywebview.api.save_file;
+        if (bridge) {
+            return new Promise(resolve => {
+                const fr = new FileReader();
+                fr.onerror = () => { toast('Save failed: could not read the file', 'error'); resolve({ saved: false }); };
+                fr.onload = async () => {
+                    const b64 = String(fr.result).split(',')[1] || '';
+                    const r = await plSaveFile(filename, b64, blob.type, true);
+                    if (r && r.saved) toast('Saved to ' + r.path, 'success');
+                    else if (r && r.error) toast('Save failed: ' + r.error, 'error');
+                    resolve(r || { saved: false });
+                };
+                fr.readAsDataURL(blob);
+            });
+        }
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 30000);
+        if (okMsg) toast(okMsg, 'success');
+        return Promise.resolve({ saved: true });
     }
+    window.PL_saveBlob = triggerDownload;
 
     /* ============================================================================
        STARTER TEMPLATES (empty library)
@@ -5692,8 +5709,7 @@ Here are my prompts:
             const blob = new Blob([md], {
                 type: 'text/markdown'
             });
-            triggerDownload(blob, `${p.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`);
-            toast('Markdown exported', 'success');
+            triggerDownload(blob, `${p.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`, 'Markdown exported');
         });
         $('#saveNotesBtn')?.addEventListener('click', saveNotesAndRating);
 
@@ -9073,25 +9089,13 @@ Must avoid: [Anything sensitive or previously declined]`
             blocks: _ctxBlocks
         }, null, 2);
         try {
-            const res = await fetch('/api/save-file', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    filename,
-                    content,
-                    mime: 'application/json'
-                }),
-            });
-            const result = await res.json();
+            const result = await plSaveFile(filename, content, 'application/json');
             if (result.error) throw new Error(result.error);
             if (result.saved) toast('Saved to ' + result.path, 'success');
         } catch {
             triggerDownload(new Blob([content], {
                 type: 'application/json'
-            }), filename);
-            toast('Exported ' + _ctxBlocks.length + ' blocks', 'success');
+            }), filename, 'Exported ' + _ctxBlocks.length + ' blocks');
         }
     }
 
@@ -17964,7 +17968,12 @@ Must avoid: [Anything sensitive or previously declined]`
                 }
                 case 'export-board': {
                     if (!boardId) { toast('Could not export board', 'error'); break; }
-                    window.location.href = API_BASE + '/boards/' + boardId + '/export';
+                    try {
+                        const res = await fetch(API_BASE + '/boards/' + boardId + '/export');
+                        if (!res.ok) throw new Error();
+                        const cd = /filename="?([^";]+)"?/.exec(res.headers.get('Content-Disposition') || '');
+                        await triggerDownload(await res.blob(), cd ? cd[1] : 'board.json', 'Board exported');
+                    } catch { toast('Could not export board', 'error'); }
                     break;
                 }
                 case 'toggle-fav': {
