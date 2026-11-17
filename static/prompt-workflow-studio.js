@@ -1667,7 +1667,7 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
             if (it.nodeId && !isMobile()) requestAnimationFrame(() => centreOn(it.nodeId));
         };
         const actions = {
-            close: () => closeWorkspace(),
+            close: () => window.PL_closePromptWorkflowStudio(),
             newWf: () => { const w = newWorkflow(`Workflow ${store.workflows.length + 1}`); store.workflows.push(w); switchTo(w.id); toast('New workflow created', 'success'); },
             toggleRail: () => { if (isMobile()) return openRail(); S.railOpen = !S.railOpen; applyRail(); },
             openRail, closeRail,
@@ -2065,13 +2065,13 @@ pre{background:var(--wash);border:1px solid var(--line);border-radius:8px;paddin
                 if (root.dataset.rail === 'open') { closeRail(); return; }
                 if (typing) { t.blur(); return; }
                 if (S.sel) { select(null); return; }
-                closeWorkspace();
+                window.PL_closePromptWorkflowStudio();
             }
         });
         // Only acts while the studio is open and focus has fallen back to the page.
         document.addEventListener('keydown', e => {
             if (!isOpen()) return;
-            if (e.key === 'Escape' && e.target === document.body && !$('dialog[open]')) closeWorkspace();
+            if (e.key === 'Escape' && e.target === document.body && !$('dialog[open]')) window.PL_closePromptWorkflowStudio();
         });
         $('#pws-pick-dialog').addEventListener('close', () => { pick.cb = null; });
         $$('dialog', root).forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
