@@ -887,8 +887,9 @@
         const v = oneLine(p.version);
         return slug(p.title) + (v ? '-v' + slug(v) : '') + '.' + FORMATS[fmt].ext;
     }
-    function download(name, text, mime) {
+    function download(name, text, mime, okMsg) {
         const blob = new Blob([text], { type: mime + ';charset=utf-8' });
+        if (window.PL_saveBlob) return window.PL_saveBlob(blob, name, okMsg);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -914,8 +915,7 @@
     function doExport(fmt) {
         const p = activePack();
         if (!p || !FORMATS[fmt] || blockedByChecks(p)) return;
-        download(fileName(p, fmt), BUILDERS[fmt](p), FORMATS[fmt].mime);
-        toast('Exported ' + FORMATS[fmt].label, 'success');
+        download(fileName(p, fmt), BUILDERS[fmt](p), FORMATS[fmt].mime, 'Exported ' + FORMATS[fmt].label);
     }
     async function copyMarkdown() {
         const p = activePack();

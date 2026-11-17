@@ -1233,12 +1233,16 @@
             try { text = buildExport(kind); } catch (e) { return toast(`The ${kind.toUpperCase()} export did not pass its check, so nothing was saved.`, 'error'); }
             const slug = (state.title || 'prompt').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'prompt';
             const mime = { txt: 'text/plain', md: 'text/markdown', json: 'application/json', xml: 'application/xml' }[kind];
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(new Blob([text], { type: mime + ';charset=utf-8' }));
-            a.download = `${slug}.${kind}`;
-            a.click();
-            URL.revokeObjectURL(a.href);
-            toast(`Saved ${slug}.${kind}`, 'success');
+            const blob = new Blob([text], { type: mime + ';charset=utf-8' });
+            if (window.PL_saveBlob) window.PL_saveBlob(blob, `${slug}.${kind}`, `Saved ${slug}.${kind}`);
+            else {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `${slug}.${kind}`;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => { a.remove(); URL.revokeObjectURL(a.href); }, 30000);
+            }
         }
 
         /* ---------- sidebars collapse on their own ---------- */
