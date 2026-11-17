@@ -11473,6 +11473,39 @@ body.plx-workspace-open{overflow:hidden}
   .var-step-label.active { color: var(--accent); }
   .var-step-range { width: 100%; accent-color: var(--accent); }
 
+  /* ---- Variable types: stepper, star rating, switch, yes no maybe, currency ---- */
+  .var-stepper { display: flex; align-items: center; gap: 8px; }
+  .var-stepper-btn { flex: none; width: 44px; height: 44px; user-select: none; touch-action: manipulation; }
+  .var-stepper-btn .material-symbols-outlined { font-size: 20px; }
+  .var-stepper .var-stepper-input { flex: 1; min-width: 0; height: 44px; text-align: center; font-family: var(--ff-mono); font-size: 14px; font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield; }
+  .var-stepper .var-stepper-input::-webkit-outer-spin-button, .var-stepper .var-stepper-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+  .var-rating { display: flex; align-items: center; gap: 2px; }
+  .var-star { display: grid; place-items: center; flex: 1 1 0; min-width: 30px; max-width: 44px; height: 44px; border-radius: var(--r-md); color: var(--ink-4); cursor: pointer; touch-action: manipulation; transition: color var(--t-fast), background var(--t-fast); }
+  .var-star .material-symbols-outlined { font-size: 28px; }
+  .var-star:hover { color: var(--gold); background: var(--surface-2); }
+  .var-star.on { color: var(--gold); }
+  .var-star.on .material-symbols-outlined { font-variation-settings: "FILL" 1; }
+  .var-star:focus-visible { outline: none; box-shadow: var(--ring); }
+
+  .var-switch { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 14px 0 10px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); box-shadow: var(--btn-rest); color: var(--ink-2); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; touch-action: manipulation; transition: box-shadow var(--t-fast), border-color var(--t-fast), color var(--t-fast); }
+  .var-switch:hover { border-color: var(--line-strong); box-shadow: var(--btn-hover); }
+  .var-switch:active { box-shadow: var(--btn-down); }
+  .var-switch:focus-visible { outline: none; box-shadow: var(--btn-rest), var(--ring); }
+  .var-switch-track { position: relative; flex: none; width: 40px; height: 22px; border-radius: 999px; background: var(--surface-3); box-shadow: inset 0 1px 3px oklch(18% 0.04 260 / 0.22); transition: background var(--t-fast); }
+  .var-switch-thumb { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 2px oklch(18% 0.04 260 / 0.35); transition: transform 260ms cubic-bezier(0.34, 1.5, 0.64, 1); }
+  .var-switch.on { color: var(--ink); border-color: var(--accent); }
+  .var-switch.on .var-switch-track { background: var(--accent); }
+  .var-switch.on .var-switch-thumb { transform: translateX(18px); }
+  .var-switch-wrap[data-motion="off"] .var-switch-thumb, .var-switch-wrap[data-motion="off"] .var-switch-track { transition: none; }
+  .var-switch-wrap[data-motion="short"] .var-switch-thumb { transition-duration: 120ms; }
+
+  .var-ynm .chip { min-height: 40px; padding: 0 18px; font-size: var(--fs-sm); }
+
+  .var-currency { display: flex; align-items: center; gap: 8px; }
+  .var-currency .var-input { flex: 1; font-family: var(--ff-mono); font-variant-numeric: tabular-nums; }
+  .var-currency-sym { min-width: 20px; text-align: right; font-weight: 600; color: var(--ink-2); }
+
 /* The hidden attribute always wins. Without this, any rule that sets display
    (chips, badges, grids) kept hidden elements on screen. */
 [hidden] { display: none !important; }

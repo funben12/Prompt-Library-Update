@@ -94,6 +94,10 @@ def _meta(v):
             entry['multi'] = True
         if isinstance(m.get('faces'), int) and 2 <= m['faces'] <= 100:
             entry['faces'] = m['faces']
+        for key in ('min', 'max', 'step'):
+            n = m.get(key)
+            if isinstance(n, (int, float)) and not isinstance(n, bool) and abs(n) < 1e9 and n == n:
+                entry[key] = n
         if m.get('wrap') in ('quotes', 'codefence', 'xml'):
             entry['wrap'] = m['wrap']
         if m.get('size') in ('short', 'medium', 'tall'):

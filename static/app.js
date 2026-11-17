@@ -1646,9 +1646,9 @@
     const _PL_DICE_STYLES = [['tumble', 'Tumble'], ['drop', 'Drop and bounce'], ['cup', 'Cup shake and pour'], ['spin', 'Spin like a top'], ['throw', 'Hard throw'], ['tray', 'Dice tray with walls'], ['flip', 'End over end flip'], ['float', 'Float and drop']];
     const _PL_DICE_TYPES = ['diceroll'].concat(_PL_DICE_STYLES.map(d => 'dice_' + d[0]));
     const _PL_isDice = t => _PL_DICE_TYPES.includes(t);
-    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'].concat(_PL_DECK_TYPES.slice(1), _PL_DICE_TYPES.slice(1));
+    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'].concat(_PL_DECK_TYPES.slice(1), _PL_DICE_TYPES.slice(1), ['email', 'url', 'titlecase', 'hashtags', 'numberedlist', 'stepper', 'rating', 'currency', 'switch', 'yesnomaybe']);
     const _PL_LEGACY_TYPE_MAP = { radio: 'choicechips', segmented: 'choicechips', yesno: 'choicechips', multiselect: 'checkbox', togglegroup: 'checkbox', boolean: 'choicechips' };
-    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'diceroll', 'weightedmix', 'randompick', 'randomnumber'].concat(_PL_DECK_TYPES, _PL_DICE_TYPES.slice(1));
+    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'diceroll', 'weightedmix', 'randompick', 'randomnumber', 'switch', 'yesnomaybe', 'currency'].concat(_PL_DECK_TYPES, _PL_DICE_TYPES.slice(1));
     const _PL_RANDOM_TYPES = ['diceroll', 'weightedmix', 'randompick', 'randomnumber'].concat(_PL_DECK_TYPES, _PL_DICE_TYPES.slice(1));
     function _PL_normMeta(m) {
         const out = Object.assign({}, m);
@@ -1661,6 +1661,71 @@
             else if (m.default) out.default = 'No';
         }
         return out;
+    }
+    // Ten newer variable types (2026-11-17). Output rules match the phone app word for word.
+    const _PL_NEW_TYPES = ['email', 'url', 'titlecase', 'hashtags', 'numberedlist', 'stepper', 'rating', 'currency', 'switch', 'yesnomaybe'];
+    const _PL_TC_SMALL = ['a', 'an', 'the', 'and', 'but', 'or', 'for', 'nor', 'of', 'in', 'on', 'at', 'to', 'by', 'up', 'as'];
+    const _PL_cap1 = w => w.replace(/\p{L}/u, c => c.toUpperCase());
+    function _PL_titleCase(v) {
+        const words = String(v || '').trim().split(/\s+/).filter(Boolean);
+        return words.map((w, i) => {
+            const core = w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').toLowerCase();
+            if (i > 0 && i < words.length - 1 && _PL_TC_SMALL.includes(core)) return w.toLowerCase();
+            // words that already carry capitals after the first letter (AI, iPhone, NASA) are left alone
+            return /\p{Lu}/u.test(w.replace(/\p{L}/u, '')) ? w : _PL_cap1(w.toLowerCase());
+        }).join(' ');
+    }
+    function _PL_hashtags(v) {
+        const raw = String(v || '').trim();
+        if (!raw) return '';
+        const parts = /[,\n]/.test(raw) ? raw.split(/[,\n]+/) : raw.split(/\s+/);
+        return parts.map(p => p.split(/[^\p{L}\p{N}]+/u).filter(Boolean).map(_PL_cap1).join('')).filter(Boolean).map(t => '#' + t).join(' ');
+    }
+    function _PL_numberedList(v) {
+        return String(v || '').split('\n').map(x => x.trim().replace(/^(?:[-*•]\s*|\d+[.)]\s+)/, '').trim()).filter(Boolean).map((x, i) => (i + 1) + '. ' + x).join('\n');
+    }
+    function _PL_currencySymbol(src) {
+        const s = String(Array.isArray(src) ? (src[0] || '') : (src || '')).trim().slice(0, 8);
+        return s || '£';
+    }
+    function _PL_currency(v, symbol) {
+        const t = String(v == null ? '' : v).replace(/[,\s]/g, '');
+        if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(t)) return '';
+        const n = Number(t);
+        if (!isFinite(n)) return '';
+        const fixed = Math.abs(n).toFixed(2), parts = fixed.split('.');
+        return (n < 0 && Number(fixed) !== 0 ? '-' : '') + _PL_currencySymbol(symbol) + parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + parts[1];
+    }
+    // Stepper range: keys min, max, step on the variable, default 0 to 100 step 1
+    function _PL_stepperRange(m) {
+        let min = parseFloat(m && m.min), max = parseFloat(m && m.max), step = parseFloat(m && m.step);
+        if (!isFinite(min)) min = 0;
+        if (!isFinite(max)) max = 100;
+        if (!(step > 0) || !isFinite(step)) step = 1;
+        if (min > max) { const t = min; min = max; max = t; }
+        return { min, max, step };
+    }
+    // Rating: key max, 3 to 10 stars, default 5
+    function _PL_ratingMax(m) {
+        const n = parseInt(m && m.max, 10);
+        return isFinite(n) ? Math.max(3, Math.min(10, n)) : 5;
+    }
+    // Switch labels (On, Off) and Yes/No/Maybe labels come from the options box, blank gives the defaults
+    function _PL_switchLabels(opts) {
+        const o = (opts || []).map(x => String(x).trim()).filter(Boolean);
+        return o.length >= 2 ? [o[0], o[1]] : ['Yes', 'No'];
+    }
+    function _PL_ynmLabels(opts) {
+        const o = (opts || []).map(x => String(x).trim()).filter(Boolean);
+        return o.length >= 3 ? o.slice(0, 3) : ['Yes', 'No', 'Maybe'];
+    }
+    function _PL_motionMode() {
+        try { const v = localStorage.getItem('pl.randomMotion'); return v === 'short' || v === 'off' ? v : 'full'; } catch (_) { return 'full'; }
+    }
+    // A small pop on a control, honours the Randomiser motion setting, never blocks input
+    function _PL_pop(el, scale) {
+        if (!el || !el.animate || _PL_motionMode() === 'off') return;
+        try { el.animate([{ transform: 'scale(' + (scale || 1.18) + ')' }, { transform: 'scale(1)' }], { duration: _PL_motionMode() === 'short' ? 140 : 260, easing: 'cubic-bezier(.2,.9,.3,1.3)' }); } catch (_) {}
     }
     // Option lines may carry a description: "Title | description" (used by Choice Cards)
     function _PL_splitOpt(o) {
@@ -1786,6 +1851,16 @@
             carddeck: 'style',
             randompick: 'shuffle',
             randomnumber: 'pin',
+            email: 'alternate_email',
+            url: 'link',
+            titlecase: 'title',
+            hashtags: 'sell',
+            numberedlist: 'format_list_numbered',
+            switch: 'toggle_on',
+            yesnomaybe: 'help',
+            stepper: 'exposure',
+            rating: 'star',
+            currency: 'payments',
         };
 
         wrap.innerHTML = visible.map((v, index) => {
@@ -1851,6 +1926,41 @@
                 input = drum3d || `<div class="var-random-block"><div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
         <button type="button" class="btn btn-sm" data-roll-kind="${type}" data-roll-options="${escapeAttr(JSON.stringify(rollOpts))}" onclick="window._PL_rollChoice(this)">${_PL_RANDOM_LABELS[type]}</button>
         <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
+      </div>`;
+            } else if (type === 'email' || type === 'url') {
+                input = `<input type="${type}" class="var-input" data-var="${escapeAttr(v)}" placeholder="${type === 'email' ? 'name@example.com' : 'https://example.com'}" value="${escapeAttr(def)}" autocomplete="off" spellcheck="false" />`;
+            } else if (type === 'titlecase') {
+                input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="Type a title" value="${escapeAttr(def)}" />`;
+            } else if (type === 'hashtags') {
+                input = `<textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="Words, comma separated or one per line" rows="2" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>`;
+            } else if (type === 'currency') {
+                const cSym = _PL_currencySymbol(opts);
+                input = `<div class="var-currency"><span class="var-currency-sym" aria-hidden="true">${escapeHtml(cSym)}</span><input type="text" inputmode="decimal" class="var-input" data-var="${escapeAttr(v)}" data-symbol="${escapeAttr(cSym)}" placeholder="0.00" value="${escapeAttr(def)}" autocomplete="off" /></div>`;
+            } else if (type === 'stepper') {
+                const sr = _PL_stepperRange(m);
+                input = `<div class="var-stepper" data-motion="${_PL_motionMode()}">
+        <button type="button" class="icon-btn var-stepper-btn" data-step-dir="-1" aria-label="Decrease"><span class="material-symbols-outlined">remove</span></button>
+        <input type="number" class="var-input var-stepper-input" data-var="${escapeAttr(v)}" min="${sr.min}" max="${sr.max}" step="${sr.step}" placeholder="${sr.min}" value="${escapeAttr(def)}" />
+        <button type="button" class="icon-btn var-stepper-btn" data-step-dir="1" aria-label="Increase"><span class="material-symbols-outlined">add</span></button>
+      </div>`;
+            } else if (type === 'rating') {
+                const rMax = _PL_ratingMax(m), rN = parseInt(def, 10), rVal = rN >= 1 ? Math.min(rN, rMax) : 0;
+                input = `<div class="var-rating" role="radiogroup" aria-label="Rating out of ${rMax}" data-motion="${_PL_motionMode()}">
+        ${Array.from({ length: rMax }, (_, i) => `<button type="button" class="var-star${i < rVal ? ' on' : ''}" role="radio" aria-checked="${i + 1 === rVal}" data-n="${i + 1}" aria-label="${i + 1} of ${rMax}" onclick="window._PL_ratePick(this)"><span class="material-symbols-outlined">star</span></button>`).join('')}
+        <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" data-max="${rMax}" value="${rVal || ''}" />
+      </div>`;
+            } else if (type === 'switch') {
+                const swL = _PL_switchLabels(opts), dl = String(def).trim().toLowerCase();
+                const swOn = !!dl && (dl === swL[0].toLowerCase() || ['yes', 'on', 'true', '1'].includes(dl));
+                input = `<div class="var-switch-wrap" data-on="${escapeAttr(swL[0])}" data-off="${escapeAttr(swL[1])}" data-motion="${_PL_motionMode()}">
+        <button type="button" class="var-switch${swOn ? ' on' : ''}" role="switch" aria-checked="${swOn}" onclick="window._PL_switchToggle(this)"><span class="var-switch-track" aria-hidden="true"><span class="var-switch-thumb"></span></span><span class="var-switch-label">${escapeHtml(swOn ? swL[0] : swL[1])}</span></button>
+        <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(swOn ? swL[0] : swL[1])}" />
+      </div>`;
+            } else if (type === 'yesnomaybe') {
+                const yL = _PL_ynmLabels(opts), yAct = yL.find(l => l.toLowerCase() === String(def).trim().toLowerCase()) || '';
+                input = `<div class="var-toggle-group var-choice-chips var-ynm" data-var="${escapeAttr(v)}" data-multi="0" data-motion="${_PL_motionMode()}">
+        ${yL.map(o => `<button type="button" class="chip var-toggle-btn${o === yAct ? ' active' : ''}" data-value="${escapeAttr(o)}" onclick="window._PL_selectToggle(this)">${escapeHtml(o)}</button>`).join('')}
+        <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(yAct)}" />
       </div>`;
             } else if (type === 'dropdown' && opts.length) {
                 input = `<select class="var-select" data-var="${escapeAttr(v)}">
@@ -1920,7 +2030,7 @@
         <input type="date" class="var-dr-to" value="${escapeAttr(drB || '')}" oninput="window._PL_syncDateRange(this)" />
         <input type="hidden" class="var-input var-dr-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
-            } else if (type === 'list') {
+            } else if (type === 'list' || type === 'numberedlist') {
                 input = `<textarea class="var-input" data-var="${escapeAttr(v)}" placeholder="One item per line" rows="4" style="width:100%;resize:vertical;">${escapeHtml(def)}</textarea>`;
             } else {
                 input = `<input type="text" class="var-input" data-var="${escapeAttr(v)}" placeholder="Enter value…" value="${escapeAttr(def)}" />`;
@@ -2008,7 +2118,7 @@
         }
         if (inp.type === 'checkbox') return inp.checked ? 'Yes' : 'No';
         const vtype = inp.closest('.var-field')?.querySelector('.var-field-type')?.textContent.trim();
-        return _PL_formatVar(vtype, (inp.value || '').trim());
+        return _PL_formatVar(vtype, (inp.value || '').trim(), inp);
     }
 
     function _readVarControlValue(inp) {
@@ -2024,9 +2134,15 @@
         return v;
     }
     // Per-type output formatting applied when a value is written into the prompt
-    function _PL_formatVar(type, v) {
+    function _PL_formatVar(type, v, el) {
+        const ds = (el && el.dataset) || el || {};
+        if (type === 'currency') return _PL_currency(v, ds.symbol);
         if (!v) return v;
         if (type === 'list') return v.split('\n').map(x => x.trim()).filter(Boolean).map(x => '- ' + x.replace(/^[-*\u2022]\s*/, '')).join('\n');
+        if (type === 'numberedlist') return _PL_numberedList(v);
+        if (type === 'titlecase') return _PL_titleCase(v);
+        if (type === 'hashtags') return _PL_hashtags(v);
+        if (type === 'rating') { const n = parseInt(v, 10), mx = _PL_ratingMax({ max: ds.max }); return n >= 1 ? Math.min(n, mx) + ' out of ' + mx : ''; }
         if (type === 'percentage') return /^-?\d+(\.\d+)?$/.test(v) ? v + '%' : v;
         if (type === 'daterange') return v.replace('|', ' to ');
         return v;
@@ -2192,6 +2308,72 @@
         wrap.querySelector('.var-step-range').value = btn.dataset.idx;
         _PL_stepSet(wrap, parseInt(btn.dataset.idx, 10));
     };
+
+    // Newer variable types: star rating, switch and stepper
+    window._PL_ratePick = function(btn) {
+        const wrap = btn.closest('.var-rating'), hidden = wrap.querySelector('input.var-input');
+        const n = parseInt(btn.dataset.n, 10), next = String(n) === hidden.value ? 0 : n;
+        hidden.value = next ? String(next) : '';
+        wrap.querySelectorAll('.var-star').forEach((s, i) => {
+            s.classList.toggle('on', i < next);
+            s.setAttribute('aria-checked', String(i + 1 === next));
+        });
+        if (next) _PL_pop(btn);
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    window._PL_switchToggle = function(btn) {
+        const wrap = btn.closest('.var-switch-wrap'), hidden = wrap.querySelector('input.var-input');
+        const on = !btn.classList.contains('on'), label = on ? wrap.dataset.on : wrap.dataset.off;
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-checked', String(on));
+        btn.querySelector('.var-switch-label').textContent = label;
+        hidden.value = label;
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    function _PL_stepperMove(wrap, dir) {
+        const inp = wrap.querySelector('.var-stepper-input');
+        const min = parseFloat(inp.min), max = parseFloat(inp.max), step = parseFloat(inp.step) || 1;
+        const dec = Math.max(String(step).split('.')[1] ? String(step).split('.')[1].length : 0, String(min).split('.')[1] ? String(min).split('.')[1].length : 0);
+        const cur = parseFloat(inp.value);
+        let next = isFinite(cur) ? cur + dir * step : min;
+        next = Math.max(min, Math.min(max, next));
+        next = Number(next.toFixed(dec));
+        if (String(next) === inp.value) return;
+        inp.value = String(next);
+        if (wrap.dataset.motion !== 'off' && inp.animate) {
+            try { inp.animate([{ transform: 'translateY(' + (dir > 0 ? 40 : -40) + '%)', opacity: 0.3 }, { transform: 'none', opacity: 1 }], { duration: wrap.dataset.motion === 'short' ? 120 : 220, easing: 'cubic-bezier(.2,.9,.3,1)' }); } catch (_) {}
+        }
+        inp.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    // Press once to step, hold to repeat. Keyboard activation (click without a pointer) steps once.
+    let _PL_stepHold = null;
+    function _PL_stepStop() { if (_PL_stepHold) { clearTimeout(_PL_stepHold.t); clearInterval(_PL_stepHold.i); _PL_stepHold = null; } }
+    document.addEventListener('pointerdown', function(e) {
+        const b = e.target.closest && e.target.closest('.var-stepper-btn');
+        if (!b || e.button > 0) return;
+        const wrap = b.closest('.var-stepper'), dir = parseInt(b.dataset.stepDir, 10);
+        _PL_stepStop();
+        _PL_stepperMove(wrap, dir);
+        _PL_stepHold = { t: setTimeout(() => { _PL_stepHold.i = setInterval(() => _PL_stepperMove(wrap, dir), 90); }, 420), i: 0 };
+    });
+    ['pointerup', 'pointercancel', 'pointerleave', 'blur'].forEach(ev => document.addEventListener(ev, function(e) {
+        if (ev === 'pointerleave' && !(e.target.closest && e.target.closest('.var-stepper-btn'))) return;
+        _PL_stepStop();
+    }, true));
+    document.addEventListener('click', function(e) {
+        const b = e.target.closest && e.target.closest('.var-stepper-btn');
+        if (b && e.detail === 0) _PL_stepperMove(b.closest('.var-stepper'), parseInt(b.dataset.stepDir, 10));
+    });
+    // A typed stepper value is kept inside its range when the field loses focus
+    document.addEventListener('change', function(e) {
+        const inp = e.target.classList && e.target.classList.contains('var-stepper-input') ? e.target : null;
+        if (!inp || inp.value === '') return;
+        const min = parseFloat(inp.min), max = parseFloat(inp.max), n = parseFloat(inp.value);
+        if (!isFinite(n)) { inp.value = ''; }
+        else if (n < min || n > max) inp.value = String(Math.max(min, Math.min(max, n)));
+        else return;
+        inp.dispatchEvent(new Event('input', { bubbles: true }));
+    });
 
     // Checklist (multi-option checkbox) and Range fields sync their hidden input via delegated listeners
     document.addEventListener('change', function(evt) {
@@ -3321,6 +3503,11 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="code" ${type === 'code' ? 'selected' : ''}>Code</option>
             <option value="list" ${type === 'list' ? 'selected' : ''}>List (bullets)</option>
             <option value="language" ${type === 'language' ? 'selected' : ''}>Language</option>
+            <option value="email" ${type === 'email' ? 'selected' : ''}>Email Address</option>
+            <option value="url" ${type === 'url' ? 'selected' : ''}>Web Link</option>
+            <option value="titlecase" ${type === 'titlecase' ? 'selected' : ''}>Title Case</option>
+            <option value="hashtags" ${type === 'hashtags' ? 'selected' : ''}>Hashtags</option>
+            <option value="numberedlist" ${type === 'numberedlist' ? 'selected' : ''}>Numbered List</option>
             </optgroup>
             <optgroup label="Choice">
             <option value="dropdown" ${type === 'dropdown' ? 'selected' : ''}>Dropdown</option>
@@ -3329,12 +3516,17 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="checkbox" ${type === 'checkbox' ? 'selected' : ''}>Checkbox List</option>
             <option value="combobox" ${type === 'combobox' ? 'selected' : ''}>Combo Box (pick or type)</option>
             <option value="stepslider" ${type === 'stepslider' ? 'selected' : ''}>Step Slider</option>
+            <option value="switch" ${type === 'switch' ? 'selected' : ''}>Yes or No Switch</option>
+            <option value="yesnomaybe" ${type === 'yesnomaybe' ? 'selected' : ''}>Yes, No, Maybe</option>
             </optgroup>
             <optgroup label="Number">
             <option value="number" ${type === 'number' ? 'selected' : ''}>Number</option>
             <option value="percentage" ${type === 'percentage' ? 'selected' : ''}>Percentage</option>
             <option value="slider" ${type === 'slider' ? 'selected' : ''}>Slider</option>
             <option value="rangeslider" ${type === 'rangeslider' ? 'selected' : ''}>Range Slider (min-max)</option>
+            <option value="stepper" ${type === 'stepper' ? 'selected' : ''}>Stepper (plus and minus)</option>
+            <option value="rating" ${type === 'rating' ? 'selected' : ''}>Star Rating</option>
+            <option value="currency" ${type === 'currency' ? 'selected' : ''}>Currency Amount</option>
             </optgroup>
             <optgroup label="Date">
             <option value="date" ${type === 'date' ? 'selected' : ''}>Date</option>
@@ -3379,6 +3571,12 @@ STYLE/THEME: [[reserved for future use]]`;
             Allow multiple selections
           </label>
         </div>
+        <div class="var-range-row" style="display: none; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px;">
+          <span class="var-range-lab" style="font-size: 11px; color: var(--ink-3);">Range:</span>
+          <label class="var-range-min" style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-3);">Min <input type="number" data-field="min" step="any" placeholder="0" value="${escapeAttr(m.min ?? '')}" style="width: 54px; font-size: 12px; padding: 4px 6px;" /></label>
+          <label class="var-range-max" style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-3);"><span class="var-range-max-lab">Max</span> <input type="number" data-field="max" step="any" placeholder="100" value="${escapeAttr(m.max ?? '')}" style="width: 54px; font-size: 12px; padding: 4px 6px;" /></label>
+          <label class="var-range-step" style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-3);">Step <input type="number" data-field="step" min="0" step="any" placeholder="1" value="${escapeAttr(m.step ?? '')}" style="width: 54px; font-size: 12px; padding: 4px 6px;" /></label>
+        </div>
         <div class="dice-faces" style="display: none; gap: 8px; align-items: center; margin-top: 4px;">
           <span style="font-size: 11px; color: var(--ink-3);">Sides:</span>
           <input type="number" data-field="faces" min="2" max="100" value="${escapeAttr(m.faces || 6)}" style="width: 72px; font-size: 12px; padding: 4px 8px;" />
@@ -3402,7 +3600,10 @@ STYLE/THEME: [[reserved for future use]]`;
             carddeck: 'Card names, comma separated (blank gives five sample cards)',
             randompick: 'Options, comma separated',
             stepslider: 'Steps in order, comma separated (at least 2)',
-            choicecards: 'One card per line: Title | short description'
+            choicecards: 'One card per line: Title | short description',
+            switch: 'On label, Off label (blank gives Yes, No)',
+            yesnomaybe: 'Three labels, comma separated (blank gives Yes, No, Maybe)',
+            currency: 'Currency symbol, for example \u00a3 or $ (blank gives \u00a3)'
         })[_PL_isDeck(type) ? 'carddeck' : _PL_isDice(type) ? 'diceroll' : type] || 'Comma separated options';
     }
     function _PL_applyVarTypeUI(row, type) {
@@ -3412,6 +3613,17 @@ STYLE/THEME: [[reserved for future use]]`;
         show('.paragraph-size', type === 'paragraph');
         show('.choice-multi', type === 'choicechips' || type === 'choicecards');
         show('.dice-faces', false);
+        show('.var-range-row', type === 'stepper' || type === 'rating');
+        row.querySelectorAll('.var-range-min, .var-range-step').forEach(el => { el.style.display = type === 'rating' ? 'none' : 'flex'; });
+        const rmax = row.querySelector('[data-field="max"]');
+        if (rmax) {
+            if (type === 'rating') { rmax.min = 3; rmax.max = 10; rmax.step = 1; rmax.placeholder = '5'; } else { rmax.removeAttribute('min'); rmax.removeAttribute('max'); rmax.step = 'any'; rmax.placeholder = '100'; }
+        }
+        const rlab = row.querySelector('.var-range-lab'), rmlab = row.querySelector('.var-range-max-lab');
+        if (rlab) rlab.textContent = type === 'rating' ? 'Rating scale:' : 'Range:';
+        if (rmlab) rmlab.textContent = type === 'rating' ? 'Stars (3 to 10)' : 'Max';
+        const dfl = row.querySelector('[data-field="default"]');
+        if (dfl) dfl.placeholder = ({ switch: 'Default: the on label, or blank for off', yesnomaybe: 'Default label (optional)', rating: 'Default stars, for example 3 (optional)', stepper: 'Default number (optional)', currency: 'Default amount (optional)' })[type] || 'Default value (optional)';
         show('.var-wrap-row', !isRandom);
         show('[data-field="default"]', !isRandom, 'block');
         const ta = row.querySelector('[data-field="options"]');
@@ -3443,6 +3655,13 @@ STYLE/THEME: [[reserved for future use]]`;
                 options
             };
             if (type === 'paragraph' && sizeEl) entry.size = sizeEl.value;
+            if (type === 'stepper') {
+                ['min', 'max', 'step'].forEach(k => { const n = parseFloat(row.querySelector('[data-field="' + k + '"]')?.value); if (isFinite(n) && (k !== 'step' || n > 0)) entry[k] = n; });
+            }
+            if (type === 'rating') {
+                const rn = parseInt(row.querySelector('[data-field="max"]')?.value, 10);
+                if (isFinite(rn)) entry.max = Math.max(3, Math.min(10, rn));
+            }
             if ((type === 'choicechips' || type === 'choicecards') && multiEl && multiEl.checked) entry.multi = true;
             const wrapEl = row.querySelector('[data-field="wrap"]');
             if (wrapEl && wrapEl.value && !isRandom) entry.wrap = wrapEl.value;
