@@ -186,7 +186,7 @@ The repository is actively developed. Features, licensing tiers, screenshots and
 
 Copyright (c) 2026 **Eugene Phillips, trading as MX Phillips**. All rights reserved in the original project materials owned by the copyright holder.
 
-The current project uses the **Prompt Library Pro Source Available Licence** in [LICENSE](LICENSE). It allows personal, non-commercial use, modification and public or private forks, including public GitHub forks, subject to the licence conditions. Commercial use, resale and commercial redistribution require prior written permission.
+The current project uses the **Prompt Library Pro Source Available Licence** in [LICENSE](LICENSE). It allows personal, non-commercial use, modification and forks, including public GitHub forks, subject to the licence conditions. Commercial use, resale and commercial redistribution require prior written permission.
 
 Creating a fork does not transfer ownership of the original project materials. Contributors retain copyright in their independently created contributions unless a separate written agreement says otherwise. Third party components remain under their own licences.
 
