@@ -182,13 +182,17 @@ Do not commit API keys, licence key files, personal databases or other private d
 
 The repository is actively developed. Features, licensing tiers, screenshots and build instructions may change as the application evolves.
 
-## Licence
+## Licence and copyright
 
-The repository currently includes an MIT licence in the root `LICENSE` file. That licence permits use, modification and redistribution subject to its stated conditions.
+Copyright (c) 2026 **Eugene Phillips, trading as MX Phillips**. All rights reserved in the original project materials owned by the copyright holder.
 
-**The MIT licence already published with this repository cannot be treated as though it never existed.** Copies obtained under that licence remain subject to the MIT terms that accompanied them. Any future licensing change must also account for third party components, contributions and their respective rights.
+The current project uses the **Prompt Library Pro Source Available Licence** in [LICENSE](LICENSE). It allows personal, non-commercial use, modification and public or private forks, including public GitHub forks, subject to the licence conditions. Commercial use, resale and commercial redistribution require prior written permission.
 
-See [LICENSE](LICENSE) for the licence text.
+Creating a fork does not transfer ownership of the original project materials. Contributors retain copyright in their independently created contributions unless a separate written agreement says otherwise. Third party components remain under their own licences.
+
+**Historical MIT permissions:** Earlier copies or versions distributed under the MIT Licence remain subject to the MIT terms that accompanied them. The earlier notice is preserved in [LICENSE-MIT-HISTORICAL.md](LICENSE-MIT-HISTORICAL.md), and the original file remains available in Git history. The new licence does not retrospectively revoke those permissions.
+
+This is a custom source available licence, not an OSI-approved open source licence. It is a practical project licence draft, not a substitute for advice from an intellectual property solicitor.
 
 ## Project
 
