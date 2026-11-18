@@ -83,6 +83,7 @@
   }
   async function fillPicker(){
     const select=$("pslPicker"); if(!select) return;
+    select.replaceChildren(new Option("Choose a saved prompt...",""));
     const prompts=await loadPrompts();
     prompts.slice(0,300).forEach(p=>{ const o=document.createElement("option"); o.value=p.id; o.textContent=p.title||"Untitled prompt"; select.appendChild(o); });
   }
@@ -228,9 +229,11 @@
   function exportPatterns(){
     const data={type:"prompt-library-stress-patterns",version:1,patterns:loadPatterns()};
     const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+    if(typeof window.PL_saveBlob==="function"){window.PL_saveBlob(blob,"prompt-stress-patterns.json","Pattern history exported");return;}
     const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="prompt-stress-patterns.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
   }
   function openLab(){
+    if(!document.body.classList.contains("is-premium")){toast("Activate Prompt Library Pro to open this workspace.");return;}
     addStyles(); shell(); opener=document.activeElement;
     if(window.PLNewWorkspaceSuite) window.PLNewWorkspaceSuite.close();
     $(ROOT).classList.add("open");document.body.classList.add("plx-workspace-open");
