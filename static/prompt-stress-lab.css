@@ -1,0 +1,55 @@
+/* Prompt Stress Lab. All selectors are scoped to #promptStressLabWorkspace. */
+#promptStressLabWorkspace{position:fixed;inset:0;z-index:8500;display:none;flex-direction:column;background:var(--bg);color:var(--ink);overflow:hidden}
+#promptStressLabWorkspace.open{display:flex}
+#promptStressLabWorkspace *{box-sizing:border-box}
+#promptStressLabWorkspace .psl-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;border-bottom:1px solid var(--line);background:var(--surface)}
+#promptStressLabWorkspace .psl-brand{display:flex;align-items:center;gap:12px;min-width:0}
+#promptStressLabWorkspace .psl-mark{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--accent-soft);color:var(--accent);font-size:22px}
+#promptStressLabWorkspace .psl-kicker{margin:0 0 3px;color:var(--ink-3);font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
+#promptStressLabWorkspace .psl-title{margin:0;font:600 21px/1.2 var(--ff-sans);letter-spacing:-.02em}
+#promptStressLabWorkspace .psl-subtitle{margin:4px 0 0;color:var(--ink-3);font-size:12px}
+#promptStressLabWorkspace .psl-head-actions{display:flex;align-items:center;gap:8px}
+#promptStressLabWorkspace .psl-body{display:grid;grid-template-columns:minmax(320px,.82fr) minmax(420px,1.18fr);gap:18px;min-height:0;flex:1;padding:20px 24px;overflow:auto}
+#promptStressLabWorkspace .psl-panel{min-width:0;display:flex;flex-direction:column;gap:14px;padding:18px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface)}
+#promptStressLabWorkspace .psl-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#promptStressLabWorkspace .psl-panel-title{margin:0;font-size:14px;font-weight:700}
+#promptStressLabWorkspace .psl-muted{color:var(--ink-3);font-size:12px;line-height:1.5}
+#promptStressLabWorkspace .psl-label{display:block;margin:0 0 7px;color:var(--ink-2);font-size:12px;font-weight:650}
+#promptStressLabWorkspace .psl-select,#promptStressLabWorkspace .psl-textarea{width:100%;border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--surface-sunk);color:var(--ink);font:inherit}
+#promptStressLabWorkspace .psl-select{min-height:40px;padding:0 11px}
+#promptStressLabWorkspace .psl-textarea{min-height:280px;resize:vertical;padding:13px;font:12px/1.65 var(--ff-mono)}
+#promptStressLabWorkspace .psl-textarea:focus-visible,#promptStressLabWorkspace .psl-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#promptStressLabWorkspace .psl-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:4px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-sunk)}
+#promptStressLabWorkspace .psl-mode{min-height:38px;border:0;border-radius:var(--r-sm);background:transparent;color:var(--ink-2);font-size:12px;font-weight:700;cursor:pointer}
+#promptStressLabWorkspace .psl-mode[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
+#promptStressLabWorkspace .psl-mode small{display:block;margin-top:2px;color:var(--ink-3);font-size:10px;font-weight:500}
+#promptStressLabWorkspace .psl-check-row{display:flex;align-items:flex-start;gap:9px;color:var(--ink-2);font-size:12px;line-height:1.45}
+#promptStressLabWorkspace .psl-check-row input{margin:2px 0 0;accent-color:var(--accent)}
+#promptStressLabWorkspace .psl-actions{display:flex;flex-wrap:wrap;gap:8px}
+#promptStressLabWorkspace .psl-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:0 13px;border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--surface);color:var(--ink);font-size:12px;font-weight:650;cursor:pointer}
+#promptStressLabWorkspace .psl-btn:hover{background:var(--surface-2)}
+#promptStressLabWorkspace .psl-btn-primary{border-color:var(--accent);background:var(--accent);color:var(--bg)}
+#promptStressLabWorkspace .psl-btn-primary:hover{filter:brightness(.96)}
+#promptStressLabWorkspace .psl-btn:disabled{opacity:.55;cursor:wait}
+#promptStressLabWorkspace .psl-results{display:flex;flex-direction:column;gap:12px;min-height:0}
+#promptStressLabWorkspace .psl-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#promptStressLabWorkspace .psl-stat{padding:12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-2)}
+#promptStressLabWorkspace .psl-stat strong{display:block;font:600 21px/1.1 var(--ff-mono)}
+#promptStressLabWorkspace .psl-stat span{display:block;margin-top:5px;color:var(--ink-3);font-size:10px}
+#promptStressLabWorkspace .psl-section{padding:13px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface)}
+#promptStressLabWorkspace .psl-section h3{margin:0 0 10px;font-size:12px;font-weight:750}
+#promptStressLabWorkspace .psl-finding{display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:10px 0;border-top:1px solid var(--line)}
+#promptStressLabWorkspace .psl-finding:first-of-type{border-top:0;padding-top:0}
+#promptStressLabWorkspace .psl-finding strong{font-size:12px}
+#promptStressLabWorkspace .psl-finding p{grid-column:1/-1;margin:0;color:var(--ink-2);font-size:11px;line-height:1.5;white-space:pre-wrap}
+#promptStressLabWorkspace .psl-tag{align-self:start;padding:3px 7px;border-radius:99px;background:var(--surface-3);color:var(--ink-2);font-size:10px;font-weight:700}
+#promptStressLabWorkspace .psl-tag.high{background:color-mix(in srgb,var(--danger) 13%,var(--surface));color:var(--danger)}
+#promptStressLabWorkspace .psl-tag.medium{background:color-mix(in srgb,var(--warn) 16%,var(--surface));color:var(--warn)}
+#promptStressLabWorkspace .psl-tag.low{background:var(--accent-soft);color:var(--accent)}
+#promptStressLabWorkspace .psl-report{max-height:360px;overflow:auto;margin:0;padding:13px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-sunk);color:var(--ink-2);font:11px/1.6 var(--ff-mono);white-space:pre-wrap;overflow-wrap:anywhere}
+#promptStressLabWorkspace .psl-empty{display:grid;place-items:center;min-height:250px;padding:24px;text-align:center;color:var(--ink-3);font-size:12px;line-height:1.6}
+#promptStressLabWorkspace .psl-patterns{display:flex;flex-wrap:wrap;gap:6px}
+#promptStressLabWorkspace .psl-pattern{padding:5px 8px;border:1px solid var(--line);border-radius:99px;color:var(--ink-2);font-size:10px}
+#promptStressLabWorkspace .psl-foot{padding:10px 24px;border-top:1px solid var(--line);background:var(--surface);color:var(--ink-3);font-size:10px;line-height:1.45}
+@media(max-width:900px){#promptStressLabWorkspace .psl-body{grid-template-columns:1fr;padding:14px}#promptStressLabWorkspace .psl-textarea{min-height:220px}}
+@media(max-width:560px){#promptStressLabWorkspace .psl-head{padding:13px 14px}#promptStressLabWorkspace .psl-body{gap:12px;padding:10px}#promptStressLabWorkspace .psl-panel{padding:13px}#promptStressLabWorkspace .psl-title{font-size:17px}#promptStressLabWorkspace .psl-subtitle{display:none}#promptStressLabWorkspace .psl-foot{padding:9px 14px}}
