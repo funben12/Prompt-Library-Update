@@ -759,3 +759,15 @@ Resulting state:
 - **Checked:** scripted Chromium against the app with a mocked save bridge: 38 of 38 export actions saved with the right file and content; as plain browser downloads: 18 of 18; Prompt Board export both ways. Python bridge unit test: `python -m unittest discover tests/exports` (5 tests, pywebview stubbed).
 - **Not checked:** the real WebView2 window on Windows (no Windows here). Confirm on the installed build that Save As opens for each export and that the file lands where chosen.
 - **Cache:** loader `?v=` is `20261117c`; `app.js` hash refreshed by `update_hash.py`.
+
+
+## Prompt Stress Lab (2026-11-18, feature branch)
+
+- A new Pro workspace, **Prompt Stress Lab**, is being introduced as a central QA layer alongside Prompt Auditor, Prompt Surgeon, Prompt Red Team and Gauntlet Loop. It complements those tools rather than replacing them.
+- Files: `static/prompt-stress-lab.js`, `static/prompt-stress-lab.css`, and `docs/prompt-stress-lab/SPEC.md`. The existing `static/gauntlet-suite.js` loads the new module; `static/index.html` cache-busts that suite loader. The launcher card is injected into the Inspect group and discovered by the existing PLWS registry.
+- Modes: QUICK (clarity, ambiguity, inputs, output), HARDEN (full structural set), CRITICAL (adds adversarial checks).
+- Token policy: local heuristic scans are the default and use zero AI tokens. AI review is a separate explicit action, one request per run, bounded to 1,600 output tokens or 2,200 in CRITICAL. Optional Context Bank inclusion is off by default and capped at two blocks / 2,800 characters.
+- Original prompts are not rewritten. Findings are advisory, and a structural scan is never represented as proof of runtime reliability.
+- Recurring QA findings are stored separately in localStorage key `promptlib.stresslab.patterns.v1`, not written into Context Bank. Pattern history can be exported. Optional Context Bank blocks are read only for AI context.
+- No database schema changes, new dependencies, cloud storage, account system or authentication changes.
+- This work is on branch `feature/prompt-stress-lab` and is not merged. Browser and installed PyWebView verification are required before merge. Do not describe it as production-ready until those checks pass.
