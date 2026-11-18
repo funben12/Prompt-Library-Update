@@ -1,0 +1,300 @@
+/* Workspace previews: scaled schematic miniatures of every workspace, used on the picker cards.
+   Real DOM and CSS, drawn on a virtual 1280 by 800 workspace (960 by 600 for the small size) and scaled to the container width.
+   Tokens from app.css only, so light and dark follow the theme. No ids, no focusable elements, no gradients, no network.
+   Scope: every rule sits under .wsv (the root class of each preview, which carries no id by design). */
+
+/* ---------- root and scaling ---------- */
+.wsv {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 8 / 5;
+  overflow: hidden;
+  container-type: inline-size;
+  contain: paint;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ff-sans);
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  /* A little stronger than --line so panel outlines survive the scale down, in light and dark. */
+  --wsv-edge: color-mix(in oklch, var(--line) 45%, var(--line-strong));
+}
+:where(.wsv *, .wsv *::before, .wsv *::after) { box-sizing: border-box; margin: 0; padding: 0; pointer-events: none; }
+.wsv .wsv-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1280px;
+  height: 800px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  transform-origin: 0 0;
+  /* Unit division in plain CSS (Chromium 111 and later, WebView2 included). The script supplies --wsv-s when this is unsupported. */
+  transform: scale(tan(atan2(100cqw, 1280px)));
+}
+.wsv.wsv-sm .wsv-stage { width: 960px; height: 600px; transform: scale(tan(atan2(100cqw, 960px))); }
+html.wsv-js .wsv .wsv-stage { transform: scale(var(--wsv-s, 0.3)); }
+
+/* ---------- layout atoms ---------- */
+.wsv .wsv-row { display: flex; flex-direction: row; gap: 12px; min-width: 0; min-height: 0; }
+.wsv .wsv-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; }
+.wsv .wsv-wrap { flex-wrap: wrap; }
+.wsv .wsv-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.wsv .wsv-grow { flex: 1 1 0; min-width: 0; min-height: 0; }
+
+/* ---------- placeholder shapes ---------- */
+.wsv .wsv-bar { display: block; flex: none; height: 10px; max-width: 100%; border-radius: 5px; background: var(--line-strong); }
+.wsv .wsv-bar.wsv-soft { background: var(--line); }
+.wsv .wsv-bar.wsv-lab { height: 8px; border-radius: 4px; background: var(--ink-4); opacity: 0.75; }
+.wsv .wsv-bar.wsv-hd { height: 16px; border-radius: 6px; background: var(--ink-3); opacity: 0.8; }
+.wsv .wsv-bar.wsv-acc { background: var(--accent); }
+.wsv .wsv-bar.wsv-accs { background: var(--accent-line); }
+.wsv .wsv-bar.wsv-add { background: var(--success); opacity: 0.55; }
+.wsv .wsv-bar.wsv-del { background: var(--danger); opacity: 0.5; }
+.wsv .wsv-bar.wsv-hit { background: var(--accent-line); }
+.wsv .wsv-bar.wsv-k { background: var(--k, var(--ink-3)); opacity: 0.7; }
+.wsv .wsv-bar.wsv-tk { height: 12px; }
+.wsv .wsv-t { font-size: 15px; font-weight: 600; color: var(--ink-2); white-space: nowrap; letter-spacing: 0; }
+.wsv .wsv-mono { font-family: var(--ff-mono); font-size: 15px; font-weight: 500; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wsv .wsv-mono.wsv-lg { font-size: 26px; font-weight: 600; color: var(--ink); }
+.wsv .wsv-mono.wsv-xl { font-size: 56px; font-weight: 600; color: var(--ink); letter-spacing: -0.03em; }
+.wsv .wsv-mono.wsv-ink { color: var(--ink-2); }
+.wsv .wsv-mono.wsv-ac { color: var(--accent); }
+.wsv .wsv-mono.wsv-ok { color: var(--success); }
+.wsv .wsv-mono.wsv-bad { color: var(--danger); }
+.wsv .wsv-mono.wsv-wn { color: var(--warn); }
+.wsv .wsv-title { font-family: var(--ff-display); font-weight: 600; font-size: 28px; letter-spacing: -0.02em; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 560px; line-height: 1.15; }
+.wsv .wsv-title.wsv-sub { font-size: 22px; font-weight: 500; }
+
+.wsv .wsv-ic {
+  font-family: 'Material Symbols Outlined', 'Material Symbols Outlined Fallback', system-ui;
+  font-weight: 400;
+  font-style: normal;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  display: inline-block;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  overflow: hidden;
+  line-height: 1;
+  font-size: 22px;
+  color: var(--ink-3);
+}
+.wsv .wsv-ic.wsv-fill { font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24; }
+.wsv .wsv-ic.wsv-ac { color: var(--accent); }
+.wsv .wsv-ic.wsv-ok { color: var(--success); }
+.wsv .wsv-ic.wsv-wn { color: var(--warn); }
+.wsv .wsv-ic.wsv-bad { color: var(--danger); }
+.wsv .wsv-ic.wsv-kc { color: var(--k, var(--ink-3)); }
+.wsv .wsv-ic.wsv-faint { color: var(--ink-4); }
+
+/* palette classes: --k is the strong colour, --ks the soft tint */
+.wsv .wsv-k-a { --k: var(--accent); --ks: var(--accent-soft); }
+.wsv .wsv-k-n { --k: var(--ink-3); --ks: var(--surface-2); }
+.wsv .wsv-k-ok { --k: var(--success); --ks: var(--success-soft); }
+.wsv .wsv-k-wn { --k: var(--warn); --ks: var(--warn-soft); }
+.wsv .wsv-k-bad { --k: var(--danger); --ks: var(--danger-soft); }
+.wsv .wsv-k-teal { --k: var(--c-teal); --ks: var(--c-teal-soft); }
+.wsv .wsv-k-blue { --k: var(--c-blue); --ks: var(--c-blue-soft); }
+.wsv .wsv-k-purple { --k: var(--c-purple); --ks: var(--c-purple-soft); }
+.wsv .wsv-k-orange { --k: var(--c-orange); --ks: var(--c-orange-soft); }
+.wsv .wsv-k-green { --k: var(--c-green); --ks: var(--c-green-soft); }
+.wsv .wsv-k-pink { --k: var(--c-pink); --ks: var(--c-pink-soft); }
+.wsv .wsv-k-indigo { --k: var(--c-indigo); --ks: var(--c-indigo-soft); }
+.wsv .wsv-k-cyan { --k: var(--c-cyan); --ks: var(--c-cyan-soft); }
+.wsv .wsv-k-amber { --k: var(--c-amber); --ks: var(--c-amber-soft); }
+.wsv .wsv-k-red { --k: var(--c-red); --ks: var(--c-red-soft); }
+.wsv .wsv-k-violet { --k: var(--c-violet); --ks: var(--c-violet-soft); }
+.wsv .wsv-k-rose { --k: var(--c-rose); --ks: var(--c-rose-soft); }
+.wsv .wsv-k-lime { --k: var(--c-lime); --ks: var(--c-lime-soft); }
+.wsv .wsv-k-yellow { --k: var(--c-yellow); --ks: var(--c-yellow-soft); }
+
+/* ---------- header (the real ws-header: icon, display title, subtitle, actions) ---------- */
+.wsv .wsv-hdr { display: flex; align-items: center; gap: 16px; height: 76px; padding: 0 28px; background: var(--surface); border-bottom: 2px solid var(--wsv-edge); flex: none; }
+.wsv.wsv-sm .wsv-hdr { height: 72px; }
+.wsv .wsv-hdr .wsv-spacer { flex: 1; min-width: 0; }
+.wsv .wsv-tile { width: 42px; height: 42px; border-radius: 10px; background: var(--accent-soft); border: 2px solid var(--accent-line); display: flex; align-items: center; justify-content: center; flex: none; }
+.wsv .wsv-tile .wsv-ic { font-size: 26px; color: var(--accent); }
+.wsv .wsv-tile.wsv-sm { width: 36px; height: 36px; border-radius: 9px; }
+.wsv .wsv-tile.wsv-sm .wsv-ic { font-size: 22px; }
+.wsv .wsv-tile.wsv-k { background: var(--ks); border-color: color-mix(in oklch, var(--k) 40%, transparent); }
+.wsv .wsv-tile.wsv-k .wsv-ic { color: var(--k); }
+.wsv .wsv-hdr.wsv-hdr-plx { height: 98px; align-items: flex-start; padding-top: 16px; }
+.wsv.wsv-sm .wsv-hdr.wsv-hdr-plx { height: 112px; padding-top: 18px; }
+
+/* ---------- controls ---------- */
+.wsv .wsv-btn { display: flex; align-items: center; justify-content: center; flex: none; height: 34px; border-radius: 8px; border: 2px solid var(--line-strong); background: var(--surface); }
+.wsv .wsv-btn::after { content: ''; width: 46%; height: 7px; border-radius: 4px; background: var(--ink-4); opacity: 0.85; }
+.wsv .wsv-btn.wsv-btn-a { background: var(--accent); border-color: var(--accent); }
+.wsv .wsv-btn.wsv-btn-a::after { background: var(--bg); opacity: 0.9; }
+.wsv .wsv-btn.wsv-btn-d { border-color: color-mix(in oklch, var(--danger) 45%, transparent); background: var(--danger-soft); }
+.wsv .wsv-btn.wsv-btn-d::after { background: var(--danger); opacity: 0.7; }
+.wsv .wsv-btn.wsv-btn-sq { width: 34px; }
+.wsv .wsv-btn.wsv-btn-sq::after { width: 12px; height: 12px; border-radius: 3px; }
+.wsv .wsv-btn.wsv-btn-lg { height: 42px; border-radius: 10px; }
+
+.wsv .wsv-field { display: flex; align-items: center; gap: 8px; flex: none; height: 40px; padding: 0 12px; border-radius: 8px; border: 2px solid var(--wsv-edge); background: var(--surface-sunk); }
+.wsv .wsv-field.wsv-line { background: var(--surface); border-color: var(--line-strong); }
+.wsv .wsv-field.wsv-sel::after { content: ''; margin-left: auto; width: 8px; height: 8px; border-right: 2px solid var(--ink-3); border-bottom: 2px solid var(--ink-3); transform: translateY(-2px) rotate(45deg); flex: none; }
+.wsv .wsv-field.wsv-search .wsv-ic { font-size: 20px; }
+.wsv .wsv-area { display: flex; flex-direction: column; gap: 10px; min-height: 0; padding: 14px; border-radius: 8px; border: 2px solid var(--wsv-edge); background: var(--surface-sunk); overflow: hidden; }
+.wsv .wsv-area.wsv-out { background: var(--surface); }
+.wsv .wsv-area.wsv-hl { border-left: 5px solid var(--accent); background: var(--surface); }
+.wsv .wsv-area.wsv-mono-lines { gap: 9px; }
+.wsv .wsv-chip { display: flex; align-items: center; justify-content: center; flex: none; height: 24px; padding: 0 8px; border-radius: 12px; background: var(--ks, var(--surface-2)); border: 2px solid color-mix(in oklch, var(--k, var(--ink-3)) 35%, transparent); }
+.wsv .wsv-chip::after { content: ''; width: 100%; height: 6px; border-radius: 3px; background: var(--k, var(--ink-3)); opacity: 0.7; }
+.wsv .wsv-chip.wsv-on { background: var(--accent-soft); border-color: var(--accent); }
+.wsv .wsv-chip.wsv-on::after { background: var(--accent); opacity: 0.85; }
+.wsv .wsv-chip.wsv-tx::after { content: none; }
+.wsv .wsv-chip.wsv-tx { width: auto !important; padding: 0 10px; font-family: var(--ff-mono); font-size: 13px; font-weight: 500; color: var(--k, var(--ink-3)); }
+.wsv .wsv-chip.wsv-tx.wsv-on { color: var(--accent); }
+.wsv .wsv-chip.wsv-lg { height: 32px; border-radius: 16px; }
+.wsv .wsv-chip.wsv-sq { border-radius: 7px; }
+.wsv .wsv-seg { display: flex; flex: none; height: 34px; padding: 3px; gap: 3px; border-radius: 9px; border: 2px solid var(--line); background: var(--surface-sunk); }
+.wsv .wsv-seg > i { flex: 1; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.wsv .wsv-seg > i::after { content: ''; width: 46%; height: 6px; border-radius: 3px; background: var(--ink-4); opacity: 0.7; }
+.wsv .wsv-seg > i.wsv-on { background: var(--surface); box-shadow: var(--shadow-sm); border: 2px solid var(--accent-line); }
+.wsv .wsv-seg > i.wsv-on::after { background: var(--accent); opacity: 0.9; }
+.wsv .wsv-seg.wsv-tx > i::after { content: none; }
+.wsv .wsv-seg.wsv-tx > i { font-family: var(--ff-mono); font-size: 14px; font-weight: 600; color: var(--ink-3); }
+.wsv .wsv-seg.wsv-tx > i.wsv-on { color: var(--accent); }
+.wsv .wsv-tabs { display: flex; gap: 22px; flex: none; height: 38px; border-bottom: 2px solid var(--line); align-items: flex-end; }
+.wsv .wsv-tabs > i { display: block; height: 36px; padding: 0 2px; border-bottom: 3px solid transparent; position: relative; top: 2px; }
+.wsv .wsv-tabs > i::after { content: ''; display: block; width: 100%; height: 8px; margin-top: 12px; border-radius: 4px; background: var(--ink-4); opacity: 0.6; }
+.wsv .wsv-tabs > i.wsv-on { border-bottom-color: var(--accent); }
+.wsv .wsv-tabs > i.wsv-on::after { background: var(--accent); opacity: 0.85; }
+.wsv .wsv-sw { display: flex; align-items: center; flex: none; width: 40px; height: 22px; padding: 2px; border-radius: 11px; background: var(--surface-3); border: 2px solid var(--line-strong); }
+.wsv .wsv-sw::after { content: ''; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); box-shadow: var(--shadow-sm); }
+.wsv .wsv-sw.wsv-on { background: var(--accent); border-color: var(--accent); justify-content: flex-end; }
+.wsv .wsv-check { width: 20px; height: 20px; border-radius: 5px; border: 2px solid var(--line-strong); background: var(--surface); flex: none; display: flex; align-items: center; justify-content: center; }
+.wsv .wsv-check.wsv-on { background: var(--accent); border-color: var(--accent); }
+.wsv .wsv-check.wsv-on::after { content: ''; width: 9px; height: 5px; border-left: 2.5px solid var(--bg); border-bottom: 2.5px solid var(--bg); transform: translateY(-1px) rotate(-45deg); }
+.wsv .wsv-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--k, var(--ink-3)); flex: none; }
+.wsv .wsv-dot.wsv-sqd { border-radius: 4px; }
+.wsv .wsv-dot.wsv-lg { width: 36px; height: 36px; }
+.wsv .wsv-av { width: 34px; height: 34px; border-radius: 50%; background: var(--ks); border: 2px solid var(--k); flex: none; }
+.wsv .wsv-av.wsv-sm { width: 24px; height: 24px; }
+.wsv .wsv-trk { flex: 1; min-width: 40px; height: 10px; border-radius: 5px; background: var(--surface-3); overflow: hidden; }
+.wsv .wsv-trk > i { display: block; height: 100%; border-radius: 5px; background: var(--k, var(--accent)); }
+.wsv .wsv-trk.wsv-tall { height: 14px; border-radius: 7px; }
+.wsv .wsv-trk.wsv-tall > i { border-radius: 7px; }
+.wsv .wsv-div { width: 2px; align-self: stretch; background: var(--line); flex: none; }
+.wsv .wsv-hr { height: 2px; background: var(--line); flex: none; }
+.wsv .wsv-badge { display: flex; align-items: center; justify-content: center; flex: none; min-width: 30px; height: 26px; padding: 0 9px; border-radius: 7px; background: var(--ks, var(--surface-2)); color: var(--k, var(--ink-3)); font-family: var(--ff-mono); font-size: 14px; font-weight: 600; border: 2px solid color-mix(in oklch, var(--k, var(--ink-3)) 35%, transparent); }
+
+/* ---------- panels ---------- */
+.wsv .wsv-pane { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; padding: 18px; border-radius: 14px; border: 2px solid var(--wsv-edge); background: var(--surface); overflow: hidden; }
+.wsv .wsv-pane.wsv-flat { background: var(--bg); }
+.wsv .wsv-pane.wsv-sel { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.wsv .wsv-pane.wsv-k { border-top: 5px solid var(--k); }
+.wsv .wsv-rail { display: flex; flex-direction: column; gap: 12px; flex: none; padding: 20px 18px; overflow: hidden; background: var(--surface-2); border-right: 2px solid var(--wsv-edge); }
+.wsv .wsv-rail.wsv-r { border-right: 0; border-left: 2px solid var(--wsv-edge); }
+.wsv .wsv-rail.wsv-plain { background: var(--surface); }
+.wsv .wsv-li { display: flex; align-items: center; gap: 10px; flex: none; height: 38px; padding: 0 12px; border-radius: 8px; border: 2px solid transparent; }
+.wsv .wsv-li.wsv-on { background: var(--accent-soft); border-color: var(--accent-line); }
+.wsv .wsv-li.wsv-card { background: var(--surface); border-color: var(--wsv-edge); height: 48px; border-radius: 10px; }
+.wsv .wsv-li.wsv-sl { height: 32px; }
+.wsv .wsv-li.wsv-tall { height: 60px; }
+.wsv .wsv-li .wsv-end { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+/* ---------- canvas, nodes, wires ---------- */
+.wsv .wsv-cv { position: relative; flex: 1 1 0; min-width: 0; min-height: 0; overflow: hidden; background: var(--surface-sunk); }
+.wsv .wsv-cv.wsv-framed { border: 2px solid var(--line); border-radius: 14px; }
+.wsv .wsv-cvin { position: absolute; left: 50%; top: 0; transform-origin: 50% 0; }
+.wsv.wsv-sm .wsv-cvin { transform: scale(0.74); }
+.wsv .wsv-node { position: absolute; display: flex; flex-direction: column; gap: 9px; padding: 16px 14px 14px; border-radius: 12px; border: 2px solid var(--line-strong); background: var(--surface); box-shadow: var(--shadow-sm); }
+.wsv .wsv-node::before { content: ''; position: absolute; left: 12px; right: 12px; top: -2px; height: 5px; border-radius: 0 0 4px 4px; background: var(--k, var(--line-strong)); }
+.wsv .wsv-node.wsv-sel { border-color: var(--accent); box-shadow: 0 0 0 5px var(--accent-soft); }
+.wsv .wsv-node.wsv-flat::before { content: none; }
+.wsv .wsv-node.wsv-pill { border-radius: 999px; padding: 0 18px; flex-direction: row; align-items: center; gap: 10px; }
+.wsv .wsv-node.wsv-pill::before { content: none; }
+.wsv .wsv-node.wsv-ghost { background: transparent; border-style: dashed; box-shadow: none; }
+.wsv .wsv-node.wsv-ghost::before { content: none; }
+.wsv .wsv-nh { display: flex; align-items: center; gap: 9px; }
+.wsv .wsv-port { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); border: 3px solid var(--k, var(--line-strong)); }
+.wsv .wsv-port.wsv-l { left: -9px; top: 50%; margin-top: -7px; }
+.wsv .wsv-port.wsv-rr { right: -9px; top: 50%; margin-top: -7px; }
+.wsv .wsv-port.wsv-t { top: -9px; left: 50%; margin-left: -7px; }
+.wsv .wsv-port.wsv-b { bottom: -9px; left: 50%; margin-left: -7px; }
+.wsv .wsv-svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.wsv .wsv-svg path { fill: none; stroke: var(--line-strong); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.wsv .wsv-svg polygon { fill: var(--line-strong); }
+.wsv .wsv-svg .wsv-w-a { stroke: var(--accent); }
+.wsv .wsv-svg polygon.wsv-w-a { fill: var(--accent); stroke: none; }
+.wsv .wsv-svg .wsv-w-d { stroke-dasharray: 9 8; }
+.wsv .wsv-svg .wsv-w-bad { stroke: var(--danger); }
+.wsv .wsv-svg polygon.wsv-w-bad { fill: var(--danger); stroke: none; }
+.wsv .wsv-svg .wsv-w-wn { stroke: var(--warn); }
+.wsv .wsv-svg polygon.wsv-w-wn { fill: var(--warn); stroke: none; }
+.wsv .wsv-svg .wsv-w-ok { stroke: var(--success); }
+.wsv .wsv-svg polygon.wsv-w-ok { fill: var(--success); stroke: none; }
+.wsv .wsv-marq { position: absolute; border-radius: 6px; border: 2px solid var(--accent); background: var(--accent-soft); opacity: 0.55; }
+.wsv .wsv-tools { position: absolute; right: 18px; bottom: 18px; display: flex; flex-direction: column; gap: 6px; padding: 5px; border-radius: 10px; background: var(--surface); border: 2px solid var(--line); }
+.wsv .wsv-tools > i { width: 26px; height: 26px; border-radius: 6px; background: var(--surface-2); display: flex; align-items: center; justify-content: center; }
+.wsv .wsv-tools > i::after { content: ''; width: 10px; height: 3px; border-radius: 2px; background: var(--ink-3); }
+
+/* ---------- tables ---------- */
+.wsv .wsv-tbl { display: flex; flex-direction: column; border-radius: 12px; border: 2px solid var(--wsv-edge); background: var(--surface); overflow: hidden; min-height: 0; }
+.wsv .wsv-tr { display: flex; align-items: center; gap: 14px; flex: none; height: 44px; padding: 0 16px; border-bottom: 2px solid var(--line); }
+.wsv .wsv-tr:last-child { border-bottom: 0; }
+.wsv .wsv-tr.wsv-h { height: 38px; background: var(--surface-2); }
+.wsv .wsv-tr.wsv-on { background: var(--accent-soft); }
+.wsv .wsv-tr .wsv-c { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.wsv .wsv-tr .wsv-r { justify-content: flex-end; text-align: right; }
+
+/* ---------- special shapes ---------- */
+.wsv .wsv-ring { flex: none; display: block; }
+.wsv .wsv-ring circle { fill: none; stroke-width: 11; }
+.wsv .wsv-ring .wsv-rt { stroke: var(--surface-3); }
+.wsv .wsv-ring .wsv-rf { stroke: var(--k, var(--accent)); stroke-linecap: round; }
+.wsv .wsv-paper { display: flex; flex-direction: column; gap: 14px; padding: 36px 44px; background: var(--surface); border: 2px solid var(--line); border-radius: 6px; box-shadow: var(--shadow-md); }
+.wsv .wsv-pblock { display: flex; flex-direction: column; gap: 9px; padding: 14px 16px; border-radius: 8px; border-left: 5px solid var(--accent); background: var(--accent-soft); }
+.wsv .wsv-bento { display: grid; gap: 14px; flex: 1 1 0; min-height: 0; }
+.wsv .wsv-bcell { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; padding: 14px 16px; border-radius: 12px; border: 2px solid var(--wsv-edge); background: var(--surface); border-left: 5px solid var(--k, var(--line-strong)); overflow: hidden; }
+.wsv .wsv-mas { column-count: 3; column-gap: 16px; flex: 1 1 0; min-height: 0; overflow: hidden; }
+.wsv.wsv-sm .wsv-mas { column-count: 2; }
+.wsv .wsv-mas > .wsv-pane { break-inside: avoid; margin-bottom: 16px; display: flex; }
+.wsv .wsv-tl { position: relative; display: flex; flex-direction: column; gap: 10px; padding-left: 26px; }
+.wsv .wsv-tl::before { content: ''; position: absolute; left: 6px; top: 8px; bottom: 8px; width: 2px; background: var(--line-strong); }
+.wsv .wsv-tl > .wsv-li::before { content: ''; position: absolute; left: -25px; top: 50%; margin-top: -6px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 3px solid var(--k, var(--accent)); }
+.wsv .wsv-tl > .wsv-li { position: relative; }
+.wsv .wsv-stack { position: relative; flex: 1 1 0; min-height: 0; }
+.wsv .wsv-stack > .wsv-pane { position: absolute; }
+.wsv .wsv-vs { display: flex; align-items: center; justify-content: center; flex: none; width: 44px; height: 44px; border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong); font-family: var(--ff-mono); font-size: 14px; font-weight: 700; color: var(--ink-3); align-self: center; }
+.wsv .wsv-gut { display: flex; flex-direction: column; gap: 9px; flex: none; align-items: flex-end; padding-right: 10px; border-right: 2px solid var(--line); }
+.wsv .wsv-gut .wsv-mono { font-size: 11px; line-height: 10px; color: var(--ink-4); }
+.wsv .wsv-seq { display: flex; align-items: center; gap: 8px; }
+.wsv .wsv-seq > .wsv-ic { font-size: 18px; color: var(--ink-4); }
+.wsv .wsv-banner { display: flex; align-items: center; gap: 12px; flex: none; padding: 12px 16px; border-radius: 10px; background: var(--accent-soft); border: 2px solid var(--accent-line); }
+.wsv .wsv-banner.wsv-k-wn { background: var(--warn-soft); border-color: color-mix(in oklch, var(--warn) 40%, transparent); }
+.wsv .wsv-stat { display: flex; flex-direction: column; gap: 8px; flex: 1 1 0; min-width: 0; padding: 14px 16px; border-radius: 12px; border: 2px solid var(--wsv-edge); background: var(--surface); }
+.wsv .wsv-sheet { display: flex; flex-direction: column; margin: 0 auto; min-height: 0; gap: 12px; flex: 1 1 0; }
+.wsv.wsv-sm .wsv-sheet { width: 88% !important; }
+
+/* ---------- small size: chunkier atoms for a quick read at phone width ---------- */
+.wsv.wsv-sm .wsv-title { font-size: 34px; max-width: 520px; }
+.wsv.wsv-sm .wsv-bar { height: 13px; border-radius: 7px; }
+.wsv.wsv-sm .wsv-bar.wsv-lab { height: 10px; }
+.wsv.wsv-sm .wsv-bar.wsv-hd { height: 20px; }
+.wsv.wsv-sm .wsv-tile { width: 52px; height: 52px; border-radius: 13px; }
+.wsv.wsv-sm .wsv-tile .wsv-ic { font-size: 32px; }
+.wsv.wsv-sm .wsv-tile.wsv-sm { width: 40px; height: 40px; border-radius: 10px; }
+.wsv.wsv-sm .wsv-tile.wsv-sm .wsv-ic { font-size: 24px; }
+.wsv.wsv-sm .wsv-btn { height: 40px; }
+.wsv.wsv-sm .wsv-btn.wsv-btn-sq { width: 40px; }
+.wsv.wsv-sm .wsv-chip { height: 28px; }
+.wsv.wsv-sm .wsv-field { height: 44px; }
+.wsv.wsv-sm .wsv-mono { font-size: 18px; }
+.wsv.wsv-sm .wsv-mono.wsv-xl { font-size: 64px; }
+.wsv.wsv-sm .wsv-t { font-size: 18px; }
+.wsv.wsv-sm .wsv-li { height: 44px; }
+

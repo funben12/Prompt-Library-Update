@@ -31,14 +31,6 @@
     /* ============================================================================
        STATE
        ============================================================================ */
-    // Free tier limits — Pro users bypass all of these
-    const FREE_LIMITS = {
-        prompts: 35,
-        folders: 8,
-        tags: 5,
-        categories: 8,
-    };
-
     const state = {
         librarySource: { type: 'db' }, // { type: 'db' } | { type: 'vault', vaultId, vaultName }
         vaultBrowsePath: '', // relative folder path currently browsed inside the active vault
@@ -246,6 +238,41 @@
     function isTitleCase(str) {
         return toTitleCase(str) === str;
     }
+
+    /* ============================================================================
+       UI PREFERENCES
+       Small choices kept in the database (/api/settings/prefs) because WebView
+       localStorage can reset between launches. get() answers from memory.
+       ============================================================================ */
+    window.PL_prefs = (() => {
+        const cache = {};
+        let queue = {};
+        let timer = null;
+        const flush = () => {
+            timer = null;
+            const body = queue;
+            queue = {};
+            fetch('/api/settings/prefs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            }).catch(() => {});
+        };
+        const ready = fetch('/api/settings/prefs')
+            .then(r => (r.ok ? r.json() : {}))
+            .then(d => { Object.keys(d || {}).forEach(k => { if (!(k in queue)) cache[k] = d[k]; }); })
+            .catch(() => {});
+        return {
+            ready,
+            get: (k) => (k in cache ? cache[k] : null),
+            set: (k, v) => {
+                cache[k] = v;
+                queue[k] = v;
+                clearTimeout(timer);
+                timer = setTimeout(flush, 400);
+            }
+        };
+    })();
 
     /* ============================================================================
        TOAST
@@ -785,6 +812,8 @@
         if (!bar) return;
         const count = _bulkSelection.size;
         bar.hidden = count === 0;
+        const combineBtn = $('#bulkCombineBtn');
+        if (combineBtn) combineBtn.hidden = count !== 2;
         const countEl = $('#bulkCount');
         if (countEl) countEl.textContent = count + ' selected';
 
@@ -1609,10 +1638,18 @@
     // Old shape:  { type: 'checkbox', default: 'true' | 'Yes' | 'No' }  -- no options array
     // New shape:  { type: 'checkbox', default: 'Yes', options: ['Yes','No'] }
     // Variable types kept after the 2026-10-09 trim. Old saved types map to the nearest kept one or fall back to text.
-    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
+    // One card deck variable type per shuffle style (animations live in static/deck-shuffles.js)
+    const _PL_DECK_STYLES = [['overhand', 'Overhand shuffle'], ['riffle', 'Riffle shuffle'], ['hindu', 'Hindu shuffle'], ['strip', 'Strip shuffle (running cut)'], ['wash', 'Wash shuffle (scramble)'], ['faro', 'Faro shuffle'], ['mongean', 'Mongean shuffle'], ['pile', 'Pile shuffle'], ['charlier', 'Charlier shuffle (one hand cut)'], ['cascade', 'Cascade (bridge)'], ['cut', 'Cut the deck'], ['fan', 'Fan and sweep']];
+    const _PL_DECK_TYPES = ['carddeck'].concat(_PL_DECK_STYLES.map(d => 'deck_' + d[0]));
+    const _PL_isDeck = t => _PL_DECK_TYPES.includes(t);
+    // One dice variable type per roll style (animations live in static/dice-rolls.js)
+    const _PL_DICE_STYLES = [['tumble', 'Tumble'], ['drop', 'Drop and bounce'], ['cup', 'Cup shake and pour'], ['spin', 'Spin like a top'], ['throw', 'Hard throw'], ['tray', 'Dice tray with walls'], ['flip', 'End over end flip'], ['float', 'Float and drop']];
+    const _PL_DICE_TYPES = ['diceroll'].concat(_PL_DICE_STYLES.map(d => 'dice_' + d[0]));
+    const _PL_isDice = t => _PL_DICE_TYPES.includes(t);
+    const _PL_KEPT_TYPES = ['text', 'paragraph', 'code', 'list', 'language', 'dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'number', 'percentage', 'slider', 'rangeslider', 'date', 'daterange', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'].concat(_PL_DECK_TYPES.slice(1), _PL_DICE_TYPES.slice(1));
     const _PL_LEGACY_TYPE_MAP = { radio: 'choicechips', segmented: 'choicechips', yesno: 'choicechips', multiselect: 'checkbox', togglegroup: 'checkbox', boolean: 'choicechips' };
-    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
-    const _PL_RANDOM_TYPES = ['diceroll', 'weightedmix', 'carddeck', 'randompick', 'randomnumber'];
+    const _PL_OPTION_TYPES = ['dropdown', 'choicechips', 'choicecards', 'checkbox', 'combobox', 'stepslider', 'diceroll', 'weightedmix', 'randompick', 'randomnumber'].concat(_PL_DECK_TYPES, _PL_DICE_TYPES.slice(1));
+    const _PL_RANDOM_TYPES = ['diceroll', 'weightedmix', 'randompick', 'randomnumber'].concat(_PL_DECK_TYPES, _PL_DICE_TYPES.slice(1));
     function _PL_normMeta(m) {
         const out = Object.assign({}, m);
         const t = m.type || 'text';
@@ -1638,6 +1675,17 @@
         randomnumber: ['1', '100']
     };
     const _PL_RANDOM_LABELS = { randompick: 'Pick at random', randomnumber: 'Generate number' };
+    // A fair whole number from 0 to n - 1 from the secure random source. Randomiser results always come from here,
+    // never from an animation. See the RANDOMISER MOTION CONTRACT in static/randomiser-motion.js.
+    function _PL_rand(n) {
+        n = Math.floor(n);
+        if (!(n > 0)) return 0;
+        const c = window.crypto;
+        if (!c || !c.getRandomValues) return Math.floor(Math.random() * n);
+        const SPAN = 4294967296, limit = SPAN - (SPAN % n), bucket = limit / n, buf = new Uint32Array(1);
+        for (let i = 0; i < 64; i++) { c.getRandomValues(buf); if (buf[0] < limit) return Math.floor(buf[0] / bucket); }
+        return Math.floor(Math.random() * n);
+    }
     function _PL_randomValue(kind, options) {
         const list = options.length ? options : _PL_RANDOM_DEFAULTS[kind];
         if (kind === 'randomnumber') {
@@ -1645,14 +1693,14 @@
             if (isNaN(lo)) lo = 1;
             if (isNaN(hi)) hi = 100;
             if (lo > hi) [lo, hi] = [hi, lo];
-            return String(lo + Math.floor(Math.random() * (hi - lo + 1)));
+            return String(lo + _PL_rand(hi - lo + 1));
         }
-        return list[Math.floor(Math.random() * list.length)] || '';
+        return list[_PL_rand(list.length)] || '';
     }
     // Dice: faces come from the options box (words or numbers), else 1..faces
     function _PL_diceValues(m) {
         if (m.options && m.options.length) return m.options.map(o => String(o).trim()).filter(Boolean);
-        const n = Math.max(2, Math.min(100, parseInt(m.faces, 10) || 6));
+        const n = 6; // dice are always six sided
         return Array.from({ length: n }, (_, i) => String(i + 1));
     }
     const _DIE_ROT = [[0, 0], [0, -90], [-90, 0], [90, 0], [0, 90], [0, 180]];
@@ -1700,8 +1748,9 @@
         return out;
     }
 
-    function renderVariableFields(vars, meta) {
-        const wrap = $('#variableFields');
+    function renderVariableFields(vars, meta, opts) {
+        const pvTarget = opts && opts.target;
+        const wrap = pvTarget || $('#variableFields');
         if (!vars.length) {
             wrap.innerHTML = '';
             return;
@@ -1745,7 +1794,7 @@
             const def = m.default || '';
             const opts = m.options || [];
             const optTitles = opts.map(o => _PL_splitOpt(o).t);
-            const icon = typeIcon[type] || 'abc';
+            const icon = typeIcon[type] || (_PL_isDeck(type) ? 'style' : _PL_isDice(type) ? 'casino' : 'abc');
             let input = '';
             if (type === 'choicechips' || type === 'choicecards') {
                 const isMulti = !!m.multi;
@@ -1763,9 +1812,11 @@
         <input type="hidden" class="var-input var-toggle-hidden" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
                 }
-            } else if (type === 'carddeck') {
+            } else if (_PL_isDeck(type)) {
                 const deckOpts = opts.length ? optTitles : _PL_CARD_DEFAULT;
-                input = `<div class="var-deck${def ? ' drawn' : ''}" data-deck-options="${escapeAttr(JSON.stringify(deckOpts))}">
+                // the shared 3D deck (static/vartypes-3d.js) when it loaded, else the built in deck below
+                const deck3d = window.PL_MOTION && window.PL_MOTION.control && window.PL_MOTION.control(type, v, { options: deckOpts }, def);
+                input = deck3d || `<div class="var-deck${def ? ' drawn' : ''}" data-deck-options="${escapeAttr(JSON.stringify(deckOpts))}">
         <div class="var-deck-table">
           <div class="var-deck-pile" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
           <div class="var-deck-slot"><div class="var-deck-card"><div class="var-deck-back"></div><div class="var-deck-front" data-deck-face>${escapeHtml(def)}</div></div></div>
@@ -1773,10 +1824,12 @@
         <div class="var-deck-actions"><button type="button" class="btn btn-sm" onclick="window._PL_drawCard(this)">Shuffle and draw</button><span class="var-deck-left" data-deck-left>${deckOpts.length} cards in the deck</span></div>
         <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
-            } else if (type === 'diceroll') {
+            } else if (_PL_isDice(type)) {
                 const diceVals = _PL_diceValues(m);
                 const dicePips = !(opts.length) && diceVals.length === 6;
-                input = `<div class="var-dice" data-dice-vals="${escapeAttr(JSON.stringify(diceVals))}" data-dice-pips="${dicePips ? '1' : '0'}">
+                // the shared 3D dice (static/vartypes-3d.js) when it loaded, else the built in die below
+                const dice3d = window.PL_MOTION && window.PL_MOTION.control && window.PL_MOTION.control(type, v, { options: opts, faces: 6 }, def);
+                input = dice3d || `<div class="var-dice" data-dice-vals="${escapeAttr(JSON.stringify(diceVals))}" data-dice-pips="${dicePips ? '1' : '0'}">
         <div class="var-dice-scene"><div class="var-die">${_PL_dieHTML(diceVals, dicePips)}</div></div>
         <div class="var-dice-side">
           <div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
@@ -1793,7 +1846,9 @@
       </div>`;
             } else if (_PL_RANDOM_DEFAULTS[type]) {
                 const rollOpts = opts.length ? optTitles : _PL_RANDOM_DEFAULTS[type];
-                input = `<div class="var-random-block"><div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
+                // the shared slot machine drums (static/vartypes-3d.js) when they loaded, else the text reel below
+                const drum3d = window.PL_MOTION && window.PL_MOTION.control && window.PL_MOTION.control(type, v, { options: opts.length ? optTitles : [] }, def);
+                input = drum3d || `<div class="var-random-block"><div class="var-random-result" data-roll-result>${escapeHtml(def || 'Ready to roll')}</div>
         <button type="button" class="btn btn-sm" data-roll-kind="${type}" data-roll-options="${escapeAttr(JSON.stringify(rollOpts))}" onclick="window._PL_rollChoice(this)">${_PL_RANDOM_LABELS[type]}</button>
         <input type="hidden" class="var-input" data-var="${escapeAttr(v)}" value="${escapeAttr(def)}" />
       </div>`;
@@ -1882,6 +1937,7 @@
     </details>`;
         }).join('');
 
+        if (pvTarget) return;
         // Wire live preview listeners now that the DOM nodes exist
         $$('#variableFields .var-input, #variableFields .var-select, #variableFields .var-checkbox').forEach(inp => {
             inp.addEventListener('input', _updateVarLivePreview);
@@ -2033,7 +2089,7 @@
         if (!vals.length) return;
         const die = block.querySelector('.var-die'), out = block.querySelector('[data-roll-result]'), hidden = block.querySelector('input.var-input');
         const pips = block.dataset.dicePips === '1';
-        const result = vals[Math.floor(Math.random() * vals.length)];
+        const result = vals[_PL_rand(vals.length)];
         let slot;
         if (pips) {
             slot = parseInt(result, 10) - 1;
@@ -2097,7 +2153,7 @@
         if (!all.length) return;
         if (!deck._left || !deck._left.length) deck._left = all.slice();
         const face = deck.querySelector('[data-deck-face]'), hidden = deck.querySelector('input.var-input'), count = deck.querySelector('[data-deck-left]');
-        const pick = deck._left.splice(Math.floor(Math.random() * deck._left.length), 1)[0];
+        const pick = deck._left.splice(_PL_rand(deck._left.length), 1)[0];
         const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
         const done = () => {
             deck._busy = false; btn.disabled = false;
@@ -2792,13 +2848,7 @@
         const blob = new Blob([JSON.stringify(data, null, 2)], {
             type: 'application/json'
         });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${p.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast('Prompt exported', 'success');
+        triggerDownload(blob, `${p.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`, 'Prompt exported');
     }
 
     async function duplicatePrompt(id) {
@@ -2900,6 +2950,7 @@ STYLE/THEME: [[reserved for future use]]`;
 
         // Reset varsbadge + previews
         $('#varsCountBadge').hidden = true;
+        _syncVarsCount(0);
         $('#editorPreview').innerHTML = '<span class="hint">Live preview...</span>';
         $('#varMetaList').innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
         $('#chainList').innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No steps yet.</p>';
@@ -3026,10 +3077,17 @@ STYLE/THEME: [[reserved for future use]]`;
 
     function switchEditorTab(name) {
         // 'content' was the old system-prompt pane, now always visible as prompt-block.
-        // Remap to 'variables' so advanced tabs still default to something sensible.
-        const target = name === 'content' ? 'variables' : name;
+        // Both it and 'variables' (now its own side panel) map to the first advanced tab, Chain.
+        const target = (name === 'content' || name === 'variables') ? 'chain' : name;
         $$('.editor-tab').forEach(t => t.classList.toggle('active', t.dataset.pane === target));
         $$('.editor-pane').forEach(p => p.classList.toggle('active', p.id === `pane-${target}`));
+    }
+
+    function _syncVarsCount(n) {
+        const el = $('#varsPanelCount');
+        if (!el) return;
+        el.textContent = String(n);
+        el.hidden = !n;
     }
 
     function updateEditorPreview() {
@@ -3041,11 +3099,13 @@ STYLE/THEME: [[reserved for future use]]`;
         if (!content.trim()) {
             preview.innerHTML = '<span class="hint">Live preview...</span>';
             badge.hidden = true;
+            _syncVarsCount(0);
             return;
         }
 
         preview.innerHTML = renderChips(content);
         const vars = detectVariables(content);
+        _syncVarsCount(vars.length);
         if (vars.length > 0) {
             badge.hidden = false;
             badgeTxt.textContent = `${vars.length} var${vars.length !== 1 ? 's' : ''}`;
@@ -3097,12 +3157,6 @@ STYLE/THEME: [[reserved for future use]]`;
             return;
         }
 
-        // Free tier prompt limit
-        if (!id && !state.isPremium && state.prompts.length >= FREE_LIMITS.prompts) {
-            toast(`Free plan limit: ${FREE_LIMITS.prompts} prompts. Upgrade to Pro for unlimited.`, 'warning');
-            showPremiumModal();
-            return;
-        }
         const data = {
             title: (() => { const t = $('#promptTitle').value.trim(); return isTitleCase(t) ? t : toTitleCase(t); })(),
             description: $('#promptDesc').value.trim(),
@@ -3121,19 +3175,6 @@ STYLE/THEME: [[reserved for future use]]`;
         if (!data.title || !data.content) {
             toast('Title and content are required', 'warning');
             return;
-        }
-        // Free tier tag / category limits
-        if (!state.isPremium) {
-            const tagArr = data.tags ? data.tags.split(',').filter(Boolean) : [];
-            const catArr = data.categories ? data.categories.split(',').filter(Boolean) : [];
-            if (tagArr.length > FREE_LIMITS.tags) {
-                toast(`Free plan: max ${FREE_LIMITS.tags} tags per prompt. Remove ${tagArr.length - FREE_LIMITS.tags} to save, or upgrade to Pro.`, 'warning');
-                return;
-            }
-            if (catArr.length > FREE_LIMITS.categories) {
-                toast(`Free plan: max ${FREE_LIMITS.categories} categories per prompt. Upgrade to Pro for unlimited.`, 'warning');
-                return;
-            }
         }
         try {
             const url = id ? `/prompts/${id}` : '/prompts';
@@ -3172,14 +3213,79 @@ STYLE/THEME: [[reserved for future use]]`;
     /* ============================================================================
        VARIABLE META EDITOR
        ============================================================================ */
+    // Fill form preview: left panel of the prompt editor shows the selected variable as the fill form draws it
+    let _PL_pvSel = null;
+    let _PL_pvDismissed = false;
+    function _PL_pvOpen(on) {
+        $('#promptVarPreviewPanel')?.classList.toggle('open', !!on);
+        $('#promptModalWrap')?.classList.toggle('pvp-open', !!on);
+    }
+    function _PL_pvSync() {
+        const vp = $('#promptVarsPanel');
+        _PL_pvOpen(!!(vp && vp.classList.contains('open') && _PL_pvSel && !_PL_pvDismissed));
+    }
+    function _PL_pvRefresh() {
+        const host = $('#pvpField');
+        if (!host) return;
+        const empty = $('#pvpEmpty'), nameEl = $('#pvpName'), sub = $('#pvpSub');
+        const row = _PL_pvSel ? $$('#varMetaList .var-meta-row').find(r => r.dataset.var === _PL_pvSel) : null;
+        if (!row) {
+            host.innerHTML = '';
+            if (empty) empty.hidden = false;
+            if (sub) sub.hidden = true;
+            if (nameEl) nameEl.textContent = '';
+            return;
+        }
+        if (empty) empty.hidden = true;
+        if (sub) sub.hidden = false;
+        if (nameEl) nameEl.textContent = _PL_pvSel;
+        try {
+            const meta = Object.assign({}, collectVarMeta()[_PL_pvSel] || {}, { visible: true });
+            renderVariableFields([_PL_pvSel], { [_PL_pvSel]: meta }, { target: host });
+        } catch (err) {
+            host.innerHTML = '<p class="pvp-error">Preview not available for this setup.</p>';
+        }
+    }
+    function initVarPreviewPanel() {
+        const list = $('#varMetaList');
+        if (!list) return;
+        list.addEventListener('click', e => {
+            const sum = e.target.closest('summary.var-meta-summary');
+            if (!sum) return;
+            const row = sum.closest('.var-meta-row');
+            if (!row.open) { _PL_pvSel = row.dataset.var; _PL_pvDismissed = false; }
+            else if (_PL_pvSel === row.dataset.var) _PL_pvSel = null;
+            _PL_pvRefresh();
+            _PL_pvSync();
+        });
+        ['input', 'change'].forEach(ev => list.addEventListener(ev, e => {
+            const row = e.target.closest('.var-meta-row');
+            if (row && row.dataset.var === _PL_pvSel) _PL_pvRefresh();
+        }));
+        $('#closeVarPreviewPanel')?.addEventListener('click', () => { _PL_pvDismissed = true; _PL_pvSync(); });
+        const vp = $('#promptVarsPanel');
+        if (vp) new MutationObserver(_PL_pvSync).observe(vp, { attributes: true, attributeFilter: ['class'] });
+        const modal = $('#promptModal');
+        if (modal) new MutationObserver(() => {
+            if (modal.classList.contains('active')) return;
+            _PL_pvSel = null;
+            _PL_pvDismissed = false;
+            _PL_pvSync();
+            _PL_pvRefresh();
+        }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+    }
+
     function renderVarMetaList(existing) {
         const content = $('#promptContent').value || '';
         const vars = detectVariables(content);
         const list = $('#varMetaList');
         if (!vars.length) {
             list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No variables yet. Use <code>[[name]]</code> in your prompt content.</p>';
+            _PL_pvSel = null;
+            _PL_pvRefresh();
             return;
         }
+        if (_PL_pvSel && !vars.includes(_PL_pvSel)) _PL_pvSel = null;
         const meta = existing || collectVarMeta();
         list.innerHTML = vars.map((v, index) => {
             const m = _PL_normMeta(meta[v] || {});
@@ -3190,7 +3296,7 @@ STYLE/THEME: [[reserved for future use]]`;
             const opts = (m.options || []).join(type === 'choicecards' ? '\n' : ', ');
             const needsOptions = _PL_OPTION_TYPES.includes(type);
             return `
-      <details class="var-meta-row" data-var="${escapeAttr(v)}" ${index === 0 ? 'open' : ''}>
+      <details class="var-meta-row" data-var="${escapeAttr(v)}" ${(_PL_pvSel ? v === _PL_pvSel : index === 0) ? 'open' : ''}>
         <summary class="var-meta-summary">
           <span class="material-symbols-outlined var-meta-chevron">expand_more</span>
           <span class="var-meta-name">${escapeHtml(v)}</span>
@@ -3241,6 +3347,12 @@ STYLE/THEME: [[reserved for future use]]`;
             <option value="randompick" ${type === 'randompick' ? 'selected' : ''}>Random Pick</option>
             <option value="randomnumber" ${type === 'randomnumber' ? 'selected' : ''}>Random Number</option>
             </optgroup>
+            <optgroup label="Dice rolls (one style each)">
+            ${_PL_DICE_STYLES.slice(1).map(d => `<option value="dice_${d[0]}" ${type === 'dice_' + d[0] ? 'selected' : ''}>Dice Roll: ${d[1]}</option>`).join('')}
+            </optgroup>
+            <optgroup label="Card decks (one shuffle each)">
+            ${_PL_DECK_STYLES.map(d => `<option value="deck_${d[0]}" ${type === 'deck_' + d[0] ? 'selected' : ''}>Card Deck: ${d[1]}</option>`).join('')}
+            </optgroup>
           </select>
           <input type="text" data-field="default" class="var-default-field" placeholder="Default value (optional)" value="${escapeAttr(def)}" />
         </div>
@@ -3267,7 +3379,7 @@ STYLE/THEME: [[reserved for future use]]`;
             Allow multiple selections
           </label>
         </div>
-        <div class="dice-faces" style="display: ${type === 'diceroll' ? 'flex' : 'none'}; gap: 8px; align-items: center; margin-top: 4px;">
+        <div class="dice-faces" style="display: none; gap: 8px; align-items: center; margin-top: 4px;">
           <span style="font-size: 11px; color: var(--ink-3);">Sides:</span>
           <input type="number" data-field="faces" min="2" max="100" value="${escapeAttr(m.faces || 6)}" style="width: 72px; font-size: 12px; padding: 4px 8px;" />
           <span style="font-size: 11px; color: var(--ink-3);">or type your own faces below</span>
@@ -3280,6 +3392,7 @@ STYLE/THEME: [[reserved for future use]]`;
       </details>`;
         }).join('');
         list.querySelectorAll('.var-meta-row').forEach(r => _PL_applyVarTypeUI(r, r.querySelector('[data-field="type"]').value));
+        _PL_pvRefresh();
     }
     function _PL_optPlaceholder(type) {
         return ({
@@ -3290,7 +3403,7 @@ STYLE/THEME: [[reserved for future use]]`;
             randompick: 'Options, comma separated',
             stepslider: 'Steps in order, comma separated (at least 2)',
             choicecards: 'One card per line: Title | short description'
-        })[type] || 'Comma separated options';
+        })[_PL_isDeck(type) ? 'carddeck' : _PL_isDice(type) ? 'diceroll' : type] || 'Comma separated options';
     }
     function _PL_applyVarTypeUI(row, type) {
         const show = (sel, on, disp) => { const el = row.querySelector(sel); if (el) el.style.display = on ? (disp || 'flex') : 'none'; };
@@ -3298,7 +3411,7 @@ STYLE/THEME: [[reserved for future use]]`;
         show('.dropdown-options', _PL_OPTION_TYPES.includes(type), 'block');
         show('.paragraph-size', type === 'paragraph');
         show('.choice-multi', type === 'choicechips' || type === 'choicecards');
-        show('.dice-faces', type === 'diceroll');
+        show('.dice-faces', false);
         show('.var-wrap-row', !isRandom);
         show('[data-field="default"]', !isRandom, 'block');
         const ta = row.querySelector('[data-field="options"]');
@@ -3331,11 +3444,6 @@ STYLE/THEME: [[reserved for future use]]`;
             };
             if (type === 'paragraph' && sizeEl) entry.size = sizeEl.value;
             if ((type === 'choicechips' || type === 'choicecards') && multiEl && multiEl.checked) entry.multi = true;
-            const facesEl = row.querySelector('[data-field="faces"]');
-            if (type === 'diceroll' && facesEl) {
-                const n = parseInt(facesEl.value, 10);
-                if (n >= 2 && n <= 100 && n !== 6) entry.faces = n;
-            }
             const wrapEl = row.querySelector('[data-field="wrap"]');
             if (wrapEl && wrapEl.value && !isRandom) entry.wrap = wrapEl.value;
             meta[v] = entry;
@@ -3362,12 +3470,25 @@ STYLE/THEME: [[reserved for future use]]`;
         }
     }
 
+    let _chainSearchIndex = -1;
+
+    function _chainSetActive(res, dir) {
+        const items = $$('.chain-search-result', res);
+        if (!items.length) { _chainSearchIndex = -1; return; }
+        if (_chainSearchIndex < 0) _chainSearchIndex = dir > 0 ? 0 : items.length - 1;
+        else _chainSearchIndex = (_chainSearchIndex + dir + items.length) % items.length;
+        items.forEach((el, i) => el.classList.toggle('is-active', i === _chainSearchIndex));
+        items[_chainSearchIndex].scrollIntoView({ block: 'nearest' });
+    }
+
     function _renderChainSearchResults(q) {
         const res = $('#chainSearchResults');
         if (!res) return;
         const query = (q || '').toLowerCase().trim();
+        const used = JSON.parse($('#promptChainIds').value || '[]');
+        _chainSearchIndex = -1;
         const filtered = state.prompts
-            .filter(p => p.id !== _chainSearchCurrentId)
+            .filter(p => p.id !== _chainSearchCurrentId && !used.includes(p.id))
             .filter(p => !query ||
                 (p.title || '').toLowerCase().includes(query) ||
                 (p.description || '').toLowerCase().includes(query) ||
@@ -3376,14 +3497,16 @@ STYLE/THEME: [[reserved for future use]]`;
             .slice(0, 12);
 
         if (!filtered.length) {
-            res.innerHTML = '<div class="chain-search-empty">No prompts found</div>';
+            res.innerHTML = '<div class="chain-search-empty">' + (query ? 'No prompts found' : 'Every prompt is already in this chain') + '</div>';
             res.classList.add('open');
             return;
         }
         res.innerHTML = filtered.map(p => {
             const tags = (p.tags || []).slice(0, 3).map(t => `<span class="chain-search-tag">${escapeHtml(t)}</span>`).join('');
+            const desc = (p.description || '').trim();
             return `<div class="chain-search-result" role="option" data-id="${p.id}">
       <div class="chain-search-result-title">${escapeHtml(p.title || 'Untitled')}</div>
+      ${desc ? `<div class="chain-search-result-desc">${escapeHtml(desc)}</div>` : ''}
       ${tags ? `<div class="chain-search-tags">${tags}</div>` : ''}
     </div>`;
         }).join('');
@@ -3419,26 +3542,39 @@ STYLE/THEME: [[reserved for future use]]`;
 
     function renderChainEditor(ids) {
         const list = $('#chainList');
+        if (!list) return;
         if (!ids.length) {
-            list.innerHTML = '<p style="font-size: var(--fs-sm); color: var(--ink-3);">No steps yet.</p>';
+            list.innerHTML = '<div class="chain-ed-empty"><span class="material-symbols-outlined">link</span><div><b>No steps yet</b>' +
+                '<p>A chain runs more prompts after this one. Each step receives the output of the step before it. Search below to add the first step.</p></div></div>';
             return;
         }
-        list.innerHTML = ids.map((id, i) => {
+        const startName = ($('#promptTitle')?.value || '').trim() || 'This prompt';
+        const missing = ids.filter(id => !state.prompts.some(x => x.id === id)).length;
+        const rows = ids.map((id, i) => {
             const p = state.prompts.find(x => x.id === id);
-            const title = p ? p.title : `Prompt #${id}`;
+            const prev = i === 0 ? startName : ((state.prompts.find(x => x.id === ids[i - 1]) || {}).title || 'the previous step');
+            const name = p ? (p.title || 'Untitled') : 'Prompt no longer exists';
+            const desc = p ? (p.description || '').trim() : 'It may have been deleted. Remove this step.';
             return `
-      <div class="chain-step">
+      <div class="chain-step${p ? '' : ' is-missing'}">
         <div class="chain-step-num">${i + 1}</div>
         <div class="chain-step-body">
-          <div class="chain-step-title">${escapeHtml(title)}</div>
+          <div class="chain-step-title">${escapeHtml(name)}</div>
+          ${desc ? `<div class="chain-step-desc">${escapeHtml(desc)}</div>` : ''}
+          <div class="chain-step-meta">Receives the output of ${escapeHtml(prev)}</div>
         </div>
         <div class="chain-step-actions">
-          ${i > 0 ? `<button type="button" class="icon-btn" onclick="window.PL_moveChain(${i}, -1)"><span class="material-symbols-outlined">arrow_upward</span></button>` : ''}
-          ${i < ids.length - 1 ? `<button type="button" class="icon-btn" onclick="window.PL_moveChain(${i}, 1)"><span class="material-symbols-outlined">arrow_downward</span></button>` : ''}
-          <button type="button" class="icon-btn danger" onclick="window.PL_removeChain(${i})"><span class="material-symbols-outlined">close</span></button>
+          ${i > 0 ? `<button type="button" class="icon-btn" aria-label="Move step ${i + 1} up" title="Move up" onclick="window.PL_moveChain(${i}, -1)"><span class="material-symbols-outlined">arrow_upward</span></button>` : ''}
+          ${i < ids.length - 1 ? `<button type="button" class="icon-btn" aria-label="Move step ${i + 1} down" title="Move down" onclick="window.PL_moveChain(${i}, 1)"><span class="material-symbols-outlined">arrow_downward</span></button>` : ''}
+          <button type="button" class="icon-btn danger" aria-label="Remove step ${i + 1}" title="Remove step" onclick="window.PL_removeChain(${i})"><span class="material-symbols-outlined">close</span></button>
         </div>
       </div>`;
-        }).join('');
+        });
+        const link = '<div class="chain-ed-link" aria-hidden="true"><span class="material-symbols-outlined">arrow_downward</span></div>';
+        list.innerHTML =
+            `<div class="chain-ed-summary"><span><b>${ids.length}</b> step${ids.length !== 1 ? 's' : ''} run after this prompt${missing ? `, <b>${missing}</b> missing` : ''}</span></div>` +
+            `<div class="chain-ed-flow"><div class="chain-ed-start"><span class="material-symbols-outlined">play_circle</span><span>${escapeHtml(startName)} <small>(runs first)</small></span></div>` +
+            link + rows.join(link) + '</div>';
     }
     window.PL_moveChain = function(idx, dir) {
         const ids = JSON.parse($('#promptChainIds').value || '[]');
@@ -3569,15 +3705,6 @@ STYLE/THEME: [[reserved for future use]]`;
         const id = $('#folderId').value;
         const name = $('#folderName').value.trim();
         if (!name) return;
-        // Free tier folder limit
-        if (!id && !state.isPremium) {
-            const folderCount = document.querySelectorAll('#foldersList .folder-item').length;
-            if (folderCount >= FREE_LIMITS.folders) {
-                toast(`Free plan limit: ${FREE_LIMITS.folders} folders. Upgrade to Pro for unlimited.`, 'warning');
-                showPremiumModal();
-                return;
-            }
-        }
         try {
             const url = id ? `/folders/${id}` : '/folders';
             const method = id ? 'PUT' : 'POST';
@@ -3615,15 +3742,6 @@ STYLE/THEME: [[reserved for future use]]`;
     window.createFolderInline = function() {
         const name = prompt('Folder name:');
         if (!name || !name.trim()) return;
-        // Free tier folder limit
-        if (!state.isPremium) {
-            const folderCount = document.querySelectorAll('#foldersList .folder-item').length;
-            if (folderCount >= FREE_LIMITS.folders) {
-                toast(`Free plan limit: ${FREE_LIMITS.folders} folders. Upgrade to Pro for unlimited.`, 'warning');
-                showPremiumModal();
-                return;
-            }
-        }
         api('/folders', {
             method: 'POST',
             body: {
@@ -4149,18 +4267,7 @@ Here are my prompts:
             const data = isVault ? _vaultExportRows() : await api('/export');
             const filename = `prompts-${new Date().toISOString().slice(0, 10)}.json`;
             const content = JSON.stringify(data, null, 2);
-            const res = await fetch('/api/save-file', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    filename,
-                    content,
-                    mime: 'application/json'
-                }),
-            });
-            const result = await res.json();
+            const result = await plSaveFile(filename, content, 'application/json');
             if (result.saved) {
                 toast(`Saved to ${result.path}`, 'success');
                 closeExportModal();
@@ -4205,18 +4312,7 @@ Here are my prompts:
                 }
             }
 
-            const saveRes = await fetch('/api/save-file', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    filename,
-                    content,
-                    mime
-                }),
-            });
-            const result = await saveRes.json();
+            const result = await plSaveFile(filename, content, mime, mime === 'application/zip');
             if (result.saved) {
                 toast(`Saved to ${result.path}`, 'success');
                 closeExportModal();
@@ -4228,14 +4324,59 @@ Here are my prompts:
         }
     }
 
-    function triggerDownload(blob, filename) {
+    // Native save: the desktop window uses the Python bridge (a real Save As dialog); a plain browser uses the server route.
+    async function plSaveFile(filename, content, mime, isBase64) {
+        const bridge = window.pywebview && window.pywebview.api && window.pywebview.api.save_file;
+        if (bridge) {
+            try {
+                return await window.pywebview.api.save_file(filename, content, !!isBase64);
+            } catch (err) {
+                return { saved: false, error: String((err && err.message) || err) };
+            }
+        }
+        // Plain browser: a normal download, no server side dialog.
+        let blob;
+        if (isBase64) {
+            const bin = atob(content);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            blob = new Blob([bytes], { type: mime || 'application/octet-stream' });
+        } else {
+            blob = new Blob([content], { type: mime || 'text/plain' });
+        }
+        await triggerDownload(blob, filename);
+        return { saved: true, path: filename };
+    }
+
+    // Save a Blob. Desktop window: Save As dialog through the bridge. Browser: a download link kept in the page until the download has started.
+    function triggerDownload(blob, filename, okMsg) {
+        const bridge = window.pywebview && window.pywebview.api && window.pywebview.api.save_file;
+        if (bridge) {
+            return new Promise(resolve => {
+                const fr = new FileReader();
+                fr.onerror = () => { toast('Save failed: could not read the file', 'error'); resolve({ saved: false }); };
+                fr.onload = async () => {
+                    const b64 = String(fr.result).split(',')[1] || '';
+                    const r = await plSaveFile(filename, b64, blob.type, true);
+                    if (r && r.saved) toast('Saved to ' + r.path, 'success');
+                    else if (r && r.error) toast('Save failed: ' + r.error, 'error');
+                    resolve(r || { saved: false });
+                };
+                fr.readAsDataURL(blob);
+            });
+        }
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 30000);
+        if (okMsg) toast(okMsg, 'success');
+        return Promise.resolve({ saved: true });
     }
+    window.PL_saveBlob = triggerDownload;
 
     /* ============================================================================
        STARTER TEMPLATES (empty library)
@@ -4509,10 +4650,58 @@ Here are my prompts:
             console.warn('licence check failed:', err);
         }
         applyPremiumState();
+        // No free tier inside the app: without a saved valid key, ask for one.
+        _gateOpen(!state.isPremium);
+    }
+
+    // First launch licence screen. Covers the app (inert) until a valid key is saved.
+    function _gateOpen(on) {
+        const gate = $('#activationGate');
+        if (!gate) return;
+        gate.hidden = !on;
+        document.body.classList.toggle('gate-open', on);
+        const app = $('#app');
+        if (app) {
+            if (on) app.setAttribute('inert', '');
+            else app.removeAttribute('inert');
+        }
+        if (on) setTimeout(() => $('#gateKeyInput')?.focus(), 50);
+    }
+
+    async function _gateSubmit(e) {
+        e.preventDefault();
+        const input = $('#gateKeyInput');
+        const err = $('#gateError');
+        const btn = $('#gateSubmit');
+        const key = (input?.value || '').trim();
+        const fail = (msg) => {
+            err.textContent = msg;
+            err.hidden = false;
+            input?.focus();
+        };
+        if (!key) return fail('Enter your licence key first.');
+        err.hidden = true;
+        btn.disabled = true;
+        try {
+            if (!(await _validateAndStoreKey(key))) return fail('That key was not recognised. Check it and try again.');
+            try {
+                await _saveLicenceKeyToDb();
+            } catch (saveErr) {
+                toast('Activated for this session, but the key could not be saved. Enter it again next time.', 'warning');
+            }
+            if (input) input.value = '';
+            _gateOpen(false);
+            toast('Prompt Library Pro activated', 'success');
+        } catch (ex) {
+            fail('That key was not recognised. Check it and try again.');
+        } finally {
+            btn.disabled = false;
+        }
     }
 
     function applyPremiumState() {
         document.body.classList.toggle('is-premium', state.isPremium);
+        if (state.isPremium) document.dispatchEvent(new Event('pl:licensed'));
         $('#premiumBadge').hidden = !state.isPremium;
         const lblBtn = $('#licenceBtnLabel');
         if (lblBtn) lblBtn.textContent = state.isPremium ? 'Pro unlocked' : 'Unlock Pro';
@@ -4700,6 +4889,7 @@ Here are my prompts:
             ['Model Compare', 'compare_arrows', 'openCompareWorkspace', 'compare providers side by side models openai anthropic gemini'],
             ['Prompt X-Ray', 'visibility', 'openXrayWorkspace', 'deconstruct analyse parts anatomy'],
             ['Prompt Splicer', 'call_merge', 'openSpliceWorkspace', 'merge combine two prompts'],
+            ['Combine Prompts', 'compare_arrows', 'openCombineWorkspace', 'combine merge duplicates two similar prompts into one side by side'],
             ['Agents', 'smart_toy', 'openRolesWorkspace', 'agents roles personas ai'],
             ['Playground', 'science', 'openPlaygroundWorkspace', 'playground sessions test freeform'],
             ['Taxonomy Studio', 'sell', 'openTaxonomyWorkspace', 'taxonomy domain use case organise tag'],
@@ -4991,6 +5181,7 @@ Here are my prompts:
             '#batchWorkspace', '#boardWorkspace', '#taxonomyWorkspace', '#versionWorkspace', '#backupWorkspace',
             '#exampleWorkspace', '#adapterWorkspace', '#evalWorkspace', '#compareWorkspace', '#historyWorkspace', '#lockWorkspace', '#integrityWorkspace', '#credentialsWorkspace', '#simplifyWorkspace', '#toneWorkspace', '#translateWorkspace', '#gauntletWorkspace',
             '#promptIdeWorkspace', '#promptForkingWorkspace', '#builderProWorkspace',
+            '#promptPackBuilderWorkspace', '#promptWorkflowStudioWorkspace', '#contextPackBuilderWorkspace', '#libraryBrowserWorkspace',
         ].forEach(sel => {
             const el = $(sel);
             if (el && el.classList.contains('open')) el.classList.remove('open');
@@ -5090,7 +5281,8 @@ Here are my prompts:
                     return;
                 }
                 if (v === 'workspaces') {
-                    window.openWorkspacesLauncher();
+                    if (typeof window.PL_openWorkspacePicker === 'function') window.PL_openWorkspacePicker();
+                    else window.openWorkspacesLauncher();
                     return;
                 }
                 if (v === 'fill') {
@@ -5298,8 +5490,7 @@ Here are my prompts:
             const blob = new Blob([md], {
                 type: 'text/markdown'
             });
-            triggerDownload(blob, `${p.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`);
-            toast('Markdown exported', 'success');
+            triggerDownload(blob, `${p.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`, 'Markdown exported');
         });
         $('#saveNotesBtn')?.addEventListener('click', saveNotesAndRating);
 
@@ -5466,6 +5657,21 @@ Here are my prompts:
             chainSearch.addEventListener('input', (e) => _renderChainSearchResults(e.target.value));
             chainSearch.addEventListener('focus', (e) => _renderChainSearchResults(e.target.value));
             chainSearch.addEventListener('keydown', (e) => {
+                const resBox = $('#chainSearchResults');
+                if (resBox && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                    e.preventDefault();
+                    if (!resBox.classList.contains('open')) _renderChainSearchResults(chainSearch.value);
+                    _chainSetActive(resBox, e.key === 'ArrowDown' ? 1 : -1);
+                    return;
+                }
+                if (e.key === 'Enter') {
+                    // Never submit the prompt form from this box. Add the highlighted prompt, or the first match.
+                    e.preventDefault();
+                    const items = resBox ? $$('.chain-search-result', resBox) : [];
+                    const pick = items[_chainSearchIndex >= 0 ? _chainSearchIndex : 0];
+                    if (pick && (_chainSearchIndex >= 0 || chainSearch.value.trim())) _addChainStepById(parseInt(pick.dataset.id, 10));
+                    return;
+                }
                 if (e.key === 'Escape') {
                     const res = $('#chainSearchResults');
                     if (res) {
@@ -5554,10 +5760,11 @@ Here are my prompts:
         });
 
         document.addEventListener('keydown', (e) => {
+            if (document.body.classList.contains('gate-open')) return;
             const tag = e.target.tagName;
             const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable;
 
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'k') {
                 e.preventDefault();
                 const isOpen = $('#cmdPalette').classList.contains('active');
                 isOpen ? closeCmdPalette() : openCmdPalette();
@@ -7523,7 +7730,8 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
     /* ============================================================================
        CONTEXT BANK WORKSPACE
        localStorage-backed reusable context blocks.
-       ls key: pl_ctx_blocks  →  [{id, title, category, content, created}]
+       ls key: pl_ctx_blocks  →  [{id, title, category, content, created, updated, pinned}]
+       Saved copy: settings table through /api/settings/context-bank
        data-view="contextBank" | openContextBankWorkspace() | initContextBankWorkspace()
        ============================================================================ */
 
@@ -7542,6 +7750,53 @@ Generate 3-5 skills, 2-4 knowledge base entries, and 3-5 example phrases. Make t
 
     function _ctxSave() {
         localStorage.setItem(CTX_LS_KEY, JSON.stringify(_ctxBlocks));
+        _ctxPush();
+    }
+
+    // ── Saved copy in the settings table ─────────────────────────────────────────
+    let _ctxPushTimer = null;
+    let _ctxReady = null;
+    let _ctxCopyUnread = false;
+
+    function _ctxPush() {
+        if (_ctxCopyUnread) return;
+        clearTimeout(_ctxPushTimer);
+        _ctxPushTimer = setTimeout(() => {
+            api('/settings/context-bank', {
+                method: 'POST',
+                body: {
+                    blocks: _ctxBlocks
+                }
+            }).catch(() => {});
+        }, 300);
+    }
+
+    // Restore the saved copy when localStorage came back empty, else refresh the copy.
+    function _ctxSync() {
+        if (_ctxReady) return _ctxReady;
+        _ctxReady = (async () => {
+            try {
+                const saved = await api('/settings/context-bank');
+                _ctxCopyUnread = false;
+                const local = localStorage.getItem(CTX_LS_KEY);
+                if (local === null) {
+                    if (saved && saved.exists && Array.isArray(saved.blocks)) {
+                        _ctxBlocks = saved.blocks;
+                        localStorage.setItem(CTX_LS_KEY, JSON.stringify(_ctxBlocks));
+                        localStorage.setItem('pl_ctx_seeded', '1');
+                    }
+                } else {
+                    _ctxLoad();
+                    const flat = list => JSON.stringify((list || []).map(b => Object.keys(b).sort().map(k => [k, b[k]])));
+                    if (!saved || !saved.exists || flat(saved.blocks) !== flat(_ctxBlocks)) _ctxPush();
+                }
+            } catch {
+                // Read failed: try again next time, and leave the saved copy alone until then.
+                _ctxCopyUnread = true;
+                _ctxReady = null;
+            }
+        })();
+        return _ctxReady;
     }
 
     function _ctxUID() {
@@ -8043,210 +8298,664 @@ Must avoid: [Anything sensitive or previously declined]`
 
     function _ctxSeedTemplates() {
         const seeded = localStorage.getItem('pl_ctx_seeded');
-        if (seeded) return;
-        _ctxBlocks = CTX_TEMPLATES.map((t, i) => ({
+        if (seeded || _ctxCopyUnread) return;
+        // Keep blocks added from the side panel before the first visit.
+        _ctxLoad();
+        _ctxBlocks = _ctxBlocks.concat(CTX_TEMPLATES.map((t, i) => ({
             id: 'tpl_' + i + '_' + Math.random().toString(36).slice(2, 6),
             title: t.title,
             category: t.category,
             content: t.content,
             created: new Date().toISOString(),
-        }));
+        })));
         _ctxSave();
         localStorage.setItem('pl_ctx_seeded', '1');
     }
 
 
 
-    // ── Stats ────────────────────────────────────────────────────────────────────
-    function _ctxUpdateStats() {
-        const cats = new Set(_ctxBlocks.map(b => b.category));
-        const elB = $('#ctxStatBlocks');
-        if (elB) elB.textContent = _ctxBlocks.length;
-        const elC = $('#ctxStatCats');
-        if (elC) elC.textContent = cats.size;
+    // ── Categories, sort and wrap ────────────────────────────────────────────────
+    const CTX_CAT_ORDER = ['Persona', 'Company', 'Audience', 'Product', 'Style', 'Writing', 'Business', 'Marketing', 'Coding', 'Meta', 'Other'];
+    const CTX_WRAP_KEY = 'pl_ctx_wrap';
+    const CTX_NEW_CAT = '__new';
+    let _ctxSort = 'recent';
+    let _ctxSnap = null;
+    let _ctxPending = null;
+    let _ctxPanelCat = 'all';
+
+    function _ctxCat(b) {
+        return (b.category || '').trim() || 'Other';
     }
 
-    // ── List render ──────────────────────────────────────────────────────────────
+    // Categories that hold at least one block, known ones first, Other last.
+    function _ctxCategories() {
+        const counts = {};
+        _ctxBlocks.forEach(b => {
+            const c = _ctxCat(b);
+            counts[c] = (counts[c] || 0) + 1;
+        });
+        const rank = c => {
+            if (c === 'Other') return 1000;
+            const i = CTX_CAT_ORDER.indexOf(c);
+            return i === -1 ? 500 : i;
+        };
+        return Object.keys(counts)
+            .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
+            .map(name => ({
+                name,
+                count: counts[name]
+            }));
+    }
+
+    function _ctxCategoryOptions(selected, withNew) {
+        const names = CTX_CAT_ORDER.slice(0, -1);
+        _ctxCategories().forEach(c => {
+            if (!names.includes(c.name) && c.name !== 'Other') names.push(c.name);
+        });
+        if (selected && !names.includes(selected) && selected !== 'Other') names.push(selected);
+        names.push('Other');
+        return names.map(n => '<option value="' + escapeAttr(n) + '"' + (n === selected ? ' selected' : '') + '>' + escapeHtml(n) + '</option>').join('') +
+            (withNew ? '<option value="' + CTX_NEW_CAT + '">New category…</option>' : '');
+    }
+
+    const CTX_WRAP_STYLES = ['plain', 'labelled', 'xml', 'markdown', 'brackets', 'custom'];
+    const CTX_WRAP_TEMPLATES = {
+        labelled: '--- Context: {title} ---',
+        xml: '<context name="{title}">',
+        markdown: '## {title}',
+        brackets: '[{title}]'
+    };
+    const CTX_CUSTOM_KEY = 'pl_ctx_wrap_custom';
+
+    function _ctxWrapStyle() {
+        const saved = window.PL_prefs ? window.PL_prefs.get('ctx_wrap') : null;
+        let v = saved;
+        if (!v) { try { v = localStorage.getItem(CTX_WRAP_KEY); } catch (_) { v = null; } }
+        return CTX_WRAP_STYLES.includes(v) ? v : 'labelled';
+    }
+
+    function _ctxSetWrap(style) {
+        try { localStorage.setItem(CTX_WRAP_KEY, style); } catch (_) { /* the saved copy still works */ }
+        if (window.PL_prefs) window.PL_prefs.set('ctx_wrap', style);
+    }
+
+    // What a Custom block starts with. {title} becomes the block title, \n a line break.
+    function _ctxCustomOpen() {
+        const saved = window.PL_prefs ? window.PL_prefs.get('ctx_wrap_custom') : null;
+        if (saved !== null) return String(saved);
+        try { const v = localStorage.getItem(CTX_CUSTOM_KEY); if (v !== null) return v; } catch (_) { /* fall through */ }
+        return '## {title}';
+    }
+
+    function _ctxSetCustomOpen(text) {
+        try { localStorage.setItem(CTX_CUSTOM_KEY, text); } catch (_) { /* the saved copy still works */ }
+        if (window.PL_prefs) window.PL_prefs.set('ctx_wrap_custom', text);
+    }
+
+    function _ctxWrapOpen(title, style) {
+        if (style === 'xml') {
+            const name = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, "'");
+            return '<context name="' + name + '">';
+        }
+        if (style === 'labelled') return '--- Context: ' + title + ' ---';
+        if (style === 'markdown') return '## ' + title;
+        if (style === 'brackets') return '[' + title + ']';
+        if (style === 'custom') return _ctxCustomOpen().replace(/\{title\}/gi, () => title).replace(/\\n/g, '\n');
+        return '';
+    }
+
+    function _ctxWrapText(block) {
+        const body = (block.content || '').trim();
+        const title = (block.title || 'Untitled').trim();
+        const style = _ctxWrapStyle();
+        const open = _ctxWrapOpen(title, style);
+        if (style === 'xml') return open + '\n' + body + '\n</context>';
+        if (style === 'markdown') return open + '\n\n' + body;
+        if (style === 'custom') return open.trim() ? open + '\n' + body : body;
+        if (style === 'labelled' || style === 'brackets') return open + '\n' + body;
+        return body;
+    }
+
+    // Pinned first, then recently edited or by name. Untouched blocks keep stored order.
+    function _ctxSorted(list) {
+        return list.map((b, i) => ({
+            b,
+            i
+        })).sort((x, y) => {
+            if (!!x.b.pinned !== !!y.b.pinned) return x.b.pinned ? -1 : 1;
+            if (_ctxSort === 'name') {
+                return (x.b.title || '').localeCompare(y.b.title || '', undefined, {
+                    sensitivity: 'base'
+                }) || x.i - y.i;
+            }
+            return (y.b.updated || '').localeCompare(x.b.updated || '') || x.i - y.i;
+        }).map(o => o.b);
+    }
+
+    function _ctxMatches(b, cat, query) {
+        if (cat !== 'all' && _ctxCat(b) !== cat) return false;
+        if (!query) return true;
+        return (b.title || '').toLowerCase().includes(query) || (b.content || '').toLowerCase().includes(query);
+    }
+
+    function _ctxVisible() {
+        const query = ($('#ctxSearch')?.value || '').trim().toLowerCase();
+        return _ctxSorted(_ctxBlocks.filter(b => _ctxMatches(b, _ctxFilter, query)));
+    }
+
+    // ── Pills and list ───────────────────────────────────────────────────────────
+    function _ctxRenderPills() {
+        const row = $('#ctxCategoryRow');
+        if (!row) return;
+        const cats = _ctxCategories();
+        if (_ctxFilter !== 'all' && !cats.some(c => c.name === _ctxFilter)) _ctxFilter = 'all';
+        const pill = (key, label, count) =>
+            '<button type="button" class="ctxb-pill' + (key === _ctxFilter ? ' active' : '') + '" data-ctx-filter="' + escapeAttr(key) + '">' +
+            escapeHtml(label) + '<span class="ctxb-pill-count">' + count + '</span></button>';
+        row.innerHTML = pill('all', 'All', _ctxBlocks.length) + cats.map(c => pill(c.name, c.name, c.count)).join('');
+    }
+
     function _ctxRenderList() {
         const list = $('#ctxList');
-        const empty = $('#ctxEmptyHint');
         if (!list) return;
+        const rows = _ctxVisible();
+        const count = $('#ctxListCount');
+        if (count) {
+            count.textContent = rows.length === _ctxBlocks.length ?
+                rows.length + (rows.length === 1 ? ' block' : ' blocks') :
+                rows.length + ' of ' + _ctxBlocks.length + ' blocks';
+        }
 
-        const query = ($('#ctxSearch')?.value || '').toLowerCase();
-        let filtered = _ctxBlocks.slice();
-        if (_ctxFilter !== 'all') filtered = filtered.filter(b => b.category === _ctxFilter);
-        if (query) filtered = filtered.filter(b =>
-            (b.title || '').toLowerCase().includes(query) ||
-            (b.content || '').toLowerCase().includes(query)
-        );
-
-        _ctxUpdateStats();
-
-        if (!filtered.length) {
-            list.innerHTML = '';
-            if (empty) empty.style.display = '';
+        if (!rows.length) {
+            list.innerHTML = _ctxBlocks.length ?
+                '<div class="ctxb-list-empty">No blocks match.<br><button type="button" class="ctxb-link" data-ctx-act="clear">Clear search and filter</button></div>' :
+                '<div class="ctxb-list-empty">No blocks yet.</div>';
             return;
         }
-        if (empty) empty.style.display = 'none';
 
-        list.innerHTML = filtered.map(b => {
-            const active = b.id === _ctxActiveId ? ' active' : '';
-            const preview = (b.content || '').slice(0, 80).replace(/</g, '&lt;');
-            return '<div class="ctx-block-item' + active + '" data-ctx-id="' + escapeAttr(b.id) + '">' +
-                '<div class="ctx-block-item-header">' +
-                '<span class="ctx-block-item-title">' + escapeHtml(b.title || 'Untitled') + '</span>' +
-                '<span class="ctx-cat-tag">' + escapeHtml(b.category || 'Other') + '</span>' +
-                '</div>' +
-                '<div class="ctx-block-item-preview">' + preview + (b.content && b.content.length > 80 ? '…' : '') + '</div>' +
-                '</div>';
-        }).join('');
-
-        list.querySelectorAll('[data-ctx-id]').forEach(item => {
-            item.addEventListener('click', () => _ctxOpenBlock(item.dataset.ctxId));
-        });
+        list.innerHTML = rows.map(b =>
+            '<div class="ctxb-item' + (b.id === _ctxActiveId ? ' active' : '') + '" data-ctx-id="' + escapeAttr(b.id) + '" role="button" tabindex="0">' +
+            '<div class="ctxb-item-top">' +
+            '<span class="ctxb-item-title">' + escapeHtml(b.title || 'Untitled') + '</span>' +
+            (b.pinned ? '<span class="material-symbols-outlined ctxb-item-pin" title="Pinned">push_pin</span>' : '') +
+            '</div>' +
+            '<div class="ctxb-item-preview">' + escapeHtml((b.content || '').slice(0, 160)) + '</div>' +
+            '<div class="ctxb-item-foot">' +
+            '<span class="ctxb-tag">' + escapeHtml(_ctxCat(b)) + '</span>' +
+            '<span class="ctxb-item-actions">' +
+            '<button type="button" class="ctxb-mini" data-ctx-act="copy" title="Copy" aria-label="Copy block"><span class="material-symbols-outlined">content_copy</span></button>' +
+            '<button type="button" class="ctxb-mini" data-ctx-act="insert" title="Use in new prompt" aria-label="Use in new prompt"><span class="material-symbols-outlined">note_add</span></button>' +
+            '</span>' +
+            '</div>' +
+            '</div>'
+        ).join('');
     }
 
-    // ── Block open/editor ────────────────────────────────────────────────────────
-    function _ctxOpenBlock(id) {
-        _ctxActiveId = id || null;
-        const block = id ? _ctxBlocks.find(b => b.id === id) : null;
-        const empty = $('#ctxEditorEmpty');
+    function _ctxRenderAll() {
+        _ctxRenderPills();
+        _ctxRenderList();
+    }
+
+    // ── Editor ───────────────────────────────────────────────────────────────────
+    function _ctxFormVals() {
+        const sel = $('#ctxCategory')?.value || 'Other';
+        const category = sel === CTX_NEW_CAT ? ($('#ctxCategoryNew')?.value || '').trim() || 'Other' : sel;
+        return {
+            title: ($('#ctxTitle')?.value || '').trim(),
+            category,
+            content: ($('#ctxContent')?.value || '').trim()
+        };
+    }
+
+    function _ctxIsDirty() {
         const form = $('#ctxEditorForm');
-        const heading = $('#ctxEditorHeading');
-        const delBtn = $('#ctxDeleteBtn');
-        const confirm = $('#ctxSaveConfirm');
+        if (!form || form.hidden || !_ctxSnap) return false;
+        const v = _ctxFormVals();
+        return v.title !== _ctxSnap.title || v.category !== _ctxSnap.category || v.content !== _ctxSnap.content;
+    }
 
+    function _ctxUpdateMeta() {
+        const text = $('#ctxContent')?.value || '';
+        const words = (text.trim().match(/\S+/g) || []).length;
+        const elW = $('#ctxWords');
+        if (elW) elW.textContent = words.toLocaleString('en-GB');
+        const elT = $('#ctxTokens');
+        if (elT) elT.textContent = _wsEstTokens(text).toLocaleString('en-GB');
+        const status = $('#ctxStatus');
+        if (status) {
+            const dirty = _ctxIsDirty();
+            status.classList.toggle('dirty', dirty);
+            status.textContent = dirty ? 'Unsaved changes' : (_ctxActiveId ? 'Saved' : '');
+        }
+        _ctxUpdateWrap();
+    }
+
+    function _ctxUpdateWrap() {
+        const style = _ctxWrapStyle();
+        $$('#ctxWrapSeg [data-ctx-wrap]').forEach(b => b.classList.toggle('active', b.dataset.ctxWrap === style));
+        const title = ($('#ctxTitle')?.value || '').trim() || 'Block title';
+        const starts = $('#ctxStartsWith');
+        if (starts) {
+            const custom = style === 'custom';
+            starts.readOnly = !custom;
+            starts.classList.toggle('is-custom', custom);
+            if (custom) {
+                if (document.activeElement !== starts) starts.value = _ctxCustomOpen();
+                starts.placeholder = 'Type what it starts with, {title} adds the block name';
+            } else {
+                starts.value = style === 'plain' ? '' : _ctxWrapOpen(title, style);
+                starts.placeholder = style === 'plain' ? 'Content only, nothing added' : '';
+            }
+        }
+        const hint = $('#ctxWrapHint');
+        if (hint) {
+            hint.hidden = style !== 'custom';
+            hint.textContent = style === 'custom' ? 'Preview: ' + (_ctxWrapOpen(title, style) || 'nothing added') : '';
+        }
+        const sel = $('#ctxPanelWrap');
+        if (sel) sel.value = style;
+    }
+
+    // Keep focus inside the workspace so Escape and Ctrl+S keep working.
+    function _ctxKeepFocus() {
+        const ws = $('#contextBankWorkspace');
+        const el = document.activeElement;
+        if (ws && ws.classList.contains('open') && (!ws.contains(el) || el.closest('[hidden]'))) ws.focus();
+    }
+
+    function _ctxHideGuard() {
+        _ctxPending = null;
+        const guard = $('#ctxGuard');
+        if (guard) guard.hidden = true;
+        _ctxKeepFocus();
+    }
+
+    // Run next() now, or hold it behind the unsaved changes bar.
+    function _ctxGuard(next) {
+        if (!_ctxIsDirty()) {
+            next();
+            return;
+        }
+        _ctxPending = next;
+        const guard = $('#ctxGuard');
+        if (guard) guard.hidden = false;
+        $('#ctxGuardSave')?.focus();
+    }
+
+    function _ctxRunPending() {
+        const next = _ctxPending;
+        _ctxHideGuard();
+        if (next) next();
+    }
+
+    // Show a block in the editor, or a blank form when id is null. No guard here.
+    function _ctxShowBlock(id, focusTitle) {
+        const block = id ? _ctxBlocks.find(b => b.id === id) : null;
+        const form = $('#ctxEditorForm');
         if (!form) return;
+        _ctxActiveId = block ? block.id : null;
+        _ctxHideGuard();
 
-        if (block) {
-            if (heading) heading.textContent = 'Editing block';
-            const set = (sel, val) => {
-                const el = $(sel);
-                if (el) el.value = val;
-            };
-            set('#ctxTitle', block.title || '');
-            set('#ctxCategory', block.category || 'Other');
-            set('#ctxContent', block.content || '');
-            if (delBtn) delBtn.style.display = '';
-        } else {
-            if (heading) heading.textContent = 'New block';
-            ['#ctxTitle', '#ctxContent'].forEach(s => {
-                const el = $(s);
-                if (el) el.value = '';
-            });
-            const cat = $('#ctxCategory');
-            if (cat) cat.value = 'Other';
-            if (delBtn) delBtn.style.display = 'none';
+        const title = block ? block.title || '' : '';
+        const category = block ? _ctxCat(block) : (_ctxFilter !== 'all' ? _ctxFilter : 'Other');
+        const content = block ? block.content || '' : '';
+        $('#ctxTitle').value = title;
+        $('#ctxContent').value = content;
+        $('#ctxCategory').innerHTML = _ctxCategoryOptions(category, true);
+        const newCat = $('#ctxCategoryNew');
+        if (newCat) {
+            newCat.value = '';
+            newCat.hidden = true;
+        }
+        _ctxSnap = {
+            title: title.trim(),
+            category,
+            content: content.trim()
+        };
+
+        $('#ctxEditorHeading').textContent = block ? 'Editing block' : 'New block';
+        ['#ctxDeleteBtn', '#ctxDuplicateBtn', '#ctxPinBtn'].forEach(sel => {
+            const el = $(sel);
+            if (el) el.hidden = !block;
+        });
+        const pin = $('#ctxPinBtn');
+        if (pin) {
+            pin.setAttribute('aria-pressed', block && block.pinned ? 'true' : 'false');
+            pin.title = block && block.pinned ? 'Unpin' : 'Pin to top';
+            pin.setAttribute('aria-label', pin.title);
         }
 
-        if (confirm) confirm.style.display = 'none';
-        if (empty) empty.style.display = 'none';
+        $('#ctxEditorEmpty').hidden = true;
         form.hidden = false;
-
+        _ctxUpdateMeta();
         _ctxRenderList();
-        setTimeout(() => {
-            $('#ctxTitle')?.focus();
-        }, 60);
+        _ctxKeepFocus();
+        if (focusTitle) setTimeout(() => $('#ctxTitle')?.focus(), 60);
+    }
+
+    function _ctxShowEmpty() {
+        _ctxActiveId = null;
+        _ctxSnap = null;
+        _ctxHideGuard();
+        const form = $('#ctxEditorForm');
+        if (form) form.hidden = true;
+        const empty = $('#ctxEditorEmpty');
+        if (empty) empty.hidden = false;
+        _ctxRenderList();
+        _ctxKeepFocus();
+    }
+
+    // Keep the editor filled: first visible block, or the empty state when the bank is empty.
+    function _ctxSelectFirst() {
+        const first = _ctxVisible()[0] || _ctxSorted(_ctxBlocks)[0];
+        if (first) _ctxShowBlock(first.id);
+        else _ctxShowEmpty();
+    }
+
+    function _ctxOpenBlock(id) {
+        if (id && id === _ctxActiveId) return;
+        _ctxGuard(() => _ctxShowBlock(id, !id));
     }
 
     function _ctxNewBlock() {
-        _ctxOpenBlock(null);
+        _ctxGuard(() => _ctxShowBlock(null, true));
     }
 
     // ── CRUD ─────────────────────────────────────────────────────────────────────
     function _ctxSaveBlock() {
-        const title = $('#ctxTitle')?.value.trim();
-        const category = $('#ctxCategory')?.value || 'Other';
-        const content = $('#ctxContent')?.value.trim();
-
-        if (!title) {
+        const v = _ctxFormVals();
+        if (!v.title) {
+            toast('Give the block a title', 'warning');
             $('#ctxTitle')?.focus();
-            return;
+            return false;
         }
-
-        if (_ctxActiveId) {
-            const idx = _ctxBlocks.findIndex(b => b.id === _ctxActiveId);
-            if (idx !== -1) Object.assign(_ctxBlocks[idx], {
-                title,
-                category,
-                content
+        if (!v.content) {
+            toast('Add some content first', 'warning');
+            $('#ctxContent')?.focus();
+            return false;
+        }
+        const now = new Date().toISOString();
+        const existing = _ctxActiveId ? _ctxBlocks.find(b => b.id === _ctxActiveId) : null;
+        if (existing) {
+            Object.assign(existing, v, {
+                updated: now
             });
         } else {
             _ctxActiveId = _ctxUID();
-            _ctxBlocks.unshift({
-                id: _ctxActiveId,
-                title,
-                category,
-                content,
-                created: new Date().toISOString()
-            });
-            const delBtn = $('#ctxDeleteBtn');
-            if (delBtn) delBtn.style.display = '';
-            const heading = $('#ctxEditorHeading');
-            if (heading) heading.textContent = 'Editing block';
+            _ctxBlocks.unshift(Object.assign({
+                id: _ctxActiveId
+            }, v, {
+                created: now,
+                updated: now
+            }));
         }
-
         _ctxSave();
-        _ctxRenderList();
+        _ctxRenderPills();
+        _ctxShowBlock(_ctxActiveId);
+        return true;
+    }
 
-        const confirm = $('#ctxSaveConfirm');
-        if (confirm) {
-            confirm.style.display = '';
-            setTimeout(() => {
-                confirm.style.display = 'none';
-            }, 1800);
-        }
+    function _ctxUndoToast(msg, undo) {
+        const root = $('#toastContainer');
+        if (!root) return;
+        const el = document.createElement('div');
+        el.className = 'toast info';
+        el.innerHTML = '<span class="material-symbols-outlined">delete</span><span>' + escapeHtml(msg) + '</span>' +
+            '<button type="button" class="ctxb-undo-btn">Undo</button>';
+        root.appendChild(el);
+        const timer = setTimeout(() => el.remove(), 7000);
+        el.querySelector('button').addEventListener('click', () => {
+            clearTimeout(timer);
+            el.remove();
+            undo();
+        });
     }
 
     function _ctxDeleteBlock() {
-        if (!_ctxActiveId) return;
-        _ctxBlocks = _ctxBlocks.filter(b => b.id !== _ctxActiveId);
+        const idx = _ctxBlocks.findIndex(b => b.id === _ctxActiveId);
+        if (idx === -1) return;
+        const removed = _ctxBlocks.splice(idx, 1)[0];
         _ctxSave();
         _ctxActiveId = null;
+        _ctxSnap = null;
+        _ctxRenderPills();
+        _ctxSelectFirst();
+        _ctxUndoToast('Deleted "' + (removed.title || 'Untitled') + '"', () => {
+            _ctxLoad();
+            _ctxBlocks.splice(Math.min(idx, _ctxBlocks.length), 0, removed);
+            _ctxSave();
+            if (!_ctxVisible().some(b => b.id === removed.id)) {
+                _ctxFilter = 'all';
+                const search = $('#ctxSearch');
+                if (search) search.value = '';
+            }
+            _ctxRenderPills();
+            if ($('#contextBankWorkspace')?.classList.contains('open') && !_ctxIsDirty()) _ctxShowBlock(removed.id);
+            else _ctxRenderList();
+        });
+    }
 
-        // Return to empty editor state
-        const form = $('#ctxEditorForm');
-        const empty = $('#ctxEditorEmpty');
-        if (form) form.hidden = true;
-        if (empty) empty.style.display = '';
+    function _ctxDuplicateBlock() {
+        _ctxGuard(() => {
+            const idx = _ctxBlocks.findIndex(b => b.id === _ctxActiveId);
+            if (idx === -1) return;
+            const now = new Date().toISOString();
+            const copy = Object.assign({}, _ctxBlocks[idx], {
+                id: _ctxUID(),
+                title: (_ctxBlocks[idx].title || 'Untitled') + ' copy',
+                pinned: false,
+                created: now,
+                updated: now
+            });
+            _ctxBlocks.splice(idx, 0, copy);
+            _ctxSave();
+            _ctxRenderPills();
+            _ctxShowBlock(copy.id, true);
+            toast('Block duplicated', 'success');
+        });
+    }
+
+    function _ctxTogglePin() {
+        const block = _ctxBlocks.find(b => b.id === _ctxActiveId);
+        if (!block) return;
+        block.pinned = !block.pinned;
+        _ctxSave();
+        const pin = $('#ctxPinBtn');
+        if (pin) {
+            pin.setAttribute('aria-pressed', block.pinned ? 'true' : 'false');
+            pin.title = block.pinned ? 'Unpin' : 'Pin to top';
+            pin.setAttribute('aria-label', pin.title);
+        }
         _ctxRenderList();
     }
 
-    async function _ctxCopyBlock() {
-        const block = _ctxBlocks.find(b => b.id === _ctxActiveId);
+    // The editor's block as typed, so Copy and Use match what is on screen.
+    function _ctxEditorBlock() {
+        const v = _ctxFormVals();
+        return v.content ? v : null;
+    }
+
+    async function _ctxCopy(block) {
         if (!block) {
-            if (typeof toast === 'function') toast('Select a block first', 'warning');
+            toast('Nothing to copy yet', 'warning');
             return;
         }
-        const ok = typeof copyToClipboard === 'function' ? await copyToClipboard(block.content || '') : false;
-        if (typeof toast === 'function') toast(ok ? 'Block copied' : 'Copy failed', ok ? 'success' : 'error');
+        const ok = await copyToClipboard(_ctxWrapText(block));
+        if (ok) toast('Block copied', 'success');
+    }
+
+    // Put text into a textarea at the cursor, on its own lines.
+    function _ctxInsertAt(ta, text) {
+        const pos = ta.selectionStart ?? ta.value.length;
+        const before = ta.value.slice(0, pos);
+        const after = ta.value.slice(ta.selectionEnd ?? pos);
+        const lead = !before || before.endsWith('\n\n') ? '' : (before.endsWith('\n') ? '\n' : '\n\n');
+        const ins = lead + text + '\n';
+        ta.value = before + ins + after;
+        ta.selectionStart = ta.selectionEnd = before.length + ins.length;
+        ta.dispatchEvent(new Event('input', {
+            bubbles: true
+        }));
+        ta.focus();
+    }
+
+    function _ctxUseInNewPrompt(block) {
+        if (!block) {
+            toast('Nothing to use yet', 'warning');
+            return;
+        }
+        _ctxGuard(() => {
+            _ctxCloseNow();
+            openNewPromptModal();
+            const ta = $('#promptContent');
+            if (ta) _ctxInsertAt(ta, _ctxWrapText(block));
+            toast('Block added to a new prompt', 'success');
+        });
+    }
+
+    // ── Export and import ────────────────────────────────────────────────────────
+    // Send the open block to another workspace: canvases get a node, text workspaces get it on the clipboard.
+    const _CTX_TARGETS = [
+        ['Prompt Builder Pro', 'openBuilderProWorkspace', 'PL_bpAddContext'],
+        ['Prompt Components', 'openComponentsWorkspace', 'PL_pcwAddContext'],
+        ['Prompt Forge', 'openForgeWorkspace', null],
+        ['Quick Fill', 'openFillWorkspace', null]
+    ];
+
+    function _ctxUseInWorkspace(i) {
+        const t = _CTX_TARGETS[i], block = _ctxEditorBlock();
+        if (!t || !window[t[1]]) return;
+        if (!block) return toast('Nothing to use yet', 'warning');
+        const plain = { id: _ctxActiveId, title: block.title || 'Untitled', category: block.category, content: block.content, wrapped: _ctxWrapText(block) };
+        _ctxGuard(async () => {
+            _ctxCloseNow();
+            window[t[1]]();
+            if (t[2]) {
+                if (window[t[2]]) window[t[2]](plain);
+                return;
+            }
+            if (await copyToClipboard(plain.wrapped)) toast('Block copied, paste it into the workspace', 'success');
+        });
+    }
+
+    function _ctxInitUseMenu() {
+        const bar = $('.ctxb-actions');
+        if (!bar || $('#ctxUseWsBtn')) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'ctxb-usews';
+        wrap.innerHTML = '<button type="button" class="btn btn-ghost" id="ctxUseWsBtn" aria-haspopup="menu" aria-expanded="false" title="Use this block in a workspace"><span class="material-symbols-outlined">dashboard_customize</span> Use in a workspace</button>' +
+            '<div class="ctxb-usews-menu" id="ctxUseWsMenu" role="menu" hidden>' + _CTX_TARGETS.map((t, i) =>
+                '<button type="button" role="menuitem" data-ws="' + i + '">' + escapeHtml(t[0]) + '</button>').join('') + '</div>';
+        bar.appendChild(wrap);
+        const btn = wrap.querySelector('#ctxUseWsBtn'), menu = wrap.querySelector('#ctxUseWsMenu');
+        const hide = () => { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); };
+        btn.addEventListener('click', e => { e.stopPropagation(); menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); });
+        menu.addEventListener('click', e => { const b = e.target.closest('[data-ws]'); if (!b) return; hide(); _ctxUseInWorkspace(+b.dataset.ws); });
+        document.addEventListener('click', e => { if (!wrap.contains(e.target)) hide(); });
+        wrap.addEventListener('keydown', e => { if (e.key === 'Escape' && !menu.hidden) { e.stopPropagation(); hide(); btn.focus(); } });
+    }
+
+    async function _ctxExport() {
+        if (!_ctxBlocks.length) {
+            toast('No blocks to export', 'warning');
+            return;
+        }
+        const d = new Date();
+        const two = n => String(n).padStart(2, '0');
+        const filename = 'context-bank-' + two(d.getDate()) + '-' + two(d.getMonth() + 1) + '-' + d.getFullYear() + '.json';
+        const content = JSON.stringify({
+            type: 'prompt-library-context-bank',
+            version: 1,
+            exported: d.toISOString(),
+            blocks: _ctxBlocks
+        }, null, 2);
+        try {
+            const result = await plSaveFile(filename, content, 'application/json');
+            if (result.error) throw new Error(result.error);
+            if (result.saved) toast('Saved to ' + result.path, 'success');
+        } catch {
+            triggerDownload(new Blob([content], {
+                type: 'application/json'
+            }), filename, 'Exported ' + _ctxBlocks.length + ' blocks');
+        }
+    }
+
+    async function _ctxImport(file) {
+        let incoming = null;
+        try {
+            const data = JSON.parse(await file.text());
+            incoming = Array.isArray(data) ? data : (data && Array.isArray(data.blocks) ? data.blocks : null);
+        } catch {}
+        if (!incoming) {
+            toast('That file is not a Context Bank export', 'error');
+            return;
+        }
+        const key = (t, c) => t.toLowerCase() + '\n' + c;
+        const seen = new Set(_ctxBlocks.map(b => key((b.title || '').trim(), (b.content || '').trim())));
+        const now = new Date().toISOString();
+        const fresh = [];
+        let skipped = 0;
+        incoming.forEach(raw => {
+            const title = raw && typeof raw === 'object' ? String(raw.title || '').trim().slice(0, 200) : '';
+            const content = title ? String(raw.content || '').trim() : '';
+            if (!title || !content || seen.has(key(title, content))) {
+                skipped++;
+                return;
+            }
+            seen.add(key(title, content));
+            fresh.push({
+                id: _ctxUID(),
+                title,
+                category: String(raw.category || '').trim().slice(0, 40) || 'Other',
+                content,
+                pinned: !!raw.pinned,
+                created: now,
+                updated: now
+            });
+        });
+        if (fresh.length) {
+            _ctxBlocks = fresh.concat(_ctxBlocks);
+            _ctxSave();
+            _ctxRenderAll();
+            if (!_ctxIsDirty()) _ctxShowBlock(fresh[0].id);
+        }
+        toast('Imported ' + fresh.length + (fresh.length === 1 ? ' block' : ' blocks') +
+            (skipped ? ', skipped ' + skipped + ' already here or empty' : ''), fresh.length ? 'success' : 'info');
     }
 
     // ── Workspace open/close ─────────────────────────────────────────────────────
     window.openContextBankWorkspace = function() {
-        _ctxSeedTemplates();
-        _ctxLoad();
         const ws = $('#contextBankWorkspace');
         if (!ws) return;
         ws.classList.add('open');
         document.body.style.overflow = 'hidden';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'contextBank'));
         _ctxFilter = 'all';
-        $$('[data-ctx-filter]').forEach(b => b.classList.toggle('active', b.dataset.ctxFilter === 'all'));
-        _ctxActiveId = null;
-        const form = $('#ctxEditorForm');
-        const empty = $('#ctxEditorEmpty');
-        if (form) form.hidden = true;
-        if (empty) empty.style.display = '';
-        _ctxRenderList();
+        const search = $('#ctxSearch');
+        if (search) search.value = '';
+        _ctxSync().then(() => {
+            _ctxSeedTemplates();
+            _ctxLoad();
+            _ctxActiveId = null;
+            _ctxSnap = null;
+            _ctxRenderPills();
+            _ctxSelectFirst();
+            search?.focus();
+        });
     };
 
-    function _ctxClose() {
+    function _ctxCloseNow() {
         const ws = $('#contextBankWorkspace');
         if (!ws) return;
+        _ctxSnap = null;
+        _ctxHideGuard();
         ws.classList.remove('open');
         document.body.style.overflow = '';
-        $$$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+        $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+    }
+
+    function _ctxClose() {
+        _ctxGuard(_ctxCloseNow);
     }
 
     // Expose for modal side-panel + panel refresh compatibility
@@ -8257,24 +8966,112 @@ Must avoid: [Anything sensitive or previously declined]`
     };
 
     function initContextBankWorkspace() {
+        _ctxSync();
         $('#closeContextBankBtn')?.addEventListener('click', _ctxClose);
         $('#ctxNewBtn')?.addEventListener('click', _ctxNewBlock);
+        $('#ctxEmptyNewBtn')?.addEventListener('click', _ctxNewBlock);
         $('#ctxSaveBtn')?.addEventListener('click', _ctxSaveBlock);
         $('#ctxDeleteBtn')?.addEventListener('click', _ctxDeleteBlock);
-        $('#ctxCopyBtn')?.addEventListener('click', _ctxCopyBlock);
-        $('#ctxSearch')?.addEventListener('input', _ctxRenderList);
-
-        $$('[data-ctx-filter]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                _ctxFilter = btn.dataset.ctxFilter;
-                $$('[data-ctx-filter]').forEach(b => b.classList.toggle('active', b === btn));
-                _ctxRenderList();
-            });
+        $('#ctxDuplicateBtn')?.addEventListener('click', _ctxDuplicateBlock);
+        $('#ctxPinBtn')?.addEventListener('click', _ctxTogglePin);
+        $('#ctxCopyBtn')?.addEventListener('click', () => _ctxCopy(_ctxEditorBlock()));
+        $('#ctxInsertBtn')?.addEventListener('click', () => _ctxUseInNewPrompt(_ctxEditorBlock()));
+        _ctxInitUseMenu();
+        $('#ctxExportBtn')?.addEventListener('click', _ctxExport);
+        $('#ctxImportBtn')?.addEventListener('click', () => $('#ctxImportFile')?.click());
+        $('#ctxImportFile')?.addEventListener('change', e => {
+            const file = e.target.files && e.target.files[0];
+            e.target.value = '';
+            if (file) _ctxImport(file);
         });
+        $('#ctxSearch')?.addEventListener('input', _ctxRenderList);
+        $('#ctxSort')?.addEventListener('change', e => {
+            _ctxSort = e.target.value === 'name' ? 'name' : 'recent';
+            _ctxRenderList();
+        });
+
+        $('#ctxCategoryRow')?.addEventListener('click', e => {
+            const btn = e.target.closest('[data-ctx-filter]');
+            if (!btn) return;
+            _ctxFilter = btn.dataset.ctxFilter;
+            _ctxRenderAll();
+        });
+
+        const list = $('#ctxList');
+        const onListPick = e => {
+            const act = e.target.closest('[data-ctx-act]');
+            if (act && act.dataset.ctxAct === 'clear') {
+                _ctxFilter = 'all';
+                const search = $('#ctxSearch');
+                if (search) search.value = '';
+                _ctxRenderAll();
+                return;
+            }
+            const item = e.target.closest('[data-ctx-id]');
+            if (!item) return;
+            const block = _ctxBlocks.find(b => b.id === item.dataset.ctxId);
+            if (act && act.dataset.ctxAct === 'copy') _ctxCopy(block);
+            else if (act && act.dataset.ctxAct === 'insert') _ctxUseInNewPrompt(block);
+            else _ctxOpenBlock(item.dataset.ctxId);
+        };
+        list?.addEventListener('click', onListPick);
+        list?.addEventListener('keydown', e => {
+            if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-ctx-id]')) {
+                e.preventDefault();
+                onListPick(e);
+            }
+        });
+
+        ['#ctxTitle', '#ctxContent', '#ctxCategoryNew'].forEach(sel => $(sel)?.addEventListener('input', _ctxUpdateMeta));
+        $('#ctxCategory')?.addEventListener('change', e => {
+            const newCat = $('#ctxCategoryNew');
+            if (newCat) {
+                newCat.hidden = e.target.value !== CTX_NEW_CAT;
+                if (!newCat.hidden) newCat.focus();
+            }
+            _ctxUpdateMeta();
+        });
+
+        $('#ctxWrapSeg')?.addEventListener('click', e => {
+            const btn = e.target.closest('[data-ctx-wrap]');
+            if (!btn) return;
+            const next = btn.dataset.ctxWrap;
+            const prev = _ctxWrapStyle();
+            // First time on Custom: start from the style it replaces, so there is something to edit.
+            const hasCustom = window.PL_prefs && window.PL_prefs.get('ctx_wrap_custom') !== null;
+            if (next === 'custom' && !hasCustom && CTX_WRAP_TEMPLATES[prev]) _ctxSetCustomOpen(CTX_WRAP_TEMPLATES[prev]);
+            _ctxSetWrap(next);
+            _ctxUpdateWrap();
+            if (next === 'custom') $('#ctxStartsWith')?.focus();
+        });
+
+        $('#ctxStartsWith')?.addEventListener('input', e => {
+            if (_ctxWrapStyle() !== 'custom') return;
+            _ctxSetCustomOpen(e.target.value);
+            _ctxUpdateWrap();
+        });
+
+        $('#ctxGuardSave')?.addEventListener('click', () => {
+            const next = _ctxPending;
+            if (!_ctxSaveBlock()) return;
+            if (next) next();
+        });
+        $('#ctxGuardDiscard')?.addEventListener('click', () => {
+            _ctxSnap = null;
+            _ctxRunPending();
+        });
+        $('#ctxGuardKeep')?.addEventListener('click', _ctxHideGuard);
 
         const ws = $('#contextBankWorkspace');
         if (ws) ws.addEventListener('keydown', e => {
-            if (e.key === 'Escape') _ctxClose();
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                if ($('#ctxGuard') && !$('#ctxGuard').hidden) _ctxHideGuard();
+                else _ctxClose();
+            } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                if (!$('#ctxEditorForm')?.hidden) _ctxSaveBlock();
+            }
         });
     }
 
@@ -8285,7 +9082,7 @@ Must avoid: [Anything sensitive or previously declined]`
        ============================================================================ */
 
     function _panelOpen(panelId, btnId) {
-        ['#promptCtxPanel', '#promptComponentsPanel', '#promptSnippetsPanel'].forEach(sel => {
+        ['#promptCtxPanel', '#promptComponentsPanel', '#promptSnippetsPanel', '#promptVarsPanel'].forEach(sel => {
             const el = $(sel);
             if (el) el.classList.remove('open');
         });
@@ -8304,46 +9101,145 @@ Must avoid: [Anything sensitive or previously declined]`
     function _ctxPanelRefresh() {
         const list = $('#ctxPanelList');
         if (!list) return;
-        _ctxLoad();
-        const query = ($('#ctxPanelSearch')?.value || '').toLowerCase();
-        const catBtn = document.querySelector('#ctxPanelCats .chip.active');
-        const cat = catBtn?.dataset?.cpf || 'all';
+        _ctxSync().then(() => {
+            _ctxSeedTemplates();
+            _ctxLoad();
 
-        let blocks = _ctxBlocks;
-        if (cat !== 'all') blocks = blocks.filter(b => b.category === cat);
-        if (query) blocks = blocks.filter(b =>
-            (b.title || '').toLowerCase().includes(query) ||
-            (b.content || '').toLowerCase().includes(query));
+            const cats = _ctxCategories();
+            if (_ctxPanelCat !== 'all' && !cats.some(c => c.name === _ctxPanelCat)) _ctxPanelCat = 'all';
+            const chips = $('#ctxPanelCats');
+            if (chips) {
+                chips.innerHTML = [{
+                    name: 'all'
+                }].concat(cats).map(c =>
+                    '<button type="button" class="chip' + (c.name === _ctxPanelCat ? ' active' : '') + '" data-cpf="' + escapeAttr(c.name) + '">' +
+                    escapeHtml(c.name === 'all' ? 'All' : c.name) + '</button>'
+                ).join('');
+            }
+            const newCat = $('#ctxPanelNewCat');
+            if (newCat) newCat.innerHTML = _ctxCategoryOptions(newCat.value || 'Other', false);
+            _ctxUpdateWrap();
 
-        if (!blocks.length) {
-            list.innerHTML = '<div style="color:var(--ink-3);font-size:var(--fs-sm);padding:var(--sp-3);text-align:center;">No blocks found.<br>Create one in the Context Bank workspace.</div>';
-            return;
-        }
-
-        list.innerHTML = blocks.map(b =>
-            '<div class="ctx-panel-item" data-cpid="' + escapeAttr(b.id) + '" ' +
-            'style="padding:8px var(--sp-3);cursor:pointer;border-bottom:1px solid var(--border,#374151);">' +
-            '<div style="font-size:var(--fs-sm);font-weight:600;">' + escapeHtml(b.title) + '</div>' +
-            '<div style="font-size:11px;color:var(--ink-3);">' + escapeHtml(b.category || 'Other') + '</div>' +
-            '</div>'
-        ).join('');
-
-        list.querySelectorAll('[data-cpid]').forEach(item => {
-            item.addEventListener('click', () => {
-                const block = _ctxBlocks.find(b => b.id === item.dataset.cpid);
-                if (!block) return;
-                const ta = $('#promptContent');
-                if (ta) {
-                    const ins = '\n\n--- Context: ' + block.title + ' ---\n' + block.content + '\n';
-                    const pos = ta.selectionStart ?? ta.value.length;
-                    ta.value = ta.value.slice(0, pos) + ins + ta.value.slice(pos);
-                    ta.selectionStart = ta.selectionEnd = pos + ins.length;
-                    ta.dispatchEvent(new Event('input'));
-                }
-                toast('Context block inserted', 'success');
-            });
+            const query = ($('#ctxPanelSearch')?.value || '').trim().toLowerCase();
+            const blocks = _ctxSorted(_ctxBlocks.filter(b => _ctxMatches(b, _ctxPanelCat, query)));
+            if (!blocks.length) {
+                list.innerHTML = '<div class="ctx-panel-empty"><span>No blocks match.</span></div>';
+                return;
+            }
+            list.innerHTML = blocks.map(b =>
+                '<div class="ctx-panel-block" data-cpid="' + escapeAttr(b.id) + '" role="button" tabindex="0" title="Insert at the cursor">' +
+                '<div class="ctx-panel-block-title">' + escapeHtml(b.title || 'Untitled') + '</div>' +
+                '<div class="ctx-panel-block-cat">' + escapeHtml(_ctxCat(b)) + '</div>' +
+                '<div class="ctx-panel-block-preview">' + escapeHtml((b.content || '').slice(0, 140)) + '</div>' +
+                '</div>'
+            ).join('');
         });
     }
+
+    function _ctxPanelInsert(id) {
+        const block = _ctxBlocks.find(b => b.id === id);
+        const ta = $('#promptContent');
+        if (!block || !ta) return;
+        _ctxInsertAt(ta, _ctxWrapText(block));
+        toast('Context block inserted', 'success');
+    }
+
+    // ── Shared Context Bank picker: a floating list any workspace can open to drop a block into its text ─────────
+    // window.PL_ctxPicker(anchorEl, target, opts): target is a textarea or input, or a function returning one.
+    // opts.onPick(block) replaces the default insert at the cursor (block = { id, title, category, content, wrapped }).
+    // window.PL_ctxList() resolves to every block (pinned first) for workspaces that build their own UI.
+    let _ctxPickerEl = null, _ctxPickerCat = 'all', _ctxPickerClose = null;
+    function _ctxPlain(b) { return { id: b.id, title: b.title || 'Untitled', category: _ctxCat(b), content: b.content || '', wrapped: _ctxWrapText(b) }; }
+    window.PL_ctxList = function() {
+        return _ctxSync().then(() => { _ctxSeedTemplates(); _ctxLoad(); return _ctxSorted(_ctxBlocks).map(_ctxPlain); });
+    };
+    function _ctxPickerHide() {
+        if (_ctxPickerEl) { _ctxPickerEl.remove(); _ctxPickerEl = null; }
+        if (_ctxPickerClose) { document.removeEventListener('mousedown', _ctxPickerClose, true); document.removeEventListener('keydown', _ctxPickerClose, true); _ctxPickerClose = null; }
+    }
+    window.PL_ctxPicker = function(anchor, target, opts) {
+        opts = opts || {};
+        if (_ctxPickerEl) { const was = _ctxPickerEl._anchor; _ctxPickerHide(); if (was === anchor) return; }
+        const el = document.createElement('div');
+        el.className = 'ctxpick';
+        el.setAttribute('role', 'dialog');
+        el.setAttribute('aria-label', 'Context Bank');
+        el._anchor = anchor;
+        el.innerHTML = '<div class="ctxpick-head"><span class="material-symbols-outlined">database</span><b>Context Bank</b>' +
+            '<button type="button" class="icon-btn ctxpick-open" title="Open the Context Bank" aria-label="Open the Context Bank"><span class="material-symbols-outlined">open_in_new</span></button></div>' +
+            '<input type="search" class="ctxpick-search" placeholder="Search blocks" aria-label="Search blocks" />' +
+            '<div class="ctxpick-cats"></div><div class="ctxpick-list" role="listbox"></div>' +
+            '<div class="ctxpick-foot"><label>Wrap <select class="ctxpick-wrap"><option value="plain">Plain text</option><option value="labelled">Labelled</option><option value="xml">XML tags</option><option value="markdown">Markdown</option><option value="brackets">Brackets</option><option value="custom">Custom</option></select></label></div>';
+        document.body.appendChild(el);
+        _ctxPickerEl = el;
+        const r = anchor.getBoundingClientRect(), w = 340;
+        el.style.width = w + 'px';
+        el.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + 'px';
+        const below = r.bottom + 6, room = window.innerHeight - below - 12;
+        if (room < 260 && r.top > room) { el.style.bottom = (window.innerHeight - r.top + 6) + 'px'; el.style.maxHeight = Math.min(480, r.top - 18) + 'px'; }
+        else { el.style.top = below + 'px'; el.style.maxHeight = Math.min(480, room) + 'px'; }
+        const wrapSel = el.querySelector('.ctxpick-wrap');
+        wrapSel.value = _ctxWrapStyle();
+        wrapSel.addEventListener('change', () => { _ctxSetWrap(wrapSel.value); draw(); });
+        let blocks = [];
+        const draw = () => {
+            const q = el.querySelector('.ctxpick-search').value.trim().toLowerCase();
+            const cats = _ctxCategories();
+            if (_ctxPickerCat !== 'all' && !cats.some(c => c.name === _ctxPickerCat)) _ctxPickerCat = 'all';
+            el.querySelector('.ctxpick-cats').innerHTML = [{ name: 'all' }].concat(cats).map(c =>
+                '<button type="button" class="chip' + (c.name === _ctxPickerCat ? ' active' : '') + '" data-pc="' + escapeAttr(c.name) + '">' + escapeHtml(c.name === 'all' ? 'All' : c.name) + '</button>').join('');
+            const list = _ctxSorted(blocks.filter(b => _ctxMatches(b, _ctxPickerCat, q)));
+            el.querySelector('.ctxpick-list').innerHTML = list.length ? list.map(b =>
+                '<button type="button" class="ctxpick-item" role="option" data-pid="' + escapeAttr(b.id) + '"><span class="ctxpick-title">' + escapeHtml(b.title || 'Untitled') + '</span>' +
+                '<span class="ctxpick-cat">' + escapeHtml(_ctxCat(b)) + '</span><span class="ctxpick-prev">' + escapeHtml((b.content || '').slice(0, 110)) + '</span></button>').join('')
+                : '<div class="ctxpick-empty">No blocks match.</div>';
+        };
+        _ctxSync().then(() => { _ctxSeedTemplates(); _ctxLoad(); blocks = _ctxBlocks.slice(); draw(); });
+        el.querySelector('.ctxpick-search').addEventListener('input', draw);
+        el.querySelector('.ctxpick-search').focus();
+        el.querySelector('.ctxpick-open').addEventListener('click', () => { _ctxPickerHide(); if (window.openContextBankWorkspace) window.openContextBankWorkspace(); });
+        el.addEventListener('click', e => {
+            const c = e.target.closest('[data-pc]');
+            if (c) { _ctxPickerCat = c.dataset.pc; return draw(); }
+            const it = e.target.closest('[data-pid]');
+            if (!it) return;
+            const b = _ctxBlocks.find(x => x.id === it.dataset.pid);
+            if (!b) return;
+            _ctxPickerHide();
+            if (opts.onPick) return opts.onPick(_ctxPlain(b));
+            const t = typeof target === 'function' ? target() : (typeof target === 'string' ? document.querySelector(target) : target);
+            if (!t) { toast('Nothing to insert into here', 'warning'); return; }
+            _ctxInsertAt(t, _ctxWrapText(b));
+            toast('Context block inserted', 'success');
+        });
+        _ctxPickerClose = e => {
+            if (e.type === 'keydown') { if (e.key === 'Escape') { e.stopPropagation(); _ctxPickerHide(); anchor.focus && anchor.focus(); } return; }
+            if (!el.contains(e.target) && !anchor.contains(e.target)) _ctxPickerHide();
+        };
+        document.addEventListener('mousedown', _ctxPickerClose, true);
+        document.addEventListener('keydown', _ctxPickerClose, true);
+    };
+
+    // Context button in text workspaces: [data-ctx-pick="last"|selector] [data-ctx-default=selector], Pro only.
+    const _ctxLastField = new WeakMap();
+    const _ctxFieldSel = 'textarea:not([readonly]), input[type="text"]:not([readonly])';
+    document.addEventListener('focusin', e => {
+        const t = e.target, ws = t.closest && t.closest('[role="dialog"]');
+        if (ws && t.matches && t.matches(_ctxFieldSel)) _ctxLastField.set(ws, t);
+    });
+    document.addEventListener('click', e => {
+        const btn = e.target.closest && e.target.closest('[data-ctx-pick]');
+        if (!btn) return;
+        if (!state.isPremium) { showPremiumModal(); return; }
+        const ws = btn.closest('[role="dialog"]') || document;
+        const shown = el => el && el.offsetParent !== null;
+        window.PL_ctxPicker(btn, () => {
+            const want = btn.dataset.ctxPick;
+            let t = want === 'last' ? _ctxLastField.get(ws) : ws.querySelector(want);
+            if (!shown(t) || !t.matches(_ctxFieldSel)) t = ws.querySelector(btn.dataset.ctxDefault || _ctxFieldSel);
+            return shown(t) ? t : null;
+        });
+    });
 
     function _ctxPanelSaveNew() {
         const title = ($('#ctxPanelNewTitle')?.value || '').trim();
@@ -8358,12 +9254,14 @@ Must avoid: [Anything sensitive or previously declined]`
             return;
         }
         _ctxLoad();
+        const now = new Date().toISOString();
         _ctxBlocks.unshift({
             id: _ctxUID(),
             title,
             category,
             content,
-            created: new Date().toISOString()
+            created: now,
+            updated: now
         });
         _ctxSave();
         if ($('#ctxPanelNewTitle')) $('#ctxPanelNewTitle').value = '';
@@ -8375,6 +9273,7 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     function initModalSidePanels() {
+        initVarPreviewPanel();
         // Context Bank panel toggle
         $('#ctxPanelToggleBtn')?.addEventListener('click', () => {
             if ($('#promptCtxPanel')?.classList.contains('open'))
@@ -8401,7 +9300,16 @@ Must avoid: [Anything sensitive or previously declined]`
                 _panelOpen('#promptSnippetsPanel', '#snipPanelToggleBtn');
         });
 
+        // Variables panel toggle
+        $('#varsPanelToggleBtn')?.addEventListener('click', () => {
+            if ($('#promptVarsPanel')?.classList.contains('open'))
+                _panelClose('#promptVarsPanel', '#varsPanelToggleBtn');
+            else
+                _panelOpen('#promptVarsPanel', '#varsPanelToggleBtn');
+        });
+
         // Close buttons
+        $('#closeVarsPanel')?.addEventListener('click', () => _panelClose('#promptVarsPanel', '#varsPanelToggleBtn'));
         $('#closeCtxPanel')?.addEventListener('click', () => _panelClose('#promptCtxPanel', '#ctxPanelToggleBtn'));
         $('#closeCompPanel')?.addEventListener('click', () => _panelClose('#promptComponentsPanel', '#compPanelToggleBtn'));
         $('#closeSnipPanel')?.addEventListener('click', () => _panelClose('#promptSnippetsPanel', '#snipPanelToggleBtn'));
@@ -8409,12 +9317,26 @@ Must avoid: [Anything sensitive or previously declined]`
         // Context panel search + category filter
         $('#ctxPanelSearch')?.addEventListener('input', _ctxPanelRefresh);
 
-        $$('#ctxPanelCats .chip[data-cpf]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                $$('#ctxPanelCats .chip').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                _ctxPanelRefresh();
-            });
+        $('#ctxPanelCats')?.addEventListener('click', e => {
+            const btn = e.target.closest('.chip[data-cpf]');
+            if (!btn) return;
+            _ctxPanelCat = btn.dataset.cpf;
+            _ctxPanelRefresh();
+        });
+        $('#ctxPanelWrap')?.addEventListener('change', e => {
+            _ctxSetWrap(e.target.value);
+            _ctxUpdateWrap();
+        });
+        const ctxPanelPick = e => {
+            const item = e.target.closest('[data-cpid]');
+            if (item) _ctxPanelInsert(item.dataset.cpid);
+        };
+        $('#ctxPanelList')?.addEventListener('click', ctxPanelPick);
+        $('#ctxPanelList')?.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                ctxPanelPick(e);
+            }
         });
 
         // Snippets panel search + category filter
@@ -8565,6 +9487,8 @@ Must avoid: [Anything sensitive or previously declined]`
             window.closePromptModal = function() {
                 _panelClose('#promptCtxPanel', '#ctxPanelToggleBtn');
                 _panelClose('#promptComponentsPanel', '#compPanelToggleBtn');
+                _panelClose('#promptSnippetsPanel', '#snipPanelToggleBtn');
+                _panelClose('#promptVarsPanel', '#varsPanelToggleBtn');
                 origClose();
             };
         }
@@ -11292,7 +12216,17 @@ Must avoid: [Anything sensitive or previously declined]`
             zoom: 1,
             panX: 0,
             panY: 0
-        }; // zoom 0.25-2.0, pan in pixels
+        }; // zoom PCW_ZOOM_MIN to PCW_ZOOM_MAX, pan in pixels
+        var _canvasLinks = []; // wires between blocks: { from: blockId, to: blockId }
+        var _pcwChainMode = false; // while true, every new block is wired after the last open end
+        var _pcwSelLink = null; // key of the selected wire, "fromId>toId"
+        var PCW_ZOOM_MIN = 0.1,
+            PCW_ZOOM_MAX = 3;
+        var _pcwUidN = 0;
+
+        function _pcwUid() {
+            return 'b' + Date.now().toString(36) + (++_pcwUidN).toString(36);
+        }
         var _activeCat = 'all';
         var _dragSrcIdx = null;
         var _dragStartX = null; // for tracking spacebar drag pan
@@ -11304,6 +12238,16 @@ Must avoid: [Anything sensitive or previously declined]`
             var _pcwDraft = JSON.parse(localStorage.getItem('pl_pcw_draft') || 'null');
             if (_pcwDraft && Array.isArray(_pcwDraft.blocks)) {
                 _canvasBlocks = _pcwDraft.blocks;
+                _canvasBlocks.forEach(function(b) {
+                    if (!b.id) b.id = _pcwUid();
+                });
+                _canvasLinks = Array.isArray(_pcwDraft.links) ? _pcwDraft.links : [];
+                _canvasLinks.forEach(function(l) {
+                    // Older drafts stored connection slots; the lower pair meant background
+                    if (!l.kind) l.kind = (l.fp === 1 || l.tp === 1) ? 'support' : 'flow';
+                    delete l.fp;
+                    delete l.tp;
+                });
                 _pcwDraftTitle = _pcwDraft.title || '';
                 if (_pcwDraft.view && typeof _pcwDraft.view.zoom === 'number') _canvasState = _pcwDraft.view;
             }
@@ -11316,6 +12260,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 var t = $('#pcwTitleInput') ? $('#pcwTitleInput').value : '';
                 localStorage.setItem('pl_pcw_draft', JSON.stringify({
                     blocks: _canvasBlocks,
+                    links: _canvasLinks,
                     title: t,
                     view: _canvasState
                 }));
@@ -11619,8 +12564,8 @@ Must avoid: [Anything sensitive or previously declined]`
             });
         }
 
-        /* ---- Spatial assembly order: top-to-bottom, ties left-to-right ---- */
-        function _pcwOrdered() {
+        /* ---- Reading order: top-to-bottom, ties left-to-right ---- */
+        function _pcwSpatial() {
             return _canvasBlocks.map(function(b, i) {
                 return {
                     b: b,
@@ -11632,6 +12577,82 @@ Must avoid: [Anything sensitive or previously declined]`
                 if (Math.abs(ya - yb) > 24) return ya - yb;
                 return (p.b.x || 0) - (q.b.x || 0);
             });
+        }
+
+        /* ---- Assembly order ----
+               Order wires (top dots) make the chain. A background wire (lower dots) from a block that is not in the chain
+               places it right before the block it supports. Blocks with no wire come last. With no wires at all it is
+               simply the reading order. ---- */
+        function _pcwOrdered() {
+            var base = _pcwSpatial();
+            if (!_canvasLinks.length) return base;
+            var byId = {},
+                pos = {},
+                indeg = {},
+                outs = {},
+                inFlow = {},
+                support = {},
+                hasBg = {};
+            base.forEach(function(o, k) {
+                if (!o.b.id) return;
+                byId[o.b.id] = o;
+                pos[o.b.id] = k;
+                indeg[o.b.id] = 0;
+                outs[o.b.id] = [];
+            });
+            _canvasLinks.forEach(function(l) {
+                if (!byId[l.from] || !byId[l.to]) return;
+                if (l.kind === 'support') {
+                    (support[l.to] = support[l.to] || []).push(l.from);
+                    hasBg[l.from] = true;
+                    return;
+                }
+                outs[l.from].push(l.to);
+                indeg[l.to]++;
+                inFlow[l.from] = inFlow[l.to] = true;
+            });
+            var byPos = function(p, q) {
+                return pos[p.b.id] - pos[q.b.id];
+            };
+            var ready = base.filter(function(o) {
+                return o.b.id && inFlow[o.b.id] && indeg[o.b.id] === 0;
+            });
+            var chain = [],
+                done = {};
+            while (ready.length) {
+                ready.sort(byPos);
+                var cur = ready.shift();
+                chain.push(cur);
+                done[cur.b.id] = true;
+                outs[cur.b.id].forEach(function(t) {
+                    if (--indeg[t] === 0) ready.push(byId[t]);
+                });
+            }
+            var out = [],
+                emitted = {};
+
+            function emit(o) {
+                if (o.b.id) {
+                    if (emitted[o.b.id]) return;
+                    emitted[o.b.id] = true;
+                    (support[o.b.id] || []).map(function(id) {
+                        return byId[id];
+                    }).filter(function(s) {
+                        return s && !emitted[s.b.id] && !inFlow[s.b.id];
+                    }).sort(byPos).forEach(emit);
+                }
+                out.push(o);
+            }
+            chain.forEach(emit);
+            base.forEach(function(o) {
+                // Background blocks are placed by the block they support
+                if (o.b.id && !inFlow[o.b.id] && hasBg[o.b.id]) return;
+                emit(o);
+            });
+            base.forEach(function(o) {
+                if (o.b.id && !emitted[o.b.id]) emit(o);
+            });
+            return out;
         }
 
         /* ---- Where a new block lands: near view centre, slightly staggered ---- */
@@ -11652,6 +12673,15 @@ Must avoid: [Anything sensitive or previously declined]`
             var world = $('#pcwWorld');
             if (world) {
                 world.style.transform = 'translate(' + _canvasState.panX + 'px,' + _canvasState.panY + 'px) scale(' + _canvasState.zoom + ')';
+            }
+            // The dot grid travels with the board, so it never ends
+            var zoneEl = $('#pcwDropZone');
+            if (zoneEl) {
+                var step = 22;
+                while (step * _canvasState.zoom < 14) step *= 2;
+                var cell = step * _canvasState.zoom;
+                zoneEl.style.backgroundSize = cell + 'px ' + cell + 'px';
+                zoneEl.style.backgroundPosition = _canvasState.panX + 'px ' + _canvasState.panY + 'px';
             }
             var zl = $('#pcwZoomLabel');
             if (zl) zl.textContent = Math.round(_canvasState.zoom * 100) + '%';
@@ -11688,7 +12718,7 @@ Must avoid: [Anything sensitive or previously declined]`
             var w = maxX - minX + pad * 2,
                 h = maxY - minY + pad * 2;
             var z = Math.min(zone.clientWidth / w, zone.clientHeight / h, 1.4);
-            z = Math.max(0.25, Math.min(2, z));
+            z = Math.max(PCW_ZOOM_MIN, Math.min(PCW_ZOOM_MAX, z));
             _canvasState.zoom = z;
             _canvasState.panX = (zone.clientWidth - (maxX - minX) * z) / 2 - minX * z;
             _canvasState.panY = (zone.clientHeight - (maxY - minY) * z) / 2 - minY * z;
@@ -11708,12 +12738,47 @@ Must avoid: [Anything sensitive or previously declined]`
             if (hint) hint.style.display = _canvasBlocks.length ? 'none' : 'flex';
             if (count) count.textContent = _canvasBlocks.length + ' block' + (_canvasBlocks.length !== 1 ? 's' : '');
 
-            // Blocks without coordinates (old drafts, quick-starts, AI build) fall into a tidy column
+            // Blocks without coordinates (old drafts, quick-starts) flow left to right, three to a row, so wires stay visible
             _canvasBlocks.forEach(function(b, i) {
                 if (typeof b.x !== 'number' || typeof b.y !== 'number') {
-                    b.x = 60;
-                    b.y = 60 + i * (b.collapsed ? 64 : 240);
+                    b.x = 60 + (i % 3) * 520;
+                    b.y = 60 + Math.floor(i / 3) * 340;
                 }
+            });
+
+            // Every block carries a stable id so wires can point at it
+            var freshIdx = [];
+            _canvasBlocks.forEach(function(b, i) {
+                if (!b.id) {
+                    b.id = _pcwUid();
+                    freshIdx.push(i);
+                }
+            });
+            var freshIds = {},
+                liveIds = {};
+            freshIdx.forEach(function(i) {
+                freshIds[_canvasBlocks[i].id] = 1;
+            });
+            _canvasBlocks.forEach(function(b) {
+                liveIds[b.id] = 1;
+            });
+            _canvasLinks = _canvasLinks.filter(function(l) {
+                return liveIds[l.from] && liveIds[l.to];
+            });
+            // Several blocks added at once (framework, quick start, cart) arrive wired in order
+            var joinEnd = _pcwAutoLink() && freshIdx.length === 1 && _canvasBlocks.length > 1;
+            if (freshIdx.length > 1 || ((_pcwChainMode || joinEnd) && freshIdx.length)) {
+                var prevId = (_pcwChainMode || joinEnd) ? _pcwTailId(freshIds) : null;
+                freshIdx.forEach(function(i) {
+                    var fid = _canvasBlocks[i].id;
+                    if (prevId) _pcwLink(prevId, fid, true);
+                    prevId = fid;
+                });
+            }
+            var linkedIds = {};
+            _canvasLinks.forEach(function(l) {
+                linkedIds[l.from] = 1;
+                linkedIds[l.to] = 1;
             });
 
             world.innerHTML = '';
@@ -11724,7 +12789,8 @@ Must avoid: [Anything sensitive or previously declined]`
 
             _canvasBlocks.forEach(function(b, idx) {
                 var card = document.createElement('div');
-                card.className = 'pcw-canvas-block pcw-float' + (b.collapsed ? ' collapsed' : '');
+                card.className = 'pcw-canvas-block pcw-float' + (b.collapsed ? ' collapsed' : '') + (_canvasLinks.length && !linkedIds[b.id] ? ' pcw-loose' : '');
+                card.dataset.blockId = b.id;
                 card.style.setProperty('--blk-color', _pcwCatColor(b.cat));
                 card.style.left = (b.x || 0) + 'px';
                 card.style.top = (b.y || 0) + 'px';
@@ -11732,10 +12798,15 @@ Must avoid: [Anything sensitive or previously declined]`
                 var cardBlanks = countBlanks(b.text);
                 var cardSnippet = escH(String(b.text).replace(/\s+/g, ' ').slice(0, 90));
                 card.innerHTML =
+                    '<button type="button" class="pcw-port pcw-port-in" data-port="in" data-slot="0" data-label="Previous step" tabindex="-1" aria-label="Order in: the previous step" title="Order in. Drop the previous block\'s wire here."></button>' +
+                    '<button type="button" class="pcw-port pcw-port-in" data-port="in" data-slot="1" data-label="Background in" tabindex="-1" aria-label="Background in" title="Background in. A block attached here is placed just before this one."></button>' +
+                    '<button type="button" class="pcw-port pcw-port-out" data-port="out" data-slot="0" data-label="Next step (click to add)" tabindex="-1" aria-label="Order out: the next step" title="Order out. Drag to the next block, or click to add one."></button>' +
+                    '<button type="button" class="pcw-port pcw-port-out" data-port="out" data-slot="1" data-label="Use as background" tabindex="-1" aria-label="Background out" title="Background out. Drag to a block this one should support."></button>' +
                     '<div class="pcw-block-header" title="Drag to move — click to collapse">' +
                     '<span class="material-symbols-outlined pcw-block-drag-handle">drag_indicator</span>' +
-                    '<span class="pcw-block-step" title="Assembly order: top to bottom, left to right">' + order[idx] + '</span>' +
+                    '<span class="pcw-block-step" title="Assembly order: follows your wires, then top to bottom">' + order[idx] + '</span>' +
                     '<span class="pcw-block-type-badge">' + escH(b.label) + '</span>' +
+                    (_canvasLinks.length && !linkedIds[b.id] ? '<span class="pcw-loose-chip" title="Not wired, so it goes last in the prompt">not wired</span>' : '') +
                     (cardBlanks ? '<span class="pcw-blank-chip" title="' + cardBlanks + ' unfilled placeholders">' + cardBlanks + '</span>' : '') +
                     '<span class="pcw-block-snippet">' + cardSnippet + '</span>' +
                     '<button type="button" class="pcw-block-collapse" aria-expanded="' + (!b.collapsed) + '" aria-label="Expand or collapse block">' +
@@ -11755,6 +12826,7 @@ Must avoid: [Anything sensitive or previously declined]`
                     _canvasBlocks[idx].text = e.target.value;
                     e.target.style.height = 'auto';
                     e.target.style.height = Math.min(e.target.scrollHeight + 2, 420) + 'px';
+                    _pcwDrawWires();
                     _pcwSaveDraft();
                     _pcwUpdatePreview();
                     _pcwUpdateStats();
@@ -11765,8 +12837,33 @@ Must avoid: [Anything sensitive or previously declined]`
                     renderCanvas();
                 });
                 card.querySelector('.pcw-block-remove').addEventListener('click', function() {
+                    // Removing a block in the middle of a chain joins its neighbours back up
+                    var rid = _canvasBlocks[idx].id;
+                    var preds = _canvasLinks.filter(function(l) {
+                        return l.to === rid && l.kind !== 'support';
+                    }).map(function(l) {
+                        return l.from;
+                    });
+                    var succs = _canvasLinks.filter(function(l) {
+                        return l.from === rid && l.kind !== 'support';
+                    }).map(function(l) {
+                        return l.to;
+                    });
+                    _canvasLinks = _canvasLinks.filter(function(l) {
+                        return l.from !== rid && l.to !== rid;
+                    });
+                    preds.forEach(function(p) {
+                        succs.forEach(function(s2) {
+                            _pcwLink(p, s2, true);
+                        });
+                    });
                     _canvasBlocks.splice(idx, 1);
                     renderCanvas();
+                });
+                card.querySelectorAll('.pcw-port').forEach(function(port) {
+                    port.addEventListener('mousedown', function(e) {
+                        _pcwStartWire(e, b.id, port.dataset.port, parseInt(port.dataset.slot, 10) || 0);
+                    });
                 });
 
                 // Header drag moves the card; a sub-4px press is a collapse toggle
@@ -11790,6 +12887,7 @@ Must avoid: [Anything sensitive or previously declined]`
                             _canvasBlocks[idx].y = origY + (ev.clientY - startY) / _canvasState.zoom;
                             card.style.left = _canvasBlocks[idx].x + 'px';
                             card.style.top = _canvasBlocks[idx].y + 'px';
+                            _pcwDrawWires();
                         }
                     }
 
@@ -11809,15 +12907,405 @@ Must avoid: [Anything sensitive or previously declined]`
                 });
             });
 
+            _pcwDrawWires();
             _pcwApplyView();
             _pcwSaveDraft();
             _pcwUpdatePreview();
             _pcwUpdateStats();
         }
 
+        /* ════════ WIRES: two connection points per block (in on the left, out on the right) ════════ */
+        var _PCW_NS = 'http://www.w3.org/2000/svg';
+
+        function _pcwBlockById(id) {
+            return _canvasBlocks.filter(function(b) {
+                return b.id === id;
+            })[0] || null;
+        }
+
+        // Would a wire from -> to close a loop? True when `to` already leads back to `from`.
+        function _pcwReaches(fromId, toId) {
+            var seen = {},
+                stack = [fromId];
+            while (stack.length) {
+                var cur = stack.pop();
+                if (cur === toId) return true;
+                if (seen[cur]) continue;
+                seen[cur] = 1;
+                _canvasLinks.forEach(function(l) {
+                    if (l.from === cur) stack.push(l.to);
+                });
+            }
+            return false;
+        }
+
+        // kind: "flow" sets the order (top dots), "support" attaches background (lower dots)
+        function _pcwLink(from, to, quiet, kind) {
+            if (!from || !to || from === to) return false;
+            kind = kind === 'support' ? 'support' : 'flow';
+            var existing = _canvasLinks.filter(function(l) {
+                return l.from === from && l.to === to;
+            })[0];
+            if (existing) {
+                // The same pair again switches the wire between order and background
+                if ((existing.kind || 'flow') === kind) {
+                    if (!quiet) toast('Already connected', 'info');
+                    return false;
+                }
+                existing.kind = kind;
+                return true;
+            }
+            if (_pcwReaches(to, from)) {
+                if (!quiet) toast('That would make a loop. Connect to a block that comes later.', 'warning');
+                return false;
+            }
+            _canvasLinks.push({
+                from: from,
+                to: to,
+                kind: kind
+            });
+            return true;
+        }
+
+        // End of the current chain: where a new block joins. Falls back to the last block in reading order.
+        function _pcwTailId(skip) {
+            var ord = _pcwOrdered().filter(function(o) {
+                return !skip[o.b.id];
+            });
+            var inFlow = {};
+            _canvasLinks.forEach(function(l) {
+                if (l.kind !== 'support') inFlow[l.from] = inFlow[l.to] = true;
+            });
+            var chain = ord.filter(function(o) {
+                return inFlow[o.b.id];
+            });
+            var pool = chain.length ? chain : ord;
+            for (var i = pool.length - 1; i >= 0; i--) {
+                var id = pool[i].b.id;
+                var hasOut = _canvasLinks.some(function(l) {
+                    return l.from === id && l.kind !== 'support';
+                });
+                if (!hasOut) return id;
+            }
+            return null;
+        }
+
+        function _pcwPortPos(id, side, slot) {
+            var b = _pcwBlockById(id);
+            if (!b) return null;
+            var el = document.querySelector('#pcwWorld .pcw-canvas-block[data-block-id="' + id + '"]');
+            var w = el ? el.offsetWidth : 380,
+                h = el ? el.offsetHeight : 120;
+            return {
+                x: (b.x || 0) + (side === 'out' ? w : 0),
+                y: (b.y || 0) + h * (slot ? 0.7 : 0.3)
+            };
+        }
+
+        function _pcwWireD(p1, p2) {
+            var dx = Math.max(40, Math.min(180, Math.abs(p2.x - p1.x) / 2));
+            return 'M' + p1.x + ' ' + p1.y + ' C' + (p1.x + dx) + ' ' + p1.y + ' ' + (p2.x - dx) + ' ' + p2.y + ' ' + p2.x + ' ' + p2.y;
+        }
+
+        function _pcwSvg() {
+            var world = $('#pcwWorld');
+            if (!world) return null;
+            var svg = world.querySelector('.pcw-wires');
+            if (!svg) {
+                svg = document.createElementNS(_PCW_NS, 'svg');
+                svg.setAttribute('class', 'pcw-wires');
+                svg.setAttribute('aria-hidden', 'true');
+                world.insertBefore(svg, world.firstChild);
+                svg.addEventListener('click', function(e) {
+                    var g = e.target.closest('.pcw-wire-g');
+                    if (!g) return;
+                    var key = g.getAttribute('data-link');
+                    if (e.target.closest('.pcw-wire-del')) {
+                        _pcwRemoveLink(key);
+                        return;
+                    }
+                    _pcwSelLink = _pcwSelLink === key ? null : key;
+                    _pcwDrawWires();
+                });
+            }
+            return svg;
+        }
+
+        function _pcwDrawWires() {
+            var svg = _pcwSvg();
+            if (!svg) return;
+            var html = '<defs><marker id="pcw-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 1L10 5L0 9z" fill="context-stroke"/></marker></defs>';
+            _canvasLinks.forEach(function(l) {
+                var slot = l.kind === 'support' ? 1 : 0;
+                var p1 = _pcwPortPos(l.from, 'out', slot),
+                    p2 = _pcwPortPos(l.to, 'in', slot);
+                if (!p1 || !p2) return;
+                var key = l.from + '>' + l.to;
+                var src = _pcwBlockById(l.from);
+                // The arrow stops at the edge of the input dot
+                var d = _pcwWireD(p1, {
+                    x: p2.x - 9,
+                    y: p2.y
+                });
+                var mx = (p1.x + p2.x) / 2,
+                    my = (p1.y + p2.y) / 2;
+                html += '<g class="pcw-wire-g' + (_pcwSelLink === key ? ' selected' : '') + '" data-link="' + key + '">' +
+                    '<path class="pcw-wire-hit" d="' + d + '"/>' +
+                    '<path class="pcw-wire' + (slot ? ' pcw-wire-support' : '') + '" d="' + d + '" marker-end="url(#pcw-arrow)" style="stroke:' + _pcwCatColor(src && src.cat) + '"/>' +
+                    '<g class="pcw-wire-del" transform="translate(' + mx + ',' + my + ')"><title>Remove this wire</title><circle r="9"/><path d="M-3.5 -3.5L3.5 3.5M3.5 -3.5L-3.5 3.5"/></g></g>';
+            });
+            svg.innerHTML = html;
+        }
+
+        function _pcwRemoveLink(key) {
+            _canvasLinks = _canvasLinks.filter(function(l) {
+                return (l.from + '>' + l.to) !== key;
+            });
+            _pcwSelLink = null;
+            renderCanvas();
+        }
+
+        // The block under the pointer
+        function _pcwBlockAt(ev) {
+            var el = document.elementFromPoint(ev.clientX, ev.clientY);
+            var card = el && el.closest ? el.closest('.pcw-canvas-block') : null;
+            return card ? {
+                id: card.dataset.blockId,
+                el: card
+            } : null;
+        }
+
+        // Drag from a dot to another block. The top dots set the order, the lower dots attach background.
+        // A plain click on a top right dot opens "add the next block". Dragging from an input wires backwards.
+        function _pcwStartWire(e, id, side, slot) {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            e.stopPropagation();
+            _pcwClosePicker();
+            var kind = slot ? 'support' : 'flow';
+            var zone = $('#pcwDropZone'),
+                svg = _pcwSvg(),
+                anchor = _pcwPortPos(id, side, slot);
+            if (!zone || !svg || !anchor) return;
+            var src = _pcwBlockById(id);
+            var temp = document.createElementNS(_PCW_NS, 'path');
+            temp.setAttribute('class', 'pcw-wire pcw-wire-temp' + (slot ? ' pcw-wire-support' : ''));
+            temp.style.stroke = _pcwCatColor(src && src.cat);
+            svg.appendChild(temp);
+            zone.classList.add('connecting');
+            var want = side === 'out' ? 'in' : 'out';
+            var hotCard = null,
+                hotPort = null,
+                moved = false,
+                sx = e.clientX,
+                sy = e.clientY;
+
+            function clearHot() {
+                if (hotCard) hotCard.classList.remove('pcw-wire-target');
+                if (hotPort) hotPort.classList.remove('pcw-port-hot');
+                hotCard = hotPort = null;
+            }
+
+            function toWorld(ev) {
+                var r = zone.getBoundingClientRect();
+                return {
+                    x: (ev.clientX - r.left - _canvasState.panX) / _canvasState.zoom,
+                    y: (ev.clientY - r.top - _canvasState.panY) / _canvasState.zoom
+                };
+            }
+
+            function onMove(ev) {
+                if (!moved && Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) > 5) moved = true;
+                var p = toWorld(ev);
+                temp.setAttribute('d', side === 'out' ? _pcwWireD(anchor, p) : _pcwWireD(p, anchor));
+                var t = moved ? _pcwBlockAt(ev) : null;
+                var card = t && t.id !== id ? t.el : null;
+                var port = card ? card.querySelector('.pcw-port-' + want + '[data-slot="' + slot + '"]') : null;
+                if (card !== hotCard || port !== hotPort) {
+                    clearHot();
+                    if (card) card.classList.add('pcw-wire-target');
+                    if (port) port.classList.add('pcw-port-hot');
+                    hotCard = card;
+                    hotPort = port;
+                }
+            }
+
+            function onUp(ev) {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                zone.classList.remove('connecting');
+                clearHot();
+                if (temp.parentNode) temp.parentNode.removeChild(temp);
+                if (!moved) {
+                    if (side === 'out' && !slot) _pcwOpenPicker(id);
+                    return;
+                }
+                var t = _pcwBlockAt(ev);
+                if (t && t.id !== id) {
+                    var made = side === 'out' ? _pcwLink(id, t.id, false, kind) : _pcwLink(t.id, id, false, kind);
+                    if (made) renderCanvas();
+                }
+            }
+            onMove(e);
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        }
+
+        /* ---- Add the next block: click a top right dot ---- */
+        var _pcwPickerEl = null;
+
+        function _pcwClosePicker() {
+            if (!_pcwPickerEl) return;
+            _pcwPickerEl.remove();
+            _pcwPickerEl = null;
+            document.removeEventListener('mousedown', _pcwPickerAway, true);
+            document.removeEventListener('keydown', _pcwPickerKey, true);
+        }
+
+        function _pcwPickerAway(e) {
+            if (_pcwPickerEl && !_pcwPickerEl.contains(e.target)) _pcwClosePicker();
+        }
+
+        function _pcwPickerKey(e) {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                _pcwClosePicker();
+            }
+        }
+
+        // A spot to the right of a block that no other block is sitting on
+        function _pcwFreeSpot(x, y) {
+            for (var i = 0; i < 14; i++) {
+                var taken = _canvasBlocks.some(function(b) {
+                    return Math.abs((b.x || 0) - x) < 400 && Math.abs((b.y || 0) - y) < 260;
+                });
+                if (!taken) break;
+                y += 340;
+            }
+            return {
+                x: x,
+                y: y
+            };
+        }
+
+        // Pan the board only when the block is off screen
+        function _pcwReveal(id) {
+            var zone = $('#pcwDropZone'),
+                b = _pcwBlockById(id);
+            if (!zone || !b) return;
+            var z = _canvasState.zoom;
+            var left = b.x * z + _canvasState.panX,
+                top = b.y * z + _canvasState.panY;
+            if (left < 20 || top < 20 || left + 380 * z > zone.clientWidth - 20 || top + 200 * z > zone.clientHeight - 20) {
+                _canvasState.panX = zone.clientWidth / 2 - (b.x + 190) * z;
+                _canvasState.panY = zone.clientHeight / 2 - (b.y + 90) * z;
+                _pcwApplyView();
+                _pcwSaveDraft();
+            }
+        }
+
+        function _pcwAddAfter(fromId, item) {
+            var src = _pcwBlockById(fromId);
+            if (!src || !item) return;
+            var spot = _pcwFreeSpot((src.x || 0) + 520, src.y || 0);
+            var blk = {
+                id: _pcwUid(),
+                label: item.label,
+                text: item.text,
+                cat: item.cat || null,
+                collapsed: false,
+                x: spot.x,
+                y: spot.y
+            };
+            _canvasBlocks.push(blk);
+            _pcwLink(fromId, blk.id, true);
+            renderCanvas();
+            _pcwReveal(blk.id);
+        }
+
+        function _pcwOpenPicker(fromId) {
+            _pcwClosePicker();
+            var zone = $('#pcwDropZone'),
+                p = _pcwPortPos(fromId, 'out', 0);
+            if (!zone || !p) return;
+            var el = document.createElement('div');
+            el.className = 'pcw-picker';
+            el.setAttribute('role', 'dialog');
+            el.setAttribute('aria-label', 'Add the next block');
+            el.innerHTML = '<div class="pcw-picker-head">Add the next block</div>' +
+                '<input type="search" class="form-input" placeholder="Search blocks" aria-label="Search blocks" autocomplete="off">' +
+                '<ul class="pcw-picker-list"></ul>' +
+                '<button type="button" class="pcw-picker-more">Browse the whole library</button>';
+            var left = p.x * _canvasState.zoom + _canvasState.panX + 18;
+            var top = p.y * _canvasState.zoom + _canvasState.panY - 24;
+            el.style.left = Math.max(8, Math.min(left, zone.clientWidth - 300)) + 'px';
+            el.style.top = Math.max(8, Math.min(top, zone.clientHeight - 340)) + 'px';
+            zone.appendChild(el);
+            _pcwPickerEl = el;
+            var QUICK = ['Role', 'Context', 'Task', 'Constraints', 'Examples', 'Output Format'];
+            var input = el.querySelector('input'),
+                list = el.querySelector('.pcw-picker-list');
+
+            function draw() {
+                var q = input.value.trim().toLowerCase();
+                var items = [];
+                if (!q) {
+                    QUICK.forEach(function(lbl) {
+                        var hit = BLOCKS.filter(function(b) {
+                            return b.label === lbl;
+                        })[0];
+                        if (hit) items.push(hit);
+                    });
+                } else {
+                    items = BLOCKS.filter(function(b) {
+                        return (b.label || '').toLowerCase().indexOf(q) !== -1 || (b.text || '').toLowerCase().indexOf(q) !== -1;
+                    }).slice(0, 8);
+                }
+                list.innerHTML = items.length ? items.map(function(b) {
+                    return '<li><button type="button" data-bi="' + BLOCKS.indexOf(b) + '"><span class="pcw-picker-dot" style="background:' + _pcwCatColor(b.cat) + '"></span><span>' + escH(b.label) + '</span></button></li>';
+                }).join('') : '<li class="pcw-picker-empty">No blocks match</li>';
+            }
+            draw();
+            input.addEventListener('input', draw);
+            list.addEventListener('click', function(ev) {
+                var btn = ev.target.closest('[data-bi]');
+                if (!btn) return;
+                _pcwClosePicker();
+                _pcwAddAfter(fromId, BLOCKS[parseInt(btn.dataset.bi, 10)]);
+            });
+            el.querySelector('.pcw-picker-more').addEventListener('click', function() {
+                _pcwClosePicker();
+                _galOpen({
+                    mode: 'home'
+                });
+            });
+            document.addEventListener('mousedown', _pcwPickerAway, true);
+            document.addEventListener('keydown', _pcwPickerKey, true);
+            input.focus();
+        }
+
+        // Wire every block to the next one in reading order
+        function _pcwChainAll() {
+            _canvasLinks = [];
+            var ord = _pcwSpatial();
+            for (var i = 1; i < ord.length; i++) _pcwLink(ord[i - 1].b.id, ord[i].b.id, true);
+            renderCanvas();
+        }
+
         /* ---- Add block to canvas ---- */
+        // New blocks join the end of the chain (switch off in the help card). Without a drop position they land to its right.
+        function _pcwAutoLink() {
+            var v = window.PL_prefs ? window.PL_prefs.get('pcw_autolink') : null;
+            return v !== '0';
+        }
+
         function addBlock(label, text, cat, pos) {
-            var p = pos || _pcwNextPos();
+            var p = pos;
+            if (!p) {
+                var tailId = _pcwAutoLink() && _canvasBlocks.length ? _pcwTailId({}) : null;
+                var tail = tailId ? _pcwBlockById(tailId) : null;
+                p = tail ? _pcwFreeSpot((tail.x || 0) + 520, tail.y || 0) : _pcwNextPos();
+            }
             _canvasBlocks.push({
                 label: label,
                 text: text,
@@ -11827,6 +13315,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 y: p.y
             });
             renderCanvas();
+            _pcwReveal(_canvasBlocks[_canvasBlocks.length - 1].id);
         }
 
         function _pcwCatColor(cat) {
@@ -11839,12 +13328,27 @@ Must avoid: [Anything sensitive or previously declined]`
         /* ---- Add framework ---- */
         function addFramework(fw) {
             if (fw.blocks) {
+                var base = _pcwNextPos(),
+                    n = 0;
                 fw.blocks.forEach(function(blockLabel) {
                     var b = BLOCKS.filter(function(x) {
                         return x.label === blockLabel;
                     })[0];
-                    if (b) addBlock(b.label, b.text);
+                    if (!b) return;
+                    _canvasBlocks.push({
+                        label: b.label,
+                        text: b.text,
+                        cat: b.cat || null,
+                        collapsed: false,
+                        x: base.x + (n % 3) * 520,
+                        y: base.y + Math.floor(n / 3) * 340
+                    });
+                    n++;
                 });
+                if (n) {
+                    renderCanvas();
+                    if (n > 1) _pcwFitView();
+                }
             } else if (fw.text) {
                 addBlock(fw.name, fw.text);
             }
@@ -11941,7 +13445,11 @@ Must avoid: [Anything sensitive or previously declined]`
                 var fwIdx = e.dataTransfer.getData('pcw-fw');
                 if (blockIdx !== '') {
                     var b = BLOCKS[parseInt(blockIdx, 10)];
-                    if (b) addBlock(b.label, b.text, b.cat);
+                    var zr = zone.getBoundingClientRect();
+                    if (b) addBlock(b.label, b.text, b.cat, {
+                        x: (e.clientX - zr.left - _canvasState.panX) / _canvasState.zoom - 190,
+                        y: (e.clientY - zr.top - _canvasState.panY) / _canvasState.zoom - 30
+                    });
                 } else if (fwIdx !== '') {
                     var f = FRAMEWORKS[parseInt(fwIdx, 10)];
                     if (f) addFramework(f);
@@ -12044,9 +13552,9 @@ Must avoid: [Anything sensitive or previously declined]`
                     label: it.label,
                     text: it.text,
                     cat: it.cat || null,
-                    collapsed: i < _galCart.length - 1,
-                    x: base.x,
-                    y: base.y + i * 70
+                    collapsed: false,
+                    x: base.x + (i % 3) * 520,
+                    y: base.y + Math.floor(i / 3) * 340
                 });
             });
             var n = _galCart.length;
@@ -12501,6 +14009,7 @@ Must avoid: [Anything sensitive or previously declined]`
             _aiClose();
             if (replace) {
                 _canvasBlocks = [];
+                _canvasLinks = [];
                 renderCanvas();
             }
             if (opt.title && $('#pcwTitleInput') && !$('#pcwTitleInput').value.trim()) {
@@ -12516,12 +14025,13 @@ Must avoid: [Anything sensitive or previously declined]`
             var zone = $('#pcwDropZone');
             var startCount = _canvasBlocks.length;
             var first = true;
+            _pcwChainMode = true; // blocks the AI adds one by one are wired in order
 
             try {
                 for (var i = 0; i < items.length; i++) {
                     var b = items[i];
-                    var tx = 80,
-                        ty = 80 + (startCount + i) * 70;
+                    var tx = 80 + ((startCount + i) % 3) * 520,
+                        ty = 80 + Math.floor((startCount + i) / 3) * 340;
                     var wsOpen = ws && ws.classList.contains('open');
                     if (_aiSkip || reduced || !wsOpen) {
                         _galClose();
@@ -12529,7 +14039,7 @@ Must avoid: [Anything sensitive or previously declined]`
                             label: b.label,
                             text: b.text,
                             cat: b.cat,
-                            collapsed: i < items.length - 1,
+                            collapsed: false,
                             x: tx,
                             y: ty
                         });
@@ -12607,7 +14117,7 @@ Must avoid: [Anything sensitive or previously declined]`
                         label: b.label,
                         text: b.text,
                         cat: b.cat,
-                        collapsed: i < items.length - 1,
+                        collapsed: false,
                         x: tx,
                         y: ty
                     });
@@ -12621,6 +14131,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 if (ws) ws.classList.remove('pcw-ai-driving');
             }
             renderCanvas();
+            _pcwChainMode = false;
             var sheet = $('#pcwPreviewSheet');
             if (sheet && !sheet.classList.contains('open')) {
                 sheet.classList.add('open');
@@ -12668,6 +14179,25 @@ Must avoid: [Anything sensitive or previously declined]`
             if (!ws) return;
             ws._pcwWired = true;
 
+            // Context Bank: a block becomes a canvas block carrying its text
+            window.PL_pcwAddContext = function(b) {
+                addBlock(b.title, b.content, 'Context');
+                _pcwFitView();
+                toast('Context block added to the canvas', 'success');
+            };
+            var _pcwBrowse = $('#pcwBrowseBtn');
+            if (_pcwBrowse && window.PL_ctxPicker && !$('#pcwContextBtn')) {
+                var _pcwCtx = document.createElement('button');
+                _pcwCtx.className = 'btn btn-ghost';
+                _pcwCtx.id = 'pcwContextBtn';
+                _pcwCtx.title = 'Add a block from the Context Bank';
+                _pcwCtx.innerHTML = '<span class="material-symbols-outlined">database</span> Context';
+                _pcwBrowse.parentNode.insertBefore(_pcwCtx, _pcwBrowse);
+                _pcwCtx.addEventListener('click', function() {
+                    window.PL_ctxPicker(_pcwCtx, null, { onPick: window.PL_pcwAddContext });
+                });
+            }
+
             // Search input
             if ($('#pcwPaletteSearch')) {
                 $('#pcwPaletteSearch').addEventListener('input', function(e) {
@@ -12692,6 +14222,7 @@ Must avoid: [Anything sensitive or previously declined]`
                         btn.innerHTML = '<span class="material-symbols-outlined">restart_alt</span> Clear canvas';
                         btn.style.cssText = '';
                         _canvasBlocks = [];
+                        _canvasLinks = [];
                         renderCanvas();
                     } else {
                         _pcwClearArmed = true;
@@ -12868,10 +14399,15 @@ Must avoid: [Anything sensitive or previously declined]`
             var zoneEl = $('#pcwDropZone');
             if (zoneEl) {
                 zoneEl.addEventListener('mousedown', function(e) {
-                    if (e.button !== 0) return;
-                    if (e.target.closest('.pcw-canvas-block') || e.target.closest('.pcw-quickstarts') ||
-                        e.target.closest('.pcw-view-tools') || e.target.closest('button')) return;
+                    if (e.button !== 0 && e.button !== 1) return;
+                    if (e.button === 0 && (e.target.closest('.pcw-canvas-block') || e.target.closest('.pcw-quickstarts') ||
+                            e.target.closest('.pcw-view-tools') || e.target.closest('button') || e.target.closest('.pcw-wire-g') || e.target.closest('.pcw-help') || e.target.closest('.pcw-picker'))) return;
+                    if (e.button === 1 && e.target.closest('.pcw-view-tools')) return;
                     e.preventDefault();
+                    if (_pcwSelLink) {
+                        _pcwSelLink = null;
+                        _pcwDrawWires();
+                    }
                     var sx = e.clientX,
                         sy = e.clientY;
                     var ox = _canvasState.panX,
@@ -12900,7 +14436,7 @@ Must avoid: [Anything sensitive or previously declined]`
                         var mx = e.clientX - rect.left,
                             my = e.clientY - rect.top;
                         var oldZ = _canvasState.zoom;
-                        var z = Math.max(0.25, Math.min(2, oldZ * (e.deltaY < 0 ? 1.1 : 0.9)));
+                        var z = Math.max(PCW_ZOOM_MIN, Math.min(PCW_ZOOM_MAX, oldZ * (e.deltaY < 0 ? 1.1 : 0.9)));
                         _canvasState.panX = mx - (mx - _canvasState.panX) * (z / oldZ);
                         _canvasState.panY = my - (my - _canvasState.panY) * (z / oldZ);
                         _canvasState.zoom = z;
@@ -12916,16 +14452,64 @@ Must avoid: [Anything sensitive or previously declined]`
                 });
             }
             if ($('#pcwZoomInBtn')) $('#pcwZoomInBtn').addEventListener('click', function() {
-                _canvasState.zoom = Math.min(2, _canvasState.zoom * 1.2);
+                _canvasState.zoom = Math.min(PCW_ZOOM_MAX, _canvasState.zoom * 1.2);
                 _pcwApplyView();
                 _pcwSaveDraft();
             });
             if ($('#pcwZoomOutBtn')) $('#pcwZoomOutBtn').addEventListener('click', function() {
-                _canvasState.zoom = Math.max(0.25, _canvasState.zoom / 1.2);
+                _canvasState.zoom = Math.max(PCW_ZOOM_MIN, _canvasState.zoom / 1.2);
                 _pcwApplyView();
                 _pcwSaveDraft();
             });
             if ($('#pcwFitBtn')) $('#pcwFitBtn').addEventListener('click', _pcwFitView);
+            // How wiring works: shown until dismissed, remembered in the database
+            function _pcwSyncHelp() {
+                var card = $('#pcwHelp');
+                if (!card) return;
+                var pref = window.PL_prefs ? window.PL_prefs.get('pcw_help') : null;
+                card.hidden = pref === 'hidden';
+                var box = $('#pcwAutoLink');
+                if (box) box.checked = _pcwAutoLink();
+            }
+            if (window.PL_prefs) window.PL_prefs.ready.then(_pcwSyncHelp);
+            _pcwSyncHelp();
+            if ($('#pcwHelpBtn')) $('#pcwHelpBtn').addEventListener('click', function() {
+                var card = $('#pcwHelp');
+                if (!card) return;
+                card.hidden = !card.hidden;
+                if (window.PL_prefs) window.PL_prefs.set('pcw_help', card.hidden ? 'hidden' : 'shown');
+            });
+            if ($('#pcwHelpClose')) $('#pcwHelpClose').addEventListener('click', function() {
+                $('#pcwHelp').hidden = true;
+                if (window.PL_prefs) window.PL_prefs.set('pcw_help', 'hidden');
+            });
+            if ($('#pcwAutoLink')) $('#pcwAutoLink').addEventListener('change', function(e) {
+                if (window.PL_prefs) window.PL_prefs.set('pcw_autolink', e.target.checked ? '1' : '0');
+            });
+            if ($('#pcwChainBtn')) $('#pcwChainBtn').addEventListener('click', function() {
+                if (!_canvasBlocks.length) {
+                    toast('Add some blocks first', 'info');
+                    return;
+                }
+                _pcwChainAll();
+                toast('Blocks wired in reading order', 'success');
+            });
+            if ($('#pcwUnlinkBtn')) $('#pcwUnlinkBtn').addEventListener('click', function() {
+                if (!_canvasLinks.length) return;
+                _canvasLinks = [];
+                _pcwSelLink = null;
+                renderCanvas();
+                toast('All wires removed. The prompt reads top to bottom again.', 'info');
+            });
+            document.addEventListener('keydown', function(e) {
+                if ((e.key !== 'Delete' && e.key !== 'Backspace') || !_pcwSelLink) return;
+                var wsEl = $('#componentsWorkspace');
+                if (!wsEl || !wsEl.classList.contains('open')) return;
+                var tg = e.target.tagName;
+                if (tg === 'INPUT' || tg === 'TEXTAREA' || tg === 'SELECT') return;
+                e.preventDefault();
+                _pcwRemoveLink(_pcwSelLink);
+            });
 
             // Component gallery wiring
             function _openGalleryHome() {
@@ -13111,6 +14695,7 @@ Must avoid: [Anything sensitive or previously declined]`
                     });
                 });
                 renderCanvas();
+                _pcwFitView();
             });
 
             // Keyboard add: Enter or Space on a focused palette row
@@ -14603,6 +16188,7 @@ Must avoid: [Anything sensitive or previously declined]`
         { key: 'undescribed', label: 'No description', icon: 'description' },
         { key: 'thin', label: 'Thin content', icon: 'compress' },
         { key: 'stale', label: 'Stale (90+ days)', icon: 'history' },
+        { key: 'everything', label: 'Every prompt', icon: 'style' },
         { key: 'duplicates', label: 'Duplicates', icon: 'content_copy' },
     ];
     const PULSE_BADGE_LABEL = { untagged: 'No tags', uncategorised: 'No category', undescribed: 'No description', thin: 'Thin content', stale: 'Stale 90+ days' };
@@ -14611,6 +16197,24 @@ Must avoid: [Anything sensitive or previously declined]`
     let _pulseFilter = 'all';
     let _pulseIndex = 0;
     let _pulseResolved = 0;
+
+    // Swipe deck: right keeps, left adds the Archive category, delete waits in a marked pile until confirmed
+    const PULSE_ARCHIVE = 'Archive';
+    const PULSE_KEPT_KEY = 'pl.organiserKept';
+    const PULSE_ISSUE_KEYS = ['untagged', 'uncategorised', 'undescribed', 'thin', 'stale'];
+    const _pulsePendingDel = new Map();
+    let _pulseDeck = null;
+    let _pulseDeckFilter = '';
+    let _pulseDeckLoading = false;
+    const _pulseIsArchived = p => (Array.isArray(p.categories) ? p.categories : []).some(c => String(c).trim().toLowerCase() === 'archive');
+
+    function _pulseKeptGet() {
+        try { return JSON.parse(localStorage.getItem(PULSE_KEPT_KEY) || '{}') || {}; } catch { return {}; }
+    }
+
+    function _pulseKeptSet(map) {
+        try { localStorage.setItem(PULSE_KEPT_KEY, JSON.stringify(map)); } catch {}
+    }
 
     function _pulseScoreFor(list, issues, dupCount) {
         const total = list.length || 1;
@@ -14624,7 +16228,7 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     function _pulseLiveIssues() {
-        const list = _pulseData.list;
+        const list = _pulseData.list.filter(p => !_pulseIsArchived(p) && !_pulsePendingDel.has(p.id));
         const metaEmpty = v => Array.isArray(v) ? !v.length : !String(v || '').trim();
         const cutoff = Date.now() - 90 * 24 * 3600 * 1000;
         const idSet = new Set(list.map(p => p.id));
@@ -14638,6 +16242,11 @@ Must avoid: [Anything sensitive or previously declined]`
                 return !isNaN(d) && d < cutoff;
             }),
             duplicates: _pulseData.dupPairs.filter(([a, b]) => idSet.has(a.id) && idSet.has(b.id)),
+            everything: (() => {
+                const kept = _pulseKeptGet();
+                const when = p => Date.parse(p.updated_at || p.created_at || '') || 0;
+                return list.filter(p => !kept[p.id]).sort((a, b) => when(a) - when(b));
+            })(),
         };
     }
 
@@ -14673,6 +16282,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 }
             }
             _pulseData = { list, dupPairs, cappedNote: list.length > 500 };
+            _pulseDeckDrop();
             _pulseResolved = 0;
             _pulseFilter = 'all';
             _pulseIndex = 0;
@@ -14752,24 +16362,60 @@ Must avoid: [Anything sensitive or previously declined]`
         const issues = _pulseLiveIssues();
 
         if (_pulseFilter === 'duplicates') {
+            _pulseDeckDrop();
             _pulseRenderDupStack(stack, issues.duplicates);
             return;
         }
 
-        const queue = _pulseFilter === 'all' ? _pulseAllQueue(issues) : issues[_pulseFilter].map(p => ({ p, keys: [_pulseFilter] }));
-        if (_pulseIndex >= queue.length) _pulseIndex = Math.max(0, queue.length - 1);
-
-        if (!queue.length) {
-            stack.innerHTML = '<div class="pulse-clear"><span class="material-symbols-outlined">task_alt</span>' +
-                '<div class="pulse-card-title">All clear here</div><p class="hint">Nothing left to sort in this pile.</p></div>';
+        if (!window.PL_SwipeDeck) {
+            _pulseLoadDeck();
+            stack.innerHTML = '<div class="pulse-clear"><span class="material-symbols-outlined">hourglass_top</span><div class="pulse-card-title">Shuffling the deck…</div></div>';
             return;
         }
+        if (_pulseDeck && _pulseDeckFilter === _pulseFilter) {
+            _pulseDeck.render();
+            return;
+        }
+        _pulseDeckDrop();
+        _pulseDeckFilter = _pulseFilter;
+        stack.style.overflowY = 'auto';
+        stack.style.overflowX = 'hidden';
+        _pulseDeck = window.PL_SwipeDeck.create(stack, {
+            items: () => _pulseQueueFor(_pulseDeckFilter, _pulseLiveIssues()),
+            key: e => e.p.id,
+            title: e => e.p.title || 'Untitled',
+            cardHtml: _pulseCardHtml,
+            peekHtml: e => '<div class="pulse-card-title">' + escapeHtml(e.p.title || 'Untitled') + '</div><div class="pulse-card-preview">' + escapeHtml((e.p.content || '').slice(0, 160)) + '</div>',
+            hint: 'Drag right to keep, left to archive. Arrow keys work too, Delete marks it, Z undoes.',
+            emptyHtml: () => _pulseDeckFilter === 'everything'
+                ? '<strong>You have been through every prompt</strong>Kept prompts stay out of this pile next time.<div style="margin-top:12px"><button type="button" class="btn btn-ghost" data-pulse-restart>Start over</button></div>'
+                : '<strong>All clear here</strong>Nothing left to sort in this pile.',
+            footHtml: () => {
+                const n = _pulsePendingDel.size;
+                if (!n) return '';
+                return '<div class="sd-foot"><span>' + n + ' marked to delete. Nothing is deleted until you confirm.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" data-pulse-unmark style="background:transparent;color:inherit;border:1px solid currentColor">Unmark</button><button type="button" data-pulse-commit>Delete ' + n + ' now</button></span></div>';
+            },
+            afterRender: (root, entry) => _pulseBindCard(root, entry),
+            onAction: _pulseDeckAction,
+            onChange: () => { _pulseRenderStats(); _pulseRenderRail(); },
+        });
+    }
 
-        const entry = queue[_pulseIndex];
+    function _pulseKeysOf(p, issues) {
+        return PULSE_ISSUE_KEYS.filter(k => issues[k].includes(p));
+    }
+
+    function _pulseQueueFor(key, issues) {
+        if (key === 'all') return _pulseAllQueue(issues);
+        return (issues[key] || []).map(p => ({ p, keys: key === 'everything' ? null : [key] }));
+    }
+
+    function _pulseCardHtml(entry) {
         const p = entry.p;
-        const keys = entry.keys;
-        const badges = keys.map(k => '<span class="pulse-badge' + (k === 'stale' ? ' pulse-badge-stale' : '') + '">' + PULSE_BADGE_LABEL[k] + '</span>').join('');
-
+        const keys = entry.keys || _pulseKeysOf(p, _pulseLiveIssues());
+        const badges = keys.length
+            ? keys.map(k => '<span class="pulse-badge' + (k === 'stale' ? ' pulse-badge-stale' : '') + '">' + PULSE_BADGE_LABEL[k] + '</span>').join('')
+            : '<span class="pulse-badge pulse-badge-stale">No issues found</span>';
         let fixHtml = '';
         if (keys.includes('untagged')) {
             fixHtml += '<div class="pulse-fix"><div class="pulse-fix-label">Add a tag</div><div class="pulse-fix-row"><input type="text" placeholder="e.g. marketing" data-pulse-tag-input /><button type="button" class="btn btn-primary btn-xs" data-pulse-add-tag>Add</button></div></div>';
@@ -14780,38 +16426,144 @@ Must avoid: [Anything sensitive or previously declined]`
         if (keys.includes('undescribed')) {
             fixHtml += '<div class="pulse-fix"><div class="pulse-fix-label">Write a description</div><div class="pulse-fix-row"><textarea placeholder="One line about what this prompt does…" data-pulse-desc-input></textarea></div><div class="pulse-fix-row"><button type="button" class="btn btn-primary btn-xs" data-pulse-save-desc>Save</button></div></div>';
         }
-
-        const actions = ['<button type="button" class="btn btn-ghost" data-pulse-open="' + p.id + '"><span class="material-symbols-outlined">open_in_new</span> Open</button>'];
+        const extra = ['<button type="button" class="btn btn-ghost btn-xs" data-pulse-open="' + p.id + '"><span class="material-symbols-outlined">open_in_new</span> Open</button>'];
         if (keys.includes('stale')) {
-            actions.push('<button type="button" class="btn btn-ghost" data-pulse-mark-reviewed><span class="material-symbols-outlined">check</span> Mark reviewed</button>');
+            extra.push('<button type="button" class="btn btn-ghost btn-xs" data-pulse-mark-reviewed><span class="material-symbols-outlined">check</span> Mark reviewed</button>');
         }
-        actions.push('<button type="button" class="btn btn-danger" data-pulse-delete><span class="material-symbols-outlined">delete</span> Delete</button>');
-        actions.push('<button type="button" class="btn btn-ghost" data-pulse-skip>Skip <span class="material-symbols-outlined">arrow_forward</span></button>');
-
-        stack.innerHTML =
-            '<div class="pulse-stack-progress"><div class="pulse-stack-progress-fill" style="width:' + Math.round((_pulseIndex / queue.length) * 100) + '%"></div></div>' +
-            '<div class="pulse-card-active">' +
-            '<div class="pulse-card-eyebrow">' + (_pulseIndex + 1) + ' of ' + queue.length + '</div>' +
+        const cats = (Array.isArray(p.categories) ? p.categories : []).slice(0, 3).map(c => escapeHtml(c)).join(', ');
+        return '<div class="pulse-card-eyebrow">' + (cats || 'No category') + '</div>' +
             '<div class="pulse-card-title" data-pulse-open="' + p.id + '">' + escapeHtml(p.title || 'Untitled') + '</div>' +
-            '<div class="pulse-card-preview">' + escapeHtml((p.content || '').slice(0, 220)) + '</div>' +
+            '<div class="pulse-card-preview" style="max-height:7.2em">' + escapeHtml((p.content || '').slice(0, 420)) + '</div>' +
             '<div class="pulse-badges">' + badges + '</div>' +
             fixHtml +
-            '<div class="pulse-actions">' + actions.join('') + '</div>' +
-            '</div>';
+            '<div class="pulse-actions" style="margin-top:0">' + extra.join('') + '</div>';
+    }
 
-        _pulseOpenHandlers(stack);
-        stack.querySelector('[data-pulse-add-tag]')?.addEventListener('click', () => _pulseQuickAdd(p, 'tags'));
-        stack.querySelector('[data-pulse-tag-input]')?.addEventListener('keydown', e => {
+    function _pulseBindCard(root, entry) {
+        _pulseOpenHandlers(root);
+        root.querySelector('[data-pulse-restart]')?.addEventListener('click', () => {
+            _pulseKeptSet({});
+            _pulseDeckDrop();
+            _pulseAfterMutate();
+        });
+        root.querySelector('[data-pulse-commit]')?.addEventListener('click', () => _pulseCommitDeletes(false));
+        root.querySelector('[data-pulse-unmark]')?.addEventListener('click', () => {
+            _pulsePendingDel.clear();
+            _pulseDeckDrop();
+            _pulseAfterMutate();
+        });
+        if (!entry) return;
+        const p = entry.p;
+        root.querySelector('[data-pulse-add-tag]')?.addEventListener('click', () => _pulseQuickAdd(p, 'tags'));
+        root.querySelector('[data-pulse-tag-input]')?.addEventListener('keydown', e => {
             if (e.key === 'Enter') { e.preventDefault(); _pulseQuickAdd(p, 'tags'); }
         });
-        stack.querySelector('[data-pulse-add-cat]')?.addEventListener('click', () => _pulseQuickAdd(p, 'categories'));
-        stack.querySelector('[data-pulse-cat-input]')?.addEventListener('keydown', e => {
+        root.querySelector('[data-pulse-add-cat]')?.addEventListener('click', () => _pulseQuickAdd(p, 'categories'));
+        root.querySelector('[data-pulse-cat-input]')?.addEventListener('keydown', e => {
             if (e.key === 'Enter') { e.preventDefault(); _pulseQuickAdd(p, 'categories'); }
         });
-        stack.querySelector('[data-pulse-save-desc]')?.addEventListener('click', () => _pulseSaveDescription(p));
-        stack.querySelector('[data-pulse-mark-reviewed]')?.addEventListener('click', () => _pulseMarkReviewed(p));
-        stack.querySelector('[data-pulse-delete]')?.addEventListener('click', () => _pulseDeletePrompt(p));
-        stack.querySelector('[data-pulse-skip]')?.addEventListener('click', () => _pulseSkip());
+        root.querySelector('[data-pulse-save-desc]')?.addEventListener('click', () => _pulseSaveDescription(p));
+        root.querySelector('[data-pulse-mark-reviewed]')?.addEventListener('click', () => _pulseMarkReviewed(p));
+    }
+
+    // Returns an undo function when the action worked, or null so the card comes back
+    async function _pulseDeckAction(dir, entry) {
+        const p = entry.p;
+        const pile = _pulseDeckFilter;
+        if (dir === 'right') {
+            if (pile === 'everything') {
+                const kept = _pulseKeptGet();
+                kept[p.id] = Date.now();
+                _pulseKeptSet(kept);
+            }
+            return () => {
+                if (pile === 'everything') {
+                    const kept = _pulseKeptGet();
+                    delete kept[p.id];
+                    _pulseKeptSet(kept);
+                }
+                return true;
+            };
+        }
+        if (dir === 'left') {
+            const before = Array.isArray(p.categories) ? p.categories.slice() : [];
+            const next = before.concat(PULSE_ARCHIVE);
+            try {
+                await api(`/prompts/${p.id}`, { method: 'PUT', body: { categories: next } });
+            } catch (e) {
+                toast(String(e.message || '').includes('423') ? 'This prompt is locked, unlock it in Version Lock first' : 'Could not archive', 'error');
+                return null;
+            }
+            p.categories = next;
+            _pulseResolved++;
+            return async () => {
+                try {
+                    await api(`/prompts/${p.id}`, { method: 'PUT', body: { categories: before } });
+                } catch {
+                    toast('Could not undo the archive', 'error');
+                    return false;
+                }
+                p.categories = before;
+                _pulseResolved = Math.max(0, _pulseResolved - 1);
+                return true;
+            };
+        }
+        _pulsePendingDel.set(p.id, p);
+        return () => {
+            _pulsePendingDel.delete(p.id);
+            return true;
+        };
+    }
+
+    async function _pulseCommitDeletes(skipConfirm) {
+        const ids = Array.from(_pulsePendingDel.keys());
+        if (!ids.length) return true;
+        const n = ids.length;
+        if (!skipConfirm && !confirm('Delete ' + n + ' marked prompt' + (n === 1 ? '' : 's') + "? This can't be undone.")) return false;
+        let done = 0;
+        for (const id of ids) {
+            try {
+                await api(`/prompts/${id}`, { method: 'DELETE' });
+                _pulsePendingDel.delete(id);
+                _pulseData.list = _pulseData.list.filter(x => x.id !== id);
+                done++;
+            } catch {}
+        }
+        _pulseResolved += done;
+        if (_pulseDeck) _pulseDeck.dropUndo(e => e.dir === 'del' && !_pulsePendingDel.has(Number(e.key)));
+        if (done) toast(done === 1 ? 'Deleted 1 prompt' : 'Deleted ' + done + ' prompts', 'success');
+        if (done < n) toast((n - done) + ' could not be deleted, they may be locked', 'error');
+        try { await loadPrompts(); } catch {}
+        _pulseAfterMutate();
+        return done === n;
+    }
+
+    function _pulseDeckDrop() {
+        if (_pulseDeck) _pulseDeck.destroy();
+        _pulseDeck = null;
+        _pulseDeckFilter = '';
+        const stack = $('#pulseStack');
+        if (stack) {
+            stack.style.overflowY = '';
+            stack.style.overflowX = '';
+        }
+    }
+
+    function _pulseLoadDeck() {
+        if (window.PL_SwipeDeck || _pulseDeckLoading) return;
+        _pulseDeckLoading = true;
+        const s = document.createElement('script');
+        s.src = '/static/swipe-deck.js?v=1';
+        s.onload = () => {
+            _pulseDeckLoading = false;
+            if (_pulseData) _pulseRenderStack();
+        };
+        s.onerror = () => {
+            _pulseDeckLoading = false;
+            const stack = $('#pulseStack');
+            if (stack) stack.innerHTML = '<div class="pulse-clear"><span class="material-symbols-outlined" style="color:var(--danger)">error</span><div class="pulse-card-title">Could not load the swipe deck</div></div>';
+        };
+        document.head.appendChild(s);
     }
 
     function _pulseRenderDupStack(stack, dupPairs) {
@@ -14831,11 +16583,16 @@ Must avoid: [Anything sensitive or previously declined]`
             '<div class="pulse-card-active">' +
             '<div class="pulse-card-eyebrow">' + (_pulseIndex + 1) + ' of ' + dupPairs.length + ' possible duplicate' + (dupPairs.length !== 1 ? 's' : '') + '</div>' +
             '<div class="pulse-dup-compare">' + col(a, b) + '<div class="pulse-dup-vs">≈</div>' + col(b, a) + '</div>' +
-            '<div class="pulse-actions"><button type="button" class="btn btn-ghost" data-pulse-skip>Not a duplicate, skip <span class="material-symbols-outlined">arrow_forward</span></button></div>' +
+            '<div class="pulse-actions">' +
+            (typeof window.PL_openCombine === 'function' ? '<button type="button" class="btn btn-primary" data-pulse-combine><span class="material-symbols-outlined">merge</span> Combine</button>' : '') +
+            '<button type="button" class="btn btn-ghost" data-pulse-skip>Not a duplicate, skip <span class="material-symbols-outlined">arrow_forward</span></button></div>' +
             '</div>';
         _pulseOpenHandlers(stack);
         stack.querySelectorAll('[data-pulse-keep-drop]').forEach(btn => {
             btn.addEventListener('click', () => _pulseDropDuplicate(parseInt(btn.dataset.pulseKeepDrop, 10)));
+        });
+        stack.querySelector('[data-pulse-combine]')?.addEventListener('click', () => {
+            if (typeof window.PL_openCombine === 'function') window.PL_openCombine(a.id, b.id);
         });
         stack.querySelector('[data-pulse-skip]')?.addEventListener('click', () => _pulseSkip());
     }
@@ -14930,13 +16687,21 @@ Must avoid: [Anything sensitive or previously declined]`
         ws.classList.add('open');
         document.body.style.overflow = 'hidden';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'pulse'));
+        _pulseLoadDeck();
         _pulseScan();
     };
 
-    function closePulseWorkspace() {
+    async function closePulseWorkspace() {
+        const n = _pulsePendingDel.size;
+        if (n) {
+            if (confirm('Delete the ' + n + ' prompt' + (n === 1 ? '' : 's') + ' you marked? Cancel keeps ' + (n === 1 ? 'it' : 'them') + '.')) await _pulseCommitDeletes(true);
+            _pulsePendingDel.clear();
+        }
+        _pulseDeckDrop();
         $('#pulseWorkspace')?.classList.remove('open');
         document.body.style.overflow = '';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'library'));
+        try { await loadPrompts(); } catch {}
     }
 
     function initPulseWorkspace() {
@@ -14944,6 +16709,10 @@ Must avoid: [Anything sensitive or previously declined]`
         if (!ws) return;
         $('#closePulseBtn')?.addEventListener('click', closePulseWorkspace);
         $('#pulseRescanBtn')?.addEventListener('click', _pulseScan);
+        // Combine duplicates (combine-prompts.js) changes the library, so rescan while the organiser is open
+        window.addEventListener('pl:prompts-combined', () => {
+            if (ws.classList.contains('open')) _pulseScan();
+        });
         ws.addEventListener('keydown', e => {
             if (e.key === 'Escape') closePulseWorkspace();
         });
@@ -14994,31 +16763,75 @@ Must avoid: [Anything sensitive or previously declined]`
         },
     ];
 
+    // X-Ray view: 'classic' or any Prompt Forge framework key; shared splitter in static/xray-views.js
+    const XRAY_VIEW_KEY = 'pl_xray_view';
+    let _xrayView = (() => { try { return localStorage.getItem(XRAY_VIEW_KEY) || 'classic'; } catch { return 'classic'; } })();
+    let _xrayParts = null; // parts shown in the grid: [{ key, label }]
+
+    function _xrayViewDef(key) {
+        return key && key !== 'classic' ? (FORGE_FRAMEWORKS[key] || null) : null;
+    }
+
+    function _xrayFillViews() {
+        const sel = $('#xrayView');
+        const V = window.PL_XRAY_VIEWS;
+        if (!sel || !V) return;
+        if (!_xrayViewDef(_xrayView)) _xrayView = 'classic';
+        const opt = (k, d) => '<option value="' + escapeAttr(k) + '">' + escapeHtml(V.name(d)) + '</option>';
+        const keys = Object.keys(FORGE_FRAMEWORKS).filter(k => k !== 'custom' && FORGE_FRAMEWORKS[k]?.fields?.length);
+        const mine = keys.filter(k => k.startsWith('my_'));
+        const popular = V.POPULAR.filter(k => FORGE_FRAMEWORKS[k]);
+        const all = keys.filter(k => !k.startsWith('my_'))
+            .sort((a, b) => String(FORGE_FRAMEWORKS[a].label || a).localeCompare(String(FORGE_FRAMEWORKS[b].label || b)));
+        sel.innerHTML = '<optgroup label="Classic"><option value="classic">Classic: Role, Context, Task, Constraints, Format, Examples</option></optgroup>' +
+            (mine.length ? '<optgroup label="My frameworks">' + mine.map(k => opt(k, FORGE_FRAMEWORKS[k])).join('') + '</optgroup>' : '') +
+            '<optgroup label="Popular">' + popular.map(k => opt(k, FORGE_FRAMEWORKS[k])).join('') + '</optgroup>' +
+            '<optgroup label="All Prompt Forge layouts (' + all.length + ')">' + all.map(k => opt(k, FORGE_FRAMEWORKS[k])).join('') + '</optgroup>';
+        sel.value = _xrayView;
+    }
+
     function _xrayRun() {
         const text = $('#xrayInput')?.value?.trim();
         if (!text) {
             toast('Paste a prompt first', 'warning');
             return;
         }
-        const parts = _wsSplitComponents(text);
         const grid = $('#xrayGrid');
         if (!grid) return;
-        grid.innerHTML = XRAY_PARTS.map(p => {
-            const content = (parts[p.key] || []).join('\n');
+        const def = _xrayViewDef(_xrayView);
+        let parts;
+        if (def && window.PL_XRAY_VIEWS) {
+            const segs = window.PL_XRAY_VIEWS.split(text, def);
+            const pick = id => segs.filter(s => s.part === id).map(s => s.text);
+            parts = def.fields.map((f, i) => ({
+                key: f.id || ('part' + i), label: f.label, icon: f.icon || 'label', hint: f.hint || '', lines: pick(f.id || ('part' + i))
+            }));
+            parts.push({ key: 'other', label: 'Unclassified', icon: 'help_outline', hint: '', lines: pick('other') });
+        } else {
+            const found = _wsSplitComponents(text);
+            parts = XRAY_PARTS.map(p => ({ key: p.key, label: p.label, icon: p.icon, hint: '', lines: found[p.key] || [] }));
+        }
+        _xrayParts = parts.map(p => ({ key: p.key, label: p.label }));
+        const named = parts.filter(p => p.key !== 'other');
+        const hits = named.filter(p => p.lines.join('').trim()).length;
+        grid.innerHTML = '<div class="xr-summary">' + escapeHtml(def ? (def.label || 'Layout') : 'Classic') +
+            ' <span class="xr-summary-count">' + hits + ' of ' + named.length + ' parts found</span></div>' +
+            parts.map(p => {
+            const content = p.lines.join('\n');
             const present = !!content.trim();
             if (p.key === 'other' && !present) return '';
+            const ph = present ? '' : (p.hint ? p.hint + '…' : 'Nothing detected, add your own ' + p.label.toLowerCase() + ' here…');
             return '<div class="xr-card' + (present ? '' : ' xr-missing') + '">' +
-                '<div class="xr-card-head"><span class="material-symbols-outlined">' + p.icon + '</span>' +
-                '<span>' + p.label + '</span>' +
+                '<div class="xr-card-head"><span class="material-symbols-outlined">' + escapeHtml(p.icon) + '</span>' +
+                '<span>' + escapeHtml(p.label) + '</span>' +
                 '<span class="xr-chip">' + (present ? 'Found' : 'Missing') + '</span>' +
-                '<button class="icon-btn xr-copy" data-xr-part="' + p.key + '" title="Copy section"><span class="material-symbols-outlined" style="font-size:15px;">content_copy</span></button></div>' +
-                '<textarea class="forge-input xr-text" data-xr-key="' + p.key + '" rows="3" placeholder="' +
-                (present ? '' : 'Nothing detected — add your own ' + p.label.toLowerCase() + ' here…') + '">' + escapeHtml(content) + '</textarea>' +
+                '<button class="icon-btn xr-copy" data-xr-part="' + escapeAttr(p.key) + '" title="Copy section"><span class="material-symbols-outlined" style="font-size:15px;">content_copy</span></button></div>' +
+                '<textarea class="forge-input xr-text" data-xr-key="' + escapeAttr(p.key) + '" rows="3" placeholder="' + escapeAttr(ph) + '">' + escapeHtml(content) + '</textarea>' +
                 '</div>';
         }).join('');
         grid.querySelectorAll('.xr-copy').forEach(btn => {
             btn.addEventListener('click', async () => {
-                const ta = grid.querySelector('.xr-text[data-xr-key="' + btn.dataset.xrPart + '"]');
+                const ta = [...grid.querySelectorAll('.xr-text')].find(t => t.dataset.xrKey === btn.dataset.xrPart);
                 if (ta?.value.trim() && await copyToClipboard(ta.value.trim())) toast('Section copied', 'success');
             });
         });
@@ -15028,8 +16841,9 @@ Must avoid: [Anything sensitive or previously declined]`
 
     function _xrayAssemble() {
         const parts = [];
-        XRAY_PARTS.forEach(p => {
-            const ta = document.querySelector('#xrayGrid .xr-text[data-xr-key="' + p.key + '"]');
+        const texts = [...document.querySelectorAll('#xrayGrid .xr-text')];
+        (_xrayParts || XRAY_PARTS).forEach(p => {
+            const ta = texts.find(t => t.dataset.xrKey === p.key);
             const v = ta?.value?.trim();
             if (v) parts.push('## ' + (p.key === 'other' ? 'Notes' : p.label) + '\n' + v);
         });
@@ -15047,6 +16861,7 @@ Must avoid: [Anything sensitive or previously declined]`
         document.body.style.overflow = 'hidden';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'xray'));
         _wsFillPromptPicker('#xrayPicker');
+        _xrayFillViews();
         setTimeout(() => $('#xrayInput')?.focus(), 80);
     };
 
@@ -15068,6 +16883,11 @@ Must avoid: [Anything sensitive or previously declined]`
             }
         });
         $('#xrayRunBtn')?.addEventListener('click', _xrayRun);
+        $('#xrayView')?.addEventListener('change', e => {
+            _xrayView = e.target.value || 'classic';
+            try { localStorage.setItem(XRAY_VIEW_KEY, _xrayView); } catch {}
+            if ($('#xrayInput')?.value?.trim() && $('#xrayGrid .xr-card')) _xrayRun();
+        });
         $('#xrayCopyBtn')?.addEventListener('click', async () => {
             const text = _xrayAssemble();
             if (!text) {
@@ -15611,7 +17431,57 @@ Must avoid: [Anything sensitive or previously declined]`
         _pmbBindMain(main);
     }
 
+    // Masonry: place each pin in the shortest column so the feed reads left to right,
+    // newest along the top row, like Pinterest. CSS columns stay as the fallback.
+    let _pmbMasonryObserver = null;
+    function _pmbMasonry(root) {
+        if (!root) return;
+        root.querySelectorAll('.pmb-masonry').forEach(_pmbMasonryLayout);
+    }
+    function _pmbMasonryLayout(m) {
+        if (!m.isConnected) return;
+        if (typeof ResizeObserver === 'function' && !m.dataset.pmbWatched) {
+            if (!_pmbMasonryObserver) {
+                _pmbMasonryObserver = new ResizeObserver(entries => {
+                    requestAnimationFrame(() => entries.forEach(en => _pmbMasonryLayout(en.target)));
+                });
+            }
+            m.dataset.pmbWatched = '1';
+            _pmbMasonryObserver.observe(m);
+        }
+        // column-width and column-gap still come from app.css (multicol rules are ignored once the container is flex)
+        const cs = getComputedStyle(m);
+        const min = parseFloat(cs.columnWidth) || 236, gap = parseFloat(cs.columnGap) || 16;
+        const width = m.clientWidth;
+        if (!width) return;
+        const cols = Math.max(1, Math.floor((width + gap) / (min + gap)));
+        if (m.classList.contains('is-js') && Number(m.dataset.pmbCols) === cols && Number(m.dataset.pmbWidth) === width) return;
+        const pins = m.dataset.pmbCols ? JSON.parse(m.dataset.pmbOrder || '[]').map(id => m.querySelector('[data-pmb-pin="' + id + '"]')).filter(Boolean) : Array.from(m.children).filter(el => el.matches('.pmb-pin'));
+        if (!m.dataset.pmbOrder) m.dataset.pmbOrder = JSON.stringify(pins.map(el => el.dataset.pmbPin));
+        m.classList.add('is-js');
+        m.style.setProperty('--pmb-gap', gap + 'px');
+        const colWidth = (width - gap * (cols - 1)) / cols;
+        const probe = document.createElement('div');
+        probe.className = 'pmb-masonry-col';
+        probe.style.width = colWidth + 'px';
+        probe.style.flex = 'none';
+        m.replaceChildren(probe);
+        pins.forEach(el => probe.appendChild(el));
+        const heights = pins.map(el => el.offsetHeight + (parseFloat(getComputedStyle(el).marginBottom) || 0));
+        const columns = Array.from({ length: cols }, () => { const c = document.createElement('div'); c.className = 'pmb-masonry-col'; return c; });
+        const filled = new Array(cols).fill(0);
+        pins.forEach((el, i) => {
+            const k = filled.indexOf(Math.min(...filled));
+            columns[k].appendChild(el);
+            filled[k] += heights[i];
+        });
+        m.replaceChildren(...columns);
+        m.dataset.pmbCols = cols;
+        m.dataset.pmbWidth = width;
+    }
+
     function _pmbBindMain(main) {
+        _pmbMasonry(main);
         main.querySelectorAll('[data-pmb]').forEach(_pmbBind);
         main.querySelectorAll('[data-pmb-pin]').forEach(card => {
             card.addEventListener('click', e => {
@@ -15687,6 +17557,7 @@ Must avoid: [Anything sensitive or previously declined]`
             true
         );
         _pmbState.detailId = id;
+        _pmbMasonry($('#pmbModalCard'));
         $('#pmbModalCard')?.querySelectorAll('[data-pmb-pin]').forEach(card => {
             card.addEventListener('click', e => {
                 if (e.target.closest('[data-pmb]')) return;
@@ -15878,7 +17749,12 @@ Must avoid: [Anything sensitive or previously declined]`
                 }
                 case 'export-board': {
                     if (!boardId) { toast('Could not export board', 'error'); break; }
-                    window.location.href = API_BASE + '/boards/' + boardId + '/export';
+                    try {
+                        const res = await fetch(API_BASE + '/boards/' + boardId + '/export');
+                        if (!res.ok) throw new Error();
+                        const cd = /filename="?([^";]+)"?/.exec(res.headers.get('Content-Disposition') || '');
+                        await triggerDownload(await res.blob(), cd ? cd[1] : 'board.json', 'Board exported');
+                    } catch { toast('Could not export board', 'error'); }
                     break;
                 }
                 case 'toggle-fav': {
@@ -16304,6 +18180,7 @@ Must avoid: [Anything sensitive or previously declined]`
     }
 
     function initLicenceUI() {
+        $('#gateForm')?.addEventListener('submit', _gateSubmit);
         const btn = $('#licenceActivateBtn');
         const input = $('#settingsLicenceKeyInput');
         const status = $('#licenceActivateStatus');
@@ -20376,6 +22253,7 @@ Must avoid: [Anything sensitive or previously declined]`
         initOnboarding(); // spotlight tour auto-launch on first run
         initPromptViewer();
         initTagManager(); // tag manager modal (sidebar tags header)
+        window.PL_prefs.ready.then(() => { try { _ctxUpdateWrap(); } catch (e) { /* the workspace is not built yet */ } });
         // Fire licence check and data load in parallel -- prompts render immediately,
         // premium UI applies once both settle (no unlocked flash risk).
         initLicenceUI(); // wire Settings licence panel (sync)
@@ -20758,6 +22636,17 @@ Must avoid: [Anything sensitive or previously declined]`
         throw new Error('advisor did not finish');
     }
 
+    // Small bridge for Prompt Builder Pro: what is set up, and one plain JSON call with no second opinion
+    window.PL_ai = {
+        info: function() {
+            const provider = localStorage.getItem('pl_ai_provider') || 'openai';
+            return { provider: provider, model: _aiModel(provider), hasKey: !!localStorage.getItem('pl_api_key_' + provider) };
+        },
+        ask: function(systemPrompt, userMsg, maxTokens) {
+            return callAI(systemPrompt, userMsg, maxTokens, { json: true, plain: true });
+        }
+    };
+
     async function callAI(systemPrompt, userMsg, maxTokens, opts) {
         maxTokens = maxTokens || 1200;
         opts = opts || {};
@@ -20795,7 +22684,7 @@ Must avoid: [Anything sensitive or previously declined]`
             return (data.choices?.[0]?.message?.content || '').trim();
 
         } else if (provider === 'anthropic') {
-            if (localStorage.getItem('pl_ai_advisor') === '1' && maxTokens >= 1500) {
+            if (localStorage.getItem('pl_ai_advisor') === '1' && maxTokens >= 1500 && !opts.plain) {
                 try {
                     return await _aiAnthropicAdvised(apiKey, model, systemPrompt, userMsg, maxTokens);
                 } catch (e) {
@@ -22863,6 +24752,12 @@ Must avoid: [Anything sensitive or previously declined]`
 
     // Shared with the later IIFEs (phone share panel) that have no toast of their own
     window.PL_toast = toast;
+    // Lets static/combine-prompts.js reach the library without living inside this file
+    window.PL_libraryBridge = {
+        api, toast, escapeHtml, detectVariables, loadPrompts, loadFilterOptions, openDetail, closeDetailPanel, bulkDeselectAll,
+        getState: () => state,
+        getBulkSelection: () => Array.from(_bulkSelection),
+    };
 
     // NEARBY SHARE -- AirDrop style inbox: prompts sent from nearby devices arrive as an Accept or Decline card
     (function initNearbyShare() {
@@ -22938,7 +24833,7 @@ Must avoid: [Anything sensitive or previously declined]`
             box.innerHTML = '<p class="phs-note">Sending “' + escapeHtml(st.title) + '”. Nothing is saved on the other device until it is accepted.</p>' +
                 (st.scanning ? '<div class="nbs-scan"><i></i>Looking for nearby libraries on this network</div>' : '') +
                 rows +
-                (!st.scanning && !st.devices.length ? '<p class="phs-note">No libraries found' + (st.networks && st.networks.length ? ' on ' + escapeHtml(st.networks.join(', ')) : '') + '. On a phone, keep Prompt Library open on screen; it stops listening when locked. Or add it by the address shown in its Send sheet.</p>' : '') +
+                (!st.scanning && !st.devices.length ? '<p class="phs-note">No libraries found' + (st.networks && st.networks.length ? ' on ' + escapeHtml(st.networks.join(', ')) : '') + '. On a phone, keep Prompt Library open, or turn on Receive with the app closed in its Manage screen. Or add it by the address shown in its Send sheet.</p>' : '') +
                 (st.scanning ? '' : '<form class="nbs-manual"><input class="form-input" name="ip" inputmode="decimal" autocomplete="off" placeholder="Add by address, like 192.168.1.23" value="' + escapeHtml(st.manual || '') + '"><button class="btn" type="submit">Add</button></form>' +
                     (st.manualError ? '<p class="phs-note nbs-err">' + escapeHtml(st.manualError) + '</p>' : '') +
                     '<div class="phs-actions"><button class="btn" type="button" data-rescan>Scan again</button></div>');
@@ -22946,10 +24841,17 @@ Must avoid: [Anything sensitive or previously declined]`
         async function sendScan(st, run) {
             Object.assign(st, { scanning: true, devices: [], status: {} });
             sendDraw(st);
+            const merge = list => (list || []).forEach(d => { if (!st.devices.some(x => x.ip === d.ip)) st.devices.push(d); });
+            // Quick look first (devices that answer on the network, about a second), then the full scan
+            const q = await getJson('/api/share/devices?quick=1').catch(() => ({ d: {} }));
+            if (run !== sendRun) return;
+            merge(q.d && q.d.devices);
+            if (st.devices.length) sendDraw(st);
             const r = await getJson('/api/share/devices').catch(() => ({ d: {} }));
             if (run !== sendRun) return;
-            st.devices = (r.d && r.d.devices) || [];
-            st.networks = (r.d && r.d.networks) || [];
+            merge(r.d && r.d.devices);
+            st.devices.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+            st.networks = (r.d && r.d.networks) || (q.d && q.d.networks) || [];
             st.scanning = false;
             sendDraw(st);
         }
@@ -23012,13 +24914,108 @@ Must avoid: [Anything sensitive or previously declined]`
         };
     })();
 
+    /* ============================================================================
+       SHIFT+F3 CASE CYCLE
+       Select text in any editable text box, press Shift+F3 to step through
+       Title Case, lowercase, UPPERCASE, Capitalised Each Word, Sentence case.
+       [[variables]], {{variables}} and ((variables)) are left untouched.
+       ============================================================================ */
+    (function initCaseCycle() {
+        const MODES = [
+            ['title', 'Title Case'],
+            ['lower', 'lowercase'],
+            ['upper', 'UPPERCASE'],
+            ['capital', 'Capitalised Each Word'],
+            ['sentence', 'Sentence case']
+        ];
+        const MINOR = new Set(['a', 'an', 'the', 'and', 'but', 'or', 'nor', 'for', 'so', 'yet', 'as', 'at', 'by', 'in', 'of', 'off', 'on', 'per', 'to', 'up', 'via', 'vs', 'about', 'above', 'across', 'after', 'against', 'along', 'among', 'around', 'before', 'behind', 'below', 'between', 'beyond', 'during', 'from', 'inside', 'into', 'onto', 'near', 'outside', 'over', 'since', 'through', 'toward', 'under', 'until', 'upon', 'with', 'within', 'without']);
+        const WORD = /[\p{L}\p{N}][\p{L}\p{N}'\u2019]*/gu;
+        const PROTECTED = /\[\[[^\]]*\]\]|\{\{[^}]*\}\}|\(\([^)]*\)\)/g;
+        const HOLD = '\uE000';
+        const WORD_OR_HOLD = /\uE000|[\p{L}\p{N}][\p{L}\p{N}'\u2019]*/gu;
+        let last = null;
+
+        const capWord = (w) => w.charAt(0).toUpperCase() + w.slice(1);
+
+        function transform(mode, src) {
+            const held = [];
+            const text = src.replace(PROTECTED, (m) => { held.push(m); return HOLD; });
+            let out;
+            if (mode === 'lower') out = text.toLowerCase();
+            else if (mode === 'upper') out = text.toUpperCase();
+            else if (mode === 'capital') out = text.toLowerCase().replace(WORD, capWord);
+            else if (mode === 'title') {
+                const low = text.toLowerCase();
+                const total = (low.match(WORD_OR_HOLD) || []).length;
+                let i = 0;
+                out = low.replace(WORD_OR_HOLD, (w, off) => {
+                    const edge = i === 0 || i === total - 1;
+                    i++;
+                    const afterBreak = /[:.!?]\s+$/.test(low.slice(0, off));
+                    return edge || afterBreak || !MINOR.has(w) ? capWord(w) : w;
+                });
+            } else {
+                out = text.toLowerCase()
+                    .replace(/(^|\n)([ \t]*(?:(?:[-*\u2022>#]+|\d+[.)])[ \t]+)?)(\p{L})/gu, (m, a, b, c) => a + b + c.toUpperCase())
+                    .replace(/([.!?]["')\]]*[ \t]+)(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
+            }
+            let n = 0;
+            return out.replace(/\uE000/g, () => held[n++]);
+        }
+
+        function editableTarget() {
+            const el = document.activeElement;
+            if (!el || el.readOnly || el.disabled) return null;
+            if (el.tagName === 'TEXTAREA') return el;
+            if (el.tagName === 'INPUT' && /^(text|search|url|tel)$/.test(el.type)) return el;
+            return null;
+        }
+
+        function replaceSelection(el, start, end, text) {
+            el.setSelectionRange(start, end);
+            let done = false;
+            try { done = document.execCommand('insertText', false, text); } catch (_) { done = false; }
+            if (!done || el.value.slice(start, start + text.length) !== text) {
+                el.setRangeText(text, start, end, 'end');
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            el.setSelectionRange(start, start + text.length);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'F3' || !e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+            const el = editableTarget();
+            if (!el) return;
+            e.preventDefault();
+            const start = el.selectionStart;
+            const end = el.selectionEnd;
+            if (start === end) {
+                toast('Select some text first, then press Shift+F3', 'info');
+                return;
+            }
+            const src = el.value.slice(start, end);
+            let idx = 0;
+            if (last && last.el === el && last.start === start && last.text === src) idx = (last.idx + 1) % MODES.length;
+            for (let tries = 0; tries < MODES.length; tries++) {
+                const at = (idx + tries) % MODES.length;
+                const out = transform(MODES[at][0], src);
+                if (out === src) continue;
+                replaceSelection(el, start, end, out);
+                last = { el, start, idx: at, text: out };
+                toast(MODES[at][1], 'info');
+                return;
+            }
+            toast('Nothing to change in this selection', 'info');
+        }, true);
+    })();
+
 })();
 
 
 
 /* ============================================================================
    ONBOARDING SPOTLIGHT TOUR
-   13 steps. localStorage key: promptlib.tourDone
+   17 cards (welcome, 15 steps, last card). localStorage key: promptlib.tourDone, mirrored in the database (tour_done)
    Auto-launches on first run. Replay via #tourBtn.
    window.PL_startOnboarding, window.PL_skipOnboarding,
    window.PL_onboardNext, window.PL_onboardBack
@@ -23029,102 +25026,121 @@ Must avoid: [Anything sensitive or previously declined]`
     const TOUR_KEY = 'promptlib.tourDone';
     let _step = 0;
 
+    // Steps between the welcome and the last card are numbered automatically ("Step 3 of 15").
     const STEPS = [{
             eyebrow: 'Welcome',
             title: 'Your prompts. <em>Your machine.</em>',
-            desc: 'Prompt Library Pro is a fully offline workspace for the prompts you actually use. No cloud. No subscriptions. No one else has access to your data.',
+            desc: 'Prompt Library Pro is a fully offline workspace for the prompts you actually use. No cloud. No accounts. Nothing leaves this computer unless you send it.',
             icon: 'auto_awesome',
             target: null
         },
         {
-            eyebrow: 'Step 1 of 12',
             title: 'Your <em>library</em>',
-            desc: 'Every prompt you save lives here. Search, filter by folder, tag, or category. The list updates instantly as you type.',
+            desc: 'Every prompt you save lives here. Search, filter by folder, tag or category. The list updates as you type.',
             icon: 'library_books',
             target: '#promptsContainer'
         },
         {
-            eyebrow: 'Step 2 of 12',
             title: 'Save your first <em>prompt</em>',
-            desc: 'Click the + button or press Ctrl+N. Give it a title, paste your prompt, and save. It\'s searchable and ready to copy in one click from that moment on.',
+            desc: 'Click the + button or press Ctrl+N. Along the top of the editor sit Components, Context, Snippets and Variables, each opening a side panel beside your prompt.',
             icon: 'edit_note',
             target: '#newPromptBtn'
         },
         {
-            eyebrow: 'Step 3 of 12',
             title: 'Dynamic <em>variables</em>',
-            desc: 'Wrap any word in double brackets — [[client]], [[topic]], [[tone]] — and it becomes a fillable field. When you copy, a form lets you fill it in seconds.',
+            desc: 'Wrap any word in double brackets, such as [[client]] or [[tone]], and it becomes a fillable field. Open Variables in the editor to give each one a type: text, dropdown, slider, dice roll, card deck and more.',
             icon: 'data_object',
             target: '#promptsContainer'
         },
         {
-            eyebrow: 'Step 4 of 12',
             title: 'Organise with <em>folders</em>',
-            desc: 'Create folders to group prompts by project, client, or workflow. Drag-and-drop or assign in the editor. Use the folder filter in the sidebar to narrow the list.',
+            desc: 'Create folders to group prompts by project, client or workflow. Drag and drop, or assign in the editor. Use the folder filter in the sidebar to narrow the list.',
             icon: 'folder_open',
             target: '.nav-section-label[data-toggle="folders"]'
         },
         {
-            eyebrow: 'Step 5 of 12',
             title: 'Tags and <em>categories</em>',
-            desc: 'Add tags for flexible cross-folder search. Assign a category (Writing, Research, Product…) for quick chip-filter access at the top of the library.',
+            desc: 'Add tags for flexible search across folders. Assign a category (Writing, Research, Product and so on) for quick chip filtering at the top of the library.',
             icon: 'label',
             target: '.nav-section-label[data-toggle="categories"]'
         },
         {
-            eyebrow: 'Step 6 of 12',
-            title: 'Build <em>AI agents</em>',
-            desc: 'This is the Agents workspace. Define full role profiles — identity, voice, knowledge base, skills — and copy them as structured text, XML, or prose into any AI tool.',
-            icon: 'smart_toy',
-            open: 'roles',
-            target: null
-        },
-        {
-            eyebrow: 'Step 7 of 12',
-            title: 'Power <em>workspaces</em>',
-            desc: 'This is Prompt Forge — a structured prompt builder. The workspace nav also gives you Lab, Context Bank, Prompt Components and more. Each is a dedicated tool built around your saved prompts.',
-            icon: 'workspaces',
-            open: 'forge',
-            target: null
-        },
-        {
-            eyebrow: 'Step 8 of 12',
             title: 'The <em>detail panel</em>',
-            desc: 'Click any prompt to open the right panel. Fill variables, view version history, add notes and ratings, run a chain, or copy in any format — all without leaving the library.',
+            desc: 'Click any prompt to open the right panel. Fill variables, view history, add notes and ratings, run a chain, or copy in any format, without leaving the library.',
             icon: 'side_navigation',
             openDetail: true,
             target: '#detailPanel'
         },
         {
-            eyebrow: 'Step 9 of 12',
+            title: 'Combine <em>similar prompts</em>',
+            desc: 'Two prompts that overlap? Use this merge button, or open Workspaces and choose Combine Prompts. Compare them side by side, keep the best of each, and undo if you change your mind.',
+            icon: 'call_merge',
+            openDetail: true,
+            target: '#panelCombineBtn'
+        },
+        {
+            title: 'Power <em>workspaces</em>',
+            desc: 'This is Prompt Forge, a structured prompt builder. The Workspaces launcher holds many more tools: Context Bank, Prompt X-Ray, Combine Prompts, Prompt Chain and others, each built around your saved prompts.',
+            icon: 'workspaces',
+            open: 'forge',
+            target: null
+        },
+        {
+            title: 'Prompt <em>Components</em>',
+            desc: 'Drag components onto an endless canvas and wire them together. The top dots set the order, the lower dots attach background to a block, and the prompt follows your wires. The question mark button explains it.',
+            icon: 'extension',
+            open: 'components',
+            target: null
+        },
+        {
+            title: 'Prompt <em>Builder Pro</em>',
+            desc: 'Find it under Workspaces. Wire blocks and agent teams into one compiled prompt. The Learn tab on the right teaches the multi-agent blocks with short hands-on lessons.',
+            icon: 'schema',
+            target: '#workspacesNavBtn'
+        },
+        {
             title: 'Context <em>Bank</em>',
-            desc: 'This is the Context Bank. Save reusable context blocks — company info, persona, style guide — and inject them into any prompt with one click. No more retyping the same background text.',
+            desc: 'Save reusable context blocks such as company info, a persona or a style guide, and drop them into any prompt. Choose how a block starts: plain, labelled, XML, Markdown, brackets, or type your own.',
             icon: 'database',
             open: 'contextBank',
             target: null
         },
         {
-            eyebrow: 'Step 10 of 12',
+            title: 'Build <em>AI agents</em>',
+            desc: 'This is the Agents workspace. Define full role profiles: identity, voice, knowledge and skills. Copy them as structured text, XML or prose into any AI tool.',
+            icon: 'smart_toy',
+            open: 'roles',
+            target: null
+        },
+        {
             title: 'Import and <em>Export</em>',
             desc: 'Share your library as a .plp pack, export individual prompts as Markdown or CSV, or import a colleague\'s pack. Everything travels as a single file.',
             icon: 'import_export',
             target: '#exportBtn'
         },
         {
-            eyebrow: 'Step 11 of 12',
-            title: 'Pro <em>features</em>',
-            desc: 'Unlock version history, analytics, chat-format export, and power workspaces like Prompt Components with a Pro licence. Your data stays local either way.',
+            title: 'Your <em>licence</em>',
+            desc: 'Your licence key is checked once and saved on this computer. Open this button any time to see its status. Everything is unlocked, with no limits.',
             icon: 'workspace_premium',
             target: '#licenceBtn'
         },
         {
+            title: 'A <em>shortcut</em> worth knowing',
+            desc: 'Select text in any text box and press Shift+F3 to cycle through Title Case, lowercase, UPPERCASE, Capitalised and Sentence case. Your [[variables]] are left alone.',
+            icon: 'text_fields',
+            target: null
+        },
+        {
             eyebrow: 'You\'re set',
             title: 'The library is <em>yours</em>',
-            desc: 'That\'s the full tour. Build your library one prompt at a time. Replay this tour anytime via the "App tour" button in the sidebar footer.',
+            desc: 'That\'s the full tour. Build your library one prompt at a time. Replay it any time with the App tour button in the sidebar footer.',
             icon: 'check_circle',
             target: null
         }
     ];
+    STEPS.forEach(function(st, i) {
+        if (!st.eyebrow) st.eyebrow = 'Step ' + i + ' of ' + (STEPS.length - 2);
+    });
 
     const TOTAL = STEPS.length;
 
@@ -23165,6 +25181,7 @@ Must avoid: [Anything sensitive or previously declined]`
     const OPEN_FNS = {
         roles: 'openRolesWorkspace',
         forge: 'openForgeWorkspace',
+        components: 'openComponentsWorkspace',
         contextBank: 'openContextBankWorkspace'
     };
     const WS_SELECTORS = ['#forgeWorkspace', '#labWorkspace', '#rolesWorkspace',
@@ -23362,20 +25379,24 @@ Must avoid: [Anything sensitive or previously declined]`
     window.initOnboarding = function() {
         // Auto-launch on first run only. localStorage can reset between
         // WebView launches, so also check the DB-backed flag before deciding.
+        // The tour waits for the licence screen: it starts once the app is licensed.
         if (localStorage.getItem(TOUR_KEY)) return;
+        const launch = function() {
+            const go = function() {
+                setTimeout(function() {
+                    window.PL_startOnboarding && window.PL_startOnboarding();
+                }, 800);
+            };
+            if (document.body.classList.contains('is-premium')) go();
+            else document.addEventListener('pl:licensed', go, { once: true });
+        };
         fetch('/api/settings').then(r => r.json()).then(s => {
             if (s && s.tour_done) {
                 localStorage.setItem(TOUR_KEY, '1');
                 return;
             }
-            setTimeout(function() {
-                window.PL_startOnboarding && window.PL_startOnboarding();
-            }, 800);
-        }).catch(() => {
-            setTimeout(function() {
-                window.PL_startOnboarding && window.PL_startOnboarding();
-            }, 800);
-        });
+            launch();
+        }).catch(launch);
     };
 
 })();

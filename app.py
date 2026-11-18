@@ -1765,6 +1765,8 @@ def share_devices():
             return jsonify({'devices': [], 'error': 'Use the address shown on the phone, like 192.168.1.23'})
         d = share_server.probe(ip, timeout=2.5)
         return jsonify({'devices': [d] if d else [], 'error': None if d else 'Nothing answered at ' + ip + '. Keep Prompt Library open on that device.'})
+    if request.args.get('quick'):
+        return jsonify(share_server.quick_scan())
     return jsonify(share_server.scan())
 
 
@@ -1914,6 +1916,131 @@ def delete_prompt(pid):
     conn.commit()
     conn.close()
     return jsonify({'success': True})
+
+# Combine two prompts into one, then remove the originals in the same transaction, with an in-memory undo
+_COMBINE_UNDO = {}
+_COMBINE_UNDO_LIMIT = 20
+_COMBINE_CARRY_TABLES = ('prompt_versions', 'usage_log', 'board_pins', 'prompt_taxonomy')
+
+def _rows_as_dicts(conn, sql, params):
+    return [dict(r) for r in conn.execute(sql, params).fetchall()]
+
+def _insert_row(conn, table, row):
+    cols = list(row.keys())
+    conn.execute(
+        'INSERT OR IGNORE INTO {} ({}) VALUES ({})'.format(table, ', '.join(cols), ', '.join('?' * len(cols))),
+        [row[c] for c in cols]
+    )
+
+def _combine_stamp(conn, pid):
+    row = conn.execute('SELECT title, description, content, categories, tags, folder_id, notes, variable_meta, is_favorite FROM prompts WHERE id=?', (pid,)).fetchone()
+    return hashlib.sha1(json.dumps(list(row), default=str).encode('utf-8')).hexdigest() if row else None
+
+def _table_exists(conn, table):
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone() is not None
+
+@app.route('/api/prompts/combine', methods=['POST'])
+def combine_prompts():
+    body = _json_body()
+    try:
+        ids = [int(i) for i in (body.get('source_ids') or [])]
+    except (TypeError, ValueError):
+        ids = []
+    if len(ids) != 2 or ids[0] == ids[1]:
+        return jsonify({'error': 'Pick two different prompts to combine'}), 400
+    locked = _locked_prompt_ids()
+    if any(i in locked for i in ids):
+        return jsonify({'error': 'One of these prompts is locked. Unlock it in Version Lock before combining.'}), 423
+    combined = body.get('prompt') or {}
+    data = _prompt_payload(combined)
+    if not data['content'].strip():
+        return jsonify({'error': 'The combined prompt needs some content'}), 400
+    data['parent_id'] = None
+    conn = get_db()
+    try:
+        originals = _rows_as_dicts(conn, 'SELECT * FROM prompts WHERE id IN (?,?)', ids)
+        if len(originals) != 2:
+            return jsonify({'error': 'One of these prompts no longer exists'}), 404
+        marks = '?,?'
+        snap = {'prompts': originals, 'carried': {}}
+        for table in _COMBINE_CARRY_TABLES:
+            if _table_exists(conn, table):
+                snap['carried'][table] = _rows_as_dicts(conn, f'SELECT * FROM {table} WHERE prompt_id IN ({marks})', ids)
+        snap['relationships'] = _rows_as_dicts(conn, f'SELECT * FROM prompt_relationships WHERE prompt_a IN ({marks}) OR prompt_b IN ({marks})', ids + ids)
+        snap['compositions'] = _rows_as_dicts(conn, f'SELECT id, prompt_id FROM compositions WHERE prompt_id IN ({marks})', ids) if _table_exists(conn, 'compositions') else []
+        snap['fork_snapshots'] = [r['id'] for r in conn.execute(f'SELECT id FROM prompts WHERE parent_id IN ({marks}) AND fork_snapshot IS NULL', ids).fetchall()]
+
+        new_id = _insert_prompt(conn, data)
+        conn.execute(
+            'UPDATE prompts SET is_favorite=?, use_count=?, last_used=? WHERE id=?',
+            (1 if combined.get('is_favorite') else 0,
+             sum(int(p.get('use_count') or 0) for p in originals),
+             max((p.get('last_used') or '' for p in originals), default='') or None,
+             new_id)
+        )
+        if _table_exists(conn, 'board_pins'):
+            conn.execute(f'INSERT OR IGNORE INTO board_pins (board_id, prompt_id) SELECT board_id, ? FROM board_pins WHERE prompt_id IN ({marks})', [new_id] + ids)
+        if _table_exists(conn, 'prompt_taxonomy'):
+            conn.execute(f'INSERT OR IGNORE INTO prompt_taxonomy (prompt_id, use_case_id) SELECT ?, use_case_id FROM prompt_taxonomy WHERE prompt_id IN ({marks})', [new_id] + ids)
+        for rel in snap['relationships']:
+            other = rel['prompt_b'] if rel['prompt_a'] in ids else rel['prompt_a']
+            if other in ids:
+                continue
+            a, b = sorted((new_id, other))
+            conn.execute('INSERT OR IGNORE INTO prompt_relationships (prompt_a, prompt_b, rel_type) VALUES (?,?,?)', (a, b, rel['rel_type']))
+        for comp in snap['compositions']:
+            conn.execute('UPDATE compositions SET prompt_id=? WHERE id=?', (new_id, comp['id']))
+        for pid in ids:
+            _snapshot_parent_into_forks(conn, pid)
+        conn.execute(f'DELETE FROM prompt_relationships WHERE prompt_a IN ({marks}) OR prompt_b IN ({marks})', ids + ids)
+        conn.execute(f'DELETE FROM prompts WHERE id IN ({marks})', ids)
+        stamp = _combine_stamp(conn, new_id)
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': f'Could not combine: {e}'}), 500
+    finally:
+        conn.close()
+    token = secrets.token_urlsafe(12)
+    snap['new_id'] = new_id
+    snap['stamp'] = stamp
+    _COMBINE_UNDO[token] = snap
+    while len(_COMBINE_UNDO) > _COMBINE_UNDO_LIMIT:
+        _COMBINE_UNDO.pop(next(iter(_COMBINE_UNDO)))
+    return jsonify({'id': new_id, 'undo_token': token, 'removed_ids': ids})
+
+@app.route('/api/prompts/combine/undo', methods=['POST'])
+def undo_combine_prompts():
+    token = str(_json_body().get('undo_token') or '')
+    snap = _COMBINE_UNDO.get(token)
+    if not snap:
+        return jsonify({'error': 'Nothing to undo. Undo only works until the app restarts.'}), 404
+    conn = get_db()
+    try:
+        stamp = _combine_stamp(conn, snap['new_id'])
+        if stamp is not None and stamp != snap['stamp'] and not _json_body().get('force'):
+            return jsonify({'error': 'The combined prompt has been edited since. Undo would lose those edits.', 'edited': True}), 409
+        conn.execute('DELETE FROM prompt_relationships WHERE prompt_a=? OR prompt_b=?', (snap['new_id'], snap['new_id']))
+        conn.execute('DELETE FROM prompts WHERE id=?', (snap['new_id'],))
+        for p in snap['prompts']:
+            _insert_row(conn, 'prompts', p)
+        for table, rows in snap['carried'].items():
+            for r in rows:
+                _insert_row(conn, table, r)
+        for r in snap['relationships']:
+            _insert_row(conn, 'prompt_relationships', r)
+        for comp in snap['compositions']:
+            conn.execute('UPDATE compositions SET prompt_id=? WHERE id=?', (comp['prompt_id'], comp['id']))
+        for fid in snap['fork_snapshots']:
+            conn.execute('UPDATE prompts SET fork_snapshot=NULL WHERE id=?', (fid,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': f'Could not undo: {e}'}), 500
+    finally:
+        conn.close()
+    _COMBINE_UNDO.pop(token, None)
+    return jsonify({'success': True, 'restored_ids': [p['id'] for p in snap['prompts']]})
 
 @app.route('/api/prompts/bulk', methods=['PATCH'])
 def bulk_update_prompts():
@@ -3041,10 +3168,19 @@ def export_json():
     conn  = get_db()
     try:
         rows  = conn.execute('SELECT * FROM prompts ORDER BY title').fetchall()
+        names = _folder_names(conn)
     finally:
         conn.close()
-    out = [serialize_prompt(r) for r in rows]
+    out = [_with_folder_name(serialize_prompt(r), names) for r in rows]
     return jsonify(out)
+
+def _folder_names(conn):
+    return {r['id']: r['name'] for r in conn.execute('SELECT id, name FROM folders').fetchall()}
+
+# Add the folder's name so the phone app can show folders (it never sees folder ids).
+def _with_folder_name(p, names):
+    p['folder'] = names.get(p.get('folder_id'), '')
+    return p
 
 @app.route('/api/export/markdown', methods=['GET'])
 def export_markdown():
@@ -3109,9 +3245,10 @@ def export_bulk():
     conn = get_db()
     try:
         rows = conn.execute('SELECT * FROM prompts ORDER BY title').fetchall()
+        names = _folder_names(conn)
     finally:
         conn.close()
-    prompts = [serialize_prompt(r) for r in rows]
+    prompts = [_with_folder_name(serialize_prompt(r), names) for r in rows]
 
     # JSON payload
     json_bytes = json.dumps(prompts, indent=2).encode('utf-8')
@@ -3709,6 +3846,71 @@ def save_ai_model():
                             ('ai_model_' + provider, model))
             else:
                 con.execute("DELETE FROM settings WHERE key = ?", ('ai_model_' + provider,))
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/context-bank', methods=['GET'])
+def get_context_bank():
+    """Return the saved copy of the Context Bank blocks."""
+    try:
+        with get_db() as con:
+            row = con.execute("SELECT value FROM settings WHERE key = 'context_bank_blocks'").fetchone()
+        blocks = json.loads(row['value']) if row else None
+        if not isinstance(blocks, list):
+            return jsonify({'exists': False, 'blocks': []})
+        return jsonify({'exists': True, 'blocks': blocks})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/context-bank', methods=['POST'])
+def save_context_bank():
+    """Store the Context Bank blocks so they survive a WebView storage reset."""
+    blocks = _json_body().get('blocks')
+    if not isinstance(blocks, list) or len(blocks) > 5000:
+        return jsonify({'error': 'blocks must be a list'}), 400
+    payload = json.dumps([b for b in blocks if isinstance(b, dict)], ensure_ascii=False)
+    if len(payload) > 5000000:
+        return jsonify({'error': 'context bank too large'}), 400
+    try:
+        with get_db() as con:
+            con.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                        ('context_bank_blocks', payload))
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def _read_ui_prefs():
+    try:
+        with get_db() as con:
+            row = con.execute("SELECT value FROM settings WHERE key = 'ui_prefs'").fetchone()
+        prefs = json.loads(row['value']) if row else {}
+    except Exception:
+        prefs = {}
+    return prefs if isinstance(prefs, dict) else {}
+
+@app.route('/api/settings/prefs', methods=['GET'])
+def get_ui_prefs():
+    """Small interface choices, kept here because WebView localStorage can reset between launches."""
+    return jsonify(_read_ui_prefs())
+
+@app.route('/api/settings/prefs', methods=['POST'])
+def set_ui_prefs():
+    """Merge small key/value choices into the saved set. A null value removes the key."""
+    prefs = _read_ui_prefs()
+    for key, value in _json_body().items():
+        if not re.fullmatch(r'[a-z0-9_.-]{1,40}', str(key)):
+            continue
+        if value is None:
+            prefs.pop(key, None)
+        elif isinstance(value, (str, int, float, bool)) and len(str(value)) <= 2000:
+            prefs[key] = value
+    if len(prefs) > 200:
+        return jsonify({'error': 'too many preferences'}), 400
+    try:
+        with get_db() as con:
+            con.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                        ('ui_prefs', json.dumps(prefs, ensure_ascii=False)))
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500

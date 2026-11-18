@@ -5,6 +5,7 @@ Boots a local Waitress server hosting the Flask app, then opens it in a
 pywebview window. All errors are written to error.log next to the .exe.
 """
 
+import base64
 import logging
 import os
 import socket
@@ -64,6 +65,27 @@ class Api:
         if result:
             return result[0]
         return None
+
+    def save_file(self, filename, content, is_base64=False):
+        """Native Save As dialog, then write the file. Returns {saved, path} or {saved, error}."""
+        try:
+            name = os.path.basename(str(filename or 'export.txt')) or 'export.txt'
+            downloads = os.path.join(os.path.expanduser('~'), 'Downloads')
+            picked = webview.windows[0].create_file_dialog(
+                webview.SAVE_DIALOG,
+                directory=downloads if os.path.isdir(downloads) else '',
+                save_filename=name,
+            )
+            if not picked:
+                return {'saved': False}
+            path = picked if isinstance(picked, str) else picked[0]
+            data = base64.b64decode(content) if is_base64 else str(content or '').encode('utf-8')
+            with open(path, 'wb') as fh:
+                fh.write(data)
+            return {'saved': True, 'path': path}
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return {'saved': False, 'error': str(e)}
 
 
 HOST = '127.0.0.1'
@@ -163,6 +185,9 @@ if __name__ == '__main__':
             urllib.request.urlopen(req, timeout=3)
         except Exception:
             pass  # Non-fatal — user can import manually
+
+    # Without this every download in the window is cancelled by pywebview.
+    webview.settings['ALLOW_DOWNLOADS'] = True
 
     # Open the desktop window
     webview.create_window(
