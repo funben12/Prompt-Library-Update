@@ -361,4 +361,5 @@
   window.openPlRedTeamWorkspace=()=>openSuite("plxRedTeamWorkspace");
 
   window.PLNewWorkspaceSuite={open:openSuite,close:closeSuite};
+  const stressScript=document.createElement('script'); stressScript.src='/static/prompt-stress-lab.js?v=20261118a'; stressScript.defer=true; document.head.appendChild(stressScript);
 })();
