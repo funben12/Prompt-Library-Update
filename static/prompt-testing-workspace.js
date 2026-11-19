@@ -2,7 +2,7 @@
   "use strict";
   const ROOT_ID="promptTestingWorkspace";
   const $=id=>document.getElementById(id);
-  let promptCache=null, lastPrompt="", lastReport="", lastRoute=[];
+  let promptCache=null, lastPrompt="", lastReport="", lastRoute=[], opener=null;
   let activeRun=0;
   function toast(message){if(typeof window.PL_toast==="function")window.PL_toast(message);else console.info("[Prompt Testing Workspace]",message);}
   function addStyles(){if($("promptTestingWorkspaceStyles"))return;const link=document.createElement("link");link.id="promptTestingWorkspaceStyles";link.rel="stylesheet";link.href="/static/prompt-testing-workspace.css?v=20261119a";document.head.appendChild(link);}
@@ -79,18 +79,18 @@
     const button=$("ptwAI"),runId=++activeRun;button.disabled=true;button.textContent="Combined review running...";$("ptwStatus").textContent="One combined AI request is reviewing the selected specialists.";
     const system="You are the coordinating analyst for a unified prompt quality review. The same target prompt is being assessed by selected specialist lenses. Preserve their distinctions and produce one coherent report. Do not claim execution testing. Distinguish direct evidence from inference. Prioritise issues by likely impact. Do not rewrite the prompt wholesale. Return these sections: EXECUTIVE VERDICT, CROSS SPECIALIST FINDINGS, PROMPT SURGEON PATCHES (only if selected), RED TEAM ATTACK SCENARIOS (only if selected), STRESS LAB QUALITY GAPS (only if selected), PRIORITY ORDER, REGRESSION TESTS. Keep recommendations minimal, testable and non-duplicative.";
     const user="OBJECTIVE:\n"+($("ptwObjective").value.trim()||"Assess the prompt for the most relevant quality risks.")+"\n\nSELECTED SPECIALISTS:\n"+routeNames(baseline.route).join(", ")+"\n\nTARGET PROMPT:\n"+baseline.prompt.slice(0,20000)+"\n\nLOCAL SPECIALIST EVIDENCE:\n"+baseline.sections.map(section=>"### "+section.title+"\n"+section.body).join("\n\n")+"\n\nReturn one integrated assessment. Do not repeat the entire local report.";
-    try{const answer=await specialists.callAI(system,user,2600);if(runId!==activeRun)return;if(!answer){toast("AI review returned no result. The local report remains available.");return;}const aiText=String(answer),report=buildReport(baseline.prompt,$("ptwObjective").value,baseline.route,baseline.sections,aiText);renderResults(baseline.sections,report,aiText);$("ptwStatus").textContent="Combined AI review complete. One request used for "+routeNames(baseline.route).join(", ")+".";
+    try{const answer=await specialists.callAI(system,user,2600);if(runId!==activeRun)return;if(!answer||/^AI request failed:/i.test(String(answer))){toast("AI review failed. The local report remains available.");$("ptwStatus").textContent="AI review failed. Local findings are preserved.";return;}const aiText=String(answer),report=buildReport(baseline.prompt,$("ptwObjective").value,baseline.route,baseline.sections,aiText);renderResults(baseline.sections,report,aiText);$("ptwStatus").textContent="Combined AI review complete. One request used for "+routeNames(baseline.route).join(", ")+".";
       $("ptwVerdict").textContent="AI REVIEWED";
     }catch(_){toast("AI review failed. The local assessment remains available.");$("ptwStatus").textContent="AI review failed. Local findings are preserved.";}
     finally{if(runId===activeRun){button.disabled=false;button.textContent="Run combined AI review";}}
   }
   async function copyReport(){if(!lastReport){toast("Run an assessment first.");return;}try{await navigator.clipboard.writeText(lastReport);toast("Combined report copied.");}catch(_){toast("Clipboard access is unavailable.");}}
   async function saveReport(){if(!lastReport){toast("Run an assessment first.");return;}try{const response=await fetch("/api/prompts",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:"Prompt Testing Report, "+new Date().toLocaleDateString("en-GB"),content:lastReport,description:"Combined Prompt Surgeon, Red Team and Stress Lab assessment. Original prompt unchanged.",categories:"Prompt QA",tags:"prompt-testing,quality-assurance"})});if(!response.ok)throw new Error("Save failed");promptCache=null;toast("Combined report saved to Library.");}catch(_){toast("Could not save the report.");}}
-  function close(){const root=$(ROOT_ID);if(root)root.classList.remove("open");if(window.PLNewWorkspaceSuite)window.PLNewWorkspaceSuite.close();}
+  function close(){const root=$(ROOT_ID);if(root)root.classList.remove("open");if(window.PLNewWorkspaceSuite)window.PLNewWorkspaceSuite.close();if(opener&&opener.isConnected&&typeof opener.focus==="function")opener.focus({preventScroll:true});opener=null;}
   function onClick(event){if(event.target.closest("[data-ptw-close]")){close();return;}if(event.target.closest("#ptwLocal")){localRun();return;}if(event.target.closest("#ptwAI")){aiRun();return;}if(event.target.closest("#ptwCopy")){copyReport();return;}if(event.target.closest("#ptwSave")){saveReport();return;}}
   function open(){
     if(!document.body.classList.contains("is-premium")){toast("Activate Prompt Library Pro to open this workspace.");return;}
-    addStyles();shell();if(window.PLNewWorkspaceSuite)window.PLNewWorkspaceSuite.close();$("ptwRoute").value="auto";
+    opener=document.activeElement;addStyles();shell();if(window.PLNewWorkspaceSuite)window.PLNewWorkspaceSuite.close();$("ptwRoute").value="auto";
     $(ROOT_ID).classList.add("open");document.body.classList.add("plx-workspace-open");
     if(window.PLWS&&typeof window.PLWS.noteOpened==="function")window.PLWS.noteOpened("openPlxSurgeonWorkspace");
     fillPicker();updateRouteSummary();$("ptwPrompt").focus();
