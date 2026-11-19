@@ -25,7 +25,7 @@ The custom block creator belongs in Prompt Builder Pro, in the left hand Block L
 - Existing graph nodes and connections continue to use the Prompt Builder graph.
 - Custom definitions are loaded before the builder workspace is mounted and are available in the Block Library.
 - Editing a definition updates the reusable library definition. Existing node configuration text remains independently editable.
-- The old Create custom block entry is hidden in Prompt Components. The feature is surfaced in Prompt Builder only.
+- Prompt Components remains unchanged. The custom block studio is a separate Prompt Builder feature.
 
 ## Verification status
 
