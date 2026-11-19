@@ -248,6 +248,16 @@
     ensureCard();
     document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$(ROOT)&&$(ROOT).classList.contains("open"))closeLab();});
   }
-  window.openPromptStressLabWorkspace=openLab;
-  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+  function analyzeFor(prompt, selectedMode){
+    const previousMode=mode;
+    mode=MODES[selectedMode]?selectedMode:"harden";
+    const result=analyze(String(prompt||""));
+    mode=previousMode;
+    return result;
+  }
+  window.PLStressLabCore={analyze:analyzeFor,modes:MODES};
+  if(!window.PL_PROMPT_TESTING_UNIFIED){
+    window.openPromptStressLabWorkspace=openLab;
+    if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+  }
 })();
