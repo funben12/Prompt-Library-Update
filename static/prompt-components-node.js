@@ -269,12 +269,15 @@
     if(target){
       const source=state.nodes.find(n=>n.id===connect.source),dest=state.nodes.find(n=>n.id===target.dataset.node),sourcePort=connect.side,targetPort=target.dataset.side;
       const customPair=sourcePort.startsWith("out:")&&targetPort.startsWith("in:");
+      const customToLegacy=sourcePort.startsWith("out:")&&targetPort==="left";
+      const legacyToCustom=sourcePort==="right"&&targetPort.startsWith("in:");
       const legacyPair=!sourcePort.includes(":")&&!targetPort.includes(":");
-      if(source&&dest&&relationAllowed(source,dest)&&(customPair||legacyPair)){
+      const validPorts=customPair||customToLegacy||legacyToCustom||legacyPair;
+      if(source&&dest&&relationAllowed(source,dest)&&validPorts){
         snapshot();
         const edge={id:uid("e"),source:source.id,target:dest.id,source_port:sourcePort,target_port:targetPort,relation:"sequence"};
         state.edges.push(edge);state.selected=["edge:"+edge.id];markDirty();
-      }else if(source&&dest){toast(source.id===dest.id?"A component cannot connect to itself.":(!customPair&&!legacyPair?"Connect an output port to an input port.":"That connection would create a cycle."));}
+      }else if(source&&dest){toast(source.id===dest.id?"A component cannot connect to itself.":(!validPorts?"Connect an output to an input. Custom outputs use the left input handle on standard nodes.":"That connection would create a cycle."));}
     }
     connect=null;
     window.removeEventListener("pointermove",moveConnect);
@@ -298,11 +301,14 @@
       const destId=target.dataset.node,destSide=target.dataset.side;
       const sourcePort=connect.end==="source"?destSide:edge?.source_port,targetPort=connect.end==="target"?destSide:edge?.target_port;
       const customPair=String(sourcePort||"").startsWith("out:")&&String(targetPort||"").startsWith("in:");
+      const customToLegacy=String(sourcePort||"").startsWith("out:")&&targetPort==="left";
+      const legacyToCustom=sourcePort==="right"&&String(targetPort||"").startsWith("in:");
       const legacyPair=!String(sourcePort||"").includes(":")&&!String(targetPort||"").includes(":");
-      if(edge&&destId!==edge.source&&destId!==edge.target&&(customPair||legacyPair)){
+      const validPorts=customPair||customToLegacy||legacyToCustom||legacyPair;
+      if(edge&&destId!==edge.source&&destId!==edge.target&&validPorts){
         if(connect.end==="source"){if(!wouldCycle(destId,edge.target)){edge.source=destId;edge.source_port=destSide;markDirty();}else toast("That reconnection would create a cycle.");}
         else if(!wouldCycle(edge.source,destId)){edge.target=destId;edge.target_port=destSide;markDirty();}else toast("That reconnection would create a cycle.");
-      }else if(edge&&!(customPair||legacyPair)){toast("Connect an output port to an input port.");}
+      }else if(edge&&!validPorts){toast("Connect an output to an input.");}
     }
     connect=null;window.removeEventListener("pointermove",moveConnect);render();
   }
