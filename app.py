@@ -5039,6 +5039,13 @@ def composition_graph(cid):
                     edge.get('relation') or 'sequence'
                 )
             )
+        node_meta = view_state.get('node_meta') or {}
+        if isinstance(node_meta, dict):
+            view_state['node_meta'] = {
+                str(node_map[key]): value
+                for key, value in node_meta.items()
+                if str(key) in node_map
+            }
         conn.execute(
             'UPDATE compositions SET view_state=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',
             (json.dumps(view_state), cid)
