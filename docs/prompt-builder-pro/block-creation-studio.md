@@ -65,7 +65,9 @@ It is a reusable prompt graph block, not a runtime agent executor. The generated
 
 - Custom input ports appear on the left side of a node.
 - Custom output ports appear on the right side.
-- A custom output can connect only to a custom input.
+- Custom outputs connect to custom inputs.
+- Custom outputs can also connect to the left handle of a standard component.
+- The right handle of a standard component can connect to a custom input.
 - Existing shipped components retain their legacy generic connection handles.
 - Port IDs are stored in the existing `composition_edges.source_port` and `target_port` fields.
 
