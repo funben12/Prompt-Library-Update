@@ -18,9 +18,11 @@
 #pbp-custom-block-dialog aside b,#pbp-custom-block-dialog aside small{flex-basis:100%}
 #pbp-custom-block-dialog aside code{padding:4px 6px;background:var(--surface);border-radius:5px;color:var(--accent)}
 #pbp-custom-block-dialog footer{justify-content:flex-end;border-top:1px solid var(--line);border-bottom:0}
-#builderProWorkspace .pbp-create-custom{border-color:var(--accent);color:var(--accent);white-space:nowrap}
+#builderProWorkspace .pbp-create-custom{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:27px;padding:4px 9px;border-radius:var(--r-sm);white-space:nowrap;font-weight:650;letter-spacing:.01em}
+#builderProWorkspace .pbp-create-custom .material-symbols-outlined{font-size:15px;line-height:1}
+#builderProWorkspace .pbp-create-custom:hover{filter:brightness(1.06);transform:translateY(var(--btn-lift,0))}
+#builderProWorkspace .pbp-create-custom:active{transform:translateY(var(--btn-sink,0))}
 #builderProWorkspace .pbp-cb-item{display:flex;align-items:center;gap:5px}
 #builderProWorkspace .pbp-cb-item .pbp-lib-item{flex:1;min-width:0}
 #builderProWorkspace .pbp-cb-edit{padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink-2);font-size:11px}
 @media(max-width:600px){#pbp-custom-block-dialog .pbp-cb-row,#pbp-custom-block-dialog #pbp-cb-settings .pbp-cb-row{grid-template-columns:1fr 1fr}}
-#componentsWorkspace #plnCreateBlock{display:none!important}
