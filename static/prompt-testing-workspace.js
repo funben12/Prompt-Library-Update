@@ -10,7 +10,7 @@
     if($(ROOT_ID))return;
     const root=document.createElement("section");
     root.id=ROOT_ID;root.className="ptw-root";root.setAttribute("role","dialog");root.setAttribute("aria-modal","true");root.setAttribute("aria-labelledby","ptwTitle");root.tabIndex=-1;
-    root.innerHTML=\`
+    root.innerHTML=`
       <header class="ptw-header"><div class="ptw-heading"><span class="ptw-kicker">Prompt quality and reliability</span><h2 id="ptwTitle">Prompt Testing Workspace</h2><p>One prompt, one shared assessment, three specialist lenses.</p></div><button class="ptw-icon-btn" type="button" data-ptw-close aria-label="Close workspace">×</button></header>
       <div class="ptw-layout">
         <section class="ptw-input-panel">
@@ -31,7 +31,7 @@
           <div class="ptw-report-actions"><button class="ptw-btn" id="ptwCopy" type="button">Copy combined report</button><button class="ptw-btn" id="ptwSave" type="button">Save report to Library</button></div>
         </section>
       </div>
-      <footer class="ptw-footer">Surgeon, Red Team and Stress Lab share the same prompt and assessment context. A structural scan is evidence for review, not proof of runtime reliability. Gauntlet Loop remains a separate tool.</footer>\`;
+      <footer class="ptw-footer">Surgeon, Red Team and Stress Lab share the same prompt and assessment context. A structural scan is evidence for review, not proof of runtime reliability. Gauntlet Loop remains a separate tool.</footer>`;
     document.body.appendChild(root);root.addEventListener("click",onClick);root.addEventListener("change",onChange);
     $("ptwPrompt").addEventListener("input",()=>markDirty("Prompt changed. Run the assessment again."));
     $("ptwObjective").addEventListener("input",updateRouteSummary);$("ptwRoute").addEventListener("change",updateRouteSummary);
