@@ -322,10 +322,10 @@
     // Panel style workspaces that use the plx header (kicker, title, one line).
     LAY.openPlxSurgeonWorkspace = id => frame(id, { plx: true, sub: 360 },
         row({ f: 1, g: 18, p: '8px 28px 26px' },
-            pane({ f: 1, g: 12 }, row({ jc: 'space-between', al: 'center' }, col({ g: 7 }, bar('130px', 'hd'), bar('190px', 'soft')), sel(150)), area([94, 82, 90, 70, 88, 76, 92, 60, 84], { f: 1 }), row({ g: 10 }, btn('a', 190, true), btn('g', 120, true))),
-            pane({ f: 1, g: 12 }, row({ al: 'center', g: 10 }, ic('medical_services', 24, 'wsv-ac'), hd(40), '<span style="flex:1"></span>', badge('3 FINDINGS', 'wn')),
-                rep(3, i => col({ g: 8, x: 'padding:12px 14px;border-radius:10px;border:2px solid var(--line);border-left:5px solid var(--' + ['danger', 'warn', 'warn'][i] + ');flex:none' }, row({ g: 8, al: 'center' }, badge(['HIGH', 'MED', 'MED'][i], ['bad', 'wn', 'wn'][i]), bar(50, 'hd')), ln([90, 62], 7)), 3),
-                D('area', { c: 'wsv-out wsv-hl', f: 1 }, [row({ g: 8, al: 'center' }, ic('build', 20, 'wsv-ac'), lab(80)), seq([[60, 'del'], [30, 'add']]), seq([[80, 'add']])]))));
+            pane({ w: S ? 340 : 410, g: 12 }, row({ jc: 'space-between', al: 'center' }, col({ g: 7 }, bar(140, 'hd'), bar(190, 'soft')), sel(150)), area([94, 82, 90, 70, 88, 76, 92, 60], { f: 1 }), area([90, 74, 84], { h: 74 }), row({ g: 10 }, btn('a', 180, true), btn('g', 130))),
+            pane({ f: 1, g: 12 }, row({ al: 'center', g: 10 }, ic('rule', 24, 'wsv-ac'), hd(42), '<span style="flex:1"></span>', badge('SHARED REVIEW', 'ok')),
+                rep(3, i => col({ g: 8, x: 'padding:12px 14px;border-radius:10px;border:2px solid var(--line);flex:none' }, row({ g: 8, al: 'center' }, ic(['healing', 'security', 'fact_check'][i], 20), bar([125, 135, 120][i], 'hd'), '<span style="flex:1"></span>', badge(['SURGEON', 'RED TEAM', 'STRESS LAB'][i], 'wn')), ln([92, 68, 82][i], 7)), 3),
+                D('area', { c: 'wsv-out wsv-hl', f: 1 }, [row({ g: 8, al: 'center' }, ic('checklist', 20, 'wsv-ac'), lab(100)), seq([[72, 'del'], [42, 'add']]), seq([[88, 'add']])]))));
     LAY.openPlxTeammateWorkspace = id => frame(id, { plx: true, sub: 380 },
         row({ f: 1, g: 18, p: '8px 28px 26px' },
             pane({ w: S ? 360 : 440, g: 14 }, rep(4, i => col({ g: 8 }, row({ g: 8, al: 'center' }, ic(['flag', 'memory', 'handyman', 'block'][i], 20), lab(70 + i * 10)), field(null, { fill: 60 - i * 8 })), 4), btn('a', 230, true)),
