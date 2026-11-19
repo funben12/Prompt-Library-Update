@@ -41,3 +41,7 @@
 #promptTestingWorkspace .ptw-footer{padding:10px 22px;border-top:1px solid var(--line);background:var(--surface)}
 @media(max-width:900px){#promptTestingWorkspace .ptw-layout{grid-template-columns:1fr;padding:12px}#promptTestingWorkspace .ptw-prompt{min-height:180px}}
 @media(max-width:560px){#promptTestingWorkspace .ptw-header{padding:13px 14px}#promptTestingWorkspace .ptw-heading h2{font-size:17px}#promptTestingWorkspace .ptw-heading p{font-size:10px}#promptTestingWorkspace .ptw-layout{gap:10px;padding:9px}#promptTestingWorkspace .ptw-input-panel,#promptTestingWorkspace .ptw-results-panel{padding:12px}#promptTestingWorkspace .ptw-footer{padding:9px 13px}}
+
+#promptTestingWorkspace .ptw-context-option{display:flex;align-items:flex-start;gap:9px;padding:9px 10px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-2);color:var(--ink-2);font-size:10px;line-height:1.5}
+#promptTestingWorkspace .ptw-context-option input{margin:2px 0 0;accent-color:var(--accent)}
+#promptTestingWorkspace .ptw-pattern-summary{padding:9px 11px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-2);color:var(--ink-3);font-size:10px;line-height:1.5}
