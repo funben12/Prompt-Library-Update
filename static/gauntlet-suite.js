@@ -14,6 +14,7 @@
 
   function closeSuite(){
     SUITE.ids.forEach(id => $(id)?.classList.remove("open"));
+    $("promptTestingWorkspace")?.classList.remove("open");
     document.body.classList.remove("plx-workspace-open");
     SUITE.active = null;
   }
@@ -289,10 +290,14 @@
     document.addEventListener("click",e=>{
       const trigger=e.target.closest("[data-open]");
       if(trigger){
-        const id=trigger.getAttribute("data-open");
-        if(SUITE.ids.includes(id)){
+        const action=trigger.getAttribute("data-open");
+        const handler=window[action];
+        if(typeof handler==="function"){
           e.preventDefault();
-          openSuite(id);
+          handler();
+        }else if(SUITE.ids.includes(action)){
+          e.preventDefault();
+          openSuite(action);
         }
       }
       const close=e.target.closest("[data-plx-close]");
@@ -349,16 +354,37 @@
     callAI("You are a ruthless quality bar designer using the Gauntlet Loop method. Choose the strongest concrete, inspectable comparison or measurement. Avoid vague adjectives. Produce a concise bar, evidence to inspect, and a comparative stop condition.",base,2200).then(ai=>{if(ai)setOutput("plxBarOutput",base+"\n\nAI FORGE\n"+ai);});
   }
 
+  function redTeamLocal(input){
+    return ["RED TEAM CHECKLIST","","1. Ambiguity, find instructions with multiple valid interpretations.","2. Conflicts, find rules that collide under pressure.","3. Missing inputs, identify where the model may invent information.","4. Boundary pressure, test extreme, empty, oversized and malformed inputs.","5. Instruction priority, test accidental overrides.","6. Output drift, find ways to answer technically while missing the real goal.","7. Self grading, find places where success can be declared without evidence.","8. Regression risk, identify changes that could improve one case while damaging another.","","TARGET PROMPT",String(input||"")].join("\n");
+  }
+
   function runRedTeam(){
     const input=$("plxRedTeamInput")?.value.trim();
     if(!input){setOutput("plxRedTeamOutput","Paste a prompt first.");return;}
-    const local=["RED TEAM CHECKLIST","","1. Ambiguity, find instructions with multiple valid interpretations.","2. Conflicts, find rules that collide under pressure.","3. Missing inputs, identify where the model may invent information.","4. Boundary pressure, test extreme, empty, oversized and malformed inputs.","5. Instruction priority, test accidental overrides.","6. Output drift, find ways to answer technically while missing the real goal.","7. Self grading, find places where success can be declared without evidence.","8. Regression risk, identify changes that could improve one case while damaging another.","","TARGET PROMPT",input].join("\n");
+    const local=redTeamLocal(input);
     setOutput("plxRedTeamOutput",local+"\n\nAI ATTACK\nRunning...");
     callAI("You are a hostile but fair prompt red team critic. Attack the supplied prompt with concrete adversarial scenarios. Prioritise confident failure modes. For each serious weakness, give a minimal fix and a test proving the fix works.",local,2500).then(ai=>{if(ai)setOutput("plxRedTeamOutput",local+"\n\nAI ATTACK\n"+ai);});
   }
 
   window.openPlBarForgeWorkspace=()=>openSuite("plxBarForgeWorkspace");
-  window.openPlRedTeamWorkspace=()=>openSuite("plxRedTeamWorkspace");
+  window.openPlxSurgeonWorkspace=()=>typeof window.openPromptTestingWorkspace==="function"?window.openPromptTestingWorkspace():toast("Prompt Testing Workspace is still loading. Try again in a moment.");
+  window.openPlRedTeamWorkspace=()=>typeof window.openPromptTestingWorkspace==="function"?window.openPromptTestingWorkspace():toast("Prompt Testing Workspace is still loading. Try again in a moment.");
 
+  window.PLPromptTestingSpecialists={
+    localSurgeon:localSurgeon,
+    localRedTeam:redTeamLocal,
+    callAI:callAI
+  };
   window.PLNewWorkspaceSuite={open:openSuite,close:closeSuite};
+  window.PL_PROMPT_TESTING_UNIFIED=true;
+  const stressScript=document.createElement("script");
+  stressScript.src="/static/prompt-stress-lab.js?v=20261119a";
+  stressScript.async=false;
+  stressScript.onload=function(){
+    const unifiedScript=document.createElement("script");
+    unifiedScript.src="/static/prompt-testing-workspace.js?v=20261119a";
+    unifiedScript.async=false;
+    document.head.appendChild(unifiedScript);
+  };
+  document.head.appendChild(stressScript);
 })();

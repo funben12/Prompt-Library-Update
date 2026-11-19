@@ -759,3 +759,26 @@ Resulting state:
 - **Checked:** scripted Chromium against the app with a mocked save bridge: 38 of 38 export actions saved with the right file and content; as plain browser downloads: 18 of 18; Prompt Board export both ways. Python bridge unit test: `python -m unittest discover tests/exports` (5 tests, pywebview stubbed).
 - **Not checked:** the real WebView2 window on Windows (no Windows here). Confirm on the installed build that Save As opens for each export and that the file lands where chosen.
 - **Cache:** loader `?v=` is `20261117c`; `app.js` hash refreshed by `update_hash.py`.
+
+
+## Prompt Stress Lab (2026-11-18, feature branch)
+
+- A new Pro workspace, **Prompt Stress Lab**, is being introduced as a central QA layer alongside Prompt Auditor, Prompt Surgeon, Prompt Red Team and Gauntlet Loop. It complements those tools rather than replacing them.
+- Files: `static/prompt-stress-lab.js`, `static/prompt-stress-lab.css`, and `docs/prompt-stress-lab/SPEC.md`. The existing `static/gauntlet-suite.js` loads the new module; `static/index.html` cache-busts that suite loader. The launcher card is injected into the Inspect group and discovered by the existing PLWS registry.
+- Modes: QUICK (clarity, ambiguity, inputs, output), HARDEN (full structural set), CRITICAL (adds adversarial checks).
+- Token policy: local heuristic scans are the default and use zero AI tokens. AI review is a separate explicit action, one request per run, bounded to 1,600 output tokens or 2,200 in CRITICAL. Optional Context Bank inclusion is off by default and capped at two blocks / 2,800 characters.
+- Original prompts are not rewritten. Findings are advisory, and a structural scan is never represented as proof of runtime reliability.
+- Recurring QA findings are stored separately in localStorage key `promptlib.stresslab.patterns.v1`, not written into Context Bank. Pattern history can be exported. Optional Context Bank blocks are read only for AI context.
+- No database schema changes, new dependencies, cloud storage, account system or authentication changes.
+- This work is on branch `feature/prompt-stress-lab` and is not merged. Browser and installed PyWebView verification are required before merge. Do not describe it as production-ready until those checks pass.
+
+
+## Unified Prompt Testing Workspace (2026-11-19, current branch)
+
+- Prompt Surgeon, Prompt Red Team and Prompt Stress Lab now share one full-screen workspace on `feature/prompt-stress-lab`. One prompt and one optional objective feed the selected specialist checks. Results are collected into one report.
+- Automatic routing uses local keyword signals. Users can override with Surgeon, Red Team, Stress Lab or Full assessment. Local checks use no AI. Optional combined AI review makes one bounded request for the selected specialists.
+- Stress Lab's QUICK, HARDEN and CRITICAL modes remain available. Optional Context Bank inclusion is off by default and capped at two relevant blocks / 2,800 characters. Recurring QA patterns remain in localStorage `promptlib.stresslab.patterns.v1` and can be exported.
+- The old separate Surgeon and Red Team launcher cards and workspace markup have been removed. The shared launcher is in Inspect. Workspace registry tags and preview now describe the combined tool.
+- Gauntlet Loop is explicitly separate and untouched. Do not merge it into this workspace.
+- Files: `static/prompt-testing-workspace.js/.css`, `static/prompt-stress-lab.js` (analysis core export), `static/gauntlet-suite.js` (launcher delegation and specialist exports), `static/index.html`, `static/workspace-registry.js`, `static/workspace-previews.js`, and `docs/prompt-stress-lab/SPEC.md`.
+- Verified so far: JavaScript syntax checks pass for the changed JS files; specialist engine smoke test returns Surgeon, Red Team and Stress Lab results; QUICK/HARDEN/CRITICAL each return the expected lens sets; static integration checks pass. Interactive browser and installed PyWebView checks remain outstanding. This branch is not merged.
