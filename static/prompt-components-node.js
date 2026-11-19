@@ -7,17 +7,18 @@
   const clone=o=>JSON.parse(JSON.stringify(o));
   const uid=p=>p+"_"+Math.random().toString(36).slice(2,10);
   const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const blocks=()=>[...(window._pcwBLOCKS||[]),...(window._pcwFRAMEWORKS||[]).map((f,i)=>({id:"framework:"+i,label:f.name||f.title||"Framework",text:f.template||f.prompt||f.description||"",icon:"schema",cat:"framework"}))];
-  const blank=()=>({id:null,title:"",nodes:[],edges:[],view:{x:80,y:60,z:1},selected:[],groups:[],dirty:false,snap:true});
+  const blocks=()=>[...(window._pcwBLOCKS||[]),...(state?.customBlocks||[]),...(window._pcwFRAMEWORKS||[]).map((f,i)=>({id:"framework:"+i,label:f.name||f.title||"Framework",text:f.template||f.prompt||f.description||"",icon:"schema",cat:"framework"}))];
+  const blank=()=>({id:null,title:"",nodes:[],edges:[],view:{x:80,y:60,z:1},selected:[],groups:[],dirty:false,snap:true,customBlocks:[]});
   function api(url,opt={}){return fetch(url,{credentials:"same-origin",headers:{"Content-Type":"application/json",...(opt.headers||{})},...opt});}
-  function nodeDef(b,x,y){return {id:uid("n"),block_ref:String(b.id||b.label||uid("b")),label:b.label||b.name||"Component",text:b.text||b.body||"",x,y,z_index:0,collapsed:false,width:260,height:140};}
+  function defaultConfig(definition){const config={};(definition?.settings||[]).forEach(setting=>{config[setting.id]=setting.default??(setting.type==="checkbox"?false:"");});return config;}
+  function nodeDef(b,x,y){const definition=clone(b.definition||{}),ports=Math.max((definition.inputs||[]).length,(definition.outputs||[]).length);return {id:uid("n"),block_ref:String(b.id||b.label||uid("b")),label:b.label||b.name||"Component",text:b.text||b.body||"",definition,config:defaultConfig(definition),x,y,z_index:0,collapsed:false,width:definition.schema?320:260,height:definition.schema?Math.max(170,142+ports*24):140};}
   function snapshot(){history.push(clone({nodes:state.nodes,edges:state.edges,view:state.view,groups:state.groups}));if(history.length>80)history.shift();future=[];}
   function undo(){if(!history.length)return;future.push(clone({nodes:state.nodes,edges:state.edges,view:state.view,groups:state.groups}));const s=history.pop();Object.assign(state,s);render();}
   function redo(){if(!future.length)return;history.push(clone({nodes:state.nodes,edges:state.edges,view:state.view,groups:state.groups}));const s=future.pop();Object.assign(state,s);render();}
   function screenToWorld(clientX,clientY){const r=canvas.getBoundingClientRect();return{x:(clientX-r.left-state.view.x)/state.view.z,y:(clientY-r.top-state.view.y)/state.view.z};}
   function applyView(){const transform="translate("+state.view.x+"px,"+state.view.y+"px) scale("+state.view.z+")";world.style.transform=transform;svg.style.transform=transform;svg.style.transformOrigin="0 0";svg.setAttribute("width",Math.max(canvas.clientWidth/state.view.z+2000,4000));svg.setAttribute("height",Math.max(canvas.clientHeight/state.view.z+2000,4000));}
   function pathFor(a,b){const dx=Math.max(40,Math.abs(b.x-a.x)*.5);return "M "+a.x+" "+a.y+" C "+(a.x+dx)+" "+a.y+", "+(b.x-dx)+" "+b.y+", "+b.x+" "+b.y;}
-  function point(n,side){if(side==="left")return{x:n.x,y:n.y+n.height/2};if(side==="right")return{x:n.x+n.width,y:n.y+n.height/2};if(side==="top")return{x:n.x+n.width/2,y:n.y};return{x:n.x+n.width/2,y:n.y+n.height};}
+  function point(n,side){const definition=n.definition||{};if(side.startsWith("in:")){const i=(definition.inputs||[]).findIndex(p=>p.id===side.slice(3));return{x:n.x,y:n.y+47+Math.max(0,i)*24+11};}if(side.startsWith("out:")){const i=(definition.outputs||[]).findIndex(p=>p.id===side.slice(4));return{x:n.x+(n.width||320),y:n.y+47+Math.max(0,i)*24+11};}if(side==="left")return{x:n.x,y:n.y+n.height/2};if(side==="right")return{x:n.x+n.width,y:n.y+n.height/2};if(side==="top")return{x:n.x+n.width/2,y:n.y};return{x:n.x+n.width/2,y:n.y+n.height};}
   function relationAllowed(a,b){return a&&b&&a.id!==b.id;}
   function buildPrompt(){
     const map=new Map(state.nodes.map(n=>[n.id,n]));
@@ -32,7 +33,19 @@
       if(active.has(n.id)){warnings.push("Cycle detected at "+n.label);result.push(pad+"[Cycle omitted: "+n.label+"]");return;}
       if(seen.has(n.id)){result.push(pad+"[Converges with "+n.label+"]");return;}
       active.add(n.id);
-      const text=(n.text||"").trim();if(text)result.push(pad+text);
+      const definition=n.definition||{},config=n.config||{};
+      let text=(n.text||"").trim();
+      if(definition.schema){
+        text=text.replace(/\{\{setting:([\w-]+)\}\}/g,(_,key)=>String(config[key]??""));
+        text=text.replace(/\{\{input:([\w-]+)\}\}/g,(_,key)=>{const port=(definition.inputs||[]).find(p=>p.id===key);const edge=state.edges.find(e=>e.target===n.id&&e.target_port==="in:"+key);const source=edge&&map.get(edge.source);return source?"[Input "+(port?.name||key)+" from "+source.label+"]":"[Input "+(port?.name||key)+"]";});
+        text=text.replace(/\{\{output:([\w-]+)\}\}/g,(_,key)=>{const port=(definition.outputs||[]).find(p=>p.id===key);return "[Output "+(port?.name||key)+"]";});
+        const contracts=[];
+        if((definition.inputs||[]).length)contracts.push("INPUTS:\n"+definition.inputs.map(p=>"- "+p.name+" ("+p.type+")"+(p.required?" required":" optional")).join("\n"));
+        if((definition.outputs||[]).length)contracts.push("OUTPUTS:\n"+definition.outputs.map(p=>"- "+p.name+" ("+p.type+")").join("\n"));
+        if((definition.settings||[]).length)contracts.push("CONFIGURATION:\n"+definition.settings.map(p=>"- "+p.name+": "+String(config[p.id]??p.default??"")).join("\n"));
+        if(contracts.length)result.push(pad+"["+n.label+"]\n"+contracts.join("\n"));
+      }
+      if(text)result.push(pad+text);
       const children=(out.get(n.id)||[]).map(e=>({edge:e,node:map.get(e.target)})).filter(x=>x.node).sort((a,b)=>a.node.y-b.node.y||a.node.x-b.node.x);
       if(children.length>1){children.forEach((item,i)=>{result.push("");result.push(pad+"[Branch "+(i+1)+(item.node.label?": "+item.node.label:"")+"]");walk(item.node,depth+1);});}
       else if(children.length===1){walk(children[0].node,depth);}
@@ -46,22 +59,21 @@
     const list=palette.querySelector(".pln-palette-list"), q=palette.querySelector(".pln-search").value.toLowerCase();
     const arr=blocks().filter(b=>(b.label||b.name||"").toLowerCase().includes(q)||(b.text||b.body||"").toLowerCase().includes(q));
     const groups=new Map();arr.forEach(b=>{const k=b.cat||"components";if(!groups.has(k))groups.set(k,[]);groups.get(k).push(b)});
-    list.innerHTML=[...groups.entries()].map(([cat,items])=>"<details class='pln-section' open><summary>"+esc(cat)+" <span>"+items.length+"</span></summary>"+items.slice(0,120).map((b,i)=>`<button class="pln-palette-item" draggable="true" data-b="${esc(b.id||b.label||i)}"><span class="pln-palette-icon">${esc((b.icon||"extension").slice(0,1).toUpperCase())}</span><span class="pln-palette-copy"><strong>${esc(b.label||b.name||"Component")}</strong><span>${esc((b.text||b.body||"").slice(0,80))}</span></span></button>`).join("")+"</details>").join("");
+    list.innerHTML=[...groups.entries()].map(([cat,items])=>"<details class='pln-section' open><summary>"+esc(cat)+" <span>"+items.length+"</span></summary>"+items.slice(0,120).map((b,i)=>'<div class="pln-palette-entry"><button class="pln-palette-item" draggable="true" data-b="'+esc(b.id||b.label||i)+'"><span class="pln-palette-icon">'+esc((b.icon||"extension").slice(0,1).toUpperCase())+'</span><span class="pln-palette-copy"><strong>'+esc(b.label||b.name||"Component")+'</strong><span>'+esc((b.text||b.body||"").slice(0,80))+'</span></span></button>'+(b.source==="user"?'<button class="pln-palette-edit" type="button" data-edit-block="'+esc(b.id)+'" title="Edit block">Edit</button>':"")+"</div>").join("")+"</details>").join("");
     list.querySelectorAll(".pln-palette-item").forEach(btn=>{
       btn.addEventListener("dblclick",()=>{const r=canvas.getBoundingClientRect();addBlockByRef(btn.dataset.b,r.left+r.width/2,r.top+r.height/2);});
       btn.addEventListener("dragstart",e=>e.dataTransfer.setData("text/pln-block",btn.dataset.b));
     });
+    list.querySelectorAll("[data-edit-block]").forEach(btn=>btn.addEventListener("click",()=>{const block=state.customBlocks.find(item=>String(item.id)===btn.dataset.editBlock);if(block)openBlockStudio(block);}));
   }
   function addBlockByRef(ref,x,y){
     const b=blocks().find(v=>String(v.id||v.label||"")===String(ref))||blocks().find(v=>String(v.label||"")===String(ref));if(!b)return;
     snapshot();const p=screenToWorld(x,y);state.nodes.push(nodeDef(b,p.x-120,p.y-55));state.selected=[state.nodes.at(-1).id];markDirty();render();
   }
   function nodeHtml(n){
-    return `<div class="pln-node ${state.selected.includes(n.id)?"selected":""}" data-node="${esc(n.id)}" style="left:${n.x}px;top:${n.y}px;width:${n.width||260}px;height:${n.height||140}px;z-index:${n.z_index||0}">
-      <span class="pln-handle left" data-side="left" data-node="${esc(n.id)}"></span><span class="pln-handle right" data-side="right" data-node="${esc(n.id)}"></span><span class="pln-handle top" data-side="top" data-node="${esc(n.id)}"></span><span class="pln-handle bottom" data-side="bottom" data-node="${esc(n.id)}"></span>
-      <div class="pln-node-head" data-drag-node="${esc(n.id)}"><span class="pln-node-dot"></span><span class="pln-node-title">${esc(n.label)}</span><button class="pln-tool pln-node-menu" data-delete-node="${esc(n.id)}" title="Delete">×</button></div>
-      <textarea class="pln-node-edit" data-edit-node="${esc(n.id)}">${esc(n.text)}</textarea>
-    </div>`;
+    const definition=n.definition||{},inputs=definition.inputs||[],outputs=definition.outputs||[],custom=!!definition.schema;
+    const portRows=custom?'<div class="pln-node-ports"><div class="pln-node-port-column inputs">'+inputs.map(p=>'<div class="pln-node-port-row input"><span class="pln-handle pln-port-handle" data-side="in:'+esc(p.id)+'" data-node="'+esc(n.id)+'"></span><span>'+esc(p.name)+'</span></div>').join("")+'</div><div class="pln-node-port-column outputs">'+outputs.map(p=>'<div class="pln-node-port-row output"><span>'+esc(p.name)+'</span><span class="pln-handle pln-port-handle" data-side="out:'+esc(p.id)+'" data-node="'+esc(n.id)+'"></span></div>').join("")+'</div></div>':'<span class="pln-handle left" data-side="left" data-node="'+esc(n.id)+'"></span><span class="pln-handle right" data-side="right" data-node="'+esc(n.id)+'"></span><span class="pln-handle top" data-side="top" data-node="'+esc(n.id)+'"></span><span class="pln-handle bottom" data-side="bottom" data-node="'+esc(n.id)+'"></span>';
+    return '<div class="pln-node '+(state.selected.includes(n.id)?"selected":"")+'" data-node="'+esc(n.id)+'" style="left:'+n.x+'px;top:'+n.y+'px;width:'+(n.width||260)+'px;height:'+(n.height||140)+'px;z-index:'+(n.z_index||0)+'">'+portRows+'<div class="pln-node-head" data-drag-node="'+esc(n.id)+'"><span class="pln-node-dot"></span><span class="pln-node-title">'+esc(n.label)+'</span><button class="pln-tool pln-node-menu" data-delete-node="'+esc(n.id)+'" title="Delete">×</button></div><textarea class="pln-node-edit" data-edit-node="'+esc(n.id)+'">'+esc(n.text)+'</textarea></div>';
   }
   function renderEdges(){
     svg.innerHTML='<defs><marker id="plnArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--accent)"></path></marker></defs>';
@@ -104,7 +116,10 @@
     }
     if(state.selected.length!==1)return `<div class="pln-empty"><div><strong>Graph inspector</strong>Select a component to edit its role, text and relationships.</div></div>`;
     const n=state.nodes.find(x=>x.id===state.selected[0]);if(!n)return "";
-    return `<div class="pln-inspector-body"><div class="pln-inspector-section"><div class="pln-inspector-label">Component</div><input id="plnTitle" value="${esc(n.label)}"><div style="height:8px"></div><textarea id="plnText">${esc(n.text)}</textarea></div><div class="pln-inspector-section"><div class="pln-inspector-label">Connections</div><div style="font-size:11px;color:var(--ink-3)">Incoming: ${state.edges.filter(e=>e.target===n.id).length}<br>Outgoing: ${state.edges.filter(e=>e.source===n.id).length}<br><br>Connect from any handle to another node. Multiple outputs create branches, multiple inputs create convergence.</div></div><div class="pln-inspector-section"><div class="pln-inspector-label">Generated prompt</div><div class="pln-preview">${esc(buildPrompt().text)}</div></div><div class="pln-auth-actions"><button class="pln-tool" id="plnDeleteSelected">Delete component</button></div></div>`;
+    const definition=n.definition||{},settings=definition.settings||[];
+    const settingFields=settings.length?'<div class="pln-inspector-section"><div class="pln-inspector-label">Block settings</div>'+settings.map(setting=>{const value=n.config?.[setting.id]??setting.default??"";if(setting.type==="select")return '<label class="pln-setting-label">'+esc(setting.name)+'</label><select data-node-setting="'+esc(setting.id)+'">'+(setting.options||[]).map(option=>'<option value="'+esc(option)+'" '+(String(value)===String(option)?"selected":"")+'>'+esc(option)+'</option>').join("")+'</select>';if(setting.type==="checkbox")return '<label class="pln-setting-check"><input type="checkbox" data-node-setting="'+esc(setting.id)+'" '+(value?"checked":"")+'> '+esc(setting.name)+'</label>';if(setting.type==="textarea")return '<label class="pln-setting-label">'+esc(setting.name)+'</label><textarea data-node-setting="'+esc(setting.id)+'">'+esc(value)+'</textarea>';return '<label class="pln-setting-label">'+esc(setting.name)+'</label><input type="'+(setting.type==="number"?"number":"text")+'" data-node-setting="'+esc(setting.id)+'" value="'+esc(value)+'">';}).join("")+'</div>':'';
+    const contracts=definition.schema?'<div class="pln-inspector-section"><div class="pln-inspector-label">Port contract</div><div class="pln-connection-meta">Inputs: '+(definition.inputs||[]).length+' · Outputs: '+(definition.outputs||[]).length+'</div></div>':'';
+    return '<div class="pln-inspector-body"><div class="pln-inspector-section"><div class="pln-inspector-label">Component</div><input id="plnTitle" value="'+esc(n.label)+'"><div style="height:8px"></div><textarea id="plnText">'+esc(n.text)+'</textarea></div>'+settingFields+contracts+'<div class="pln-inspector-section"><div class="pln-inspector-label">Connections</div><div style="font-size:11px;color:var(--ink-3)">Incoming: '+state.edges.filter(e=>e.target===n.id).length+'<br>Outgoing: '+state.edges.filter(e=>e.source===n.id).length+'<br><br>Connect an output port to an input port. Legacy components retain their standard handles.</div></div><div class="pln-inspector-section"><div class="pln-inspector-label">Generated prompt</div><div class="pln-preview">'+esc(buildPrompt().text)+'</div></div><div class="pln-auth-actions"><button class="pln-tool" id="plnDeleteSelected">Delete component</button></div></div>';
   }
   function ensureResizeHandles(){
     root.querySelectorAll(".pln-node").forEach(node=>{
@@ -166,6 +181,7 @@
     }));
     root.querySelectorAll("[data-delete-node]").forEach(b=>b.onclick=e=>{e.stopPropagation();deleteNodes([b.dataset.deleteNode])});
     root.querySelectorAll("[data-edit-node]").forEach(t=>t.addEventListener("input",()=>{const n=state.nodes.find(x=>x.id===t.dataset.editNode);if(n){n.text=t.value;markDirty(false);updateInspectorPreview()}}));
+    root.querySelectorAll("[data-node-setting]").forEach(field=>{const update=()=>{const n=state.nodes.find(x=>x.id===state.selected[0]);if(!n)return;n.config=n.config||{};n.config[field.dataset.nodeSetting]=field.type==="checkbox"?field.checked:field.value;markDirty(false);updateInspectorPreview();};field.addEventListener(field.type==="checkbox"||field.tagName==="SELECT"?"change":"input",update);});
     root.querySelectorAll(".pln-handle").forEach(h=>h.addEventListener("pointerdown",e=>startConnect(e,h.dataset.node,h.dataset.side)));
     root.querySelectorAll(".pln-edge").forEach(p=>p.addEventListener("pointerdown",e=>{e.stopPropagation();state.selected=e.shiftKey?[...new Set([...state.selected,"edge:"+p.dataset.edge])]:["edge:"+p.dataset.edge];render();}));    root.querySelectorAll(".pln-edge-endpoint").forEach(p=>p.addEventListener("pointerdown",e=>startEdgeReconnect(e,p.dataset.edge,p.dataset.edgeEnd)));
     const title=inspector.querySelector("#plnTitle");if(title)title.oninput=()=>{const n=state.nodes.find(x=>x.id===state.selected[0]);if(n){n.label=title.value;markDirty(false);render()}};const text=inspector.querySelector("#plnText");if(text)text.oninput=()=>{const n=state.nodes.find(x=>x.id===state.selected[0]);if(n){n.text=text.value;markDirty(false);render()}};const del=inspector.querySelector("#plnDeleteSelected");if(del)del.onclick=()=>deleteNodes([...state.selected]);
@@ -177,6 +193,7 @@
   function startConnect(e,id,side){
     e.stopPropagation();e.preventDefault();
     const node=state.nodes.find(n=>n.id===id);if(!node)return;
+    if(side.startsWith("in:")){toast("Start a connection from an output port.");return;}
     connect={source:id,side,preview:{start:point(node,side),end:point(node,side)}};
     root.classList.add("pln-connecting");
     window.addEventListener("pointermove",moveConnect);
@@ -197,12 +214,14 @@
     root.querySelectorAll(".pln-handle.hot").forEach(h=>h.classList.remove("hot"));
     root.classList.remove("pln-connecting");
     if(target){
-      const source=state.nodes.find(n=>n.id===connect.source),dest=state.nodes.find(n=>n.id===target.dataset.node);
-      if(source&&dest&&relationAllowed(source,dest)){
+      const source=state.nodes.find(n=>n.id===connect.source),dest=state.nodes.find(n=>n.id===target.dataset.node),sourcePort=connect.side,targetPort=target.dataset.side;
+      const customPair=sourcePort.startsWith("out:")&&targetPort.startsWith("in:");
+      const legacyPair=!sourcePort.includes(":")&&!targetPort.includes(":");
+      if(source&&dest&&relationAllowed(source,dest)&&(customPair||legacyPair)){
         snapshot();
-        const edge={id:uid("e"),source:source.id,target:dest.id,source_port:connect.side,target_port:target.dataset.side,relation:"sequence"};
+        const edge={id:uid("e"),source:source.id,target:dest.id,source_port:sourcePort,target_port:targetPort,relation:"sequence"};
         state.edges.push(edge);state.selected=["edge:"+edge.id];markDirty();
-      }else if(source&&dest){toast(source.id===dest.id?"A component cannot connect to itself.":"That connection would create a cycle.");}
+      }else if(source&&dest){toast(source.id===dest.id?"A component cannot connect to itself.":(!customPair&&!legacyPair?"Connect an output port to an input port.":"That connection would create a cycle."));}
     }
     connect=null;
     window.removeEventListener("pointermove",moveConnect);
@@ -234,7 +253,8 @@
   function saveDebounced(){clearTimeout(saveTimer);saveTimer=setTimeout(save,500);}
   async function save(){
     if(!state.compositionId)return;
-    const payload={nodes:state.nodes.map(n=>({id:n.id,block_ref:n.block_ref,x:n.x,y:n.y,z_index:n.z_index,collapsed:n.collapsed,body_override:n.text})),edges:state.edges,view_state:{...state.view,groups:state.groups}};
+    const node_meta={};state.nodes.forEach(n=>{if(n.definition?.schema)node_meta[n.id]={definition:n.definition,config:n.config||{}};});
+    const payload={nodes:state.nodes.map(n=>({id:n.id,block_ref:n.block_ref,x:n.x,y:n.y,z_index:n.z_index,collapsed:n.collapsed,body_override:n.text})),edges:state.edges,view_state:{...state.view,groups:state.groups,node_meta}};
     const r=await api("/api/compositions/"+state.compositionId+"/graph",{method:"PUT",body:JSON.stringify(payload)}).catch(()=>null);
     if(r?.ok)state.dirty=false;
   }
@@ -243,18 +263,22 @@
     let r=await api("/api/compositions/graph",{method:"POST",body:JSON.stringify({title:"Prompt Graph"})});
     if(!r.ok)return;const d=await r.json();state.compositionId=d.id;try{localStorage.setItem("promptlib.nodeCanvasComposition",String(d.id));}catch(_){ }await save();
   }
+  async function loadCustomBlocks(){
+    try{const response=await api("/api/components");if(!response.ok)return;const rows=await response.json();state.customBlocks=(Array.isArray(rows)?rows:[]).map(row=>({id:"user:"+row.id,dbId:row.id,label:row.name,name:row.name,text:row.body||"",body:row.body||"",description:row.description||"",definition:row.definition||{},source:"user",cat:row.category||"My blocks",icon:row.definition?.icon||"extension"}));}catch(error){console.warn("Custom block library could not be loaded.",error);}
+  }
   async function openExisting(){
     const r=await api("/api/compositions");if(!r.ok)return;const list=await r.json();let preferred=null;try{preferred=localStorage.getItem("promptlib.nodeCanvasComposition");}catch(_){ }const c=(preferred&&list.find(x=>String(x.id)===String(preferred)))||list?.[0];if(!c)return;
     state.compositionId=c.id;try{localStorage.setItem("promptlib.nodeCanvasComposition",String(c.id));}catch(_){ }const g=await api("/api/compositions/"+c.id+"/graph").then(x=>x.json()).catch(()=>null);if(!g)return;
-    const ref=new Map(blocks().map(b=>[String(b.id||b.label),b]));
-    state.nodes=(g.nodes||[]).map(row=>{const b=ref.get(String(row.block_ref));return {id:String(row.id),block_ref:row.block_ref,label:b?.label||row.block_ref,text:row.body_override??b?.text??"",x:+row.x||0,y:+row.y||0,z_index:+row.z_index||0,collapsed:!!row.collapsed,width:260,height:140}});
+    let saved={};try{saved=JSON.parse(g.composition.view_state||"{}")||{};}catch(_){}
+    const nodeMeta=saved.node_meta||{},ref=new Map(blocks().map(b=>[String(b.id||b.label),b]));
+    state.nodes=(g.nodes||[]).map(row=>{const b=ref.get(String(row.block_ref)),meta=nodeMeta[String(row.id)]||{},definition=meta.definition||b?.definition||{};const config=meta.config||defaultConfig(definition);const ports=Math.max((definition.inputs||[]).length,(definition.outputs||[]).length);return {id:String(row.id),block_ref:row.block_ref,label:b?.label||row.block_ref,text:row.body_override??b?.text??"",definition,config,x:+row.x||0,y:+row.y||0,z_index:+row.z_index||0,collapsed:!!row.collapsed,width:definition.schema?320:260,height:definition.schema?Math.max(170,142+ports*24):140};});
     state.edges=(g.edges||[]).map(e=>({id:String(e.id),source:String(e.source_block_id),target:String(e.target_block_id),source_port:e.source_port,target_port:e.target_port,relation:e.relation}));
-    try{const saved=JSON.parse(g.composition.view_state||"{}")||{};state.view={x:+saved.x||80,y:+saved.y||60,z:+saved.z||+saved.zoom||1};state.groups=Array.isArray(saved.groups)?saved.groups:[]}catch(_){}
+    state.view={x:+saved.x||80,y:+saved.y||60,z:+saved.z||+saved.zoom||1};state.groups=Array.isArray(saved.groups)?saved.groups:[];
     render();
   }
   function shell(){
     root=document.createElement("div");root.className="pln-shell";root.innerHTML=`
-      <aside class="pln-palette"><div class="pln-panel-head"><span>Components</span><button class="pln-tool" id="plnNew">+</button></div><input class="pln-search" placeholder="Search components"><div class="pln-palette-list"></div></aside>
+      <aside class="pln-palette"><div class="pln-panel-head"><span>Block library</span><button class="pln-tool" id="plnNew" title="New graph">＋</button></div><button class="pln-create-block" id="plnCreateBlock" type="button">＋ Create custom block</button><input class="pln-search" placeholder="Search components"><div class="pln-palette-list"></div></aside>
       <main class="pln-canvas" tabindex="0"><div class="pln-toolbar"><button class="pln-tool" id="plnUndo">Undo</button><button class="pln-tool" id="plnRedo">Redo</button><span class="pln-divider"></span><button class="pln-tool" id="plnDuplicate">Duplicate</button><button class="pln-tool" id="plnGroup">Group</button><button class="pln-tool" id="plnAlignX">Align X</button><button class="pln-tool" id="plnAlignY">Align Y</button><button class="pln-tool" id="plnDelete">Delete</button><span class="pln-divider"></span><button class="pln-tool" id="plnFit">Fit</button></div><svg class="pln-svg" aria-hidden="true"></svg><div class="pln-world"></div><div class="pln-status">0 nodes</div><div class="pln-zoom"><button class="pln-tool" id="plnZoomOut">−</button><span class="pln-zoom-label">100%</span><button class="pln-tool" id="plnZoomIn">+</button></div><div class="pln-toast" hidden></div></main>
       <aside class="pln-inspector"><div class="pln-panel-head"><span>Graph inspector</span><button class="pln-tool" id="plnSave">Save</button></div></aside>`;
     return root;
@@ -266,6 +290,7 @@
     root.querySelector("#plnUndo").onclick=undo;root.querySelector("#plnRedo").onclick=redo;root.querySelector("#plnDelete").onclick=()=>{const edges=state.selected.filter(x=>x.startsWith("edge:")).map(x=>x.slice(5));const nodes=state.selected.filter(x=>!x.startsWith("edge:"));if(edges.length)deleteEdges(edges);if(nodes.length)deleteNodes(nodes);};root.querySelector("#plnDuplicate").onclick=()=>{if(!state.selected.length)return;snapshot();const chosen=state.nodes.filter(n=>state.selected.includes(n.id));const ids=new Map(chosen.map(n=>[n.id,uid("n")]));const copies=chosen.map(n=>({...clone(n),id:ids.get(n.id),x:n.x+28,y:n.y+28}));state.nodes.push(...copies);state.edges.push(...state.edges.filter(e=>ids.has(e.source)&&ids.has(e.target)).map(e=>({...clone(e),id:uid("e"),source:ids.get(e.source),target:ids.get(e.target)})));state.selected=copies.map(n=>n.id);markDirty();render();};
     root.querySelector("#plnGroup").onclick=()=>{const ids=state.selected.filter(x=>!x.startsWith("edge:"));if(ids.length<2)return;snapshot();state.groups.push({id:uid("g"),nodes:[...ids],label:"Prompt group"});markDirty();render();};root.querySelector("#plnAlignX").onclick=()=>alignSelection("x");root.querySelector("#plnAlignY").onclick=()=>alignSelection("y");
     root.querySelector("#plnNew").onclick=()=>{snapshot();state.nodes=[];state.edges=[];state.selected=[];state.view={x:80,y:60,z:1};state.compositionId=null;load().then(render);};
+    root.querySelector("#plnCreateBlock").onclick=()=>openBlockStudio();
     root.querySelector("#plnFit").onclick=fit;root.querySelector("#plnSave").onclick=save;root.querySelector("#plnZoomIn").onclick=()=>zoomAt(1.15,canvas.clientWidth/2,canvas.clientHeight/2);root.querySelector("#plnZoomOut").onclick=()=>zoomAt(.87,canvas.clientWidth/2,canvas.clientHeight/2);
     canvas.addEventListener("wheel",e=>{e.preventDefault();zoomAt(e.deltaY<0?1.1:.9,e.clientX-canvas.getBoundingClientRect().left,e.clientY-canvas.getBoundingClientRect().top)},{passive:false});
     canvas.addEventListener("pointerdown",e=>{if(e.target!==canvas&&e.target!==world)return;if(e.button===1||e.button===2||root.classList.contains("pln-space")){pan={x:e.clientX,y:e.clientY,vx:state.view.x,vy:state.view.y};canvas.setPointerCapture(e.pointerId);return;}if(e.button===0)startMarquee(e);});
@@ -281,7 +306,7 @@
   async function init(){
     const host=document.getElementById("componentsWorkspace");if(!host||host.dataset.plnReady)return;host.dataset.plnReady="1";
     const old=host.querySelector(".pcw-body");if(old)old.style.display="none";
-    state=blank();root=shell();host.appendChild(root);wireShell();await openExisting();render();
+    state=blank();root=shell();host.appendChild(root);wireShell();await loadCustomBlocks();await openExisting();render();
   }
   function maybe(){const host=document.getElementById("componentsWorkspace");if(host&&host.offsetParent!==null&&!host.dataset.plnReady)init();}
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>setTimeout(maybe,700));else setTimeout(maybe,700);
