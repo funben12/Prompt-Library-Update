@@ -39,7 +39,7 @@
         openOptimizerWorkspace: { tags: ['tag-ai', 'tag-quality'] },
         openAuditWorkspace: { tags: ['tag-quality'] },
         openGauntletWorkspace: { tags: ['tag-quality', 'tag-ai'] },
-        openPlRedTeamWorkspace: { tags: ['tag-safety', 'tag-ai'] },
+        openPlxSurgeonWorkspace: { tags: ['tag-quality', 'tag-safety', 'tag-ai'] },
         openBackupWorkspace: { tags: ['tag-safety'] },
         openIntegrityWorkspace: { tags: ['tag-safety'] },
         openPromptPackBuilderWorkspace: { category: 'cat-publish', tags: ['tag-export', 'tag-community'] },
