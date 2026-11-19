@@ -14,6 +14,7 @@
 
   function closeSuite(){
     SUITE.ids.forEach(id => $(id)?.classList.remove("open"));
+    $("promptTestingWorkspace")?.classList.remove("open");
     document.body.classList.remove("plx-workspace-open");
     SUITE.active = null;
   }
@@ -366,8 +367,8 @@
   }
 
   window.openPlBarForgeWorkspace=()=>openSuite("plxBarForgeWorkspace");
-  window.openPlxSurgeonWorkspace=()=>window.openPromptTestingWorkspace&&window.openPromptTestingWorkspace();
-  window.openPlRedTeamWorkspace=()=>window.openPromptTestingWorkspace&&window.openPromptTestingWorkspace();
+  window.openPlxSurgeonWorkspace=()=>typeof window.openPromptTestingWorkspace==="function"?window.openPromptTestingWorkspace():toast("Prompt Testing Workspace is still loading. Try again in a moment.");
+  window.openPlRedTeamWorkspace=()=>typeof window.openPromptTestingWorkspace==="function"?window.openPromptTestingWorkspace():toast("Prompt Testing Workspace is still loading. Try again in a moment.");
 
   window.PLPromptTestingSpecialists={
     localSurgeon:localSurgeon,
