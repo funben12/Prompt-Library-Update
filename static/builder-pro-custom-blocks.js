@@ -102,5 +102,6 @@ function mount(){
  const lib=root.querySelector("#pbp-library");if(lib&&!lib.dataset.customObserver){lib.dataset.customObserver="1";new MutationObserver(renderLibrary).observe(lib,{childList:true});renderLibrary();const search=root.querySelector("#pbp-block-search");if(search)search.dispatchEvent(new Event("input",{bubbles:true}));}
 }
 document.addEventListener("click",e=>{const create=e.target.closest("[data-create-custom]");if(create){e.preventDefault();e.stopPropagation();open(null);return;}const edit=e.target.closest("[data-edit-custom]");if(edit){e.preventDefault();e.stopPropagation();open(edit.dataset.editCustom);}});
+window.PLPromptBuilderCustomBlocks={open:function(type){try{open(type||null);}catch(err){console.error("Custom block creator failed to open:",err);toast("The custom block creator could not open. Check the application console for details.","error");}}};
 const watch=new MutationObserver(mount);watch.observe(document.body,{childList:true,subtree:true});mount();
 })();
