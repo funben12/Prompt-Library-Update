@@ -99,11 +99,16 @@ function renderLibrary(){
 function mount(){
  const root=document.getElementById("builderProWorkspace");if(!root)return;
  const head=root.querySelector(".pbp-pane-left .pbp-pane-head .pbp-pane-head-row");if(head&&!head.querySelector("[data-create-custom]")){
-  const b=document.createElement("button");b.type="button";b.className="btn btn-accent pbp-btn-xs pbp-create-custom";b.dataset.createCustom="1";b.innerHTML='<span class="material-symbols-outlined" aria-hidden="true">add_circle</span><span>Create custom block</span>';b.title="Create a reusable block for your Prompt Library";head.appendChild(b);b.onclick=()=>open(null);
+  const b=document.createElement("button");b.type="button";b.className="btn btn-accent pbp-btn-xs pbp-create-custom";b.dataset.createCustom="1";b.innerHTML='<span class="material-symbols-outlined" aria-hidden="true">add_circle</span><span>Create custom block</span>';b.title="Create a reusable block for your Prompt Library";head.appendChild(b);
+ }
+ const create=root.querySelector("[data-create-custom]");
+ if(create&&!create.dataset.customBlockBound){
+  create.dataset.customBlockBound="1";
+  create.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();try{open(null);}catch(err){console.error("Custom block creator failed to open:",err);toast("The custom block creator could not open. Check the application console for details.","error");}});
  }
  const lib=root.querySelector("#pbp-library");if(lib&&!lib.dataset.customObserver){lib.dataset.customObserver="1";new MutationObserver(renderLibrary).observe(lib,{childList:true});renderLibrary();const search=root.querySelector("#pbp-block-search");if(search)search.dispatchEvent(new Event("input",{bubbles:true}));}
 }
-document.addEventListener("click",e=>{const create=e.target.closest("[data-create-custom]");if(create){e.preventDefault();e.stopPropagation();open(null);return;}const edit=e.target.closest("[data-edit-custom]");if(edit){e.preventDefault();e.stopPropagation();open(edit.dataset.editCustom);}});
+document.addEventListener("click",e=>{const edit=e.target.closest("[data-edit-custom]");if(edit){e.preventDefault();e.stopPropagation();try{open(edit.dataset.editCustom);}catch(err){console.error("Custom block editor failed to open:",err);toast("The custom block editor could not open. Check the application console for details.","error");}}});
 window.PLPromptBuilderCustomBlocks={ready:true,open:function(type){try{open(type||null);}catch(err){console.error("Custom block creator failed to open:",err);toast("The custom block creator could not open. Check the application console for details.","error");}}};
 const watch=new MutationObserver(mount);watch.observe(document.body,{childList:true,subtree:true});mount();
 })();
