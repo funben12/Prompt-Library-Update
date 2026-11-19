@@ -359,7 +359,7 @@
       <div class="pbp-ws-list" id="pbp-ws-list"></div>
     </section>
     <div class="pbp-pane-head">
-      <div class="pbp-pane-head-row"><span class="pbp-label">Block library</span><span class="pbp-mono pbp-count" id="pbp-lib-count"></span></div>
+      <div class="pbp-pane-head-row pbp-library-head-row"><span class="pbp-label">Block library</span><div class="pbp-lib-head-actions"><span class="pbp-mono pbp-count" id="pbp-lib-count"></span><button type="button" class="btn btn-accent pbp-btn-xs pbp-create-custom" data-create-custom="1" aria-haspopup="dialog" title="Create a reusable custom block"><span class="material-symbols-outlined" aria-hidden="true">add_circle</span><span>Create custom block</span></button></div></div>
       <input id="pbp-block-search" class="form-input" type="search" placeholder="Search blocks" aria-label="Search blocks" autocomplete="off">
       <div class="pbp-chips" id="pbp-cat-chips" role="group" aria-label="Filter by category"></div>
     </div>
