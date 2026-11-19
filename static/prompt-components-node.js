@@ -372,6 +372,6 @@
   }
   function maybe(){const host=document.getElementById("componentsWorkspace");if(host&&host.offsetParent!==null&&!host.dataset.plnReady)init();}
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>setTimeout(maybe,700));else setTimeout(maybe,700);
-  document.addEventListener("click",e=>{if(e.target.closest('[data-view="components"]'))setTimeout(init,250);});
+  document.addEventListener("click",e=>{if(e.target.closest('[data-view="components"],[data-open="openComponentsWorkspace"]'))setTimeout(init,250);});
   window.PL_NodeCanvas={init};
 })();
