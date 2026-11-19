@@ -771,3 +771,14 @@ Resulting state:
 - Recurring QA findings are stored separately in localStorage key `promptlib.stresslab.patterns.v1`, not written into Context Bank. Pattern history can be exported. Optional Context Bank blocks are read only for AI context.
 - No database schema changes, new dependencies, cloud storage, account system or authentication changes.
 - This work is on branch `feature/prompt-stress-lab` and is not merged. Browser and installed PyWebView verification are required before merge. Do not describe it as production-ready until those checks pass.
+
+
+## Unified Prompt Testing Workspace (2026-11-19, current branch)
+
+- Prompt Surgeon, Prompt Red Team and Prompt Stress Lab now share one full-screen workspace on `feature/prompt-stress-lab`. One prompt and one optional objective feed the selected specialist checks. Results are collected into one report.
+- Automatic routing uses local keyword signals. Users can override with Surgeon, Red Team, Stress Lab or Full assessment. Local checks use no AI. Optional combined AI review makes one bounded request for the selected specialists.
+- Stress Lab's QUICK, HARDEN and CRITICAL modes remain available. Optional Context Bank inclusion is off by default and capped at two relevant blocks / 2,800 characters. Recurring QA patterns remain in localStorage `promptlib.stresslab.patterns.v1` and can be exported.
+- The old separate Surgeon and Red Team launcher cards and workspace markup have been removed. The shared launcher is in Inspect. Workspace registry tags and preview now describe the combined tool.
+- Gauntlet Loop is explicitly separate and untouched. Do not merge it into this workspace.
+- Files: `static/prompt-testing-workspace.js/.css`, `static/prompt-stress-lab.js` (analysis core export), `static/gauntlet-suite.js` (launcher delegation and specialist exports), `static/index.html`, `static/workspace-registry.js`, `static/workspace-previews.js`, and `docs/prompt-stress-lab/SPEC.md`.
+- Verified so far: JavaScript syntax checks pass for the changed JS files; specialist engine smoke test returns Surgeon, Red Team and Stress Lab results; QUICK/HARDEN/CRITICAL each return the expected lens sets; static integration checks pass. Interactive browser and installed PyWebView checks remain outstanding. This branch is not merged.
