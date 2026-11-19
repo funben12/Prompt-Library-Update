@@ -99,7 +99,7 @@ function mount(){
  const head=root.querySelector(".pbp-pane-left .pbp-pane-head-row");if(head&&!head.querySelector("[data-create-custom]")){
   const b=document.createElement("button");b.type="button";b.className="btn pbp-btn-xs pbp-create-custom";b.dataset.createCustom="1";b.textContent="+ Create block";head.appendChild(b);b.onclick=()=>open(null);
  }
- const lib=root.querySelector("#pbp-library");if(lib&&!lib.dataset.customObserver){lib.dataset.customObserver="1";new MutationObserver(renderLibrary).observe(lib,{childList:true});renderLibrary();}
+ const lib=root.querySelector("#pbp-library");if(lib&&!lib.dataset.customObserver){lib.dataset.customObserver="1";new MutationObserver(renderLibrary).observe(lib,{childList:true});renderLibrary();const search=root.querySelector("#pbp-block-search");if(search)search.dispatchEvent(new Event("input",{bubbles:true}));}
 }
 document.addEventListener("click",e=>{const edit=e.target.closest("[data-edit-custom]");if(edit){e.preventDefault();e.stopPropagation();open(edit.dataset.editCustom);}});
 const watch=new MutationObserver(mount);watch.observe(document.body,{childList:true,subtree:true});mount();
