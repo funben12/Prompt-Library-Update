@@ -111,7 +111,7 @@
   function renderPalette(){
     const list=palette.querySelector(".pln-palette-list"), q=palette.querySelector(".pln-search").value.toLowerCase();
     const arr=blocks().filter(b=>(b.label||b.name||"").toLowerCase().includes(q)||(b.text||b.body||"").toLowerCase().includes(q));
-    const groups=new Map();arr.forEach(b=>{const k=b.cat||"components";if(!groups.has(k))groups.set(k,[]);groups.get(k).push(b)});
+    const groups=new Map();arr.forEach(b=>{const k=b.source==="user"?"My blocks":(b.cat||"components");if(!groups.has(k))groups.set(k,[]);groups.get(k).push(b)});
     list.innerHTML=[...groups.entries()].map(([cat,items])=>"<details class='pln-section' open><summary>"+esc(cat)+" <span>"+items.length+"</span></summary>"+items.slice(0,120).map((b,i)=>'<div class="pln-palette-entry"><button class="pln-palette-item" draggable="true" data-b="'+esc(b.id||b.label||i)+'"><span class="pln-palette-icon">'+esc((b.icon||"extension").slice(0,1).toUpperCase())+'</span><span class="pln-palette-copy"><strong>'+esc(b.label||b.name||"Component")+'</strong><span>'+esc((b.text||b.body||"").slice(0,80))+'</span></span></button>'+(b.source==="user"?'<button class="pln-palette-edit" type="button" data-edit-block="'+esc(b.id)+'" title="Edit block">Edit</button>':"")+"</div>").join("")+"</details>").join("");
     list.querySelectorAll(".pln-palette-item").forEach(btn=>{
       btn.addEventListener("dblclick",()=>{const r=canvas.getBoundingClientRect();addBlockByRef(btn.dataset.b,r.left+r.width/2,r.top+r.height/2);});
