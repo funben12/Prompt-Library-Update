@@ -83,7 +83,7 @@ function save(){
  settings.forEach(s=>{fields.push({key:"setting_"+s.id,label:s.label,type:s.type==="select"?"text":s.type,rows:3});defaults["setting_"+s.id]=s.defaultValue||"";});
  register({type,label,hint,category,inputs,outputs,settings,template,fields,defaults});
  try{localStorage.setItem(STORE,JSON.stringify(defs));}catch(e){toast("Could not persist the custom block. Storage may be full.","error");}
- d.close();renderLibrary();toast(editing?"Block definition updated.":"Custom block saved to My blocks.","success");editing=null;
+ d.close();const search=document.querySelector("#builderProWorkspace #pbp-block-search");if(search)search.dispatchEvent(new Event("input",{bubbles:true}));renderLibrary();toast(editing?"Block definition updated.":"Custom block saved to My blocks.","success");editing=null;
 }
 function renderLibrary(){
  const root=document.getElementById("builderProWorkspace"),lib=root&&root.querySelector("#pbp-library");if(!lib)return;
