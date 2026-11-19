@@ -3880,6 +3880,41 @@ def save_context_bank():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+def _read_ui_prefs():
+    try:
+        with get_db() as con:
+            row = con.execute("SELECT value FROM settings WHERE key = 'ui_prefs'").fetchone()
+        prefs = json.loads(row['value']) if row else {}
+    except Exception:
+        prefs = {}
+    return prefs if isinstance(prefs, dict) else {}
+
+@app.route('/api/settings/prefs', methods=['GET'])
+def get_ui_prefs():
+    """Small interface choices, kept here because WebView localStorage can reset between launches."""
+    return jsonify(_read_ui_prefs())
+
+@app.route('/api/settings/prefs', methods=['POST'])
+def set_ui_prefs():
+    """Merge small key/value choices into the saved set. A null value removes the key."""
+    prefs = _read_ui_prefs()
+    for key, value in _json_body().items():
+        if not re.fullmatch(r'[a-z0-9_.-]{1,40}', str(key)):
+            continue
+        if value is None:
+            prefs.pop(key, None)
+        elif isinstance(value, (str, int, float, bool)) and len(str(value)) <= 2000:
+            prefs[key] = value
+    if len(prefs) > 200:
+        return jsonify({'error': 'too many preferences'}), 400
+    try:
+        with get_db() as con:
+            con.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                        ('ui_prefs', json.dumps(prefs, ensure_ascii=False)))
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/settings/ai-baseurls', methods=['GET'])
 def get_ai_baseurls():
     """Return stored custom base URLs, keyed by provider slug."""

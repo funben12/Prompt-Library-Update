@@ -121,30 +121,39 @@
     if (!R) R = Math.round(baseR(sides) * scaleFor(count) * 10) / 10;
     return { R, cw: Math.round(2.6 * R + 8), ch: Math.round((sides === 4 ? 5 : 4.6) * R), cy: (sides === 4 ? 3.05 : 2.7) * R, ty: 3.7 * R };
   }
+  const ROUND = 0.2;
   function faceSvg(g, i, text, R, pips) {
     const f = g.faces[i], W = Math.ceil(2 * f.ext * R) + 6, h = W / 2, rr = f.r * R;
-    const poly = f.pts.map(p => f4(h + p[0] * R) + ',' + f4(h + p[1] * R)).join(' ');
-    const L = unit([-0.5, -0.7, 0.55]), shade = clamp(0.1 * (1 - dot(f.n, L)), 0, 0.2).toFixed(3);
+    // rounded corners: the face is drawn inset and stroked with a round join, so every corner gets a radius of ROUND * R
+    const sc = Math.max(0.3, (f.r - ROUND) / f.r), rw = f4(2 * ROUND * R);
+    const poly = f.pts.map(p => f4(h + (f.c[0] + (p[0] - f.c[0]) * sc) * R) + ',' + f4(h + (f.c[1] + (p[1] - f.c[1]) * sc) * R)).join(' ');
+    const L = unit([-0.5, -0.7, 0.55]), shade = clamp(0.07 * (1 - dot(f.n, L)), 0, 0.14).toFixed(3);
     const cx = h + f.c[0] * R, cy = h + f.c[1] * R;
     let body;
-    if (pips) body = (PIPS[+text] || []).map(k => `<circle cx="${f4(cx + ((k % 3) - 1) * 0.5 * R)}" cy="${f4(cy + (Math.floor(k / 3) - 1) * 0.5 * R)}" r="${f4(0.13 * R)}"/>`).join('');
+    if (pips) body = (PIPS[+text] || []).map(k => `<circle cx="${f4(cx + ((k % 3) - 1) * 0.5 * R)}" cy="${f4(cy + (Math.floor(k / 3) - 1) * 0.5 * R)}" r="${f4(0.125 * R)}"/>`).join('');
     else {
-      let t = String(text == null ? '' : text);
-      const max = Math.max(2, Math.floor((2.6 * rr) / (0.62 * 7)));
-      if (t.length > max) t = t.slice(0, max - 1) + '…';
-      const fs = Math.max(7, Math.min(rr * 1.1, (2.6 * rr) / (0.62 * Math.max(t.length, 1))));
-      body = `<text x="${f4(cx)}" y="${f4(cy)}" text-anchor="middle" dominant-baseline="central" font-size="${f4(fs)}">${esc(t)}</text>`;
+      const t = String(text == null ? '' : text).trim();
+      // wrap onto up to three lines at spaces, with the largest type that fits the face
+      const box = 1.5 * rr, wrapAt = n => { const out = []; let cur = ''; t.split(/\s+/).forEach(w => { if (cur && (cur + ' ' + w).length > n) { out.push(cur); cur = w; } else cur = cur ? cur + ' ' + w : w; }); if (cur) out.push(cur); return out; };
+      let fs = Math.min(rr * 0.95, 22), lines = [t];
+      for (; fs >= 7; fs -= 0.5) {
+        const n = Math.max(1, Math.floor(box / (0.62 * fs))), l = wrapAt(n);
+        if (l.length <= 3 && l.every(x => x.length <= n) && l.length * fs * 1.15 <= box) { lines = l; break; }
+        if (fs <= 7.5) { lines = l.slice(0, 3).map(x => (x.length > n ? x.slice(0, Math.max(1, n - 1)) + '…' : x)); break; }
+      }
+      const y0 = cy - ((lines.length - 1) * fs * 1.15) / 2;
+      body = `<text x="${f4(cx)}" text-anchor="middle" dominant-baseline="central" font-size="${f4(fs)}">${lines.map((x, i) => `<tspan x="${f4(cx)}" y="${f4(y0 + i * fs * 1.15)}">${esc(x)}</tspan>`).join('')}</text>`;
     }
     const m = f.fr, T = mul(f.n, R);
     const mat = `matrix3d(${[m.u[0], m.u[1], m.u[2], 0, m.d[0], m.d[1], m.d[2], 0, m.n[0], m.n[1], m.n[2], 0, T[0], T[1], T[2], 1].map(f4).join(',')})`;
-    return `<svg class="vd3-f" data-i="${i}" width="${W}" height="${W}" viewBox="0 0 ${W} ${W}" style="left:${-h}px;top:${-h}px;transform:${mat}" aria-hidden="true"><polygon class="vd3-p" points="${poly}"/><polygon class="vd3-s" points="${poly}" opacity="${shade}"/>${body}</svg>`;
+    return `<svg class="vd3-f" data-i="${i}" width="${W}" height="${W}" viewBox="0 0 ${W} ${W}" style="left:${-h}px;top:${-h}px;transform:${mat}" aria-hidden="true"><polygon class="vd3-o" points="${poly}" style="stroke-width:${f4(2 * ROUND * R + 3)}px"/><polygon class="vd3-p" points="${poly}" style="stroke-width:${rw}px"/><polygon class="vd3-s" points="${poly}" style="stroke-width:${rw}px" opacity="${shade}"/>${body}</svg>`;
   }
   // labels: the text for each value index; pose: a transform string for the cube
   function cubeHtml(sides, labels, d, pose, pips) {
     const g = geom(sides);
     // a d4's corners reach three times its inner radius, so its body is drawn smaller to sit on the table like the others
     const R = sides === 4 ? d.R * 0.6 : d.R;
-    return `<div class="vd3-cube" data-faces="${g.count}" data-sides="${sides}" style="transform:${pose}">${g.faces.map((_, i) => faceSvg(g, i, labels[g.label[i]], R, pips)).join('')}</div>`;
+    return `<div class="vd3-cube" data-faces="${g.count}" data-sides="${sides}" style="transform:${pose}">${g.faces.map((_, i) => faceSvg(g, i, labels[g.label[i] % Math.max(1, labels.length)], R, pips)).join('')}</div>`;
   }
   function cellHtml(sides, labels, d, k, pips) {
     return `<span class="vd-die vd3-cell" style="--k:${k};width:${d.cw}px;height:${d.ch}px;--cy:${f4(d.cy)}px;--ty:${f4(d.ty)}px;--R:${d.R}px"><i class="vd3-shadow"></i><span class="vd3-fly">${cubeHtml(sides, labels, d, IDLE, pips)}</span></span>`;
@@ -204,11 +213,13 @@
   function stepHtml(kind, label, value, less, more, lo, hi) {
     return `<div class="vd-step" data-vdk="${kind}"><span class="vd-lab">${label}</span><button type="button" data-vdstep="-1" aria-label="${less}"${value <= lo ? ' disabled' : ''}>${MINUS}</button><b>${value}</b><button type="button" data-vdstep="1" aria-label="${more}"${value >= hi ? ' disabled' : ''}>${PLUS}</button></div>`;
   }
-  M.register('diceroll', function (v, m, val) {
+  // one dice type per roll style: 'diceroll' is the tumble, each 'dice_<id>' always rolls its own way (see static/dice-rolls.js)
+  const DICE_STYLES = ['tumble', 'drop', 'cup', 'spin', 'throw', 'tray', 'flip', 'float'];
+  function diceHtml(v, m, val, style) {
     const opts = (m.options || []).map(o => String(o).trim()).filter(Boolean), custom = opts.length > 0;
-    const sides = custom ? opts.length : clamp(parseInt(m.faces, 10) || 6, 2, 100);
+    const sides = 6; // desktop: always a cube, a long option list is written onto the face that lands
     const labels = custom ? opts : Array.from({ length: sides }, (_, i) => String(i + 1));
-    return `<div class="vd" data-vd="${esc(v)}" data-custom="${custom ? 1 : 0}" data-sides="${sides}" data-count="1" data-opts="${esc(JSON.stringify(opts))}">
+    return `<div class="vd" data-vd="${esc(v)}"${style ? ` data-rollstyle="${style}"` : ''} data-custom="${custom ? 1 : 0}" data-sides="${sides}" data-count="1" data-opts="${esc(JSON.stringify(opts))}">
       <div class="vd-out"><output aria-live="polite">${esc(val || 'Ready to roll')}</output><button type="button" data-vdgo>Roll dice</button>${modeButton()}</div>
       <div class="vd-stage" aria-hidden="true">${stageHtml(sides, labels, 1, !custom && sides === 6)}</div>
       <div class="vd-ctl">
@@ -216,7 +227,9 @@
         ${stepHtml('count', 'Dice', 1, 'Fewer dice', 'More dice', 1, 6)}
       </div>
       <input type="hidden" data-var="${esc(v)}" value="${esc(val)}"></div>`;
-  });
+  }
+  M.register('diceroll', (v, m, val) => diceHtml(v, m, val, ''));
+  DICE_STYLES.forEach(id => M.register('dice_' + id, (v, m, val) => diceHtml(v, m, val, id)));
   function syncUi(g) {
     const sides = +g.dataset.sides, count = +g.dataset.count;
     g.querySelectorAll('[data-vdk]').forEach(s => {
@@ -316,21 +329,38 @@
     const opt = { duration: T, fill: 'both' };
     return [fly.animate(flyKf, opt), sh.animate(shKf, opt), cube.animate(cubeKf, opt)];
   }
+  // Roll registry. A roll style is (cell, faceIdx, sides, delay, D, amp, rm, x0) and returns [flyAnim, shadowAnim, cubeAnim], each of
+  // duration D + delay with fill 'both'; the first frame is the resting pose and the last frame is the cube facing faceIdx at rest.
+  M.rolls = M.rolls || {};
+  M.rolls.tumble = M.rolls.tumble || throwDie;
+  M.dice = { geom, facing, IDLE, unit, f4, rand, clamp, room, sweeps };
   function roll(g) {
     const vals = faceValues(g);
     if (!vals.length) return;
     relayout(g);
+    // a new roll starts with no face marked as landed, so a stale highlight never stays behind
+    g.querySelectorAll('.vd3-f.win').forEach(x => x.classList.remove('win'));
     const n = +g.dataset.count, sides = +g.dataset.sides, G = geom(sides), pips = usePips(g);
     // the result is chosen here, before any animation, so the motion never decides it
     const ks = Array.from({ length: n }, () => rand(vals.length));
     const picks = ks.map(k => vals[k]);
-    const faceOf = k => Math.max(0, G.label.indexOf(k));
+    // a cube has six faces: with more options than that, the face that lands is rewritten (never the one showing now)
+    const cubes = Array.from(g.querySelectorAll('.vd3-cube')), many = vals.length > G.count, fIdx = ks.map(() => -1);
+    if (many) cubes.forEach((cube, i) => {
+      const shown = cube.querySelector('.win'), skip = shown ? +shown.dataset.i : -1, pool = [];
+      for (let f = 0; f < G.count; f++) if (f !== skip) pool.push(f);
+      const f = pool[rand(pool.length)], R = parseFloat(cube.closest('.vd3-cell').style.getPropertyValue('--R')) || 34;
+      cube.querySelectorAll('.win').forEach(x => x.classList.remove('win'));
+      cube.querySelector(`[data-i="${f}"]`).outerHTML = faceSvg(G, f, vals[ks[i]], R, false);
+      fIdx[i] = f;
+    });
+    const faceOf = (k, i) => (many ? fIdx[i] : Math.max(0, G.label.indexOf(k)));
     const out = g.querySelector('output'), hidden = g.querySelector('input[data-var]'), go = g.querySelector('[data-vdgo]'), st = g.querySelector('.vd-stage');
     const settle = () => {
       st.querySelectorAll('.vd3-cell').forEach((cell, i) => {
         const cube = cell.querySelector('.vd3-cube');
-        cube.style.transform = facing(G.faces[faceOf(ks[i])].fr);
-        const f = cube.querySelector(`[data-i="${faceOf(ks[i])}"]`);
+        cube.style.transform = facing(G.faces[faceOf(ks[i], i)].fr);
+        const f = cube.querySelector(`[data-i="${faceOf(ks[i], i)}"]`);
         if (f) f.classList.add('win');
       });
     };
@@ -349,10 +379,11 @@
     st.classList.add('vd-rolling');
     st._side = Math.random() < 0.5 ? -1 : 1;
     let last = null;
+    const rollFn = M.rolls[g.dataset.rollstyle] || M.rolls.tumble;
     const cells = Array.from(st.querySelectorAll('.vd3-cell')), rooms = cells.map(cell => room(cell, sides)), xs = sweeps(rooms, st._side, D);
     cells.forEach((cell, i) => {
       // each die is tossed in from the side, inside the stage from the first frame
-      const a = throwDie(cell, faceOf(ks[i]), sides, i * 110 / c.speed, D, md === 'short' ? c.intensity * 0.5 : c.intensity, rooms[i], xs[i]);
+      const a = rollFn(cell, faceOf(ks[i], i), sides, i * 110 / c.speed, D, md === 'short' ? c.intensity * 0.5 : c.intensity, rooms[i], xs[i]);
       last = a[0];
     });
     let done = false;
@@ -388,26 +419,35 @@
 .vd3-fly{position:absolute;inset:0;transform-style:preserve-3d;transform-origin:50% 75%}
 .vd3-cube{position:absolute;left:50%;top:var(--cy);width:0;height:0;transform-style:preserve-3d}
 .vd3-f{position:absolute;max-width:none;max-height:none;overflow:visible;backface-visibility:hidden;-webkit-backface-visibility:hidden}
-.vd3-p{fill:var(--surface-2);stroke:var(--ink-3);stroke-width:1.4;stroke-linejoin:round}
-.vd3-s{fill:var(--ink);stroke:none}
+.vd3-o{fill:none;stroke:var(--ink-3);stroke-linejoin:round}
+.vd3-p{fill:var(--surface-2);stroke:var(--surface-2);stroke-linejoin:round}
+.vd3-s{fill:var(--ink);stroke:var(--ink);stroke-linejoin:round}
 .vd3-f text{fill:var(--ink);font-family:var(--ff-mono);font-weight:700}
 .vd3-f circle{fill:var(--ink)}
-.vd3-f.win .vd3-p{fill:var(--surface);stroke:var(--accent);stroke-width:2.4}
+.vd3-f.win .vd3-p{fill:var(--surface);stroke:var(--surface)}
+.vd3-f.win .vd3-o{stroke:var(--accent)}
 .vd3-f.win text{fill:var(--accent)}
-.vd3-shadow{position:absolute;left:50%;top:var(--ty);width:calc(var(--R) * 2.4);height:calc(var(--R) * .5);margin:calc(var(--R) * -.1) 0 0 calc(var(--R) * -1.2);border-radius:50%;background:var(--vd-sh);opacity:.5}
+.vd3-shadow{position:absolute;left:50%;top:var(--ty);width:calc(var(--R) * 2.4);height:calc(var(--R) * .5);margin:calc(var(--R) * -.1) 0 0 calc(var(--R) * -1.2);border-radius:50%;background:var(--vd-sh);box-shadow:0 0 5px 3px var(--vd-sh);opacity:.4}
 .vd-ctl{display:flex;flex-direction:column;gap:10px}
 .vd-step{display:flex;align-items:center;gap:10px}
 .vd-lab{flex:1;font:600 13px var(--ff-sans);color:var(--ink-3)}
 .vd-step b{min-width:34px;text-align:center;font:700 16px var(--ff-mono);color:var(--ink)}
-.vd-step button{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:0;border-radius:var(--r-md);background:var(--surface-3);color:var(--ink)}
-.vd-step button:disabled{opacity:.4}
+.vd-step button{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:0;border-radius:var(--r-md);background:var(--surface-3);color:var(--ink);box-shadow:var(--btn-rest);transition:transform var(--btn-spring),box-shadow .15s,background .15s}
+.vd-step button:not(:disabled):hover{transform:translateY(var(--btn-lift));box-shadow:var(--btn-hover)}
+.vd-step button:not(:disabled):active{transform:translateY(var(--btn-sink));box-shadow:var(--btn-down)}
+.vd-step button:disabled{opacity:.4;box-shadow:none}
 .vd-presets{display:flex;flex-wrap:wrap;gap:6px}
-.vd-pre{min-width:40px;min-height:44px;padding:6px 8px;border:0;border-radius:999px;background:var(--surface-3);color:var(--ink-2);font:600 13px var(--ff-mono)}
-.vd-pre.on{background:var(--accent);color:var(--on-accent)}
+.vd-pre{min-width:40px;min-height:44px;padding:6px 8px;border:0;border-radius:999px;background:var(--surface-3);color:var(--ink-2);font:600 13px var(--ff-mono);box-shadow:var(--btn-rest);transition:transform var(--btn-spring),box-shadow .15s,background .15s}
+.vd-pre:hover{transform:translateY(var(--btn-lift));box-shadow:var(--btn-hover)}
+.vd-pre:active{transform:translateY(var(--btn-sink));box-shadow:var(--btn-down)}
+.vd-pre.on{background:var(--accent);color:var(--on-accent);--rb-edge:color-mix(in oklch,var(--accent) 62%,black);box-shadow:inset 0 1px 0 color-mix(in oklch,white 32%,transparent),0 2px 0 var(--rb-edge)}
 .vd-out{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 .vd-out output{font-family:var(--ff-mono);flex:1;min-width:100px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;font-weight:700}
-.vd-out button{min-height:44px;padding:8px 16px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--on-accent);font-weight:700}
-.vd-out button:disabled{opacity:.6}
+.vd-out button{--rb-edge:color-mix(in oklch,var(--accent) 62%,black);min-height:44px;padding:8px 16px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--on-accent);font-weight:700}
+.vd-out button:not(:disabled){box-shadow:inset 0 1px 0 color-mix(in oklch,white 32%,transparent),0 2px 0 var(--rb-edge),0 3px 6px -2px color-mix(in oklch,var(--ink) 28%,transparent);transition:transform var(--btn-spring),box-shadow .15s,background .15s,border-color .15s}
+.vd-out button:not(:disabled):hover{transform:translateY(var(--btn-lift));box-shadow:inset 0 1px 0 color-mix(in oklch,white 38%,transparent),0 3px 0 var(--rb-edge),0 8px 12px -5px color-mix(in oklch,var(--ink) 35%,transparent)}
+.vd-out button:not(:disabled):active{transform:translateY(var(--btn-sink));box-shadow:inset 0 1px 3px color-mix(in oklch,black 30%,transparent),0 0 0 var(--rb-edge)}
+.vd-out button:disabled{opacity:.6;box-shadow:none}
 .vd-morph .vd3-cube{animation:vd-morph calc(.26s / var(--vm-s,1)) var(--ease) both}
 @keyframes vd-morph{0%{opacity:0;scale:.7}100%{opacity:1;scale:1}}
 .vd-fade{animation:vd-fade .12s linear}
@@ -419,10 +459,14 @@
   // ---- card deck: cut, riffle twice, square up, deal one card face up ----
   const DECK = 12;
   const CARDS = ['Ace', 'King', 'Queen', 'Jack', 'Ten'];
-  M.register('carddeck', function (v, m, val) {
+  // one deck type per shuffle: 'carddeck' follows the Settings choice, each 'deck_<id>' always uses its own shuffle
+  const DECK_STYLES = ['overhand', 'riffle', 'hindu', 'strip', 'wash', 'faro', 'mongean', 'pile', 'charlier', 'cascade', 'cut', 'fan'];
+  function deckHtml(v, m, val, style) {
     const opts = (m.options || []).map(o => String(o).split('|')[0].trim()).filter(Boolean), deck = opts.length ? opts : CARDS;
-    return `<div class="vc${val ? ' drawn' : ''}" data-vc="${esc(v)}" data-options="${esc(JSON.stringify(deck))}"><div class="vc-table"><div class="vc-deck" aria-hidden="true">${Array.from({ length: DECK }, (_, i) => `<i class="vc-c" style="--i:${i}"></i>`).join('')}</div><div class="vc-slot"><div class="vc-card"><div class="vc-back"></div><div class="vc-face" data-vcface>${esc(val)}</div></div></div></div><div class="vc-row"><button type="button" data-vcdraw>Shuffle and draw</button><small data-vcleft>${deck.length} cards in the deck</small>${modeButton()}</div><input type="hidden" data-var="${esc(v)}" value="${esc(val)}"></div>`;
-  });
+    return `<div class="vc${val ? ' drawn' : ''}" data-vc="${esc(v)}"${style ? ` data-shuffle="${style}"` : ''} data-options="${esc(JSON.stringify(deck))}"><div class="vc-table"><div class="vc-deck" aria-hidden="true">${Array.from({ length: DECK }, (_, i) => `<i class="vc-c" style="--i:${i}"></i>`).join('')}</div><div class="vc-slot"><div class="vc-card"><div class="vc-back"></div><div class="vc-face" data-vcface>${esc(val)}</div></div></div></div><div class="vc-row"><button type="button" data-vcdraw>Shuffle and draw</button><small data-vcleft>${deck.length} cards in the deck</small>${modeButton()}</div><input type="hidden" data-var="${esc(v)}" value="${esc(val)}"></div>`;
+  }
+  M.register('carddeck', (v, m, val) => deckHtml(v, m, val, ''));
+  DECK_STYLES.forEach(id => M.register('deck_' + id, (v, m, val) => deckHtml(v, m, val, id)));
   // each card sits a little up and left of the one below it, so the stack shows its thickness
   const base = i => `translate(${f4(-i * 0.4)}px,${f4(-i * 1.4)}px)`;
   // a card at x, y from the deck's home spot, at height i in its pile, turned r degrees
@@ -494,6 +538,96 @@
     if (!live()) return;
     cards.forEach((c, k) => lay(c, base(k)));
   }
+  // The dealt card grows to hold its text: wider first, then taller, and the table makes room for it
+  function fitCard(g, text) {
+    const tb = g.querySelector('.vc-table'), dk = g.querySelector('.vc-deck'), slot = g.querySelector('.vc-slot'), face = g.querySelector('[data-vcface]');
+    if (!tb || !dk || !slot || !face) return;
+    const left = dk.offsetLeft + dk.offsetWidth + 14, room = Math.max(76, Math.min(190, (tb.clientWidth || 310) - left - 12));
+    const probe = face.cloneNode(false);
+    probe.removeAttribute('data-vcface'); probe.textContent = text;
+    probe.style.cssText = 'position:absolute;visibility:hidden;inset:auto;transform:none;height:auto;backface-visibility:visible;overflow:visible;overflow-wrap:normal';
+    slot.appendChild(probe);
+    // widest word sets the minimum width (min-content already includes padding and border), then the height follows
+    probe.style.width = 'min-content';
+    let w = Math.max(76, Math.min(room, Math.ceil(probe.getBoundingClientRect().width) + 6)), h = 106;
+    probe.style.width = w + 'px';
+    h = Math.max(106, Math.ceil(probe.getBoundingClientRect().height));
+    // still taller than a card while there is room to widen: widen in steps
+    while (h > 160 && w < room) { w = Math.min(room, w + 12); probe.style.width = w + 'px'; h = Math.max(106, Math.ceil(probe.getBoundingClientRect().height)); }
+    probe.remove();
+    w = Math.min(w, room);
+    slot.style.width = w + 'px'; slot.style.height = h + 'px'; slot.style.left = 'auto'; slot.style.marginLeft = '0'; slot.style.right = '14px';
+    tb.style.height = Math.max(164, 36 + h + 22) + 'px';
+  }
+  // ---- shuffle styles: riffle (default), overhand, fan and sweep; the setting lives in Settings, Randomiser motion ----
+  // Shuffle registry. A shuffle is async (cards, S, amp, live, P, from): cards are the 12 .vc-c elements bottom to top (reorder the array
+  // in place), the stack starts squared at x = from, and must end squared at the table centre P.C. fn.dur is its length in ms at speed 1.
+  M.shuffles = M.shuffles || {};
+  const SHUFFLES = ['riffle', 'overhand', 'fan'];
+  function shuffleStyle() {
+    let v = 'riffle';
+    try { v = localStorage.getItem('pl.shuffleStyle') || 'riffle'; } catch (_) {}
+    if (v === 'random') return SHUFFLES[rand(SHUFFLES.length)];
+    return SHUFFLES.includes(v) ? v : 'riffle';
+  }
+  // Overhand: packets are peeled off the top and dropped in turn, so the order ends reversed by packet.
+  // Same contract as riffle: the stack starts at x = from and ends squared at the table centre P.C.
+  async function overhand(cards, S, amp, live, P, from) {
+    const PK = 4, packets = [];
+    for (let top = cards.length; top > 0; top -= PK) packets.push(cards.slice(Math.max(0, top - PK), top));
+    const lift = Math.max(14, 20 * Math.min(amp, 1.4)), next = [].concat.apply([], packets);
+    const jit = next.map(() => [(Math.random() - 0.5) * 6, (Math.random() - 0.5) * 5]);
+    const anims = [];
+    packets.forEach((pk, n) => {
+      pk.forEach((c, j) => {
+        const k = n * PK + j, i = cards.indexOf(c), z = 100 + k;
+        anims.push(c.animate([
+          { transform: at(from, 0, i, 0), zIndex: z },
+          { transform: at(from + 34 * amp, -lift, i, 7), zIndex: z, offset: 0.4, easing: 'ease-in' },
+          { transform: at(P.C + jit[k][0], 0, k, jit[k][1]), zIndex: z }], { duration: 260 / S, delay: n * 230 / S + j * 25 / S, easing: 'ease-out', fill: 'forwards' }));
+      });
+    });
+    await all(anims, (packets.length * 230 + 260 + PK * 25) / S + 600);
+    if (!live()) return;
+    next.forEach((c, k) => lay(c, at(P.C + jit[k][0], 0, k, jit[k][1]), k + 1));
+    cards.length = 0; next.forEach(c => cards.push(c));
+    await all(cards.map((c, k) => c.animate([
+      { transform: at(P.C + jit[k][0], 0, k, jit[k][1]) },
+      { transform: at(P.C, 3, k, 0) + ' scale(1.03,.96)', offset: 0.5 },
+      { transform: at(P.C, 0, k, 0) }], { duration: 220 / S, easing: 'ease-in-out', fill: 'forwards' })), 220 / S + 600);
+    if (!live()) return;
+    cards.forEach((c, k) => lay(c, at(P.C, 0, k, 0)));
+  }
+  // Fan and sweep: the deck spreads into an arc, the cards are mixed along it, then swept back into one stack
+  async function fanSweep(cards, S, amp, live, P, from) {
+    const n = cards.length, mid = (n - 1) / 2, reachX = Math.min(Math.max(30, (P.R - P.L) / 2 + 14), 74 + 10 * amp);
+    const order = cards.slice(), next = cards.slice();
+    for (let i = n - 1; i > 0; i--) { const j = rand(i + 1), t = next[i]; next[i] = next[j]; next[j] = t; }
+    const arc = (k, spread) => at(P.C + ((k - mid) / mid) * reachX * spread, Math.abs(k - mid) * Math.abs(k - mid) * -0.32 * spread, k, ((k - mid) / mid) * 22 * spread);
+    await all(order.map((c, i) => c.animate([
+      { transform: at(from, 0, i, 0) },
+      { transform: arc(i, 1) }], { duration: 300 / S, delay: i * 14 / S, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' })), (300 + n * 14) / S + 600);
+    if (!live()) return;
+    order.forEach((c, i) => lay(c, arc(i, 1)));
+    // mix: every card slides to its new place in the arc, a little higher while it travels
+    await all(next.map((c, k) => { const i = order.indexOf(c); return c.animate([
+      { transform: arc(i, 1) },
+      { transform: arc(Math.round((i + k) / 2), 1.05) + ' translateY(-14px)', offset: 0.5 },
+      { transform: arc(k, 1) }], { duration: 420 / S, delay: k * 12 / S, easing: 'ease-in-out', fill: 'forwards' }); }), (420 + n * 12) / S + 600);
+    if (!live()) return;
+    next.forEach((c, k) => lay(c, arc(k, 1)));
+    cards.length = 0; next.forEach(c => cards.push(c));
+    // sweep: the arc closes into one squared stack, sideways first so the cards slap together
+    await all(cards.map((c, k) => c.animate([
+      { transform: arc(k, 1) },
+      { transform: arc(k, 0.25), offset: 0.55 },
+      { transform: at(P.C, 0, k, 0) }], { duration: 380 / S, delay: k * 10 / S, easing: 'ease-in-out', fill: 'forwards' })), (380 + n * 10) / S + 600);
+    if (!live()) return;
+    cards.forEach((c, k) => lay(c, at(P.C, 0, k, 0)));
+  }
+  riffle.dur = 1760; overhand.dur = 1300; fanSweep.dur = 1500;
+  M.shuffles.riffle = M.shuffles.riffle || riffle; M.shuffles.overhand = M.shuffles.overhand || overhand; M.shuffles.fan = M.shuffles.fan || fanSweep;
+  M.deck = { DECK, at, base, lay, all, wait, rand, f4, spots };
   async function drawCard(btn) {
     const g = btn.closest('[data-vc]');
     if (!g || g._busy) return;
@@ -505,7 +639,7 @@
     const face = g.querySelector('[data-vcface]'), left = g.querySelector('[data-vcleft]'), hidden = g.querySelector('input[data-var]');
     const slotCard = g.querySelector('.vc-card');
     let valueSet = false, ended = false;
-    const setValue = () => { if (valueSet) return; valueSet = true; face.textContent = pick; if (hidden) hidden.value = pick; if (window.PL_VARS && window.PL_VARS.onChange) window.PL_VARS.onChange(g.dataset.vc, pick); };
+    const setValue = () => { if (valueSet) return; valueSet = true; face.textContent = pick; fitCard(g, pick); if (hidden) hidden.value = pick; if (window.PL_VARS && window.PL_VARS.onChange) window.PL_VARS.onChange(g.dataset.vc, pick); };
     const deckEl = g.querySelector('.vc-deck'), cards = Array.from(deckEl.querySelectorAll('.vc-c'));
     const done = () => {
       if (ended) return; ended = true;
@@ -521,13 +655,14 @@
     };
     const md = mode();
     if (md === 'off') return done();
+    const style = g.dataset.shuffle || shuffleStyle();
     const c = cfg('carddeck'), S = c.speed * (md === 'short' ? 1.6 : 1), amp = 0.6 + c.intensity * 0.8;
     g._busy = true; btn.disabled = true;
     g.classList.remove('drawn', 'dealing'); g.classList.add('shuffling');
     cards.forEach(x => { x.style.visibility = ''; });
     // how long this draw should take: one pass is cut, riffle and square up, then the gather and the deal;
     // the watchdog waits half as long again plus a second, so it only ever lands a draw that has stalled
-    const pass = 340 + DECK * 80 + 240 + 220, plan = (md === 'full' ? pass + pass / 1.15 : pass) / S + (260 + 950) / S;
+    const pass = (M.shuffles[style] || M.shuffles.riffle).dur || (340 + DECK * 80 + 240 + 220), plan = (md === 'full' ? pass + pass / 1.15 : pass) / S + (260 + 950) / S;
     // a tap on the table skips to the dealt card; the watchdog lands it if anything stalls
     let skipped = false;
     const live = () => !skipped;
@@ -535,9 +670,10 @@
     g._watch = setTimeout(done, Math.max(7000, plan * 1.5 + 1000));
     try {
       const P = spots(g, amp);
-      await riffle(cards, S, amp, live, P, 0);
+      const shuffle = M.shuffles[style] || M.shuffles.riffle;
+      await shuffle(cards, S, amp, live, P, 0);
       if (skipped) return;
-      if (md === 'full') { await riffle(cards, S * 1.15, amp, live, P, P.C); if (skipped) return; }
+      if (md === 'full') { await shuffle(cards, S * 1.15, amp, live, P, P.C); if (skipped) return; }
       await gather(cards, S, live, P.C);
       if (skipped) return;
       // deal: the top card lifts off the deck, travels to the slot and turns face up
@@ -566,23 +702,28 @@
   // Card backs are solid accent with a thin on accent frame; a light edge on each card shows the stack's thickness
   CSS.push(`
 .vc{display:flex;flex-direction:column}
-.vc-table{position:relative;height:164px;border-radius:var(--r-md);background:var(--surface-3);border:1px solid var(--line);overflow:hidden}
+.vc-table{position:relative;height:164px;border-radius:var(--r-lg);background:var(--surface-3);border:1px solid var(--line-strong);box-shadow:inset 0 1px 3px oklch(18% 0.04 260 / .08);overflow:hidden}
 .vc-deck,.vc-slot{position:absolute;top:36px;width:76px;height:106px}
 .vc-deck{left:44px;z-index:1}
 .vc-slot{left:62px;margin-left:140px;perspective:700px;z-index:2}
 .vc.shuffling .vc-deck{z-index:3}
-.vc-slot::before{content:'';position:absolute;inset:0;border:1px dashed var(--ink);border-radius:8px;opacity:.3}
-.vc-c{position:absolute;inset:0;box-sizing:border-box;border:1px solid var(--surface);border-radius:8px;background:var(--accent);box-shadow:inset 0 0 0 5px var(--accent),inset 0 0 0 6px var(--on-accent);transform:translate(calc(var(--i) * -.4px),calc(var(--i) * -1.4px));z-index:calc(var(--i) + 1)}
+.vc-slot::before{content:'';position:absolute;inset:0;border:1.5px dashed var(--line-strong);border-radius:var(--r-lg);background:var(--surface-sunk);opacity:.9}
+.vc-c{position:absolute;inset:0;box-sizing:border-box;border:1px solid var(--surface);border-radius:var(--r-lg);background:var(--accent);box-shadow:inset 0 0 0 5px var(--accent),inset 0 0 0 6px var(--on-accent),var(--shadow-sm);transform:translate(calc(var(--i) * -.4px),calc(var(--i) * -1.4px));z-index:calc(var(--i) + 1)}
+.vc-c:first-child{box-shadow:inset 0 0 0 5px var(--accent),inset 0 0 0 6px var(--on-accent),var(--shadow-md)}
 .vc-deck{transform-origin:50% 60%}
 .vc-card{position:relative;width:100%;height:100%;opacity:0;transform-style:preserve-3d}
-.vc-back,.vc-face{position:absolute;inset:0;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border-radius:8px;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.vc-back,.vc-face{position:absolute;inset:0;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border-radius:var(--r-lg);backface-visibility:hidden;-webkit-backface-visibility:hidden}
 .vc-back{background:var(--accent);border:1px solid var(--surface);box-shadow:inset 0 0 0 5px var(--accent),inset 0 0 0 6px var(--on-accent)}
-.vc-face{padding:8px;background:var(--surface);border:2px solid var(--accent);transform:rotateY(180deg);font:700 15px/1.25 var(--ff-sans);text-align:center;color:var(--ink);overflow:hidden;overflow-wrap:anywhere}
+.vc-face{padding:12px 11px;background:var(--surface);border:2px solid var(--accent);box-shadow:var(--shadow-md);transform:rotateY(180deg);font:700 16px/1.25 var(--ff-sans);letter-spacing:-.005em;text-align:center;color:var(--ink);overflow:hidden;overflow-wrap:break-word;word-break:normal}
+.vc-face::before{content:'';position:absolute;inset:4px;border:1px solid var(--accent-line);border-radius:calc(var(--r-lg) - 4px);pointer-events:none}
 .vc.drawn .vc-card{opacity:1;transform:rotateY(180deg)}
 .vc.dealing .vc-card{opacity:1}
-.vc-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding-top:8px}
-.vc-row button{min-height:44px;padding:8px 14px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--on-accent);font-weight:700}
-.vc-row button:disabled{opacity:.6}
+.vc-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding-top:12px}
+.vc-row button{--rb-edge:color-mix(in oklch,var(--accent) 62%,black);min-height:44px;padding:8px 14px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--on-accent);font-weight:700}
+.vc-row button:not(:disabled){box-shadow:inset 0 1px 0 color-mix(in oklch,white 32%,transparent),0 2px 0 var(--rb-edge),0 3px 6px -2px color-mix(in oklch,var(--ink) 28%,transparent);transition:transform var(--btn-spring),box-shadow .15s,background .15s,border-color .15s}
+.vc-row button:not(:disabled):hover{transform:translateY(var(--btn-lift));box-shadow:inset 0 1px 0 color-mix(in oklch,white 38%,transparent),0 3px 0 var(--rb-edge),0 8px 12px -5px color-mix(in oklch,var(--ink) 35%,transparent)}
+.vc-row button:not(:disabled):active{transform:translateY(var(--btn-sink));box-shadow:inset 0 1px 3px color-mix(in oklch,black 30%,transparent),0 0 0 var(--rb-edge)}
+.vc-row button:disabled{opacity:.6;box-shadow:none}
 .vc-row small{color:var(--ink-3);font-size:var(--t-meta)}
 `);
   // ---- random pick and random number: slot machine drums ----
@@ -752,8 +893,12 @@
 .vr-dw.lead .vr-t,.vr-num.idle .vr-t{color:var(--ink-3);opacity:.45}
 .vr-sign{min-width:18px;text-align:center;font:700 30px/1 var(--ff-mono);color:var(--accent)}
 .vr-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
-.vr-row button[data-vrgo]{min-height:44px;padding:8px 14px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--on-accent);font-weight:700}
-.vr-row button:disabled{opacity:.6}
+.vr-row button[data-vrgo]{--rb-edge:color-mix(in oklch,var(--accent) 62%,black);min-height:44px;padding:8px 14px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--on-accent);font-weight:700}
+.vr-row button[data-vrgo]:not(:disabled){box-shadow:inset 0 1px 0 color-mix(in oklch,white 32%,transparent),0 2px 0 var(--rb-edge),0 3px 6px -2px color-mix(in oklch,var(--ink) 28%,transparent);transition:transform var(--btn-spring),box-shadow .15s,background .15s,border-color .15s}
+.vr-row button[data-vrgo]:not(:disabled):hover{transform:translateY(var(--btn-lift));box-shadow:inset 0 1px 0 color-mix(in oklch,white 38%,transparent),0 3px 0 var(--rb-edge),0 8px 12px -5px color-mix(in oklch,var(--ink) 35%,transparent)}
+.vr-row button[data-vrgo]:not(:disabled):active{transform:translateY(var(--btn-sink));box-shadow:inset 0 1px 3px color-mix(in oklch,black 30%,transparent),0 0 0 var(--rb-edge)}
+.vr-row button:disabled{opacity:.6;box-shadow:none}
+@media (prefers-reduced-motion:reduce){.vd-step button,.vd-pre,.vd-out button,.vc-row button,.vr-row button[data-vrgo],.vm-rmode,.pl-rm-tab{transform:none!important}}
 .vr-row small{color:var(--ink-3);font-size:var(--t-meta)}
 .vr-out{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 `);

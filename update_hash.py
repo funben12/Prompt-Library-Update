@@ -20,7 +20,7 @@ html = re.sub(r'app\.js\?v=[a-f0-9]+', 'app.js?v=' + js_hash, html)
 html = re.sub(r'app\.css\?v=[a-f0-9]+', 'app.css?v=' + css_hash, html)
 
 # Randomiser motion files (dice, card deck, random pick): cache-bust them too, or a stale copy keeps the old motion
-for name in ('randomiser-motion.js', 'vartypes-3d.js'):
+for name in ('randomiser-motion.js', 'vartypes-3d.js', 'deck-shuffles.js', 'dice-rolls.js', 'combine-prompts.js'):
     path = os.path.join('static', name)
     if os.path.exists(path):
         with open(path, 'rb') as f:

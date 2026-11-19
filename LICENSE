@@ -1,21 +1,82 @@
-MIT License
+PROMPT LIBRARY PRO SOURCE AVAILABLE LICENCE
+Version 1.0
+Copyright (c) 2026 Eugene Phillips, trading as MX Phillips.
+All rights reserved.
 
-Copyright (c) 2026 funben12
+IMPORTANT
+This is a custom, source available licence. It is not an open source licence approved by the Open Source Initiative. It grants limited permission to use, modify and fork the covered project materials. It does not transfer ownership.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. COPYRIGHT AND OWNERSHIP
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+The original source code, application design, documentation, original assets and other materials in this repository that are owned by Eugene Phillips, trading as MX Phillips, remain the copyright of Eugene Phillips.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+The copyright owner retains all rights not expressly granted by this licence.
+
+This notice does not claim ownership of third party software, dependencies, fonts, icons, libraries, trademarks, or other materials identified as belonging to someone else. Those materials remain subject to their own licences and terms.
+
+2. PERMITTED PERSONAL USE AND FORKING
+
+Subject to the conditions below, the copyright owner grants you a worldwide, non-exclusive, non-transferable, revocable permission to:
+
+a. view and download the covered materials;
+b. use and run the software for personal, non-commercial purposes;
+c. modify the covered materials for personal, non-commercial purposes;
+d. create and maintain forks for personal, non-commercial development;
+e. publish and share public forks on GitHub, including modified source code, provided that this licence and the required copyright notices remain included.
+
+A fork is an independent development copy. Creating a fork does not transfer ownership of the original project or its original materials to the fork owner.
+
+3. CONDITIONS
+
+When exercising the permissions above, you must:
+
+a. retain this licence and all applicable copyright and attribution notices in copies and substantial portions of the covered materials;
+b. clearly identify material changes you have made;
+c. not imply that your fork is the official Prompt Library Pro project or is endorsed by MX Phillips;
+d. not remove or alter ownership notices in the original materials;
+e. respect the separate licences and notices of third party components.
+
+4. RESTRICTIONS
+
+Unless you obtain prior written permission from the copyright owner, you may not:
+
+a. sell, commercially license, commercially distribute or commercially exploit the covered materials or a derivative product incorporating them;
+b. include the covered materials in a paid product, paid service, commercial application, or revenue-generating hosted service;
+c. redistribute the covered materials as a competing commercial product;
+d. use the MX Phillips or Prompt Library Pro names, logos, branding or other marks in a way that suggests official status, endorsement or affiliation;
+e. claim ownership of the original materials.
+
+These restrictions do not override permissions granted by the separate licences of third party components.
+
+5. CONTRIBUTIONS AND MODIFICATIONS
+
+You retain any copyright you independently hold in original changes you create. Your changes do not give you ownership of the original project materials.
+
+If you submit a contribution to the original Prompt Library Pro repository, you agree that the copyright owner may review, use, modify and distribute that contribution as part of the project. Any broader assignment of copyright or exclusive rights must be agreed separately in writing. Submitting a contribution does not, by itself, transfer your copyright to the project owner.
+
+6. NO AUTOMATIC COMMERCIAL PERMISSION
+
+If you want to use the project commercially, sell a fork, redistribute it as part of a commercial product, or obtain broader rights, you must contact the copyright owner and obtain written permission before doing so.
+
+Contact: eugphill@gmail.com
+Project: https://payhip.com/MXPhillips
+
+7. TERMINATION
+
+The permissions granted by this licence terminate automatically if you materially breach its conditions. If the breach can be remedied, the permissions may be reinstated when the breach is fully corrected, unless the copyright owner has notified you otherwise.
+
+Termination does not remove rights that cannot legally be revoked or permissions separately granted under third party licences.
+
+8. DISCLAIMER
+
+The covered materials are provided "AS IS", without warranty of any kind, express or implied, including warranties of merchantability, fitness for a particular purpose and non-infringement. To the fullest extent permitted by law, the copyright owner is not liable for any claim, damages or other liability arising from the materials or their use.
+
+9. PREVIOUS MIT-LICENSED VERSIONS
+
+Earlier copies or versions of this project that were distributed under the MIT Licence remain subject to the MIT Licence that accompanied those copies. This licence applies to the project materials distributed with or after its introduction, to the extent that the copyright owner has the rights to license those materials.
+
+10. GOVERNING LAW
+
+This licence and any dispute arising from it are governed by the laws of England and Wales, subject to any mandatory legal protections that apply to the user.
+
+END OF LICENCE

@@ -42,7 +42,7 @@ No test suite, no linter, no package.json. Verification is manual: syntax checks
 
 - `Main.py` -- entry point, launches Flask + PyWebView, handles frozen-vs-dev path resolution
 - `app.py` (~2.6k lines) -- Flask app: DB init/schema (`init_db()`), all `/api/*` routes, serialisation helpers. One file, no blueprints
-- `static/index.html` (~3.4k lines) -- all markup; 3 `<script>` tags: components-data.js, app.js, inline bootstrap
+- `static/index.html` (~3.4k lines) -- all markup; 11 `<script>` tags (components-data, forge-frameworks, xray-views, qrcode.min, combine-prompts, app.js, randomiser-motion, vartypes-3d, deck-shuffles, dice-rolls, inline bootstrap)
 - `static/app.css` (~270KB) -- all styling, cache-busted via `app.css?v=[hash]` in index.html
 - `static/app.js` (~18k lines) -- entire frontend logic in one IIFE: `state` object, render functions, workspace init/open functions, API calls
 - `static/components-data.js` -- static prompt-component library data, separated from app.js because of size
@@ -120,7 +120,7 @@ in `_shared/shared.css` -- grep both before concluding something isn't styled.
 - Flask routes: private helpers prefixed `_` (`_json_body`, `_normalise_list`, `_folder_id`)
 - Comments: plain English, one line, imperative. No paragraph comments, no docstring blocks
 - No new dependencies without explicit approval. No schema migrations without explicit approval
-- Premium-gated features: `premium-locked` class on the HTML element + `state.isPremium` check in JS
+- Premium-gated features: `premium-locked` class on the HTML element + `state.isPremium` check in JS. **Since 2026-11-16 there is no free tier inside the app**: a first launch licence screen (`#activationGate`) asks for the key and, once a valid key is saved, every lock and limit is gone. Do not reintroduce `FREE_LIMITS` or upgrade toasts. The old `premium-locked` markup and `state.isPremium` checks are now dead code kept for safety.
 
 ---
 
@@ -144,7 +144,7 @@ in `_shared/shared.css` -- grep both before concluding something isn't styled.
 - **Frozen vs dev paths differ.** `get_data_dir()` / `get_static_dir()` in app.py branch on PyInstaller frozen state -- don't hardcode paths relative to the source tree.
 - **Flask/PyWebView startup race.** Main.py polls the socket to confirm Flask is up before WebView loads the page -- don't remove that wait.
 - **Async loaders need try/catch around every render call inside them,** or a failed fetch silently blanks the UI with no error surfaced.
-- **NUL bytes and truncation have hit this file before.** Before trusting static/index.html or app.js, sanity check: `grep -c "<script" static/index.html` should be 5; `node --check static/app.js` should pass and end in `})();`.
+- **NUL bytes and truncation have hit this file before.** Before trusting static/index.html or app.js, sanity check: `grep -c "<script" static/index.html` should be 11; `node --check static/app.js` should pass and end in `})();`.
 - **PromptLibrary.db and PromptLibrary.db-journal are live SQLite files in the repo root** -- don't blindly overwrite/delete, the journal implies an interrupted write.
 - **licence_api.py / licence_ui.js are a separate system from the main prompt CRUD** -- don't conflate premium-gating logic with licence validation logic.
 - **`.chain-step` / `.chain-step-num` / `.chain-step-body` are already taken.** An unrelated chain-search picker elsewhere in `app.css` (~line 1479) uses these exact class names with `display: grid; grid-template-columns: 32px 1fr auto`, which silently breaks any other feature that reuses them (missing `display` overrides leak straight through the cascade). The Prompt Chain workspace uses `chainw-step` / `chainw-step-num` / `chainw-step-body` instead -- grep for a class before reusing it, don't assume `chain-` prefixed names are free.
@@ -153,7 +153,7 @@ in `_shared/shared.css` -- grep both before concluding something isn't styled.
 
 ## Triage: "prompts not showing"
 
-1. `grep -c "<script" static/index.html` -> must be 5, else file truncated
+1. `grep -c "<script" static/index.html` -> must be 11, else file truncated
 2. `node --check static/app.js` -> JS syntax error
 3. `python3 -m py_compile app.py` -> Flask startup error
 4. Check render calls inside async loaders are wrapped in try/catch
@@ -275,11 +275,13 @@ The phone app lives in the separate repo `funben12/AI-App-Factory`, folder `apps
 
 A Pro workspace opened from the launcher's My Favorites list. It is a node canvas that wires blocks and agent teams into one compiled prompt. All five phases of its handover are built. Details are in MEMORY.md, the source file and handover are in `docs/prompt-builder-pro/`.
 
-**It does not live in `app.js`.** Three files own it:
+**It does not live in `app.js`.** Four files own it:
 
 - `static/builder-pro-engine.js` -- compile engine and templates, lifted unchanged from the standalone tool, no DOM. Exposes `window.PLBuilder`. Do not edit it to add features, extend from `builder-pro.js`.
 - `static/builder-pro.js` -- the interface. Exposes `window.openBuilderProWorkspace`, `window.PL_closeBuilderPro`, `window.__pb` (for tests).
 - `static/builder-pro.css` -- all its styles.
+- `static/builder-pro-showcases.js` -- the Learn tab's Showcases: nineteen complete workflows in five groups as data (chapters of blocks and wires) plus `PB.showcaseBuild`. The player is in `builder-pro.js`. Check any change with `node tests/builder-showcases/validate.js`.
+- Builder Pro reaches the library's AI key only through `window.PL_ai` (`info()` and `ask()`, defined next to `callAI` in `app.js`, no advisor model, JSON reply). Do not read the key from `localStorage` in `builder-pro.js`.
 
 `index.html` only holds the empty root `<div id="builderProWorkspace">`, one stylesheet link, and one loader line in the inline script.
 
@@ -288,15 +290,16 @@ A Pro workspace opened from the launcher's My Favorites list. It is a node canva
 1. Every id and class is prefixed `pbp-`, and every CSS rule sits under `#builderProWorkspace`.
 2. Colours come from `app.css` tokens only. No hex values, no blur. Icons are Material Symbols.
 3. Listeners go on the workspace root. The one `document` keydown listener must keep returning at once while the workspace is closed.
-4. **Cache busting is separate.** `update_hash.py` does not touch these files. They carry a hand-set `?v=` value in `index.html` (two places). Bump it whenever one of the three files changes.
-5. Saved state is localStorage only (`prompt-builder-pro.v5`, `.workshop.v1`, `.panes.v1`, `.tour.v1`). No database, no schema change.
+4. **Cache busting is separate.** `update_hash.py` does not touch these files. They carry a hand-set `?v=` value in `index.html` (two places, currently `20261116k`). Bump it whenever one of the four files changes.
+5. Saved flows and layout are localStorage only (`prompt-builder-pro.v5`, `.workshop.v1`, `.panes.v1`, `.tour.v1`, `.learn.v1`). The quick tour flag and finished lessons are also kept in the database through `window.PL_prefs` (`builder_tour`, `builder_learn`) because WebView storage can reset. No schema change.
 6. It shares the Component Library with Prompt Components through `window.PL_galleryBorrow` in `app.js`. Never build a second component dataset, and never edit `static/components-data.js` for this workspace.
-7. Free users are refused by a `body.is-premium` check, because `state` and `showPremiumModal` are private to the `app.js` IIFE.
+7. The `body.is-premium` check at the top of `openBuilderProWorkspace` is a leftover: there is no free tier any more (see the licence screen), so it never refuses anyone after activation.
+8. **New agent blocks and lessons live in `builder-pro.js`, not the engine:** `MORE_AGENTS` registers extra blocks into `PE.BLOCKS` and `PE.LIBRARY` (the engine treats every block in the `agents` category as a team member) and `LESSONS` drives the Learn tab. A block needs its ports, `about`, `use` and `defaults`; extra fields are not compiled unless the engine's `blockText` handles that type, so keep new agents to the one text field.
 
 **Launcher:** list headers are buttons that collapse their list (`pl_ws_collapsed` in localStorage). A new launcher list needs an icon colour rule beside the others in `app.css`.
 
 **Corrections to older notes in this file (checked 2026-11-13):**
 
-- `grep -c "<script" static/index.html` is **5**, not 3. Use 5 in the truncation check and the triage list.
+- `grep -c "<script" static/index.html` is **11** (re-checked 2026-11-16, combine-prompts.js restored; was 10 on 2026-11-15, deck-shuffles.js and dice-rolls.js added: components-data, forge-frameworks, xray-views, qrcode.min, app.js, randomiser-motion, vartypes-3d, inline bootstrap), not 5 or 3. Use 10 in the truncation check and the triage list.
 - `Prompt Library Interface Files/` is not in this git repository. It may exist only on Eugene's machine. If it is missing, work from the live files in `static/`.
 - Browser checks in cloud sessions have been run with scripted Playwright (the `playwright` Node library with headless Chromium) against a disposable data folder. The Playwright MCP tools were not tried there, so the rule above still stands for local sessions.
