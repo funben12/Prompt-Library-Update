@@ -4730,10 +4730,32 @@ def licence_status():
 
 # ══ Component workspace ═════════════════════════════════════════════
 
+_COMPONENT_DEFINITION_PREFIX = '__PL_COMPONENT_DEF_V1__:'
+
+
+def _store_component_description(description, definition=None):
+    description = str(description or '')
+    if isinstance(definition, dict) and definition:
+        payload = {'description': description, 'definition': definition}
+        return _COMPONENT_DEFINITION_PREFIX + json.dumps(payload, ensure_ascii=False)
+    return description
+
+
 def serialize_component(row):
     b = dict(row)
-    b['description'] = b.get('description') or ''
-    b['source']      = b.get('source') or 'user'
+    raw_description = b.get('description') or ''
+    b['definition'] = {}
+    if raw_description.startswith(_COMPONENT_DEFINITION_PREFIX):
+        try:
+            payload = json.loads(raw_description[len(_COMPONENT_DEFINITION_PREFIX):])
+            b['description'] = str(payload.get('description') or '')
+            definition = payload.get('definition')
+            b['definition'] = definition if isinstance(definition, dict) else {}
+        except (TypeError, ValueError):
+            b['description'] = raw_description
+    else:
+        b['description'] = raw_description
+    b['source'] = b.get('source') or 'user'
     return b
 
 def serialize_composition(row, blocks=None):
@@ -4794,7 +4816,7 @@ def create_component():
         '''INSERT INTO component_blocks (name, category, body, description, source, forked_from)
            VALUES (?,?,?,?,?,?)''',
         (name, (data.get('category') or 'misc').strip(), body,
-         data.get('description') or '',
+         _store_component_description(data.get('description') or '', data.get('definition')),
          'fork' if data.get('forked_from') else 'user',
          data.get('forked_from'))
     )
@@ -4819,7 +4841,7 @@ def update_component(bid):
         ((data.get('name') or row['name']).strip(),
          (data.get('category') or row['category']).strip(),
          data.get('body') if data.get('body') is not None else row['body'],
-         data.get('description') if data.get('description') is not None else row['description'],
+         _store_component_description(data.get('description') if data.get('description') is not None else serialize_component(row)['description'], data.get('definition')) if isinstance(data.get('definition'), dict) else (data.get('description') if data.get('description') is not None else row['description']),
          bid)
     )
     conn.commit()
