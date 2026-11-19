@@ -6,12 +6,16 @@ The custom block creator belongs in Prompt Builder Pro, in the left hand Block L
 
 1. Open Prompt Builder Pro.
 2. Find the Block Library in the left sidebar.
-3. Select **Create block**.
+3. Select **Create custom block**. This opens a dedicated full-screen Block Studio, not a small modal.
 4. Define the block name, description and whether it is a standard block or an agent block.
 5. Add as many input ports and output ports as required.
 6. Add configurable settings.
 7. Write the prompt instructions and use the supported template tokens.
 8. Save the definition. It appears in the My blocks category and can be added to the canvas, wired, and edited.
+
+## Block Studio screen
+
+The editor opens as a dedicated full-screen workspace with its own header, configuration area, connection and settings sections, prompt template editor, and persistent footer actions. The screen can be closed to return to the Prompt Builder without losing the current unsaved form until it is closed.
 
 ## Template tokens
 
