@@ -255,7 +255,7 @@
     mode=previousMode;
     return result;
   }
-  window.PLStressLabCore={analyze:analyzeFor,modes:MODES};
+  window.PLStressLabCore={analyze:analyzeFor,modes:MODES,recordPatterns:addPatternMemory,patterns:patternContext};
   if(!window.PL_PROMPT_TESTING_UNIFIED){
     window.openPromptStressLabWorkspace=openLab;
     if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
