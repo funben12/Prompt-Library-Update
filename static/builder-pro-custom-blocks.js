@@ -40,15 +40,16 @@ function addRow(kind,data){
  root.appendChild(row);
 }
 function dialog(){
- let d=document.getElementById("pbp-custom-block-dialog");if(d)return d;
- d=document.createElement("dialog");d.id="pbp-custom-block-dialog";d.className="pbp-custom-dialog";
- d.innerHTML='<form method="dialog"><header><div><small> PROMPT BUILDER / MY BLOCKS</small><h2 id="pbp-cb-title">Create a custom block</h2><p>Design its connections, settings and prompt instructions.</p></div><button type="button" data-close>×</button></header><main><label>Block name<input class="form-input" id="pbp-cb-name" maxlength="60" required></label><label>Description<input class="form-input" id="pbp-cb-hint" maxlength="120"></label><label>Block type<select class="form-input" id="pbp-cb-category"><option value="custom">Standard block</option><option value="agents">Agent block</option></select></label><section><div><b>Inputs</b><button type="button" data-add="input">+ Add input</button></div><div id="pbp-cb-inputs"></div></section><section><div><b>Outputs</b><button type="button" data-add="output">+ Add output</button></div><div id="pbp-cb-outputs"></div></section><section><div><b>Settings</b><button type="button" data-add="setting">+ Add setting</button></div><div id="pbp-cb-settings"></div></section><label>Prompt instructions<textarea class="form-textarea" id="pbp-cb-body" rows="8" placeholder="Write the instructions this block contributes to the compiled prompt."></textarea></label><aside><b>Template tokens</b><code>{{input:brief}}</code><code>{{setting:mode}}</code><code>{{output:result}}</code><small>Use these to reference the named connections and settings in your prompt template.</small></aside></main><footer><button type="button" data-close>Cancel</button><button type="button" class="btn btn-accent" id="pbp-cb-save">Save block</button></footer></form>';
+ let d=document.getElementById("pbp-custom-block-screen");if(d)return d;
+ d=document.createElement("div");d.id="pbp-custom-block-screen";d.className="pbp-custom-screen";d.hidden=true;
+ d.innerHTML='<div class="pbp-cb-shell" role="dialog" aria-modal="true" aria-labelledby="pbp-cb-title"><header class="pbp-cb-topbar"><div class="pbp-cb-brand"><span class="material-symbols-outlined" aria-hidden="true">widgets</span><span>PROMPT LIBRARY <b>/ BUILDER PRO</b></span></div><button type="button" class="pbp-cb-close" data-close aria-label="Return to Prompt Builder"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></header><div class="pbp-cb-pagehead"><div><small>BLOCK STUDIO / MY BLOCKS</small><h1 id="pbp-cb-title">Create a custom block</h1><p>Build a reusable component for your prompt workflows. Define its connections, controls and instructions.</p></div><div class="pbp-cb-step"><span class="material-symbols-outlined" aria-hidden="true">tune</span><span>BLOCK CONFIGURATION</span></div></div><form class="pbp-cb-form"><main class="pbp-cb-main"><label>Block name<input class="form-input" id="pbp-cb-name" maxlength="60" required></label><label>Description<input class="form-input" id="pbp-cb-hint" maxlength="120"></label><label>Block type<select class="form-input" id="pbp-cb-category"><option value="custom">Standard block</option><option value="agents">Agent block</option></select></label><section><div><b>Inputs</b><button type="button" data-add="input">+ Add input</button></div><div id="pbp-cb-inputs"></div></section><section><div><b>Outputs</b><button type="button" data-add="output">+ Add output</button></div><div id="pbp-cb-outputs"></div></section><section><div><b>Settings</b><button type="button" data-add="setting">+ Add setting</button></div><div id="pbp-cb-settings"></div></section><label>Prompt instructions<textarea class="form-textarea" id="pbp-cb-body" rows="8" placeholder="Write the instructions this block contributes to the compiled prompt."></textarea></label><aside><b>Template tokens</b><code>{{input:brief}}</code><code>{{setting:mode}}</code><code>{{output:result}}</code><small>Use these to reference the named connections and settings in your prompt template.</small></aside></main><footer class="pbp-cb-footer"><span class="pbp-cb-footer-note">Your block is saved locally and available in My blocks.</span><div><button type="button" class="btn btn-ghost" data-close>Cancel</button><button type="button" class="btn btn-accent" id="pbp-cb-save"><span class="material-symbols-outlined" aria-hidden="true">save</span> Save block</button></div></footer></form></div>';
  document.body.appendChild(d);
- d.addEventListener("click",e=>{if(e.target===d||e.target.closest("[data-close]")){d.close();return;}const add=e.target.closest("[data-add]");if(add){addRow(add.dataset.add);return;}const rem=e.target.closest("[data-remove]");if(rem)rem.closest(".pbp-cb-row").remove();});
+ d.addEventListener("click",e=>{if(e.target===d||e.target.closest("[data-close]")){close();return;}const add=e.target.closest("[data-add]");if(add){addRow(add.dataset.add);return;}const rem=e.target.closest("[data-remove]");if(rem)rem.closest(".pbp-cb-row").remove();});
  d.querySelector("#pbp-cb-save").addEventListener("click",save);
  return d;
 }
 let editing=null;
+function close(){const d=document.getElementById("pbp-custom-block-screen");if(d)d.hidden=true;document.body.classList.remove("pbp-custom-screen-open");editing=null;}
 function open(type){
  const d=dialog(),def=defs.find(x=>x.type===type);
  editing=def?type:null;
@@ -61,7 +62,7 @@ function open(type){
  (def&&def.inputs||[{id:"in",label:"Input"}]).forEach(x=>addRow("input",x));
  (def&&def.outputs||[{id:"out",label:"Output"}]).forEach(x=>addRow("output",x));
  (def&&def.settings||[]).forEach(x=>addRow("setting",x));
- d.showModal();
+ d.hidden=false;document.body.classList.add("pbp-custom-screen-open");d.querySelector("#pbp-cb-name").focus();
 }
 function rows(kind){
  const id=kind==="setting"?"settings":kind+"s";
@@ -83,7 +84,7 @@ function save(){
  settings.forEach(s=>{fields.push({key:"setting_"+s.id,label:s.label,type:s.type==="select"?"text":s.type,rows:3});defaults["setting_"+s.id]=s.defaultValue||"";});
  register({type,label,hint,category,inputs,outputs,settings,template,fields,defaults});
  try{localStorage.setItem(STORE,JSON.stringify(defs));}catch(e){toast("Could not persist the custom block. Storage may be full.","error");}
- d.close();const search=document.querySelector("#builderProWorkspace #pbp-block-search");if(search)search.dispatchEvent(new Event("input",{bubbles:true}));renderLibrary();toast(editing?"Block definition updated.":"Custom block saved to My blocks.","success");editing=null;
+ close();const search=document.querySelector("#builderProWorkspace #pbp-block-search");if(search)search.dispatchEvent(new Event("input",{bubbles:true}));renderLibrary();toast(editing?"Block definition updated.":"Custom block saved to My blocks.","success");editing=null;
 }
 function renderLibrary(){
  const root=document.getElementById("builderProWorkspace"),lib=root&&root.querySelector("#pbp-library");if(!lib)return;
