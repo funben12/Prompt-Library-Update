@@ -26,3 +26,12 @@
 #builderProWorkspace .pbp-cb-item .pbp-lib-item{flex:1;min-width:0}
 #builderProWorkspace .pbp-cb-edit{padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink-2);font-size:11px}
 @media(max-width:600px){#pbp-custom-block-dialog .pbp-cb-row,#pbp-custom-block-dialog #pbp-cb-settings .pbp-cb-row{grid-template-columns:1fr 1fr}}
+
+
+/* Keep the custom block action visible in the Block Library heading. */
+#builderProWorkspace .pbp-library-head-row{flex-wrap:wrap}
+#builderProWorkspace .pbp-lib-head-actions{display:inline-flex;align-items:center;justify-content:flex-end;gap:var(--sp-2);margin-left:auto;min-width:0}
+#builderProWorkspace .pbp-lib-head-actions .pbp-count{white-space:nowrap}
+@media(max-width:600px){
+  #builderProWorkspace .pbp-lib-head-actions{width:100%;justify-content:space-between}
+}
