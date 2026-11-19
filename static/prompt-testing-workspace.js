@@ -53,7 +53,7 @@
   }
   function routeNames(route){return route.map(key=>({surgeon:"Prompt Surgeon",redteam:"Prompt Red Team",stress:"Prompt Stress Lab"}[key]));}
   function updateRouteSummary(){const route=routeFor($("ptwPrompt")?.value||"",$("ptwObjective")?.value||"");$("ptwRouteSummary").textContent="Recommended: "+routeNames(route).join(" + ")+". "+(route.length===3?"All specialist lenses are selected.":"Only the relevant specialist checks will run.");}
-  function markDirty(message){$("ptwStatus").textContent=message;$("ptwVerdict").textContent="NOT TESTED";updateRouteSummary();}
+  function markDirty(message){lastReport="";$("ptwStatus").textContent=message;$("ptwVerdict").textContent="NOT TESTED";updateRouteSummary();}
   function formatStress(result,stressMode){const lines=["PROMPT STRESS LAB","Mode: "+String(stressMode||"harden").toUpperCase(),"Words: "+result.stats.words,"Characters: "+result.stats.characters,"Sentences: "+result.stats.sentences,"","FINDINGS"];if(!result.results.length)lines.push("No obvious structural signals were flagged. This is not a pass or a runtime guarantee.");result.results.forEach(item=>lines.push("["+item.severity.toUpperCase()+"] "+item.title+"\nEvidence: "+item.evidence+"\nRecommendation: "+item.recommendation));return lines.join("\n");}
   function localAssessment(prompt,route,stressMode){
     const specialists=window.PLPromptTestingSpecialists||{},stress=window.PLStressLabCore,output=[];
@@ -104,7 +104,8 @@
     root.textContent=items.length?"Recurring local QA patterns: "+items.map(item=>item.label+" ("+item.count+")").join(", "):"No recurring QA patterns recorded on this device yet.";
   }
   function exportPatterns(){
-    const data={type:"prompt-library-stress-patterns",version:1,patterns:JSON.parse(localStorage.getItem("promptlib.stresslab.patterns.v1")||"{}")};
+    let patterns={};try{patterns=JSON.parse(localStorage.getItem("promptlib.stresslab.patterns.v1")||"{}");}catch(_){}
+    const data={type:"prompt-library-stress-patterns",version:1,patterns};
     const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
     if(typeof window.PL_saveBlob==="function"){window.PL_saveBlob(blob,"prompt-testing-patterns.json","QA patterns exported");return;}
     const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="prompt-testing-patterns.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
