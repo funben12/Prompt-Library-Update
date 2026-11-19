@@ -1,0 +1,26 @@
+
+/* Prompt Builder custom block creator */
+#pbp-custom-block-dialog{width:min(740px,calc(100vw - 24px));max-width:none;max-height:88vh;padding:0;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);box-shadow:0 24px 80px rgba(0,0,0,.35)}
+#pbp-custom-block-dialog::backdrop{background:rgba(8,14,24,.72);backdrop-filter:blur(3px)}
+#pbp-custom-block-dialog form{display:flex;flex-direction:column;max-height:88vh}
+#pbp-custom-block-dialog header,#pbp-custom-block-dialog footer{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+#pbp-custom-block-dialog header h2{margin:5px 0;font-size:19px}
+#pbp-custom-block-dialog header p,#pbp-custom-block-dialog small{color:var(--ink-3);font-size:12px}
+#pbp-custom-block-dialog main{padding:18px 20px;overflow:auto;display:grid;gap:15px}
+#pbp-custom-block-dialog main>label{display:grid;gap:6px;font-size:12px;font-weight:650}
+#pbp-custom-block-dialog section{padding:12px;border:1px solid var(--line);border-radius:11px}
+#pbp-custom-block-dialog section>div:first-child{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+#pbp-custom-block-dialog section>div:first-child button{border:1px solid var(--line);border-radius:7px;background:var(--surface-2);padding:6px 9px;color:var(--ink);font-size:11px}
+#pbp-custom-block-dialog .pbp-cb-row{display:grid;grid-template-columns:1fr 1.2fr auto;gap:7px;margin-top:7px}
+#pbp-custom-block-dialog #pbp-cb-settings .pbp-cb-row{grid-template-columns:1fr 1.2fr .9fr 1fr auto}
+#pbp-custom-block-dialog input,#pbp-custom-block-dialog select,#pbp-custom-block-dialog textarea{min-width:0;width:100%}
+#pbp-custom-block-dialog aside{display:flex;gap:8px;flex-wrap:wrap;padding:12px;background:var(--surface-2);border-radius:9px;font-size:11px}
+#pbp-custom-block-dialog aside b,#pbp-custom-block-dialog aside small{flex-basis:100%}
+#pbp-custom-block-dialog aside code{padding:4px 6px;background:var(--surface);border-radius:5px;color:var(--accent)}
+#pbp-custom-block-dialog footer{justify-content:flex-end;border-top:1px solid var(--line);border-bottom:0}
+#builderProWorkspace .pbp-create-custom{border-color:var(--accent);color:var(--accent);white-space:nowrap}
+#builderProWorkspace .pbp-cb-item{display:flex;align-items:center;gap:5px}
+#builderProWorkspace .pbp-cb-item .pbp-lib-item{flex:1;min-width:0}
+#builderProWorkspace .pbp-cb-edit{padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink-2);font-size:11px}
+@media(max-width:600px){#pbp-custom-block-dialog .pbp-cb-row,#pbp-custom-block-dialog #pbp-cb-settings .pbp-cb-row{grid-template-columns:1fr 1fr}}
+#componentsWorkspace #plnCreateBlock{display:none!important}
