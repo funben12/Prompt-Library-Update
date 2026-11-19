@@ -7,18 +7,17 @@
   const clone=o=>JSON.parse(JSON.stringify(o));
   const uid=p=>p+"_"+Math.random().toString(36).slice(2,10);
   const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const blocks=()=>[...(window._pcwBLOCKS||[]),...(state?.customBlocks||[]),...(window._pcwFRAMEWORKS||[]).map((f,i)=>({id:"framework:"+i,label:f.name||f.title||"Framework",text:f.template||f.prompt||f.description||"",icon:"schema",cat:"framework"}))];
-  const blank=()=>({id:null,title:"",nodes:[],edges:[],view:{x:80,y:60,z:1},selected:[],groups:[],dirty:false,snap:true,customBlocks:[]});
+  const blocks=()=>[...(window._pcwBLOCKS||[]),...(window._pcwFRAMEWORKS||[]).map((f,i)=>({id:"framework:"+i,label:f.name||f.title||"Framework",text:f.template||f.prompt||f.description||"",icon:"schema",cat:"framework"}))];
+  const blank=()=>({id:null,title:"",nodes:[],edges:[],view:{x:80,y:60,z:1},selected:[],groups:[],dirty:false,snap:true});
   function api(url,opt={}){return fetch(url,{credentials:"same-origin",headers:{"Content-Type":"application/json",...(opt.headers||{})},...opt});}
-  function defaultConfig(definition){const config={};(definition?.settings||[]).forEach(setting=>{config[setting.id]=setting.default??(setting.type==="checkbox"?false:"");});return config;}
-  function nodeDef(b,x,y){const definition=clone(b.definition||{}),ports=Math.max((definition.inputs||[]).length,(definition.outputs||[]).length);return {id:uid("n"),block_ref:String(b.id||b.label||uid("b")),label:b.label||b.name||"Component",text:b.text||b.body||"",definition,config:defaultConfig(definition),x,y,z_index:0,collapsed:false,width:definition.schema?320:260,height:definition.schema?Math.max(170,142+ports*24):140};}
+  function nodeDef(b,x,y){return {id:uid("n"),block_ref:String(b.id||b.label||uid("b")),label:b.label||b.name||"Component",text:b.text||b.body||"",x,y,z_index:0,collapsed:false,width:260,height:140};}
   function snapshot(){history.push(clone({nodes:state.nodes,edges:state.edges,view:state.view,groups:state.groups}));if(history.length>80)history.shift();future=[];}
   function undo(){if(!history.length)return;future.push(clone({nodes:state.nodes,edges:state.edges,view:state.view,groups:state.groups}));const s=history.pop();Object.assign(state,s);render();}
   function redo(){if(!future.length)return;history.push(clone({nodes:state.nodes,edges:state.edges,view:state.view,groups:state.groups}));const s=future.pop();Object.assign(state,s);render();}
   function screenToWorld(clientX,clientY){const r=canvas.getBoundingClientRect();return{x:(clientX-r.left-state.view.x)/state.view.z,y:(clientY-r.top-state.view.y)/state.view.z};}
   function applyView(){const transform="translate("+state.view.x+"px,"+state.view.y+"px) scale("+state.view.z+")";world.style.transform=transform;svg.style.transform=transform;svg.style.transformOrigin="0 0";svg.setAttribute("width",Math.max(canvas.clientWidth/state.view.z+2000,4000));svg.setAttribute("height",Math.max(canvas.clientHeight/state.view.z+2000,4000));}
   function pathFor(a,b){const dx=Math.max(40,Math.abs(b.x-a.x)*.5);return "M "+a.x+" "+a.y+" C "+(a.x+dx)+" "+a.y+", "+(b.x-dx)+" "+b.y+", "+b.x+" "+b.y;}
-  function point(n,side){const definition=n.definition||{};if(side.startsWith("in:")){const i=(definition.inputs||[]).findIndex(p=>p.id===side.slice(3));return{x:n.x,y:n.y+52+Math.max(0,i)*24};}if(side.startsWith("out:")){const i=(definition.outputs||[]).findIndex(p=>p.id===side.slice(4));return{x:n.x+(n.width||320),y:n.y+52+Math.max(0,i)*24};}if(side==="left")return{x:n.x,y:n.y+n.height/2};if(side==="right")return{x:n.x+n.width,y:n.y+n.height/2};if(side==="top")return{x:n.x+n.width/2,y:n.y};return{x:n.x+n.width/2,y:n.y+n.height};}
+  function point(n,side){if(side==="left")return{x:n.x,y:n.y+n.height/2};if(side==="right")return{x:n.x+n.width,y:n.y+n.height/2};if(side==="top")return{x:n.x+n.width/2,y:n.y};return{x:n.x+n.width/2,y:n.y+n.height};}
   function relationAllowed(a,b){return a&&b&&a.id!==b.id;}
   function buildPrompt(){
     const map=new Map(state.nodes.map(n=>[n.id,n]));
@@ -33,19 +32,7 @@
       if(active.has(n.id)){warnings.push("Cycle detected at "+n.label);result.push(pad+"[Cycle omitted: "+n.label+"]");return;}
       if(seen.has(n.id)){result.push(pad+"[Converges with "+n.label+"]");return;}
       active.add(n.id);
-      const definition=n.definition||{},config=n.config||{};
-      let text=(n.text||"").trim();
-      if(definition.schema){
-        text=text.replace(/\{\{setting:([\w-]+)\}\}/g,(_,key)=>String(config[key]??""));
-        text=text.replace(/\{\{input:([\w-]+)\}\}/g,(_,key)=>{const port=(definition.inputs||[]).find(p=>p.id===key);const edge=state.edges.find(e=>e.target===n.id&&e.target_port==="in:"+key);const source=edge&&map.get(edge.source);return source?"[Input "+(port?.name||key)+" from "+source.label+"]":"[Input "+(port?.name||key)+"]";});
-        text=text.replace(/\{\{output:([\w-]+)\}\}/g,(_,key)=>{const port=(definition.outputs||[]).find(p=>p.id===key);return "[Output "+(port?.name||key)+"]";});
-        const contracts=[];
-        if((definition.inputs||[]).length)contracts.push("INPUTS:\n"+definition.inputs.map(p=>"- "+p.name+" ("+p.type+")"+(p.required?" required":" optional")).join("\n"));
-        if((definition.outputs||[]).length)contracts.push("OUTPUTS:\n"+definition.outputs.map(p=>"- "+p.name+" ("+p.type+")").join("\n"));
-        if((definition.settings||[]).length)contracts.push("CONFIGURATION:\n"+definition.settings.map(p=>"- "+p.name+": "+String(config[p.id]??p.default??"")).join("\n"));
-        if(contracts.length)result.push(pad+"["+n.label+"]\n"+contracts.join("\n"));
-      }
-      if(text)result.push(pad+text);
+      const text=(n.text||"").trim();if(text)result.push(pad+text);
       const children=(out.get(n.id)||[]).map(e=>({edge:e,node:map.get(e.target)})).filter(x=>x.node).sort((a,b)=>a.node.y-b.node.y||a.node.x-b.node.x);
       if(children.length>1){children.forEach((item,i)=>{result.push("");result.push(pad+"[Branch "+(i+1)+(item.node.label?": "+item.node.label:"")+"]");walk(item.node,depth+1);});}
       else if(children.length===1){walk(children[0].node,depth);}
@@ -55,78 +42,26 @@
     state.nodes.slice().sort((a,b)=>a.y-b.y||a.x-b.x).forEach(n=>{if(!seen.has(n.id)){result.push("");result.push("[Additional graph component]");walk(n,0);}});
     return {text:result.filter(Boolean).join("\n").trim(),warnings};
   }
-  function slugify(value){return String(value||"").toLowerCase().trim().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"").slice(0,36);}
-  function addStudioPort(host,kind,item={}){
-    const row=document.createElement("div");row.className="pln-studio-row";row.dataset.kind=kind;
-    if(kind==="setting"){
-      row.innerHTML='<input data-field="id" aria-label="Setting key" placeholder="agent_count" value="'+esc(item.id||"")+'"><input data-field="name" aria-label="Setting name" placeholder="Agent count" value="'+esc(item.name||"")+'"><select data-field="type" aria-label="Setting type"><option value="text">Text</option><option value="textarea">Long text</option><option value="number">Number</option><option value="select">Dropdown</option><option value="checkbox">Toggle</option></select><input data-field="default" aria-label="Default value" placeholder="Default value" value="'+esc(item.default??"")+'"><input data-field="options" aria-label="Dropdown options" placeholder="Options, comma separated" value="'+esc((item.options||[]).join(", "))+'"><button type="button" class="pln-studio-remove" aria-label="Remove setting">×</button>';
-      row.querySelector('[data-field="type"]').value=item.type||"text";
-    }else{
-      row.innerHTML='<input data-field="id" aria-label="Port key" placeholder="task" value="'+esc(item.id||"")+'"><input data-field="name" aria-label="Port name" placeholder="Task" value="'+esc(item.name||"")+'"><select data-field="type" aria-label="Port data type"><option value="text">Text</option><option value="prompt">Prompt</option><option value="json">JSON</option><option value="number">Number</option><option value="boolean">Boolean</option><option value="file">File or asset</option></select><label class="pln-studio-required"><input data-field="required" type="checkbox" '+(item.required?"checked":"")+'> Required</label><button type="button" class="pln-studio-remove" aria-label="Remove port">×</button>';
-      row.querySelector('[data-field="type"]').value=item.type||"text";
-    }
-    row.querySelector(".pln-studio-remove").onclick=()=>row.remove();host.appendChild(row);return row;
-  }
-  function openBlockStudio(existing){
-    const editing=!!existing,definition=clone(existing?.definition||{});
-    const overlay=document.createElement("div");overlay.className="pln-studio-overlay";
-    overlay.innerHTML='<section class="pln-studio-dialog" role="dialog" aria-modal="true" aria-labelledby="plnStudioTitle"><header class="pln-studio-head"><div><span class="pln-studio-kicker">PROMPT COMPONENTS / BLOCK LIBRARY</span><h2 id="plnStudioTitle">'+(editing?"Edit custom block":"Block Creation Studio")+'</h2><p>Define the node, its connection contract and the settings people can configure when they use it.</p></div><button type="button" class="pln-studio-close" aria-label="Close">×</button></header><div class="pln-studio-body"><div class="pln-studio-main"><section class="pln-studio-section"><div class="pln-studio-section-head"><div><h3>Block identity</h3><p>Name it and decide where it lives in your library.</p></div></div><div class="pln-studio-grid"><label>Block name<input id="plnStudioName" placeholder="e.g. Multi-agent coordinator" value="'+esc(existing?.name||"")+'"></label><label>Library category<input id="plnStudioCategory" placeholder="My blocks" value="'+esc(existing?.cat||"My blocks")+'"></label><label>Icon name<input id="plnStudioIcon" placeholder="hub" value="'+esc(definition.icon||"hub")+'"></label><label>Description<input id="plnStudioDescription" placeholder="What this block is responsible for" value="'+esc(existing?.description||"")+'"></label></div></section><section class="pln-studio-section"><div class="pln-studio-section-head"><div><h3>Inputs and outputs</h3><p>Give this node named connection points. Outputs connect to inputs.</p></div><span class="pln-studio-count" id="plnStudioPortCount">0 IN / 0 OUT</span></div><div class="pln-studio-port-groups"><div><div class="pln-studio-subhead"><strong>Inputs</strong><button type="button" class="pln-studio-add" id="plnStudioAddInput">+ Add input</button></div><div class="pln-studio-rows" id="plnStudioInputs"></div></div><div><div class="pln-studio-subhead"><strong>Outputs</strong><button type="button" class="pln-studio-add" id="plnStudioAddOutput">+ Add output</button></div><div class="pln-studio-rows" id="plnStudioOutputs"></div></div></div></section><section class="pln-studio-section"><div class="pln-studio-section-head"><div><h3>Adjustable settings</h3><p>Expose controls such as agent count, model choice, temperature or review rounds.</p></div><button type="button" class="pln-studio-add" id="plnStudioAddSetting">+ Add setting</button></div><div class="pln-studio-rows pln-studio-settings" id="plnStudioSettings"></div></section><section class="pln-studio-section"><div class="pln-studio-section-head"><div><h3>Block instructions</h3><p>Write the reusable prompt logic. Use the tokens below to insert values from the node.</p></div></div><div class="pln-studio-token-row"><button type="button" data-token="{{input:task}}">+ Input token</button><button type="button" data-token="{{setting:agent_count}}">+ Setting token</button><button type="button" data-token="{{output:result}}">+ Output token</button></div><textarea id="plnStudioBody" class="pln-studio-template" placeholder="Describe what this block does, how it should use its inputs and what it must return.">'+esc(existing?.body||"")+'</textarea><div class="pln-studio-example"><strong>Example preset</strong><button type="button" id="plnStudioMultiAgent">Load a multi-agent block example</button><span>Creates a starter with task and context inputs, synthesis and critique outputs, and adjustable agent settings.</span></div></section></div><aside class="pln-studio-preview"><span class="pln-studio-kicker">LIVE NODE PREVIEW</span><div class="pln-studio-preview-card" id="plnStudioPreview"></div><p>These ports become visible connection points when this block is placed on the canvas.</p></aside></div><footer class="pln-studio-foot"><span id="plnStudioStatus">Your block is saved locally in the component library.</span><div><button type="button" class="pln-studio-cancel">Cancel</button><button type="button" class="pln-studio-save" id="plnStudioSave">'+(editing?"Save changes":"Create block")+'</button></div></footer></section>';
-    document.body.appendChild(overlay);
-    const $=selector=>overlay.querySelector(selector),inputs=$("#plnStudioInputs"),outputs=$("#plnStudioOutputs"),settings=$("#plnStudioSettings");
-    const refresh=()=>{const ins=inputs.querySelectorAll(".pln-studio-row").length,outs=outputs.querySelectorAll(".pln-studio-row").length;$("#plnStudioPortCount").textContent=ins+" IN / "+outs+" OUT";const name=$("#plnStudioName").value.trim()||"Untitled custom block";$("#plnStudioPreview").innerHTML='<div class="pln-studio-preview-title">'+esc(name)+'</div><div class="pln-studio-preview-ports"><div><b>INPUTS</b>'+Array.from(inputs.querySelectorAll(".pln-studio-row")).map(row=>'<span class="in">'+esc(row.querySelector('[data-field="name"]').value||"Unnamed input")+'</span>').join("")+'</div><div><b>OUTPUTS</b>'+Array.from(outputs.querySelectorAll(".pln-studio-row")).map(row=>'<span class="out">'+esc(row.querySelector('[data-field="name"]').value||"Unnamed output")+'</span>').join("")+'</div></div><small>'+settings.querySelectorAll(".pln-studio-row").length+' configurable settings</small>';};
-    const add=(kind,item)=>{const host=kind==="input"?inputs:kind==="output"?outputs:settings;addStudioPort(host,kind,item);refresh();};
-    (definition.inputs||[]).forEach(item=>add("input",item));(definition.outputs||[]).forEach(item=>add("output",item));(definition.settings||[]).forEach(item=>add("setting",item));
-    if(!editing){add("input",{id:"input_1",name:"Input 1",type:"text",required:true});add("output",{id:"output_1",name:"Output 1",type:"text"});}
-    $("#plnStudioAddInput").onclick=()=>add("input");$("#plnStudioAddOutput").onclick=()=>add("output");$("#plnStudioAddSetting").onclick=()=>add("setting");
-    overlay.addEventListener("input",refresh);
-    $("#plnStudioMultiAgent").onclick=()=>{
-      inputs.innerHTML="";outputs.innerHTML="";settings.innerHTML="";
-      add("input",{id:"task",name:"Task brief",type:"prompt",required:true});
-      add("input",{id:"context",name:"Shared context",type:"text",required:false});
-      add("input",{id:"constraints",name:"Constraints",type:"text",required:false});
-      add("output",{id:"synthesis",name:"Final synthesis",type:"text"});
-      add("output",{id:"critique",name:"Independent critique",type:"text"});
-      add("output",{id:"confidence",name:"Confidence assessment",type:"json"});
-      add("setting",{id:"agent_count",name:"Number of agents",type:"number",default:3});
-      add("setting",{id:"coordination",name:"Coordination method",type:"select",default:"Parallel then synthesise",options:["Parallel then synthesise","Sequential handoff","Debate and converge"]});
-      add("setting",{id:"review_rounds",name:"Review rounds",type:"number",default:2});
-      $("#plnStudioBody").value="Coordinate {{setting:agent_count}} specialist agents using the {{setting:coordination}} method.\n\nTask: {{input:task}}\nShared context: {{input:context}}\nConstraints: {{input:constraints}}\n\nEach agent should work independently before the coordinator compares findings. Run {{setting:review_rounds}} review rounds. Produce a final synthesis, an independent critique and a confidence assessment.";refresh();
-    };
-    overlay.querySelectorAll("[data-token]").forEach(button=>button.onclick=()=>{const area=$("#plnStudioBody"),token=button.dataset.token,start=area.selectionStart,end=area.selectionEnd;area.setRangeText(token,start,end,"end");area.focus();refresh();});
-    const close=()=>overlay.remove();$(".pln-studio-close").onclick=close;$(".pln-studio-cancel").onclick=close;overlay.addEventListener("click",event=>{if(event.target===overlay)close();});overlay.addEventListener("keydown",event=>{if(event.key==="Escape"){event.preventDefault();close();}});
-    $("#plnStudioName").focus();
-    $("#plnStudioSave").onclick=async()=>{
-      const name=$("#plnStudioName").value.trim(),body=$("#plnStudioBody").value.trim(),category=$("#plnStudioCategory").value.trim()||"My blocks";
-      if(!name||!body){$("#plnStudioStatus").textContent="Add a block name and its instructions before saving.";return;}
-      const collect=(host,kind)=>{const ids=new Set();return Array.from(host.querySelectorAll(".pln-studio-row")).map(row=>{const field=key=>row.querySelector('[data-field="'+key+'"]');const id=slugify(field("id").value||field("name").value);const label=field("name").value.trim();if(!id||!label||ids.has(id))throw new Error("Each "+kind+" needs a name and a unique key.");ids.add(id);if(kind==="setting"){const type=field("type").value;return{id,name:label,type,default:type==="checkbox"?/^(true|yes|1)$/i.test(field("default").value.trim()):(type==="number"?Number(field("default").value||0):field("default").value),options:type==="select"?field("options").value.split(",").map(x=>x.trim()).filter(Boolean):[]};}return{id,name:label,type:field("type").value,required:!!field("required").checked};});};
-      let definition;try{definition={schema:1,kind:"custom",icon:$("#plnStudioIcon").value.trim()||"extension",inputs:collect(inputs,"input"),outputs:collect(outputs,"output"),settings:collect(settings,"setting")};}catch(error){$("#plnStudioStatus").textContent=error.message;return;}
-      if(!definition.inputs.length&&!definition.outputs.length){$("#plnStudioStatus").textContent="Add at least one input or output port.";return;}
-      if(definition.settings.some(setting=>setting.type==="select"&&!setting.options.length)){$("#plnStudioStatus").textContent="Add at least one option to each dropdown setting.";return;}
-      const payload={name,category,body,description:$("#plnStudioDescription").value.trim(),definition};
-      const button=$("#plnStudioSave");button.disabled=true;button.textContent="Saving...";
-      try{const response=await api(editing?"/api/components/"+existing.dbId:"/api/components",{method:editing?"PUT":"POST",body:JSON.stringify(payload)});const result=await response.json();if(!response.ok)throw new Error(result.error||"The block could not be saved.");await loadCustomBlocks();renderPalette();close();toast(editing?"Custom block updated.":"Custom block added to your library.");}
-      catch(error){$("#plnStudioStatus").textContent=error.message;button.disabled=false;button.textContent=editing?"Save changes":"Create block";}
-    };
-  }
   function renderPalette(){
     const list=palette.querySelector(".pln-palette-list"), q=palette.querySelector(".pln-search").value.toLowerCase();
     const arr=blocks().filter(b=>(b.label||b.name||"").toLowerCase().includes(q)||(b.text||b.body||"").toLowerCase().includes(q));
-    const groups=new Map();arr.forEach(b=>{const k=b.source==="user"?"My blocks":(b.cat||"components");if(!groups.has(k))groups.set(k,[]);groups.get(k).push(b)});
-    list.innerHTML=[...groups.entries()].map(([cat,items])=>"<details class='pln-section' open><summary>"+esc(cat)+" <span>"+items.length+"</span></summary>"+items.slice(0,120).map((b,i)=>'<div class="pln-palette-entry"><button class="pln-palette-item" draggable="true" data-b="'+esc(b.id||b.label||i)+'"><span class="pln-palette-icon">'+esc((b.icon||"extension").slice(0,1).toUpperCase())+'</span><span class="pln-palette-copy"><strong>'+esc(b.label||b.name||"Component")+'</strong><span>'+esc((b.text||b.body||"").slice(0,80))+'</span></span></button>'+(b.source==="user"?'<button class="pln-palette-edit" type="button" data-edit-block="'+esc(b.id)+'" title="Edit block">Edit</button>':"")+"</div>").join("")+"</details>").join("");
+    const groups=new Map();arr.forEach(b=>{const k=b.cat||"components";if(!groups.has(k))groups.set(k,[]);groups.get(k).push(b)});
+    list.innerHTML=[...groups.entries()].map(([cat,items])=>"<details class='pln-section' open><summary>"+esc(cat)+" <span>"+items.length+"</span></summary>"+items.slice(0,120).map((b,i)=>`<button class="pln-palette-item" draggable="true" data-b="${esc(b.id||b.label||i)}"><span class="pln-palette-icon">${esc((b.icon||"extension").slice(0,1).toUpperCase())}</span><span class="pln-palette-copy"><strong>${esc(b.label||b.name||"Component")}</strong><span>${esc((b.text||b.body||"").slice(0,80))}</span></span></button>`).join("")+"</details>").join("");
     list.querySelectorAll(".pln-palette-item").forEach(btn=>{
       btn.addEventListener("dblclick",()=>{const r=canvas.getBoundingClientRect();addBlockByRef(btn.dataset.b,r.left+r.width/2,r.top+r.height/2);});
       btn.addEventListener("dragstart",e=>e.dataTransfer.setData("text/pln-block",btn.dataset.b));
     });
-    list.querySelectorAll("[data-edit-block]").forEach(btn=>btn.addEventListener("click",()=>{const block=state.customBlocks.find(item=>String(item.id)===btn.dataset.editBlock);if(block)openBlockStudio(block);}));
   }
   function addBlockByRef(ref,x,y){
     const b=blocks().find(v=>String(v.id||v.label||"")===String(ref))||blocks().find(v=>String(v.label||"")===String(ref));if(!b)return;
     snapshot();const p=screenToWorld(x,y);state.nodes.push(nodeDef(b,p.x-120,p.y-55));state.selected=[state.nodes.at(-1).id];markDirty();render();
   }
   function nodeHtml(n){
-    const definition=n.definition||{},inputs=definition.inputs||[],outputs=definition.outputs||[],custom=!!definition.schema;
-    const portRows=custom?'<div class="pln-node-ports"><div class="pln-node-port-column inputs">'+inputs.map(p=>'<div class="pln-node-port-row input"><span class="pln-handle pln-port-handle" data-side="in:'+esc(p.id)+'" data-node="'+esc(n.id)+'"></span><span>'+esc(p.name)+'</span></div>').join("")+'</div><div class="pln-node-port-column outputs">'+outputs.map(p=>'<div class="pln-node-port-row output"><span>'+esc(p.name)+'</span><span class="pln-handle pln-port-handle" data-side="out:'+esc(p.id)+'" data-node="'+esc(n.id)+'"></span></div>').join("")+'</div></div>':'<span class="pln-handle left" data-side="left" data-node="'+esc(n.id)+'"></span><span class="pln-handle right" data-side="right" data-node="'+esc(n.id)+'"></span><span class="pln-handle top" data-side="top" data-node="'+esc(n.id)+'"></span><span class="pln-handle bottom" data-side="bottom" data-node="'+esc(n.id)+'"></span>';
-    return '<div class="pln-node '+(state.selected.includes(n.id)?"selected":"")+'" data-node="'+esc(n.id)+'" style="left:'+n.x+'px;top:'+n.y+'px;width:'+(n.width||260)+'px;height:'+(n.height||140)+'px;z-index:'+(n.z_index||0)+'"><div class="pln-node-head" data-drag-node="'+esc(n.id)+'"><span class="pln-node-dot"></span><span class="pln-node-title">'+esc(n.label)+'</span><button class="pln-tool pln-node-menu" data-delete-node="'+esc(n.id)+'" title="Delete">×</button></div>'+portRows+'<textarea class="pln-node-edit" data-edit-node="'+esc(n.id)+'">'+esc(n.text)+'</textarea></div>';
+    return `<div class="pln-node ${state.selected.includes(n.id)?"selected":""}" data-node="${esc(n.id)}" style="left:${n.x}px;top:${n.y}px;width:${n.width||260}px;height:${n.height||140}px;z-index:${n.z_index||0}">
+      <span class="pln-handle left" data-side="left" data-node="${esc(n.id)}"></span><span class="pln-handle right" data-side="right" data-node="${esc(n.id)}"></span><span class="pln-handle top" data-side="top" data-node="${esc(n.id)}"></span><span class="pln-handle bottom" data-side="bottom" data-node="${esc(n.id)}"></span>
+      <div class="pln-node-head" data-drag-node="${esc(n.id)}"><span class="pln-node-dot"></span><span class="pln-node-title">${esc(n.label)}</span><button class="pln-tool pln-node-menu" data-delete-node="${esc(n.id)}" title="Delete">×</button></div>
+      <textarea class="pln-node-edit" data-edit-node="${esc(n.id)}">${esc(n.text)}</textarea>
+    </div>`;
   }
   function renderEdges(){
     svg.innerHTML='<defs><marker id="plnArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--accent)"></path></marker></defs>';
@@ -169,10 +104,7 @@
     }
     if(state.selected.length!==1)return `<div class="pln-empty"><div><strong>Graph inspector</strong>Select a component to edit its role, text and relationships.</div></div>`;
     const n=state.nodes.find(x=>x.id===state.selected[0]);if(!n)return "";
-    const definition=n.definition||{},settings=definition.settings||[];
-    const settingFields=settings.length?'<div class="pln-inspector-section"><div class="pln-inspector-label">Block settings</div>'+settings.map(setting=>{const value=n.config?.[setting.id]??setting.default??"";if(setting.type==="select")return '<label class="pln-setting-label">'+esc(setting.name)+'</label><select data-node-setting="'+esc(setting.id)+'">'+(setting.options||[]).map(option=>'<option value="'+esc(option)+'" '+(String(value)===String(option)?"selected":"")+'>'+esc(option)+'</option>').join("")+'</select>';if(setting.type==="checkbox")return '<label class="pln-setting-check"><input type="checkbox" data-node-setting="'+esc(setting.id)+'" '+(value?"checked":"")+'> '+esc(setting.name)+'</label>';if(setting.type==="textarea")return '<label class="pln-setting-label">'+esc(setting.name)+'</label><textarea data-node-setting="'+esc(setting.id)+'">'+esc(value)+'</textarea>';return '<label class="pln-setting-label">'+esc(setting.name)+'</label><input type="'+(setting.type==="number"?"number":"text")+'" data-node-setting="'+esc(setting.id)+'" value="'+esc(value)+'">';}).join("")+'</div>':'';
-    const contracts=definition.schema?'<div class="pln-inspector-section"><div class="pln-inspector-label">Port contract</div><div class="pln-connection-meta">Inputs: '+(definition.inputs||[]).length+' · Outputs: '+(definition.outputs||[]).length+'</div></div>':'';
-    return '<div class="pln-inspector-body"><div class="pln-inspector-section"><div class="pln-inspector-label">Component</div><input id="plnTitle" value="'+esc(n.label)+'"><div style="height:8px"></div><textarea id="plnText">'+esc(n.text)+'</textarea></div>'+settingFields+contracts+'<div class="pln-inspector-section"><div class="pln-inspector-label">Connections</div><div style="font-size:11px;color:var(--ink-3)">Incoming: '+state.edges.filter(e=>e.target===n.id).length+'<br>Outgoing: '+state.edges.filter(e=>e.source===n.id).length+'<br><br>Connect an output port to an input port. Legacy components retain their standard handles.</div></div><div class="pln-inspector-section"><div class="pln-inspector-label">Generated prompt</div><div class="pln-preview">'+esc(buildPrompt().text)+'</div></div><div class="pln-auth-actions"><button class="pln-tool" id="plnDeleteSelected">Delete component</button></div></div>';
+    return `<div class="pln-inspector-body"><div class="pln-inspector-section"><div class="pln-inspector-label">Component</div><input id="plnTitle" value="${esc(n.label)}"><div style="height:8px"></div><textarea id="plnText">${esc(n.text)}</textarea></div><div class="pln-inspector-section"><div class="pln-inspector-label">Connections</div><div style="font-size:11px;color:var(--ink-3)">Incoming: ${state.edges.filter(e=>e.target===n.id).length}<br>Outgoing: ${state.edges.filter(e=>e.source===n.id).length}<br><br>Connect from any handle to another node. Multiple outputs create branches, multiple inputs create convergence.</div></div><div class="pln-inspector-section"><div class="pln-inspector-label">Generated prompt</div><div class="pln-preview">${esc(buildPrompt().text)}</div></div><div class="pln-auth-actions"><button class="pln-tool" id="plnDeleteSelected">Delete component</button></div></div>`;
   }
   function ensureResizeHandles(){
     root.querySelectorAll(".pln-node").forEach(node=>{
@@ -234,7 +166,6 @@
     }));
     root.querySelectorAll("[data-delete-node]").forEach(b=>b.onclick=e=>{e.stopPropagation();deleteNodes([b.dataset.deleteNode])});
     root.querySelectorAll("[data-edit-node]").forEach(t=>t.addEventListener("input",()=>{const n=state.nodes.find(x=>x.id===t.dataset.editNode);if(n){n.text=t.value;markDirty(false);updateInspectorPreview()}}));
-    root.querySelectorAll("[data-node-setting]").forEach(field=>{const update=()=>{const n=state.nodes.find(x=>x.id===state.selected[0]);if(!n)return;n.config=n.config||{};n.config[field.dataset.nodeSetting]=field.type==="checkbox"?field.checked:field.value;markDirty();updateInspectorPreview();};field.addEventListener(field.type==="checkbox"||field.tagName==="SELECT"?"change":"input",update);});
     root.querySelectorAll(".pln-handle").forEach(h=>h.addEventListener("pointerdown",e=>startConnect(e,h.dataset.node,h.dataset.side)));
     root.querySelectorAll(".pln-edge").forEach(p=>p.addEventListener("pointerdown",e=>{e.stopPropagation();state.selected=e.shiftKey?[...new Set([...state.selected,"edge:"+p.dataset.edge])]:["edge:"+p.dataset.edge];render();}));    root.querySelectorAll(".pln-edge-endpoint").forEach(p=>p.addEventListener("pointerdown",e=>startEdgeReconnect(e,p.dataset.edge,p.dataset.edgeEnd)));
     const title=inspector.querySelector("#plnTitle");if(title)title.oninput=()=>{const n=state.nodes.find(x=>x.id===state.selected[0]);if(n){n.label=title.value;markDirty(false);render()}};const text=inspector.querySelector("#plnText");if(text)text.oninput=()=>{const n=state.nodes.find(x=>x.id===state.selected[0]);if(n){n.text=text.value;markDirty(false);render()}};const del=inspector.querySelector("#plnDeleteSelected");if(del)del.onclick=()=>deleteNodes([...state.selected]);
@@ -246,7 +177,6 @@
   function startConnect(e,id,side){
     e.stopPropagation();e.preventDefault();
     const node=state.nodes.find(n=>n.id===id);if(!node)return;
-    if(side.startsWith("in:")){toast("Start a connection from an output port.");return;}
     connect={source:id,side,preview:{start:point(node,side),end:point(node,side)}};
     root.classList.add("pln-connecting");
     window.addEventListener("pointermove",moveConnect);
@@ -267,17 +197,12 @@
     root.querySelectorAll(".pln-handle.hot").forEach(h=>h.classList.remove("hot"));
     root.classList.remove("pln-connecting");
     if(target){
-      const source=state.nodes.find(n=>n.id===connect.source),dest=state.nodes.find(n=>n.id===target.dataset.node),sourcePort=connect.side,targetPort=target.dataset.side;
-      const customPair=sourcePort.startsWith("out:")&&targetPort.startsWith("in:");
-      const customToLegacy=sourcePort.startsWith("out:")&&targetPort==="left";
-      const legacyToCustom=sourcePort==="right"&&targetPort.startsWith("in:");
-      const legacyPair=!sourcePort.includes(":")&&!targetPort.includes(":");
-      const validPorts=customPair||customToLegacy||legacyToCustom||legacyPair;
-      if(source&&dest&&relationAllowed(source,dest)&&validPorts){
+      const source=state.nodes.find(n=>n.id===connect.source),dest=state.nodes.find(n=>n.id===target.dataset.node);
+      if(source&&dest&&relationAllowed(source,dest)){
         snapshot();
-        const edge={id:uid("e"),source:source.id,target:dest.id,source_port:sourcePort,target_port:targetPort,relation:"sequence"};
+        const edge={id:uid("e"),source:source.id,target:dest.id,source_port:connect.side,target_port:target.dataset.side,relation:"sequence"};
         state.edges.push(edge);state.selected=["edge:"+edge.id];markDirty();
-      }else if(source&&dest){toast(source.id===dest.id?"A component cannot connect to itself.":(!validPorts?"Connect an output to an input. Custom outputs use the left input handle on standard nodes.":"That connection would create a cycle."));}
+      }else if(source&&dest){toast(source.id===dest.id?"A component cannot connect to itself.":"That connection would create a cycle.");}
     }
     connect=null;
     window.removeEventListener("pointermove",moveConnect);
@@ -299,24 +224,17 @@
     if(target){
       const edge=state.edges.find(x=>String(x.id)===String(connect.edgeId));
       const destId=target.dataset.node,destSide=target.dataset.side;
-      const sourcePort=connect.end==="source"?destSide:edge?.source_port,targetPort=connect.end==="target"?destSide:edge?.target_port;
-      const customPair=String(sourcePort||"").startsWith("out:")&&String(targetPort||"").startsWith("in:");
-      const customToLegacy=String(sourcePort||"").startsWith("out:")&&targetPort==="left";
-      const legacyToCustom=sourcePort==="right"&&String(targetPort||"").startsWith("in:");
-      const legacyPair=!String(sourcePort||"").includes(":")&&!String(targetPort||"").includes(":");
-      const validPorts=customPair||customToLegacy||legacyToCustom||legacyPair;
-      if(edge&&destId!==edge.source&&destId!==edge.target&&validPorts){
+      if(edge&&destId!==edge.source&&destId!==edge.target){
         if(connect.end==="source"){if(!wouldCycle(destId,edge.target)){edge.source=destId;edge.source_port=destSide;markDirty();}else toast("That reconnection would create a cycle.");}
         else if(!wouldCycle(edge.source,destId)){edge.target=destId;edge.target_port=destSide;markDirty();}else toast("That reconnection would create a cycle.");
-      }else if(edge&&!validPorts){toast("Connect an output to an input.");}
+      }
     }
     connect=null;window.removeEventListener("pointermove",moveConnect);render();
   }
   function saveDebounced(){clearTimeout(saveTimer);saveTimer=setTimeout(save,500);}
   async function save(){
     if(!state.compositionId)return;
-    const node_meta={};state.nodes.forEach(n=>{if(n.definition?.schema)node_meta[n.id]={definition:n.definition,config:n.config||{}};});
-    const payload={nodes:state.nodes.map(n=>({id:n.id,block_ref:n.block_ref,x:n.x,y:n.y,z_index:n.z_index,collapsed:n.collapsed,body_override:n.text})),edges:state.edges,view_state:{...state.view,groups:state.groups,node_meta}};
+    const payload={nodes:state.nodes.map(n=>({id:n.id,block_ref:n.block_ref,x:n.x,y:n.y,z_index:n.z_index,collapsed:n.collapsed,body_override:n.text})),edges:state.edges,view_state:{...state.view,groups:state.groups}};
     const r=await api("/api/compositions/"+state.compositionId+"/graph",{method:"PUT",body:JSON.stringify(payload)}).catch(()=>null);
     if(r?.ok)state.dirty=false;
   }
@@ -325,22 +243,18 @@
     let r=await api("/api/compositions/graph",{method:"POST",body:JSON.stringify({title:"Prompt Graph"})});
     if(!r.ok)return;const d=await r.json();state.compositionId=d.id;try{localStorage.setItem("promptlib.nodeCanvasComposition",String(d.id));}catch(_){ }await save();
   }
-  async function loadCustomBlocks(){
-    try{const response=await api("/api/components");if(!response.ok)return;const rows=await response.json();state.customBlocks=(Array.isArray(rows)?rows:[]).map(row=>({id:"user:"+row.id,dbId:row.id,label:row.name,name:row.name,text:row.body||"",body:row.body||"",description:row.description||"",definition:row.definition||{},source:"user",cat:row.category||"My blocks",icon:row.definition?.icon||"extension"}));}catch(error){console.warn("Custom block library could not be loaded.",error);}
-  }
   async function openExisting(){
     const r=await api("/api/compositions");if(!r.ok)return;const list=await r.json();let preferred=null;try{preferred=localStorage.getItem("promptlib.nodeCanvasComposition");}catch(_){ }const c=(preferred&&list.find(x=>String(x.id)===String(preferred)))||list?.[0];if(!c)return;
     state.compositionId=c.id;try{localStorage.setItem("promptlib.nodeCanvasComposition",String(c.id));}catch(_){ }const g=await api("/api/compositions/"+c.id+"/graph").then(x=>x.json()).catch(()=>null);if(!g)return;
-    let saved={};try{saved=JSON.parse(g.composition.view_state||"{}")||{};}catch(_){}
-    const nodeMeta=saved.node_meta||{},ref=new Map(blocks().map(b=>[String(b.id||b.label),b]));
-    state.nodes=(g.nodes||[]).map(row=>{const b=ref.get(String(row.block_ref)),meta=nodeMeta[String(row.id)]||{},definition=meta.definition||b?.definition||{};const config=meta.config||defaultConfig(definition);const ports=Math.max((definition.inputs||[]).length,(definition.outputs||[]).length);return {id:String(row.id),block_ref:row.block_ref,label:b?.label||row.block_ref,text:row.body_override??b?.text??"",definition,config,x:+row.x||0,y:+row.y||0,z_index:+row.z_index||0,collapsed:!!row.collapsed,width:definition.schema?320:260,height:definition.schema?Math.max(170,142+ports*24):140};});
+    const ref=new Map(blocks().map(b=>[String(b.id||b.label),b]));
+    state.nodes=(g.nodes||[]).map(row=>{const b=ref.get(String(row.block_ref));return {id:String(row.id),block_ref:row.block_ref,label:b?.label||row.block_ref,text:row.body_override??b?.text??"",x:+row.x||0,y:+row.y||0,z_index:+row.z_index||0,collapsed:!!row.collapsed,width:260,height:140}});
     state.edges=(g.edges||[]).map(e=>({id:String(e.id),source:String(e.source_block_id),target:String(e.target_block_id),source_port:e.source_port,target_port:e.target_port,relation:e.relation}));
-    state.view={x:+saved.x||80,y:+saved.y||60,z:+saved.z||+saved.zoom||1};state.groups=Array.isArray(saved.groups)?saved.groups:[];
+    try{const saved=JSON.parse(g.composition.view_state||"{}")||{};state.view={x:+saved.x||80,y:+saved.y||60,z:+saved.z||+saved.zoom||1};state.groups=Array.isArray(saved.groups)?saved.groups:[]}catch(_){}
     render();
   }
   function shell(){
     root=document.createElement("div");root.className="pln-shell";root.innerHTML=`
-      <aside class="pln-palette"><div class="pln-panel-head"><span>Block library</span><button class="pln-tool" id="plnNew" title="New graph">＋</button></div><button class="pln-create-block" id="plnCreateBlock" type="button">＋ Create custom block</button><input class="pln-search" placeholder="Search components"><div class="pln-palette-list"></div></aside>
+      <aside class="pln-palette"><div class="pln-panel-head"><span>Components</span><button class="pln-tool" id="plnNew">+</button></div><input class="pln-search" placeholder="Search components"><div class="pln-palette-list"></div></aside>
       <main class="pln-canvas" tabindex="0"><div class="pln-toolbar"><button class="pln-tool" id="plnUndo">Undo</button><button class="pln-tool" id="plnRedo">Redo</button><span class="pln-divider"></span><button class="pln-tool" id="plnDuplicate">Duplicate</button><button class="pln-tool" id="plnGroup">Group</button><button class="pln-tool" id="plnAlignX">Align X</button><button class="pln-tool" id="plnAlignY">Align Y</button><button class="pln-tool" id="plnDelete">Delete</button><span class="pln-divider"></span><button class="pln-tool" id="plnFit">Fit</button></div><svg class="pln-svg" aria-hidden="true"></svg><div class="pln-world"></div><div class="pln-status">0 nodes</div><div class="pln-zoom"><button class="pln-tool" id="plnZoomOut">−</button><span class="pln-zoom-label">100%</span><button class="pln-tool" id="plnZoomIn">+</button></div><div class="pln-toast" hidden></div></main>
       <aside class="pln-inspector"><div class="pln-panel-head"><span>Graph inspector</span><button class="pln-tool" id="plnSave">Save</button></div></aside>`;
     return root;
@@ -352,7 +266,6 @@
     root.querySelector("#plnUndo").onclick=undo;root.querySelector("#plnRedo").onclick=redo;root.querySelector("#plnDelete").onclick=()=>{const edges=state.selected.filter(x=>x.startsWith("edge:")).map(x=>x.slice(5));const nodes=state.selected.filter(x=>!x.startsWith("edge:"));if(edges.length)deleteEdges(edges);if(nodes.length)deleteNodes(nodes);};root.querySelector("#plnDuplicate").onclick=()=>{if(!state.selected.length)return;snapshot();const chosen=state.nodes.filter(n=>state.selected.includes(n.id));const ids=new Map(chosen.map(n=>[n.id,uid("n")]));const copies=chosen.map(n=>({...clone(n),id:ids.get(n.id),x:n.x+28,y:n.y+28}));state.nodes.push(...copies);state.edges.push(...state.edges.filter(e=>ids.has(e.source)&&ids.has(e.target)).map(e=>({...clone(e),id:uid("e"),source:ids.get(e.source),target:ids.get(e.target)})));state.selected=copies.map(n=>n.id);markDirty();render();};
     root.querySelector("#plnGroup").onclick=()=>{const ids=state.selected.filter(x=>!x.startsWith("edge:"));if(ids.length<2)return;snapshot();state.groups.push({id:uid("g"),nodes:[...ids],label:"Prompt group"});markDirty();render();};root.querySelector("#plnAlignX").onclick=()=>alignSelection("x");root.querySelector("#plnAlignY").onclick=()=>alignSelection("y");
     root.querySelector("#plnNew").onclick=()=>{snapshot();state.nodes=[];state.edges=[];state.selected=[];state.view={x:80,y:60,z:1};state.compositionId=null;load().then(render);};
-    root.querySelector("#plnCreateBlock").onclick=()=>openBlockStudio();
     root.querySelector("#plnFit").onclick=fit;root.querySelector("#plnSave").onclick=save;root.querySelector("#plnZoomIn").onclick=()=>zoomAt(1.15,canvas.clientWidth/2,canvas.clientHeight/2);root.querySelector("#plnZoomOut").onclick=()=>zoomAt(.87,canvas.clientWidth/2,canvas.clientHeight/2);
     canvas.addEventListener("wheel",e=>{e.preventDefault();zoomAt(e.deltaY<0?1.1:.9,e.clientX-canvas.getBoundingClientRect().left,e.clientY-canvas.getBoundingClientRect().top)},{passive:false});
     canvas.addEventListener("pointerdown",e=>{if(e.target!==canvas&&e.target!==world)return;if(e.button===1||e.button===2||root.classList.contains("pln-space")){pan={x:e.clientX,y:e.clientY,vx:state.view.x,vy:state.view.y};canvas.setPointerCapture(e.pointerId);return;}if(e.button===0)startMarquee(e);});
@@ -368,10 +281,10 @@
   async function init(){
     const host=document.getElementById("componentsWorkspace");if(!host||host.dataset.plnReady)return;host.dataset.plnReady="1";
     const old=host.querySelector(".pcw-body");if(old)old.style.display="none";
-    state=blank();root=shell();host.appendChild(root);wireShell();await loadCustomBlocks();await openExisting();render();
+    state=blank();root=shell();host.appendChild(root);wireShell();await openExisting();render();
   }
   function maybe(){const host=document.getElementById("componentsWorkspace");if(host&&host.offsetParent!==null&&!host.dataset.plnReady)init();}
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>setTimeout(maybe,700));else setTimeout(maybe,700);
-  document.addEventListener("click",e=>{if(e.target.closest('[data-view="components"],[data-open="openComponentsWorkspace"]'))setTimeout(init,250);});
+  document.addEventListener("click",e=>{if(e.target.closest('[data-view="components"]'))setTimeout(init,250);});
   window.PL_NodeCanvas={init};
 })();
