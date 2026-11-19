@@ -5001,6 +5001,8 @@ def composition_graph(cid):
         nodes = data.get('nodes') or []
         edges = data.get('edges') or []
         view_state = data.get('view_state') or {}
+        if not isinstance(view_state, dict):
+            view_state = {}
         conn.execute('DELETE FROM composition_edges WHERE composition_id=?', (cid,))
         conn.execute('DELETE FROM composition_blocks WHERE composition_id=?', (cid,))
         node_map = {}
