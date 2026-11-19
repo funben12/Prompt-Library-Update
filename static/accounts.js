@@ -254,7 +254,7 @@
     if (!document.getElementById("plnCanvasScript")) {
       const script = document.createElement("script");
       script.id = "plnCanvasScript";
-      script.src = "/static/prompt-components-node.js?v=node2";
+      script.src = "/static/prompt-components-node.js?v=node3";
       script.defer = true;
       document.head.appendChild(script);
     }
