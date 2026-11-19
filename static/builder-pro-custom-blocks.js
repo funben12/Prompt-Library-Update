@@ -1,8 +1,8 @@
 (function(){
 "use strict";
 const PB=window.PLBuilder;
-if(!PB||window.PLPromptBuilderCustomBlocks)return;
-window.PLPromptBuilderCustomBlocks=true;
+if(!PB||window.__PLPromptBuilderCustomBlocksLoaded)return;
+window.__PLPromptBuilderCustomBlocksLoaded=true;
 const PE=PB.engine,BLOCKS=PE.BLOCKS,LIBRARY=PE.LIBRARY,CATEGORIES=PE.CATEGORIES;
 const STORE="prompt-builder-pro.custom-blocks.v1",PREFIX="user_block_";
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -104,6 +104,6 @@ function mount(){
  const lib=root.querySelector("#pbp-library");if(lib&&!lib.dataset.customObserver){lib.dataset.customObserver="1";new MutationObserver(renderLibrary).observe(lib,{childList:true});renderLibrary();const search=root.querySelector("#pbp-block-search");if(search)search.dispatchEvent(new Event("input",{bubbles:true}));}
 }
 document.addEventListener("click",e=>{const create=e.target.closest("[data-create-custom]");if(create){e.preventDefault();e.stopPropagation();open(null);return;}const edit=e.target.closest("[data-edit-custom]");if(edit){e.preventDefault();e.stopPropagation();open(edit.dataset.editCustom);}});
-window.PLPromptBuilderCustomBlocks={open:function(type){try{open(type||null);}catch(err){console.error("Custom block creator failed to open:",err);toast("The custom block creator could not open. Check the application console for details.","error");}}};
+window.PLPromptBuilderCustomBlocks={ready:true,open:function(type){try{open(type||null);}catch(err){console.error("Custom block creator failed to open:",err);toast("The custom block creator could not open. Check the application console for details.","error");}}};
 const watch=new MutationObserver(mount);watch.observe(document.body,{childList:true,subtree:true});mount();
 })();
