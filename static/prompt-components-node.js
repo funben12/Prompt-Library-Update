@@ -90,7 +90,7 @@
       add("setting",{id:"agent_count",name:"Number of agents",type:"number",default:3});
       add("setting",{id:"coordination",name:"Coordination method",type:"select",default:"Parallel then synthesise",options:["Parallel then synthesise","Sequential handoff","Debate and converge"]});
       add("setting",{id:"review_rounds",name:"Review rounds",type:"number",default:2});
-      $("#plnStudioBody").value="Coordinate {{setting:agent_count}} specialist agents using the {{setting:coordination}} method.\\n\\nTask: {{input:task}}\\nShared context: {{input:context}}\\nConstraints: {{input:constraints}}\\n\\nEach agent should work independently before the coordinator compares findings. Run {{setting:review_rounds}} review rounds. Produce a final synthesis, an independent critique and a confidence assessment.";refresh();
+      $("#plnStudioBody").value="Coordinate {{setting:agent_count}} specialist agents using the {{setting:coordination}} method.\n\nTask: {{input:task}}\nShared context: {{input:context}}\nConstraints: {{input:constraints}}\n\nEach agent should work independently before the coordinator compares findings. Run {{setting:review_rounds}} review rounds. Produce a final synthesis, an independent critique and a confidence assessment.";refresh();
     };
     overlay.querySelectorAll("[data-token]").forEach(button=>button.onclick=()=>{const area=$("#plnStudioBody"),token=button.dataset.token,start=area.selectionStart,end=area.selectionEnd;area.setRangeText(token,start,end,"end");area.focus();refresh();});
     const close=()=>overlay.remove();$(".pln-studio-close").onclick=close;$(".pln-studio-cancel").onclick=close;overlay.addEventListener("click",event=>{if(event.target===overlay)close();});overlay.addEventListener("keydown",event=>{if(event.key==="Escape"){event.preventDefault();close();}});
@@ -98,7 +98,7 @@
     $("#plnStudioSave").onclick=async()=>{
       const name=$("#plnStudioName").value.trim(),body=$("#plnStudioBody").value.trim(),category=$("#plnStudioCategory").value.trim()||"My blocks";
       if(!name||!body){$("#plnStudioStatus").textContent="Add a block name and its instructions before saving.";return;}
-      const collect=(host,kind)=>{const ids=new Set();return Array.from(host.querySelectorAll(".pln-studio-row")).map(row=>{const field=key=>row.querySelector('[data-field="'+key+'"]');const id=slugify(field("id").value||field("name").value);const label=field("name").value.trim();if(!id||!label||ids.has(id))throw new Error("Each "+kind+" needs a name and a unique key.");ids.add(id);if(kind==="setting"){const type=field("type").value;return{id,name:label,type,default:type==="checkbox"?false:(type==="number"?Number(field("default").value||0):field("default").value),options:type==="select"?field("options").value.split(",").map(x=>x.trim()).filter(Boolean):[]};}return{id,name:label,type:field("type").value,required:!!field("required").checked};});};
+      const collect=(host,kind)=>{const ids=new Set();return Array.from(host.querySelectorAll(".pln-studio-row")).map(row=>{const field=key=>row.querySelector('[data-field="'+key+'"]');const id=slugify(field("id").value||field("name").value);const label=field("name").value.trim();if(!id||!label||ids.has(id))throw new Error("Each "+kind+" needs a name and a unique key.");ids.add(id);if(kind==="setting"){const type=field("type").value;return{id,name:label,type,default:type==="checkbox"?/^(true|yes|1)$/i.test(field("default").value.trim()):(type==="number"?Number(field("default").value||0):field("default").value),options:type==="select"?field("options").value.split(",").map(x=>x.trim()).filter(Boolean):[]};}return{id,name:label,type:field("type").value,required:!!field("required").checked};});};
       let definition;try{definition={schema:1,kind:"custom",icon:$("#plnStudioIcon").value.trim()||"extension",inputs:collect(inputs,"input"),outputs:collect(outputs,"output"),settings:collect(settings,"setting")};}catch(error){$("#plnStudioStatus").textContent=error.message;return;}
       if(!definition.inputs.length&&!definition.outputs.length){$("#plnStudioStatus").textContent="Add at least one input or output port.";return;}
       if(definition.settings.some(setting=>setting.type==="select"&&!setting.options.length)){$("#plnStudioStatus").textContent="Add at least one option to each dropdown setting.";return;}
@@ -234,7 +234,7 @@
     }));
     root.querySelectorAll("[data-delete-node]").forEach(b=>b.onclick=e=>{e.stopPropagation();deleteNodes([b.dataset.deleteNode])});
     root.querySelectorAll("[data-edit-node]").forEach(t=>t.addEventListener("input",()=>{const n=state.nodes.find(x=>x.id===t.dataset.editNode);if(n){n.text=t.value;markDirty(false);updateInspectorPreview()}}));
-    root.querySelectorAll("[data-node-setting]").forEach(field=>{const update=()=>{const n=state.nodes.find(x=>x.id===state.selected[0]);if(!n)return;n.config=n.config||{};n.config[field.dataset.nodeSetting]=field.type==="checkbox"?field.checked:field.value;markDirty(false);updateInspectorPreview();};field.addEventListener(field.type==="checkbox"||field.tagName==="SELECT"?"change":"input",update);});
+    root.querySelectorAll("[data-node-setting]").forEach(field=>{const update=()=>{const n=state.nodes.find(x=>x.id===state.selected[0]);if(!n)return;n.config=n.config||{};n.config[field.dataset.nodeSetting]=field.type==="checkbox"?field.checked:field.value;markDirty();updateInspectorPreview();};field.addEventListener(field.type==="checkbox"||field.tagName==="SELECT"?"change":"input",update);});
     root.querySelectorAll(".pln-handle").forEach(h=>h.addEventListener("pointerdown",e=>startConnect(e,h.dataset.node,h.dataset.side)));
     root.querySelectorAll(".pln-edge").forEach(p=>p.addEventListener("pointerdown",e=>{e.stopPropagation();state.selected=e.shiftKey?[...new Set([...state.selected,"edge:"+p.dataset.edge])]:["edge:"+p.dataset.edge];render();}));    root.querySelectorAll(".pln-edge-endpoint").forEach(p=>p.addEventListener("pointerdown",e=>startEdgeReconnect(e,p.dataset.edge,p.dataset.edgeEnd)));
     const title=inspector.querySelector("#plnTitle");if(title)title.oninput=()=>{const n=state.nodes.find(x=>x.id===state.selected[0]);if(n){n.label=title.value;markDirty(false);render()}};const text=inspector.querySelector("#plnText");if(text)text.oninput=()=>{const n=state.nodes.find(x=>x.id===state.selected[0]);if(n){n.text=text.value;markDirty(false);render()}};const del=inspector.querySelector("#plnDeleteSelected");if(del)del.onclick=()=>deleteNodes([...state.selected]);
@@ -296,10 +296,13 @@
     if(target){
       const edge=state.edges.find(x=>String(x.id)===String(connect.edgeId));
       const destId=target.dataset.node,destSide=target.dataset.side;
-      if(edge&&destId!==edge.source&&destId!==edge.target){
+      const sourcePort=connect.end==="source"?destSide:edge?.source_port,targetPort=connect.end==="target"?destSide:edge?.target_port;
+      const customPair=String(sourcePort||"").startsWith("out:")&&String(targetPort||"").startsWith("in:");
+      const legacyPair=!String(sourcePort||"").includes(":")&&!String(targetPort||"").includes(":");
+      if(edge&&destId!==edge.source&&destId!==edge.target&&(customPair||legacyPair)){
         if(connect.end==="source"){if(!wouldCycle(destId,edge.target)){edge.source=destId;edge.source_port=destSide;markDirty();}else toast("That reconnection would create a cycle.");}
         else if(!wouldCycle(edge.source,destId)){edge.target=destId;edge.target_port=destSide;markDirty();}else toast("That reconnection would create a cycle.");
-      }
+      }else if(edge&&!(customPair||legacyPair)){toast("Connect an output port to an input port.");}
     }
     connect=null;window.removeEventListener("pointermove",moveConnect);render();
   }
