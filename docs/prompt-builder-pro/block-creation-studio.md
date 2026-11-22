@@ -74,6 +74,19 @@ In the Component Library the same template is shown with `[Label]` blanks instea
 - **Export and import.** Export one block from the studio, or everything from the Your Blocks header. File shape: `{ "type": "prompt-builder-blocks", "version": 1, "blocks": [...], "teams": [...] }`, without database ids. Import always creates new copies with new types (labels get " (imported)" when the name exists), remaps team nodes to the new types, and refuses files that are not this shape or larger than 2 MB.
 - **Team blocks.** Workflow menu, "Save canvas as team block". Saves every valid block and wire (keys instead of canvas ids, positions relative to the top left). Stored as a `component_blocks` row, definition `kind: "builder-team"`, body is the compiled prompt, so the Component Library lists it as text. In Your Blocks the team has a place button (adds every block and wire to the right of the current canvas through `placeGraph`, so it can be placed more than once) and a two press delete. Placing drops blocks whose type no longer exists and says so if none survive. Local cache key `prompt-builder-pro.teams.v1`.
 
+## Adjustable port counts (2026-11-22, third pass)
+
+Each side of a block, inputs or outputs, is either **Fixed ports** (rows, as before) or an **Adjustable count**. An adjustable side is one named group of ports whose number each copy on the canvas chooses with + and - controls in its settings. This is the same mechanism Parallel Execution and Merge use, so blocks you design behave the same way.
+
+- **Definition.** `dynamic: { inputs, outputs }`, each `null` or `{ name, type, min, max, count }`. `min` is 1 or more, `max` is at most 12, `count` is the starting number and always sits between them. Entered values are corrected when a field is left, and again on save, so an invalid range cannot be stored.
+- **Ports.** The group is generated as `in_1 .. in_max` (outputs `out_1 ..`) labelled "<name> 1", "<name> 2" and so on. Keys do not depend on the name, so renaming the group never breaks a wire. The canvas shows the first n. Wires to a port that is no longer shown are taken off, with a notice.
+- **Tokens.** `{{inputs}}` and `{{outputs}}` list every port a copy shows with what is wired to it. `{{input_count}}` and `{{output_count}}` are the numbers. `{{input:in_2}}` still works for one port, and reads "not in use on this copy" when the copy shows fewer ports. These work on fixed sides too.
+- **Rules.** A team coordinator keeps fixed outputs (each output is tied to an agent), so adjustable outputs are unavailable for it. Switching a saved block between fixed and adjustable renames that side's ports, and the studio says wires on existing canvases will be taken off. Fixed rows are kept out of sight if you switch back.
+- **Checks.** Required inputs and type warnings only consider the ports a copy shows. The preview and Try it use the starting number of ports.
+- **Starters.** Two new starters, Parallel tracks and Merge, give editable versions of the built-in Parallel Execution and Merge.
+- **Everywhere else.** Export, import, duplicate, team blocks and the database store `dynamic` with the block. The Component Library text shows `[inputs]` and the starting number. The AI draft can ask for an adjustable side.
+- **Limits per block.** The canvas now reads each block's own range (`dynamic` on the registered block carries `key`, `min`, `max`, `def`), so built-in blocks use 2 to 8 and your blocks use whatever you set.
+
 ## Verification
 
 Run on 2026-11-22 with headless Chromium, a disposable data folder and a fresh browser context:
@@ -83,5 +96,7 @@ Run on 2026-11-22 with headless Chromium, a disposable data folder and a fresh b
 - Light, dark and 390 px layouts checked by screenshot, with no horizontal overflow.
 - 32 checks on the second pass: required and type warnings, duplicate, single and full export, import (including a refused file), AI draft, Try it, team save, place twice, compiled prompt identical after placing, Component Library text, reload and two press delete. The two AI features were run with the provider endpoint mocked.
 - No page errors in any run. `node tests/builder-showcases/validate.js` still passes.
+
+- 37 checks on adjustable counts: both starters, limits and guard rails, generated ports, wiring, shrinking, merge text, editing a saved block, coordinator rule, AI draft, Try it, export and import, team blocks, and restore from the database with empty browser storage.
 
 Not checked: the installed Windows PyWebView build.

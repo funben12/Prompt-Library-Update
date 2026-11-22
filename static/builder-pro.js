@@ -183,13 +183,13 @@
     const FLOW_BLOCKS = [
         {
             type: 'parallel_exec', label: 'Parallel Execution', hint: 'Several inputs and outputs, run at once', category: 'logic', glyph: '', section: 'workflow', included: true,
-            dynamic: { inputs: { key: 'inputCount' }, outputs: { key: 'outputCount' } },
+            dynamic: { inputs: { key: 'inputCount', min: FLOW_MIN, max: FLOW_MAX, def: 2 }, outputs: { key: 'outputCount', min: FLOW_MIN, max: FLOW_MAX, def: 2 } },
             about: 'Runs separate tracks at the same time. Each input is worked on independently and each output carries one track\'s result. Choose 2 to 8 inputs and 2 to 8 outputs on the block. The Parallel execution switch above the prompt turns this on or off for the whole prompt.',
             use: ['Wire a different source into each input, then each output onward to its own next step.', 'Use Every output can use every input when the counts differ or the tracks need to share material.', 'Follow it with a Merge block to bring the results back together.'],
             inputs: portSet('in', 'Input', FLOW_MAX), outputs: portSet('out', 'Output', FLOW_MAX),
             fields: [
-                { key: 'inputCount', label: 'Number of inputs', type: 'count' },
-                { key: 'outputCount', label: 'Number of outputs', type: 'count' },
+                { key: 'inputCount', label: 'Number of inputs', type: 'count', min: FLOW_MIN, max: FLOW_MAX, def: 2 },
+                { key: 'outputCount', label: 'Number of outputs', type: 'count', min: FLOW_MIN, max: FLOW_MAX, def: 2 },
                 { key: 'mode', label: 'How the tracks relate', type: 'select', options: PARALLEL_MODES },
                 { key: 'content', label: 'Instructions', type: 'textarea', rows: 4, placeholder: '' }
             ],
@@ -197,12 +197,12 @@
         },
         {
             type: 'merge_n', label: 'Merge', hint: 'Combine several inputs into one', category: 'logic', glyph: '', section: 'workflow', included: true,
-            dynamic: { inputs: { key: 'inputCount' } },
+            dynamic: { inputs: { key: 'inputCount', min: FLOW_MIN, max: FLOW_MAX, def: 2 } },
             about: 'Brings several inputs together into a single merged output. Choose 2 to 8 inputs on the block, then pick how they are combined. The older Merge Outputs block still works for flows that already use it.',
             use: ['Wire each track or agent into its own numbered input.', 'Pick Reconcile conflicts when the inputs may disagree.', 'Wire the single Merged output onward, for example into an output format.'],
             inputs: portSet('in', 'Input', FLOW_MAX), outputs: [{ id: 'out', label: 'Merged' }],
             fields: [
-                { key: 'inputCount', label: 'Number of inputs', type: 'count' },
+                { key: 'inputCount', label: 'Number of inputs', type: 'count', min: FLOW_MIN, max: FLOW_MAX, def: 2 },
                 { key: 'style', label: 'How to combine', type: 'select', options: MERGE_STYLES },
                 { key: 'content', label: 'Instructions', type: 'textarea', rows: 4, placeholder: '' }
             ],
@@ -212,7 +212,12 @@
     FLOW_BLOCKS.forEach(b => { BLOCKS[b.type] = b; });
     LIBRARY.splice(LIBRARY.findIndex(x => x.type === 'merge') + 1, 0, ...FLOW_BLOCKS);
     const dynInfo = type => (BLOCKS[type] && BLOCKS[type].dynamic) || null;
-    const clampCount = (v, fallback) => { const x = Math.round(Number(v)); return Number.isFinite(x) ? Math.max(FLOW_MIN, Math.min(FLOW_MAX, x)) : fallback; };
+    const clampCount = (v, fallback, min = FLOW_MIN, max = FLOW_MAX) => { const x = Math.round(Number(v)); return Number.isFinite(x) ? Math.max(min, Math.min(max, x)) : fallback; };
+    // How many ports of one side a copy shows, or null when the block has fixed ports on that side.
+    const sideCount = (n, side) => {
+        const dy = dynInfo(n.type), g = dy && dy[side];
+        return g ? clampCount(n.config[g.key], g.def, g.min, g.max) : null;
+    };
 
     /* ---------- Learn: hands-on lessons on the agent blocks ----------
        Each step can be done by hand or by pressing Show me. a = add [key, block type, column, row, name], w = wire
@@ -719,6 +724,7 @@
             if (n.type === 'agent_specialist') return `${c.specialty || 'Specialist'}\n${c.content || ''}`;
             if (n.type === 'parallel_exec') return `${activeIn(n).length} inputs, ${activeOut(n).length} outputs, ${state.parallel.on ? 'run at once' : 'run in order'}\n${c.content || ''}`;
             if (n.type === 'merge_n') return `${activeIn(n).length} inputs merged into one output\n${c.content || ''}`;
+            if (BLOCKS[n.type].customBlock && dynInfo(n.type)) return `${activeIn(n).length} in, ${activeOut(n).length} out\n${c.content || ''}`;
             return c.content || (n.type === 'role' ? c.personaPreset : '') || 'Empty. Select to add text.';
         }
         function portName(n, p) {
@@ -728,12 +734,12 @@
         }
         // The ports a block shows. Most blocks show all of theirs, Parallel Execution and Merge show the first n.
         const activeIn = n => {
-            const all = inputsOf(n.type), dy = dynInfo(n.type);
-            return dy && dy.inputs ? all.slice(0, clampCount(n.config[dy.inputs.key], FLOW_MIN)) : all;
+            const all = inputsOf(n.type), c = sideCount(n, 'inputs');
+            return c === null ? all : all.slice(0, c);
         };
         const activeOut = n => {
-            const all = BLOCKS[n.type].outputs, dy = dynInfo(n.type);
-            return dy && dy.outputs ? all.slice(0, clampCount(n.config[dy.outputs.key], FLOW_MIN)) : all;
+            const all = BLOCKS[n.type].outputs, c = sideCount(n, 'outputs');
+            return c === null ? all : all.slice(0, c);
         };
         const inputsOf = type => {
             const raw = BLOCKS[type].inputs;
@@ -877,8 +883,9 @@
         /* ---------- inspector ---------- */
         // A count control for blocks that choose how many inputs or outputs they have. It cannot leave FLOW_MIN to FLOW_MAX.
         const stepper = (f, n, id) => {
-            const v = clampCount(n.config[f.key], FLOW_MIN);
-            return `<div class="pbp-stepper"><button type="button" data-count="-1" data-count-key="${f.key}" ${v <= FLOW_MIN ? 'disabled' : ''} aria-label="Fewer">&minus;</button><output id="${id}" aria-live="polite">${v}</output><button type="button" data-count="1" data-count-key="${f.key}" ${v >= FLOW_MAX ? 'disabled' : ''} aria-label="More">+</button><span class="pbp-stepper-note">${FLOW_MIN} to ${FLOW_MAX}</span></div>`;
+            const lo = f.min ?? FLOW_MIN, hi = f.max ?? FLOW_MAX;
+            const v = clampCount(n.config[f.key], f.def ?? lo, lo, hi);
+            return `<div class="pbp-stepper"><button type="button" data-count="-1" data-count-key="${f.key}" ${v <= lo ? 'disabled' : ''} aria-label="Fewer">&minus;</button><output id="${id}" aria-live="polite">${v}</output><button type="button" data-count="1" data-count-key="${f.key}" ${v >= hi ? 'disabled' : ''} aria-label="More">+</button><span class="pbp-stepper-note">${lo} to ${hi}</span></div>`;
         };
         function renderInspector() {
             const n = node(state.selected);
@@ -1004,7 +1011,7 @@
             state.nodes.forEach(n => {
                 const dy = dynInfo(n.type);
                 if (!dy) return;
-                ['inputs', 'outputs'].forEach(side => { if (dy[side]) n.config[dy[side].key] = clampCount(n.config[dy[side].key], FLOW_MIN); });
+                ['inputs', 'outputs'].forEach(side => { if (dy[side]) n.config[dy[side].key] = sideCount(n, side); });
             });
             const before = state.edges.length;
             state.edges = state.edges.filter(e => {
@@ -1243,10 +1250,11 @@
         }
         // The + and - on a block's number of inputs or outputs. Wires to a port that disappears are removed, and the user is told.
         function adjustCount(key, delta) {
-            const n = node(state.selected);
-            if (!n || !dynInfo(n.type)) return;
-            const cur = clampCount(n.config[key], FLOW_MIN), next = clampCount(cur + delta, cur);
-            if (next === cur) return toast(`A block can have ${FLOW_MIN} to ${FLOW_MAX} ${key === 'inputCount' ? 'inputs' : 'outputs'}.`, 'info');
+            const n = node(state.selected), dy = n && dynInfo(n.type);
+            const g = dy && Object.values(dy).find(x => x.key === key);
+            if (!g) return;
+            const cur = clampCount(n.config[key], g.def, g.min, g.max), next = clampCount(cur + delta, cur, g.min, g.max);
+            if (next === cur) return toast(`This block can have ${g.min} to ${g.max} ${key === 'inputCount' ? 'inputs' : 'outputs'}.`, 'info');
             n.config[key] = next;
             const before = state.edges.length;
             pruneFlow();

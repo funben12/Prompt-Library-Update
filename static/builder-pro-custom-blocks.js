@@ -10,6 +10,8 @@
     const PE = PB.engine, BLOCKS = PE.BLOCKS, LIBRARY = PE.LIBRARY, CATEGORIES = PE.CATEGORIES;
     const CACHE = "prompt-builder-pro.custom-blocks.v2", LEGACY = "prompt-builder-pro.custom-blocks.v1", PREFIX = "user_block_";
     const TOKEN = /\{\{\s*(input|output|setting)\s*:\s*([\w.-]+)\s*\}\}/g;
+    // {{inputs}} and {{outputs}} list every port this copy shows with what is wired to it. {{input_count}} and {{output_count}} are the numbers.
+    const GROUP = /\{\{\s*(inputs|outputs|input_count|output_count)\s*\}\}/g;
 
     const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const slug = s => String(s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 32);
@@ -26,7 +28,7 @@
         { id: "reviewer", name: "Reviewer", icon: "fact_check", line: "Checks work, then sends it back or decides." },
         { id: "coordinator", name: "Team coordinator", icon: "hub", line: "Briefs a team of agents you choose, one per output." }
     ];
-    const ICON_SET = ["widgets", "smart_toy", "psychology", "travel_explore", "edit_note", "fact_check", "balance", "hub", "forum", "rule", "bolt", "lightbulb", "shield", "translate", "code", "analytics", "inventory_2", "support_agent", "auto_awesome", "tune"];
+    const ICON_SET = ["widgets", "smart_toy", "psychology", "travel_explore", "edit_note", "fact_check", "balance", "hub", "forum", "rule", "bolt", "lightbulb", "shield", "translate", "code", "analytics", "inventory_2", "support_agent", "auto_awesome", "tune", "splitscreen", "call_merge"];
     const SECTIONS = PE.SECTIONS.filter(s => s.id !== "agents");
     const SECTION_IDS = SECTIONS.map(s => s.id);
 
@@ -65,6 +67,28 @@
             return { id: slug(s.id || label) || "setting", label, type, defaultValue: def, options };
         }).filter(Boolean));
     }
+    // Adjustable counts. A side is either fixed rows or one named group of 1 to DYN_LIMIT ports whose number each copy chooses.
+    const DYN_LIMIT = 12;
+    function dynSide(x, fallbackName) {
+        if (!x || typeof x !== "object") return null;
+        const num = (v, d) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? n : d; };
+        const min = Math.max(1, Math.min(DYN_LIMIT, num(x.min, 1)));
+        const max = Math.max(min, Math.min(DYN_LIMIT, num(x.max, 4)));
+        const count = Math.max(min, Math.min(max, num(x.count, min)));
+        return { name: String(x.name || fallbackName).trim().slice(0, 30) || fallbackName, type: PORT_TYPES.some(t => t[0] === x.type) ? x.type : "text", min, max, count };
+    }
+    // Every port the group could ever show. Ids stay in_1, in_2 and so on, so renaming the group never breaks a wire.
+    const genPorts = (prefix, g) => Array.from({ length: g.max }, (_, i) => ({ id: prefix + "_" + (i + 1), label: g.name + " " + (i + 1), type: g.type, desc: "", required: false }));
+    // The ports one copy shows: all of the fixed ones, or the first n of an adjustable group.
+    function activePorts(d, config) {
+        const c = config || {}, dy = d.dynamic || {};
+        const pick = (list, g, key) => {
+            if (!g) return list;
+            const n = Math.round(Number(c[key]));
+            return list.slice(0, Number.isFinite(n) ? Math.max(g.min, Math.min(g.max, n)) : g.count);
+        };
+        return { inputs: pick(d.inputs, dy.inputs, "inputCount"), outputs: pick(d.outputs, dy.outputs, "outputCount") };
+    }
     // Any saved shape (older versions included) comes back as one clean definition, or null.
     function normalise(raw) {
         if (!raw || typeof raw !== "object") return null;
@@ -79,6 +103,13 @@
             inputs: portsOf(raw.inputs), outputs: portsOf(raw.outputs), settings: settingsOf(raw.settings),
             template: String(raw.template != null ? raw.template : "").slice(0, 8000), roster: {}
         };
+        const dyIn = dynSide(raw.dynamic && raw.dynamic.inputs, "Input");
+        const dyOut = role === "coordinator" ? null : dynSide(raw.dynamic && raw.dynamic.outputs, "Output");
+        if (dyIn || dyOut) {
+            d.dynamic = { inputs: dyIn, outputs: dyOut };
+            if (dyIn) d.inputs = genPorts("in", dyIn);
+            if (dyOut) d.outputs = genPorts("out", dyOut);
+        }
         if (!/^[A-Za-z0-9_]+$/.test(d.type)) d.type = PREFIX + (slug(label) || "block") + "_" + Date.now().toString(36);
         if (role === "coordinator" && raw.roster && typeof raw.roster === "object") {
             d.outputs.forEach(o => { if (typeof raw.roster[o.id] === "string" && raw.roster[o.id]) d.roster[o.id] = raw.roster[o.id]; });
@@ -95,6 +126,17 @@
             fields.push({ key: "setting_" + s.id, label: s.label, type: s.type, options: s.options, rows: 3, placeholder: "" });
             defaults["setting_" + s.id] = s.type === "number" && s.defaultValue !== "" && !isNaN(Number(s.defaultValue)) ? Number(s.defaultValue) : s.defaultValue;
         });
+        const dy = d.dynamic || {};
+        const counts = [];
+        const dynBlock = {};
+        [["inputs", "inputCount", "Number of inputs"], ["outputs", "outputCount", "Number of outputs"]].forEach(([side, key, label]) => {
+            const g = dy[side];
+            if (!g) return;
+            counts.push({ key, label, type: "count", min: g.min, max: g.max, def: g.count });
+            defaults[key] = g.count;
+            dynBlock[side] = { key, min: g.min, max: g.max, def: g.count };
+        });
+        fields.unshift(...counts);
         const ins = d.inputs.map(p => ({ id: p.id, label: p.label, type: p.type, desc: p.desc, required: p.required }));
         const outs = d.outputs.map(p => ({ id: p.id, label: p.label, type: p.type, desc: p.desc }));
         const roleName = (ROLES.find(r => r.id === d.role) || ROLES[0]).name.toLowerCase();
@@ -103,12 +145,13 @@
             about: d.about || `Your own ${roleName}. ${ins.length ? "It takes in " + listOf(ins.map(p => p.label)) + "." : "It has no inputs, so it only feeds other blocks."} ${outs.length ? "It hands out " + listOf(outs.map(p => p.label)) + "." : ""}`.trim(),
             use: [
                 ins.length ? "Wire into: " + ins.map(p => p.label + (p.desc ? " (" + p.desc + ")" : "")).join("; ") + "." : "Wire its output into any block that needs it.",
-                "Fill in the settings below to change how it behaves. Each copy on the canvas keeps its own settings.",
+                dy.inputs || dy.outputs ? "Use the + and - controls in its settings to choose how many " + (dy.inputs && dy.outputs ? "inputs and outputs" : dy.inputs ? "inputs" : "outputs") + " this copy has." : "Fill in the settings below to change how it behaves. Each copy on the canvas keeps its own settings.",
                 "Use the pencil in Your Blocks to change the design. Copies already on the canvas keep their own text."
             ],
             category: agent ? "agents" : "yours", kind: agent ? d.role : "custom", glyph: "", section: agent ? "agents" : d.section,
             inputs: ins.length ? ins : false, outputs: outs.length ? outs : [{ id: "out", label: "Next" }],
-            fields, defaults, customBlock: true, icon: d.icon, def: d
+            fields, defaults, customBlock: true, icon: d.icon, def: d,
+            dynamic: Object.keys(dynBlock).length ? dynBlock : undefined
         };
     }
 
@@ -152,8 +195,13 @@
 
     /* ---------------- compiling ---------------- */
     // Tokens are resolved on a copy of the nodes, so the text stored on the canvas never changes.
-    function resolve(d, config, edges, samples) {
-        const c = config || {};
+    function resolve(d, config, io, samples) {
+        const c = config || {}, ins = (io && io.ins) || [], outs = (io && io.outs) || [];
+        const act = activePorts(d, c);
+        const lines = (list, found, word) => list.map(p => {
+            const hit = [...new Set(found.filter(e => e.port === p.id).map(e => e[word]))];
+            return `- ${p.label}${p.desc ? " (" + p.desc + ")" : ""}${samples && word === "from" ? ", given under INPUTS" : hit.length ? ", " + word + " " + listOf(hit) : ", nothing connected"}`;
+        }).join("\n");
         return String(c.content == null ? "" : c.content).replace(TOKEN, (m, kind, key) => {
             if (kind === "setting") {
                 const s = d.settings.find(x => x.id === key);
@@ -164,12 +212,17 @@
             if (kind === "input") {
                 const p = d.inputs.find(x => x.id === key);
                 if (!p) return m;
+                if (!act.inputs.includes(p)) return `the "${p.label}" (not in use on this copy)`;
                 if (samples) return `the "${p.label}" given under INPUTS`;
-                const from = (edges || []).filter(e => e.__to === key).map(e => e.__from);
+                const from = ins.filter(e => e.port === key).map(e => e.from);
                 return from.length ? `the "${p.label}" supplied by ${listOf([...new Set(from)])}` : `the "${p.label}" (nothing is connected to it yet)`;
             }
             const p = d.outputs.find(x => x.id === key);
             return p ? `"${p.label}"` : m;
+        }).replace(GROUP, (m, word) => {
+            if (word === "inputs") return lines(act.inputs, ins, "from") || "(no inputs)";
+            if (word === "outputs") return lines(act.outputs, outs, "to") || "(no outputs)";
+            return String(word === "input_count" ? act.inputs.length : act.outputs.length);
         });
     }
     function prepare(nodes, edges) {
@@ -177,11 +230,15 @@
         return nodes.map(n => {
             const b = BLOCKS[n.type];
             if (!b || !b.customBlock) return n;
-            const mine = (edges || []).filter(e => e.to === n.id).map(e => {
+            const ins = (edges || []).filter(e => e.to === n.id).map(e => {
                 const src = byId.get(e.from);
-                return { __to: e.toPort || "in", __from: src ? PE.titleOf(src) : "" };
-            }).filter(e => e.__from);
-            const content = resolve(b.def, n.config, mine);
+                return { port: e.toPort || "in", from: src ? PE.titleOf(src) : "" };
+            }).filter(e => e.from);
+            const outs = (edges || []).filter(e => e.from === n.id).map(e => {
+                const tgt = byId.get(e.to);
+                return { port: e.fromPort, to: tgt ? PE.titleOf(tgt) : "" };
+            }).filter(e => e.to);
+            const content = resolve(b.def, n.config, { ins, outs });
             return Object.assign({}, n, { config: Object.assign({}, n.config, { content }) });
         });
     }
@@ -192,7 +249,7 @@
             const p = list.find(x => x.id === key);
             if (!p) return m;
             return kind === "setting" && p.defaultValue ? p.defaultValue : "[" + p.label + "]";
-        }).trim();
+        }).replace(GROUP, (m, word) => (word === "inputs" ? "[inputs]" : word === "outputs" ? "[outputs]" : String(activePorts(d, {})[word === "input_count" ? "inputs" : "outputs"].length))).trim();
     }
 
     /* ---------------- storage ---------------- */
@@ -333,6 +390,23 @@
             }
         },
         {
+            id: "tracks", name: "Parallel tracks", icon: "splitscreen", line: "Adjustable inputs and outputs, run at once.",
+            def: {
+                role: "standard", icon: "splitscreen", section: "workflow", inputs: [], outputs: [], settings: [],
+                dynamic: { inputs: { name: "Track in", type: "text", min: 2, max: 6, count: 2 }, outputs: { name: "Track out", type: "text", min: 2, max: 6, count: 2 } },
+                template: "Run these {{input_count}} tracks in parallel, at the same time and independently of each other. Do not let one track change the result of another.\nInputs:\n{{inputs}}\nOutputs:\n{{outputs}}\nTrack n takes input n and produces output n."
+            }
+        },
+        {
+            id: "merge", name: "Merge", icon: "call_merge", line: "Adjustable inputs, one merged output.",
+            def: {
+                role: "standard", icon: "call_merge", section: "workflow", inputs: [], outputs: [{ label: "Merged" }],
+                settings: [{ label: "Method", type: "select", options: ["combine everything", "reconcile conflicts", "keep the best parts"], defaultValue: "reconcile conflicts" }],
+                dynamic: { inputs: { name: "Input", type: "text", min: 2, max: 8, count: 3 }, outputs: null },
+                template: "Merge these {{input_count}} inputs into one output, {{output:merged}}. Method: {{setting:method}}.\n{{inputs}}\nKeep what agrees and name anything that conflicts."
+            }
+        },
+        {
             id: "team", name: "Team coordinator", icon: "hub", line: "Briefs a Planner, Researcher, Writer and Critic, one per output.",
             def: {
                 role: "coordinator", icon: "hub",
@@ -361,11 +435,16 @@
         });
         d.inputs = wrap(d.inputs); d.outputs = wrap(d.outputs, true);
         d.settings = (d.settings || []).map(s => Object.assign({}, s, { _k: lock || s.id !== slug(s.label), optionsText: (s.options || []).join(", ") }));
+        const dy = def.dynamic || {};
+        d.dynamic = { inputs: dy.inputs ? clone(dy.inputs) : null, outputs: dy.outputs ? clone(dy.outputs) : null };
+        // A side that is adjustable keeps no rows of its own: its ports are generated. Fixed rows are kept hidden if the user switches back.
+        if (d.dynamic.inputs) d.inputs = [];
+        if (d.dynamic.outputs) d.outputs = [];
         return d;
     }
     function fresh(starterId) {
         const st = STARTERS.find(x => x.id === starterId) || STARTERS[0];
-        const base = Object.assign({ label: "", hint: "", about: "", icon: "widgets", role: "standard", section: "instructions", inputs: [], outputs: [], settings: [], template: "", roster: {} }, clone(st.def));
+        const base = Object.assign({ label: "", hint: "", about: "", icon: "widgets", role: "standard", section: "instructions", inputs: [], outputs: [], settings: [], template: "", roster: {}, dynamic: null }, clone(st.def));
         base.inputs = base.inputs.map(p => Object.assign({ type: "text", desc: "" }, p, { id: slug(p.id || p.label) }));
         base.outputs = base.outputs.map(p => Object.assign({ type: "text", desc: "" }, p, { id: slug(p.id || p.label) }));
         base.settings = base.settings.map(s => Object.assign({ type: "text", defaultValue: "", options: [] }, s, { id: slug(s.id || s.label) }));
@@ -381,7 +460,8 @@
             inputs: d.inputs.map(p => ({ id: p.id, label: p.label, type: p.type, desc: p.desc, required: !!p.required })),
             outputs: d.outputs.map(p => ({ id: p.id, label: p.label, type: p.type, desc: p.desc })),
             settings: d.settings.map(s => ({ id: s.id, label: s.label, type: s.type, defaultValue: s.defaultValue, options: s.optionsText })),
-            roster: {}
+            roster: {},
+            dynamic: { inputs: d.dynamic && d.dynamic.inputs, outputs: d.role === "coordinator" ? null : d.dynamic && d.dynamic.outputs }
         };
         if (d.role === "coordinator") d.outputs.forEach(o => { if (o.agent && String(o.label).trim()) raw.roster[slug(o.id || o.label)] = o.agent; });
         return normalise(raw);
@@ -400,7 +480,8 @@
         d.settings.filter(s => String(s.label).trim() && s.type === "select").forEach(s => {
             if (String(s.optionsText || "").split(",").map(x => x.trim()).filter(Boolean).length < 2) errors.push(`The dropdown "${s.label}" needs at least two options, separated by commas.`);
         });
-        const keys = { input: new Set(d.inputs.filter(p => String(p.label).trim()).map(p => slug(p.id || p.label))), output: new Set(d.outputs.filter(p => String(p.label).trim()).map(p => slug(p.id || p.label))), setting: new Set(d.settings.filter(p => String(p.label).trim()).map(p => slug(p.id || p.label))) };
+        const gen = (side, prefix, rows) => (d.dynamic && d.dynamic[side] ? genPorts(prefix, dynSide(d.dynamic[side], "Port")).map(p => p.id) : rows.filter(p => String(p.label).trim()).map(p => slug(p.id || p.label)));
+        const keys = { input: new Set(gen("inputs", "in", d.inputs)), output: new Set(gen("outputs", "out", d.outputs)), setting: new Set(d.settings.filter(p => String(p.label).trim()).map(p => slug(p.id || p.label))) };
         const used = new Set();
         let m; const re = new RegExp(TOKEN.source, "g");
         while ((m = re.exec(d.template))) {
@@ -411,7 +492,12 @@
         if (d.role !== "standard" && !keys.input.size) warns.push("This agent has no inputs, so nothing can brief it.");
         if (d.role !== "standard" && !keys.output.size) infos.push("With no outputs the block gets one output called Next.");
         if (d.role === "coordinator" && !d.outputs.some(o => o.agent)) infos.push("Choose an agent for each output to enable Add its agents and wire them.");
-        [...keys.input].filter(k => !used.has("input:" + k)).slice(0, 3).forEach(k => infos.push(`The input "${k}" is not used in the instructions. That is fine if you only want it as a connection.`));
+        if (S.mode === "edit" && S.origDyn) {
+            ["inputs", "outputs"].forEach(side => {
+                if (!!(d.dynamic && d.dynamic[side]) !== S.origDyn[side]) infos.push(`Changing the ${side} between fixed and adjustable renames their ports, so wires already connected to them on a canvas are taken off.`);
+            });
+        }
+        [...(d.dynamic && d.dynamic.inputs ? [] : keys.input)].filter(k => !used.has("input:" + k)).slice(0, 3).forEach(k => infos.push(`The input "${k}" is not used in the instructions. That is fine if you only want it as a connection.`));
         return { errors, warns, infos };
     }
 
@@ -458,8 +544,8 @@
                             <div class="pbp-st-field"><span class="pbp-st-flabel">Icon</span><div class="pbp-st-icons" id="pbp-st-icons" role="group" aria-label="Icon"></div></div>
                         </div>
                     </section>
-                    <section class="pbp-st-card" aria-label="Inputs"><div class="pbp-st-card-head"><b>Inputs</b><span>What this block takes in. Each one becomes a connection point on its left.</span><button type="button" class="btn pbp-btn-xs" data-st="add" data-kind="inputs">${ms("add")}<span>Add input</span></button></div><div class="pbp-st-rows" id="pbp-st-inputs"></div></section>
-                    <section class="pbp-st-card" aria-label="Outputs"><div class="pbp-st-card-head"><b>Outputs</b><span id="pbp-st-out-sub">What this block hands to the next one. Each becomes a connection point on its right.</span><button type="button" class="btn pbp-btn-xs" data-st="add" data-kind="outputs">${ms("add")}<span>Add output</span></button></div><div class="pbp-st-rows" id="pbp-st-outputs"></div></section>
+                    <section class="pbp-st-card" aria-label="Inputs"><div class="pbp-st-card-head"><b>Inputs</b><span>What this block takes in. Each one becomes a connection point on its left.</span><button type="button" class="btn pbp-btn-xs" data-st="add" data-kind="inputs">${ms("add")}<span>Add input</span></button></div><div class="pbp-st-modebar" id="pbp-st-inputs-mode"></div><div class="pbp-st-rows" id="pbp-st-inputs"></div></section>
+                    <section class="pbp-st-card" aria-label="Outputs"><div class="pbp-st-card-head"><b>Outputs</b><span id="pbp-st-out-sub">What this block hands to the next one. Each becomes a connection point on its right.</span><button type="button" class="btn pbp-btn-xs" data-st="add" data-kind="outputs">${ms("add")}<span>Add output</span></button></div><div class="pbp-st-modebar" id="pbp-st-outputs-mode"></div><div class="pbp-st-rows" id="pbp-st-outputs"></div></section>
                     <section class="pbp-st-card" aria-label="Settings"><div class="pbp-st-card-head"><b>Settings</b><span>Controls the user adjusts on each copy, such as a tone or a number of rounds.</span><button type="button" class="btn pbp-btn-xs" data-st="add" data-kind="settings">${ms("add")}<span>Add setting</span></button></div><div class="pbp-st-rows" id="pbp-st-settings"></div></section>
                     <section class="pbp-st-card" aria-label="Instructions">
                         <div class="pbp-st-card-head"><b>Instructions</b><span>The text this block adds to the compiled prompt. Select a chip to insert a token.</span></div>
@@ -526,10 +612,34 @@
     }
     const emptyRow = kind => kind === "settings" ? { label: "", id: "", type: "text", defaultValue: "", options: [], optionsText: "", _k: false } : { label: "", id: "", type: "text", desc: "", agent: "", required: false, _k: false };
 
+    // Fixed ports (rows) or an adjustable group, for the inputs or the outputs.
+    function dynHtml(side, g, locked) {
+        const num = (f, label, v, min, max) => `<div class="pbp-st-field"><label>${label}</label><input class="form-input pbp-mono" type="number" min="${min}" max="${max}" data-dyn="${side}:${f}" value="${esc(v)}"></div>`;
+        const one = side === "inputs" ? "Input" : "Output";
+        const seg = `<div class="pbp-st-seg" role="radiogroup" aria-label="${one} ports"><button type="button" role="radio" data-st="dyn" data-kind="${side}" data-on="0" aria-checked="${!g}">Fixed ports</button><button type="button" role="radio" data-st="dyn" data-kind="${side}" data-on="1" aria-checked="${!!g}" ${locked ? "disabled title=\"A team coordinator needs a fixed output for each agent\"" : ""}>Adjustable count</button></div>`;
+        if (!g) return { seg, form: "" };
+        return { seg, form: `<div class="pbp-st-dyn">
+            <div class="pbp-st-field pbp-st-dyn-name"><label>Port name</label><input class="form-input" data-dyn="${side}:name" maxlength="30" value="${esc(g.name)}" placeholder="${one}" autocomplete="off"></div>
+            <div class="pbp-st-field"><label>Type</label><select class="form-input" data-dyn="${side}:type">${PORT_TYPES.map(t => `<option value="${t[0]}" ${g.type === t[0] ? "selected" : ""}>${t[1]}</option>`).join("")}</select></div>
+            ${num("min", "Fewest", g.min, 1, DYN_LIMIT)}${num("count", "Starts with", g.count, g.min, g.max)}${num("max", "Most", g.max, 1, DYN_LIMIT)}
+            <p class="pbp-st-note pbp-st-dyn-note">Each copy of the block gets + and - controls for this, from ${g.min} to ${g.max}. Ports are named ${esc(g.name)} 1, ${esc(g.name)} 2 and so on. Use {{${side}}} for the list and {{${side === "inputs" ? "input" : "output"}_count}} for the number.</p>
+        </div>` };
+    }
     function renderLists() {
         ["inputs", "outputs", "settings"].forEach(k => {
             const box = $("#pbp-st-" + k);
             const list = S.def[k];
+            if (k !== "settings") {
+                const g = S.def.dynamic && S.def.dynamic[k];
+                const add = root.querySelector(`[data-st=add][data-kind="${k}"]`);
+                if (add) add.hidden = !!g;
+                const locked = k === "outputs" && S.def.role === "coordinator";
+                const parts = dynHtml(k, g, locked);
+                $("#pbp-st-" + k + "-mode").innerHTML = parts.seg;
+                if (g) { box.innerHTML = parts.form; return; }
+                box.innerHTML = (list.length ? list.map((p, i) => rowHtml(k, p, i)).join("") : `<p class="pbp-st-none">${k === "inputs" ? "No inputs. The block only feeds other blocks." : "No outputs. It will get a single output called Next."}</p>`);
+                return;
+            }
             box.innerHTML = list.length ? list.map((p, i) => rowHtml(k, p, i)).join("") : `<p class="pbp-st-none">${k === "inputs" ? "No inputs. The block only feeds other blocks." : k === "outputs" ? "No outputs. It will get a single output called Next." : "No settings. Every copy behaves the same."}</p>`;
         });
         $("#pbp-st-out-sub").textContent = S.def.role === "coordinator" ? "Each output is a brief for one agent. Choose the agent it briefs and the studio can add and wire the team for you." : "What this block hands to the next one. Each becomes a connection point on its right.";
@@ -548,10 +658,19 @@
     }
     function renderTokens() {
         const d = S.def, chips = [];
-        d.inputs.filter(p => String(p.label).trim()).forEach(p => chips.push(["input", slug(p.id || p.label), p.label]));
-        d.outputs.filter(p => String(p.label).trim()).forEach(p => chips.push(["output", slug(p.id || p.label), p.label]));
+        const dy = d.dynamic || {};
+        if (dy.inputs) chips.push(["list", "inputs", "all inputs, listed"], ["list", "input_count", "number of inputs"]);
+        else {
+            d.inputs.filter(p => String(p.label).trim()).forEach(p => chips.push(["input", slug(p.id || p.label), p.label]));
+            if (d.inputs.some(p => String(p.label).trim())) chips.push(["list", "inputs", "all inputs, listed"]);
+        }
+        if (dy.outputs) chips.push(["list", "outputs", "all outputs, listed"], ["list", "output_count", "number of outputs"]);
+        else {
+            d.outputs.filter(p => String(p.label).trim()).forEach(p => chips.push(["output", slug(p.id || p.label), p.label]));
+            if (d.outputs.some(p => String(p.label).trim())) chips.push(["list", "outputs", "all outputs, listed"]);
+        }
         d.settings.filter(p => String(p.label).trim()).forEach(p => chips.push(["setting", slug(p.id || p.label), p.label]));
-        $("#pbp-st-tokens").innerHTML = chips.length ? chips.map(([k, id, label]) => `<button type="button" class="pbp-st-chip" data-st="token" data-token="{{${k}:${id}}}" data-kind="${k}" title="Insert {{${k}:${id}}}"><i>${k}</i>${esc(label)}</button>`).join("") : `<span class="pbp-st-none">Add an input, output or setting to get tokens you can insert here.</span>`;
+        $("#pbp-st-tokens").innerHTML = chips.length ? chips.map(([k, id, label]) => { const tok = k === "list" ? `{{${id}}}` : `{{${k}:${id}}}`; return `<button type="button" class="pbp-st-chip" data-st="token" data-token="${tok}" data-kind="${k}" title="Insert ${tok}"><i>${k === "list" ? "all" : k}</i>${esc(label)}</button>`; }).join("") : `<span class="pbp-st-none">Add an input, output or setting to get tokens you can insert here.</span>`;
     }
     function renderStarters() {
         $("#pbp-st-starters").hidden = S.mode === "edit";
@@ -561,18 +680,21 @@
         const d = S.def;
         const clean = collect(true);
         const role = (ROLES.find(r => r.id === d.role) || ROLES[0]).name;
-        const ins = (clean ? clean.inputs : []), outs = (clean ? clean.outputs : []);
+        const shown = clean ? activePorts(clean, {}) : { inputs: [], outputs: [] };
+        const ins = shown.inputs, outs = shown.outputs;
+        const dyn = clean && clean.dynamic ? ["inputs", "outputs"].filter(sd => clean.dynamic[sd]).map(sd => `${sd} ${clean.dynamic[sd].min} to ${clean.dynamic[sd].max}`) : [];
         const named = list => list.map(p => `<div class="pbp-st-port"><span class="pbp-st-dot"></span><span>${esc(p.label)}${p.required ? " *" : ""}</span>${p.type !== "text" ? `<i>${typeLabel(p.type)}</i>` : ""}</div>`).join("");
         $("#pbp-st-node").innerHTML = `<div class="pbp-st-nodecard" data-agent="${d.role !== "standard"}">
             <div class="pbp-st-nodehead"><span class="pbp-st-glyph">${ms(d.icon)}</span><div><b>${esc(d.label.trim() || "Untitled block")}</b><span>${esc(role)}${d.role === "standard" ? ", " + esc((SECTIONS.find(s => s.id === d.section) || {}).title || "") : ""}</span></div></div>
             ${d.hint.trim() ? `<p class="pbp-st-nodehint">${esc(d.hint.trim())}</p>` : ""}
+            ${dyn.length ? `<p class="pbp-st-nodehint pbp-st-adj">${ms("tune")}Adjustable: ${esc(dyn.join(", "))}</p>` : ""}
             <div class="pbp-st-nodeports"><div>${ins.length ? named(ins) : `<span class="pbp-st-none">No inputs</span>`}</div><div class="pbp-st-out-col">${outs.length ? named(outs) : `<span class="pbp-st-none">Next</span>`}</div></div>
             ${clean && clean.settings.length ? `<div class="pbp-st-nodeset">${clean.settings.map(s => `<span>${esc(s.label)}: <b>${esc(s.defaultValue || "-")}</b></span>`).join("")}</div>` : ""}
         </div>`;
         if (clean) {
             const cfg = { content: clean.template };
             clean.settings.forEach(s => { cfg["setting_" + s.id] = s.defaultValue; });
-            $("#pbp-st-out").textContent = resolve(clean, cfg, []).trim() || "Nothing yet. Write the instructions on the left.";
+            $("#pbp-st-out").textContent = resolve(clean, cfg, null).trim() || "Nothing yet. Write the instructions on the left.";
         } else $("#pbp-st-out").textContent = "Nothing yet.";
         const v = validate();
         const items = [...v.errors.map(t => ["error", t]), ...v.warns.map(t => ["warn", t]), ...v.infos.map(t => ["info", t])];
@@ -585,6 +707,16 @@
         const t = e.target;
         if (t.dataset && t.dataset.key) { S.samples[t.dataset.key] = t.value; return; }
         if (t.id === "pbp-st-draft-text") return;
+        if (t.dataset && t.dataset.dyn) {
+            const [side, f] = t.dataset.dyn.split(":"), g = S.def.dynamic && S.def.dynamic[side];
+            if (!g) return;
+            g[f] = f === "name" || f === "type" ? t.value : t.value === "" ? "" : Number(t.value);
+            setDirty();
+            // Numbers are corrected once the field is left, so typing is never fought.
+            if (e.type === "change") { S.def.dynamic[side] = dynSide(g, side === "inputs" ? "Input" : "Output"); renderLists(); }
+            renderPreview();
+            return;
+        }
         if (t.dataset.top) {
             S.def[t.dataset.top] = t.value;
             setDirty();
@@ -639,8 +771,18 @@
         if (act === "try") return tryIt();
         if (act === "token") return insertToken(t.dataset.token);
         if (act === "icon") { S.def.icon = t.dataset.icon; setDirty(); renderTop(); return renderPreview(); }
+        if (act === "dyn") {
+            const side = t.dataset.kind;
+            S.keep = S.keep || {};
+            if (t.dataset.on === "1") S.def.dynamic[side] = S.keep[side] || { name: side === "inputs" ? "Input" : "Output", type: "text", min: 2, max: 4, count: 2 };
+            else { S.keep[side] = S.def.dynamic[side]; S.def.dynamic[side] = null; }
+            setDirty();
+            renderLists();
+            return renderPreview();
+        }
         if (act === "role") {
             S.def.role = t.dataset.role;
+            if (S.def.role === "coordinator" && S.def.dynamic && S.def.dynamic.outputs) { S.keep = S.keep || {}; S.keep.outputs = S.def.dynamic.outputs; S.def.dynamic.outputs = null; toast("A team coordinator needs a fixed output for each agent, so its outputs are fixed.", "info"); }
             if (S.def.role !== "standard" && S.def.icon === "widgets") S.def.icon = ROLES.find(r => r.id === S.def.role).icon;
             setDirty();
             renderTop(); renderLists(); return renderPreview();
@@ -680,7 +822,7 @@
         const def = type ? defs.find(d => d.type === type) : null;
         if (type && !def) return toast("That block could not be found.", "error");
         opener = document.activeElement;
-        S = { mode: def ? "edit" : "create", type: def ? def.type : "", dbId: def ? def.dbId : undefined, dirty: false, samples: {}, def: def ? working(def, true) : fresh("blank") };
+        S = { mode: def ? "edit" : "create", type: def ? def.type : "", dbId: def ? def.dbId : undefined, dirty: false, samples: {}, origDyn: def ? { inputs: !!(def.dynamic && def.dynamic.inputs), outputs: !!(def.dynamic && def.dynamic.outputs) } : null, def: def ? working(def, true) : fresh("blank") };
         clearTimeout(discardTimer); clearTimeout(deleteTimer);
         $("#pbp-st-cancel").textContent = "Cancel";
         $("#pbp-st-delete").querySelector("span:last-child").textContent = "Delete block";
@@ -782,7 +924,7 @@
         nodes.forEach(n => {
             const b = BLOCKS[n.type];
             if (!b || !b.customBlock || !wired.has(n.id)) return;
-            b.def.inputs.filter(p => p.required).forEach(p => {
+            activePorts(b.def, n.config).inputs.filter(p => p.required).forEach(p => {
                 if (!list.some(e => e.to === n.id && (e.toPort || "in") === p.id)) {
                     out.push({ level: "warning", code: "required_input", message: `"${PE.titleOf(n)}": the required input "${p.label}" has nothing connected to it.`, nodeId: n.id });
                 }
@@ -792,7 +934,7 @@
             const a = byId.get(e.from), t = byId.get(e.to);
             const ba = a && BLOCKS[a.type], bt = t && BLOCKS[t.type];
             if (!ba || !bt || !ba.customBlock || !bt.customBlock) return;
-            const fp = ba.def.outputs.find(p => p.id === e.fromPort), tp = bt.def.inputs.find(p => p.id === (e.toPort || "in"));
+            const fp = activePorts(ba.def, a.config).outputs.find(p => p.id === e.fromPort), tp = activePorts(bt.def, t.config).inputs.find(p => p.id === (e.toPort || "in"));
             if (fp && tp && !compatible(fp.type, tp.type)) {
                 out.push({ level: "warning", code: "port_type", message: `"${PE.titleOf(a)}" hands out ${typeLabel(fp.type)} (${fp.label}), but "${PE.titleOf(t)}" expects ${typeLabel(tp.type)} (${tp.label}).`, nodeId: t.id, edgeId: e.id });
             }
@@ -905,6 +1047,7 @@
             + '"settings":[{"label":"","type":"text|textarea|number|select","defaultValue":"","options":["only for select"]}],"template":""}. '
             + "Use worker for an agent that does a job, reviewer for one that checks work, coordinator for one that briefs other agents, standard for plain prompt text. "
             + "The template is the instruction text the block adds to a prompt. Refer to parts with {{input:key}}, {{setting:key}} and {{output:key}}, where key is the label in lower case with each run of other characters replaced by one underscore. "
+            + 'Optionally add "dynamic":{"inputs":{"name":"","type":"text","min":2,"max":6,"count":2},"outputs":{"name":"","type":"text","min":2,"max":6,"count":2}} when the number of inputs or outputs should be adjustable on each copy, for example parallel tracks or a merge. For an adjustable side, leave that side out of inputs or outputs, list its ports in the template with {{inputs}} or {{outputs}} and use {{input_count}} or {{output_count}} for the number. Never make a coordinator\'s outputs adjustable. '
             + "At most 4 inputs, 4 outputs and 4 settings. For a coordinator, give each output an agent chosen only from: " + agents + ". Keep every text short and concrete.";
         btn.disabled = true;
         note.textContent = "Drafting...";
@@ -926,9 +1069,10 @@
     function renderTry() {
         const box = $("#pbp-st-try-inputs");
         if (!box) return;
-        const ins = S.def.inputs.filter(p => String(p.label).trim());
+        const cl = collect(true);
+        const ins = cl ? activePorts(cl, {}).inputs : [];
         box.innerHTML = ins.length ? ins.map(p => {
-            const k = slug(p.id || p.label);
+            const k = p.id;
             return `<div class="pbp-st-field"><label for="pbp-st-s-${k}">Sample for ${esc(p.label)}</label><textarea class="form-textarea" id="pbp-st-s-${k}" data-key="${k}" rows="2" placeholder="${esc(p.desc || "Paste a realistic example")}">${esc(S.samples[k] || "")}</textarea></div>`;
         }).join("") : `<p class="pbp-st-none">This block has no inputs, so it runs on its instructions alone.</p>`;
     }
@@ -942,10 +1086,11 @@
         if (!def.template.trim()) { out.textContent = "Write the instructions first, then run the block."; return; }
         const cfg = { content: def.template };
         def.settings.forEach(x => { cfg["setting_" + x.id] = x.defaultValue; });
-        const given = def.inputs.map(p => "### " + p.label + "\n" + ((S.samples[p.id] || "").trim() || "(empty)")).join("\n\n");
-        const outs = def.outputs.length ? def.outputs.map(p => p.label).join(", ") : "one answer";
+        const live = activePorts(def, {});
+        const given = live.inputs.map(p => "### " + p.label + "\n" + ((S.samples[p.id] || "").trim() || "(empty)")).join("\n\n");
+        const outs = live.outputs.length ? live.outputs.map(p => p.label).join(", ") : "one answer";
         const system = "You are running one reusable prompt block once, as a test. Follow its instructions using only what is given under INPUTS. Reply with one section per output, each headed with the output's name. If something needed is missing or empty, say what is missing instead of inventing it.";
-        const user = "BLOCK INSTRUCTIONS:\n" + resolve(def, cfg, [], true).trim() + "\n\nINPUTS:\n" + (given || "(none)") + "\n\nOUTPUTS TO PRODUCE: " + outs;
+        const user = "BLOCK INSTRUCTIONS:\n" + resolve(def, cfg, null, true).trim() + "\n\nINPUTS:\n" + (given || "(none)") + "\n\nOUTPUTS TO PRODUCE: " + outs;
         btn.disabled = true;
         out.textContent = "Running...";
         try {

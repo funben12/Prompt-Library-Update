@@ -828,3 +828,13 @@ Resulting state:
 - Cache values: Builder Pro loader, custom-blocks stylesheet and `builder-pro.css` are `20261122h`.
 - Verified in headless Chromium on clean data folders, no page errors: 41 checks for the new blocks, setting and background, 9 for the reverted Components screen, 33, 20 and 19 for the studio suites, all 13 built-in templates load, showcase validator passes, Stress Lab AI still works. Not checked: installed PyWebView on Windows.
 - Backups: `_rollbacks/22-11-2026-*-pre-v3.*`.
+
+### Block Studio adjustable port counts (2026-11-22)
+
+- Each side of a custom block is now Fixed ports or an Adjustable count (name, type, fewest 1 or more, most up to 12, starts with). Same engine as Parallel Execution and Merge: ports are generated as `in_1..in_max` / `out_1..`, the canvas shows the first n, `+`/`-` controls appear in the block's settings, wires to hidden ports are taken off with a notice. Definition field `dynamic: { inputs, outputs }`. Full detail in `docs/prompt-builder-pro/block-creation-studio.md`.
+- New tokens: `{{inputs}}`, `{{outputs}}` (ports with their wiring), `{{input_count}}`, `{{output_count}}`. Starters "Parallel tracks" and "Merge" are the editable versions of the built-in blocks. A team coordinator keeps fixed outputs.
+- `builder-pro.js`: every adjustable side carries its own `key`, `min`, `max`, `def` (`dynamic` on the registered block, `sideCount`, `clampCount(v, fallback, min, max)`), so built-in blocks use 2 to 8 and custom blocks use their own range.
+- The Fixed/Adjustable switch lives in its own bar (`#pbp-st-inputs-mode`, `#pbp-st-outputs-mode`) above each ports list, so the rows keep their positions.
+- Cache value is `20261122j`. Verified: 37 new checks plus 19, 20, 33, 41 and 9 from earlier suites, all 13 templates load, Stress Lab AI still works, no page errors. Not checked: installed PyWebView.
+- Backups: `_rollbacks/22-11-2026-*-pre-dyn.*`.
+- Found while working, NOT yet fixed (awaiting approval): the Settings flyout `#configPanel` has no height limit, so with its current content (about 960 px) it grows past short windows, its header and close button go off-screen and the body cannot scroll. Proposed fix in `app.css`: `max-height: 100vh` on `#configPanel` and `min-height: 0` on `.config-panel-body`.
