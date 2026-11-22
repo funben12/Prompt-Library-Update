@@ -12216,17 +12216,7 @@ Must avoid: [Anything sensitive or previously declined]`
             zoom: 1,
             panX: 0,
             panY: 0
-        }; // zoom PCW_ZOOM_MIN to PCW_ZOOM_MAX, pan in pixels
-        var _canvasLinks = []; // wires between blocks: { from: blockId, to: blockId }
-        var _pcwChainMode = false; // while true, every new block is wired after the last open end
-        var _pcwSelLink = null; // key of the selected wire, "fromId>toId"
-        var PCW_ZOOM_MIN = 0.1,
-            PCW_ZOOM_MAX = 3;
-        var _pcwUidN = 0;
-
-        function _pcwUid() {
-            return 'b' + Date.now().toString(36) + (++_pcwUidN).toString(36);
-        }
+        }; // zoom 0.25-2.0, pan in pixels
         var _activeCat = 'all';
         var _dragSrcIdx = null;
         var _dragStartX = null; // for tracking spacebar drag pan
@@ -12238,16 +12228,6 @@ Must avoid: [Anything sensitive or previously declined]`
             var _pcwDraft = JSON.parse(localStorage.getItem('pl_pcw_draft') || 'null');
             if (_pcwDraft && Array.isArray(_pcwDraft.blocks)) {
                 _canvasBlocks = _pcwDraft.blocks;
-                _canvasBlocks.forEach(function(b) {
-                    if (!b.id) b.id = _pcwUid();
-                });
-                _canvasLinks = Array.isArray(_pcwDraft.links) ? _pcwDraft.links : [];
-                _canvasLinks.forEach(function(l) {
-                    // Older drafts stored connection slots; the lower pair meant background
-                    if (!l.kind) l.kind = (l.fp === 1 || l.tp === 1) ? 'support' : 'flow';
-                    delete l.fp;
-                    delete l.tp;
-                });
                 _pcwDraftTitle = _pcwDraft.title || '';
                 if (_pcwDraft.view && typeof _pcwDraft.view.zoom === 'number') _canvasState = _pcwDraft.view;
             }
@@ -12260,7 +12240,6 @@ Must avoid: [Anything sensitive or previously declined]`
                 var t = $('#pcwTitleInput') ? $('#pcwTitleInput').value : '';
                 localStorage.setItem('pl_pcw_draft', JSON.stringify({
                     blocks: _canvasBlocks,
-                    links: _canvasLinks,
                     title: t,
                     view: _canvasState
                 }));
@@ -12604,8 +12583,8 @@ Must avoid: [Anything sensitive or previously declined]`
             });
         }
 
-        /* ---- Reading order: top-to-bottom, ties left-to-right ---- */
-        function _pcwSpatial() {
+        /* ---- Spatial assembly order: top-to-bottom, ties left-to-right ---- */
+        function _pcwOrdered() {
             return _canvasBlocks.map(function(b, i) {
                 return {
                     b: b,
@@ -12617,82 +12596,6 @@ Must avoid: [Anything sensitive or previously declined]`
                 if (Math.abs(ya - yb) > 24) return ya - yb;
                 return (p.b.x || 0) - (q.b.x || 0);
             });
-        }
-
-        /* ---- Assembly order ----
-               Order wires (top dots) make the chain. A background wire (lower dots) from a block that is not in the chain
-               places it right before the block it supports. Blocks with no wire come last. With no wires at all it is
-               simply the reading order. ---- */
-        function _pcwOrdered() {
-            var base = _pcwSpatial();
-            if (!_canvasLinks.length) return base;
-            var byId = {},
-                pos = {},
-                indeg = {},
-                outs = {},
-                inFlow = {},
-                support = {},
-                hasBg = {};
-            base.forEach(function(o, k) {
-                if (!o.b.id) return;
-                byId[o.b.id] = o;
-                pos[o.b.id] = k;
-                indeg[o.b.id] = 0;
-                outs[o.b.id] = [];
-            });
-            _canvasLinks.forEach(function(l) {
-                if (!byId[l.from] || !byId[l.to]) return;
-                if (l.kind === 'support') {
-                    (support[l.to] = support[l.to] || []).push(l.from);
-                    hasBg[l.from] = true;
-                    return;
-                }
-                outs[l.from].push(l.to);
-                indeg[l.to]++;
-                inFlow[l.from] = inFlow[l.to] = true;
-            });
-            var byPos = function(p, q) {
-                return pos[p.b.id] - pos[q.b.id];
-            };
-            var ready = base.filter(function(o) {
-                return o.b.id && inFlow[o.b.id] && indeg[o.b.id] === 0;
-            });
-            var chain = [],
-                done = {};
-            while (ready.length) {
-                ready.sort(byPos);
-                var cur = ready.shift();
-                chain.push(cur);
-                done[cur.b.id] = true;
-                outs[cur.b.id].forEach(function(t) {
-                    if (--indeg[t] === 0) ready.push(byId[t]);
-                });
-            }
-            var out = [],
-                emitted = {};
-
-            function emit(o) {
-                if (o.b.id) {
-                    if (emitted[o.b.id]) return;
-                    emitted[o.b.id] = true;
-                    (support[o.b.id] || []).map(function(id) {
-                        return byId[id];
-                    }).filter(function(s) {
-                        return s && !emitted[s.b.id] && !inFlow[s.b.id];
-                    }).sort(byPos).forEach(emit);
-                }
-                out.push(o);
-            }
-            chain.forEach(emit);
-            base.forEach(function(o) {
-                // Background blocks are placed by the block they support
-                if (o.b.id && !inFlow[o.b.id] && hasBg[o.b.id]) return;
-                emit(o);
-            });
-            base.forEach(function(o) {
-                if (o.b.id && !emitted[o.b.id]) emit(o);
-            });
-            return out;
         }
 
         /* ---- Where a new block lands: near view centre, slightly staggered ---- */
@@ -12713,15 +12616,6 @@ Must avoid: [Anything sensitive or previously declined]`
             var world = $('#pcwWorld');
             if (world) {
                 world.style.transform = 'translate(' + _canvasState.panX + 'px,' + _canvasState.panY + 'px) scale(' + _canvasState.zoom + ')';
-            }
-            // The dot grid travels with the board, so it never ends
-            var zoneEl = $('#pcwDropZone');
-            if (zoneEl) {
-                var step = 22;
-                while (step * _canvasState.zoom < 14) step *= 2;
-                var cell = step * _canvasState.zoom;
-                zoneEl.style.backgroundSize = cell + 'px ' + cell + 'px';
-                zoneEl.style.backgroundPosition = _canvasState.panX + 'px ' + _canvasState.panY + 'px';
             }
             var zl = $('#pcwZoomLabel');
             if (zl) zl.textContent = Math.round(_canvasState.zoom * 100) + '%';
@@ -12758,7 +12652,7 @@ Must avoid: [Anything sensitive or previously declined]`
             var w = maxX - minX + pad * 2,
                 h = maxY - minY + pad * 2;
             var z = Math.min(zone.clientWidth / w, zone.clientHeight / h, 1.4);
-            z = Math.max(PCW_ZOOM_MIN, Math.min(PCW_ZOOM_MAX, z));
+            z = Math.max(0.25, Math.min(2, z));
             _canvasState.zoom = z;
             _canvasState.panX = (zone.clientWidth - (maxX - minX) * z) / 2 - minX * z;
             _canvasState.panY = (zone.clientHeight - (maxY - minY) * z) / 2 - minY * z;
@@ -12778,47 +12672,12 @@ Must avoid: [Anything sensitive or previously declined]`
             if (hint) hint.style.display = _canvasBlocks.length ? 'none' : 'flex';
             if (count) count.textContent = _canvasBlocks.length + ' block' + (_canvasBlocks.length !== 1 ? 's' : '');
 
-            // Blocks without coordinates (old drafts, quick-starts) flow left to right, three to a row, so wires stay visible
+            // Blocks without coordinates (old drafts, quick-starts, AI build) fall into a tidy column
             _canvasBlocks.forEach(function(b, i) {
                 if (typeof b.x !== 'number' || typeof b.y !== 'number') {
-                    b.x = 60 + (i % 3) * 520;
-                    b.y = 60 + Math.floor(i / 3) * 340;
+                    b.x = 60;
+                    b.y = 60 + i * (b.collapsed ? 64 : 240);
                 }
-            });
-
-            // Every block carries a stable id so wires can point at it
-            var freshIdx = [];
-            _canvasBlocks.forEach(function(b, i) {
-                if (!b.id) {
-                    b.id = _pcwUid();
-                    freshIdx.push(i);
-                }
-            });
-            var freshIds = {},
-                liveIds = {};
-            freshIdx.forEach(function(i) {
-                freshIds[_canvasBlocks[i].id] = 1;
-            });
-            _canvasBlocks.forEach(function(b) {
-                liveIds[b.id] = 1;
-            });
-            _canvasLinks = _canvasLinks.filter(function(l) {
-                return liveIds[l.from] && liveIds[l.to];
-            });
-            // Several blocks added at once (framework, quick start, cart) arrive wired in order
-            var joinEnd = _pcwAutoLink() && freshIdx.length === 1 && _canvasBlocks.length > 1;
-            if (freshIdx.length > 1 || ((_pcwChainMode || joinEnd) && freshIdx.length)) {
-                var prevId = (_pcwChainMode || joinEnd) ? _pcwTailId(freshIds) : null;
-                freshIdx.forEach(function(i) {
-                    var fid = _canvasBlocks[i].id;
-                    if (prevId) _pcwLink(prevId, fid, true);
-                    prevId = fid;
-                });
-            }
-            var linkedIds = {};
-            _canvasLinks.forEach(function(l) {
-                linkedIds[l.from] = 1;
-                linkedIds[l.to] = 1;
             });
 
             world.innerHTML = '';
@@ -12829,8 +12688,7 @@ Must avoid: [Anything sensitive or previously declined]`
 
             _canvasBlocks.forEach(function(b, idx) {
                 var card = document.createElement('div');
-                card.className = 'pcw-canvas-block pcw-float' + (b.collapsed ? ' collapsed' : '') + (_canvasLinks.length && !linkedIds[b.id] ? ' pcw-loose' : '');
-                card.dataset.blockId = b.id;
+                card.className = 'pcw-canvas-block pcw-float' + (b.collapsed ? ' collapsed' : '');
                 card.style.setProperty('--blk-color', _pcwCatColor(b.cat));
                 card.style.left = (b.x || 0) + 'px';
                 card.style.top = (b.y || 0) + 'px';
@@ -12838,15 +12696,10 @@ Must avoid: [Anything sensitive or previously declined]`
                 var cardBlanks = countBlanks(b.text);
                 var cardSnippet = escH(String(b.text).replace(/\s+/g, ' ').slice(0, 90));
                 card.innerHTML =
-                    '<button type="button" class="pcw-port pcw-port-in" data-port="in" data-slot="0" data-label="Previous step" tabindex="-1" aria-label="Order in: the previous step" title="Order in. Drop the previous block\'s wire here."></button>' +
-                    '<button type="button" class="pcw-port pcw-port-in" data-port="in" data-slot="1" data-label="Background in" tabindex="-1" aria-label="Background in" title="Background in. A block attached here is placed just before this one."></button>' +
-                    '<button type="button" class="pcw-port pcw-port-out" data-port="out" data-slot="0" data-label="Next step (click to add)" tabindex="-1" aria-label="Order out: the next step" title="Order out. Drag to the next block, or click to add one."></button>' +
-                    '<button type="button" class="pcw-port pcw-port-out" data-port="out" data-slot="1" data-label="Use as background" tabindex="-1" aria-label="Background out" title="Background out. Drag to a block this one should support."></button>' +
                     '<div class="pcw-block-header" title="Drag to move — click to collapse">' +
                     '<span class="material-symbols-outlined pcw-block-drag-handle">drag_indicator</span>' +
-                    '<span class="pcw-block-step" title="Assembly order: follows your wires, then top to bottom">' + order[idx] + '</span>' +
+                    '<span class="pcw-block-step" title="Assembly order: top to bottom, left to right">' + order[idx] + '</span>' +
                     '<span class="pcw-block-type-badge">' + escH(b.label) + '</span>' +
-                    (_canvasLinks.length && !linkedIds[b.id] ? '<span class="pcw-loose-chip" title="Not wired, so it goes last in the prompt">not wired</span>' : '') +
                     (cardBlanks ? '<span class="pcw-blank-chip" title="' + cardBlanks + ' unfilled placeholders">' + cardBlanks + '</span>' : '') +
                     '<span class="pcw-block-snippet">' + cardSnippet + '</span>' +
                     '<button type="button" class="pcw-block-collapse" aria-expanded="' + (!b.collapsed) + '" aria-label="Expand or collapse block">' +
@@ -12866,7 +12719,6 @@ Must avoid: [Anything sensitive or previously declined]`
                     _canvasBlocks[idx].text = e.target.value;
                     e.target.style.height = 'auto';
                     e.target.style.height = Math.min(e.target.scrollHeight + 2, 420) + 'px';
-                    _pcwDrawWires();
                     _pcwSaveDraft();
                     _pcwUpdatePreview();
                     _pcwUpdateStats();
@@ -12877,33 +12729,8 @@ Must avoid: [Anything sensitive or previously declined]`
                     renderCanvas();
                 });
                 card.querySelector('.pcw-block-remove').addEventListener('click', function() {
-                    // Removing a block in the middle of a chain joins its neighbours back up
-                    var rid = _canvasBlocks[idx].id;
-                    var preds = _canvasLinks.filter(function(l) {
-                        return l.to === rid && l.kind !== 'support';
-                    }).map(function(l) {
-                        return l.from;
-                    });
-                    var succs = _canvasLinks.filter(function(l) {
-                        return l.from === rid && l.kind !== 'support';
-                    }).map(function(l) {
-                        return l.to;
-                    });
-                    _canvasLinks = _canvasLinks.filter(function(l) {
-                        return l.from !== rid && l.to !== rid;
-                    });
-                    preds.forEach(function(p) {
-                        succs.forEach(function(s2) {
-                            _pcwLink(p, s2, true);
-                        });
-                    });
                     _canvasBlocks.splice(idx, 1);
                     renderCanvas();
-                });
-                card.querySelectorAll('.pcw-port').forEach(function(port) {
-                    port.addEventListener('mousedown', function(e) {
-                        _pcwStartWire(e, b.id, port.dataset.port, parseInt(port.dataset.slot, 10) || 0);
-                    });
                 });
 
                 // Header drag moves the card; a sub-4px press is a collapse toggle
@@ -12927,7 +12754,6 @@ Must avoid: [Anything sensitive or previously declined]`
                             _canvasBlocks[idx].y = origY + (ev.clientY - startY) / _canvasState.zoom;
                             card.style.left = _canvasBlocks[idx].x + 'px';
                             card.style.top = _canvasBlocks[idx].y + 'px';
-                            _pcwDrawWires();
                         }
                     }
 
@@ -12947,405 +12773,15 @@ Must avoid: [Anything sensitive or previously declined]`
                 });
             });
 
-            _pcwDrawWires();
             _pcwApplyView();
             _pcwSaveDraft();
             _pcwUpdatePreview();
             _pcwUpdateStats();
         }
 
-        /* ════════ WIRES: two connection points per block (in on the left, out on the right) ════════ */
-        var _PCW_NS = 'http://www.w3.org/2000/svg';
-
-        function _pcwBlockById(id) {
-            return _canvasBlocks.filter(function(b) {
-                return b.id === id;
-            })[0] || null;
-        }
-
-        // Would a wire from -> to close a loop? True when `to` already leads back to `from`.
-        function _pcwReaches(fromId, toId) {
-            var seen = {},
-                stack = [fromId];
-            while (stack.length) {
-                var cur = stack.pop();
-                if (cur === toId) return true;
-                if (seen[cur]) continue;
-                seen[cur] = 1;
-                _canvasLinks.forEach(function(l) {
-                    if (l.from === cur) stack.push(l.to);
-                });
-            }
-            return false;
-        }
-
-        // kind: "flow" sets the order (top dots), "support" attaches background (lower dots)
-        function _pcwLink(from, to, quiet, kind) {
-            if (!from || !to || from === to) return false;
-            kind = kind === 'support' ? 'support' : 'flow';
-            var existing = _canvasLinks.filter(function(l) {
-                return l.from === from && l.to === to;
-            })[0];
-            if (existing) {
-                // The same pair again switches the wire between order and background
-                if ((existing.kind || 'flow') === kind) {
-                    if (!quiet) toast('Already connected', 'info');
-                    return false;
-                }
-                existing.kind = kind;
-                return true;
-            }
-            if (_pcwReaches(to, from)) {
-                if (!quiet) toast('That would make a loop. Connect to a block that comes later.', 'warning');
-                return false;
-            }
-            _canvasLinks.push({
-                from: from,
-                to: to,
-                kind: kind
-            });
-            return true;
-        }
-
-        // End of the current chain: where a new block joins. Falls back to the last block in reading order.
-        function _pcwTailId(skip) {
-            var ord = _pcwOrdered().filter(function(o) {
-                return !skip[o.b.id];
-            });
-            var inFlow = {};
-            _canvasLinks.forEach(function(l) {
-                if (l.kind !== 'support') inFlow[l.from] = inFlow[l.to] = true;
-            });
-            var chain = ord.filter(function(o) {
-                return inFlow[o.b.id];
-            });
-            var pool = chain.length ? chain : ord;
-            for (var i = pool.length - 1; i >= 0; i--) {
-                var id = pool[i].b.id;
-                var hasOut = _canvasLinks.some(function(l) {
-                    return l.from === id && l.kind !== 'support';
-                });
-                if (!hasOut) return id;
-            }
-            return null;
-        }
-
-        function _pcwPortPos(id, side, slot) {
-            var b = _pcwBlockById(id);
-            if (!b) return null;
-            var el = document.querySelector('#pcwWorld .pcw-canvas-block[data-block-id="' + id + '"]');
-            var w = el ? el.offsetWidth : 380,
-                h = el ? el.offsetHeight : 120;
-            return {
-                x: (b.x || 0) + (side === 'out' ? w : 0),
-                y: (b.y || 0) + h * (slot ? 0.7 : 0.3)
-            };
-        }
-
-        function _pcwWireD(p1, p2) {
-            var dx = Math.max(40, Math.min(180, Math.abs(p2.x - p1.x) / 2));
-            return 'M' + p1.x + ' ' + p1.y + ' C' + (p1.x + dx) + ' ' + p1.y + ' ' + (p2.x - dx) + ' ' + p2.y + ' ' + p2.x + ' ' + p2.y;
-        }
-
-        function _pcwSvg() {
-            var world = $('#pcwWorld');
-            if (!world) return null;
-            var svg = world.querySelector('.pcw-wires');
-            if (!svg) {
-                svg = document.createElementNS(_PCW_NS, 'svg');
-                svg.setAttribute('class', 'pcw-wires');
-                svg.setAttribute('aria-hidden', 'true');
-                world.insertBefore(svg, world.firstChild);
-                svg.addEventListener('click', function(e) {
-                    var g = e.target.closest('.pcw-wire-g');
-                    if (!g) return;
-                    var key = g.getAttribute('data-link');
-                    if (e.target.closest('.pcw-wire-del')) {
-                        _pcwRemoveLink(key);
-                        return;
-                    }
-                    _pcwSelLink = _pcwSelLink === key ? null : key;
-                    _pcwDrawWires();
-                });
-            }
-            return svg;
-        }
-
-        function _pcwDrawWires() {
-            var svg = _pcwSvg();
-            if (!svg) return;
-            var html = '<defs><marker id="pcw-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 1L10 5L0 9z" fill="context-stroke"/></marker></defs>';
-            _canvasLinks.forEach(function(l) {
-                var slot = l.kind === 'support' ? 1 : 0;
-                var p1 = _pcwPortPos(l.from, 'out', slot),
-                    p2 = _pcwPortPos(l.to, 'in', slot);
-                if (!p1 || !p2) return;
-                var key = l.from + '>' + l.to;
-                var src = _pcwBlockById(l.from);
-                // The arrow stops at the edge of the input dot
-                var d = _pcwWireD(p1, {
-                    x: p2.x - 9,
-                    y: p2.y
-                });
-                var mx = (p1.x + p2.x) / 2,
-                    my = (p1.y + p2.y) / 2;
-                html += '<g class="pcw-wire-g' + (_pcwSelLink === key ? ' selected' : '') + '" data-link="' + key + '">' +
-                    '<path class="pcw-wire-hit" d="' + d + '"/>' +
-                    '<path class="pcw-wire' + (slot ? ' pcw-wire-support' : '') + '" d="' + d + '" marker-end="url(#pcw-arrow)" style="stroke:' + _pcwCatColor(src && src.cat) + '"/>' +
-                    '<g class="pcw-wire-del" transform="translate(' + mx + ',' + my + ')"><title>Remove this wire</title><circle r="9"/><path d="M-3.5 -3.5L3.5 3.5M3.5 -3.5L-3.5 3.5"/></g></g>';
-            });
-            svg.innerHTML = html;
-        }
-
-        function _pcwRemoveLink(key) {
-            _canvasLinks = _canvasLinks.filter(function(l) {
-                return (l.from + '>' + l.to) !== key;
-            });
-            _pcwSelLink = null;
-            renderCanvas();
-        }
-
-        // The block under the pointer
-        function _pcwBlockAt(ev) {
-            var el = document.elementFromPoint(ev.clientX, ev.clientY);
-            var card = el && el.closest ? el.closest('.pcw-canvas-block') : null;
-            return card ? {
-                id: card.dataset.blockId,
-                el: card
-            } : null;
-        }
-
-        // Drag from a dot to another block. The top dots set the order, the lower dots attach background.
-        // A plain click on a top right dot opens "add the next block". Dragging from an input wires backwards.
-        function _pcwStartWire(e, id, side, slot) {
-            if (e.button !== 0) return;
-            e.preventDefault();
-            e.stopPropagation();
-            _pcwClosePicker();
-            var kind = slot ? 'support' : 'flow';
-            var zone = $('#pcwDropZone'),
-                svg = _pcwSvg(),
-                anchor = _pcwPortPos(id, side, slot);
-            if (!zone || !svg || !anchor) return;
-            var src = _pcwBlockById(id);
-            var temp = document.createElementNS(_PCW_NS, 'path');
-            temp.setAttribute('class', 'pcw-wire pcw-wire-temp' + (slot ? ' pcw-wire-support' : ''));
-            temp.style.stroke = _pcwCatColor(src && src.cat);
-            svg.appendChild(temp);
-            zone.classList.add('connecting');
-            var want = side === 'out' ? 'in' : 'out';
-            var hotCard = null,
-                hotPort = null,
-                moved = false,
-                sx = e.clientX,
-                sy = e.clientY;
-
-            function clearHot() {
-                if (hotCard) hotCard.classList.remove('pcw-wire-target');
-                if (hotPort) hotPort.classList.remove('pcw-port-hot');
-                hotCard = hotPort = null;
-            }
-
-            function toWorld(ev) {
-                var r = zone.getBoundingClientRect();
-                return {
-                    x: (ev.clientX - r.left - _canvasState.panX) / _canvasState.zoom,
-                    y: (ev.clientY - r.top - _canvasState.panY) / _canvasState.zoom
-                };
-            }
-
-            function onMove(ev) {
-                if (!moved && Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) > 5) moved = true;
-                var p = toWorld(ev);
-                temp.setAttribute('d', side === 'out' ? _pcwWireD(anchor, p) : _pcwWireD(p, anchor));
-                var t = moved ? _pcwBlockAt(ev) : null;
-                var card = t && t.id !== id ? t.el : null;
-                var port = card ? card.querySelector('.pcw-port-' + want + '[data-slot="' + slot + '"]') : null;
-                if (card !== hotCard || port !== hotPort) {
-                    clearHot();
-                    if (card) card.classList.add('pcw-wire-target');
-                    if (port) port.classList.add('pcw-port-hot');
-                    hotCard = card;
-                    hotPort = port;
-                }
-            }
-
-            function onUp(ev) {
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', onUp);
-                zone.classList.remove('connecting');
-                clearHot();
-                if (temp.parentNode) temp.parentNode.removeChild(temp);
-                if (!moved) {
-                    if (side === 'out' && !slot) _pcwOpenPicker(id);
-                    return;
-                }
-                var t = _pcwBlockAt(ev);
-                if (t && t.id !== id) {
-                    var made = side === 'out' ? _pcwLink(id, t.id, false, kind) : _pcwLink(t.id, id, false, kind);
-                    if (made) renderCanvas();
-                }
-            }
-            onMove(e);
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup', onUp);
-        }
-
-        /* ---- Add the next block: click a top right dot ---- */
-        var _pcwPickerEl = null;
-
-        function _pcwClosePicker() {
-            if (!_pcwPickerEl) return;
-            _pcwPickerEl.remove();
-            _pcwPickerEl = null;
-            document.removeEventListener('mousedown', _pcwPickerAway, true);
-            document.removeEventListener('keydown', _pcwPickerKey, true);
-        }
-
-        function _pcwPickerAway(e) {
-            if (_pcwPickerEl && !_pcwPickerEl.contains(e.target)) _pcwClosePicker();
-        }
-
-        function _pcwPickerKey(e) {
-            if (e.key === 'Escape') {
-                e.stopPropagation();
-                _pcwClosePicker();
-            }
-        }
-
-        // A spot to the right of a block that no other block is sitting on
-        function _pcwFreeSpot(x, y) {
-            for (var i = 0; i < 14; i++) {
-                var taken = _canvasBlocks.some(function(b) {
-                    return Math.abs((b.x || 0) - x) < 400 && Math.abs((b.y || 0) - y) < 260;
-                });
-                if (!taken) break;
-                y += 340;
-            }
-            return {
-                x: x,
-                y: y
-            };
-        }
-
-        // Pan the board only when the block is off screen
-        function _pcwReveal(id) {
-            var zone = $('#pcwDropZone'),
-                b = _pcwBlockById(id);
-            if (!zone || !b) return;
-            var z = _canvasState.zoom;
-            var left = b.x * z + _canvasState.panX,
-                top = b.y * z + _canvasState.panY;
-            if (left < 20 || top < 20 || left + 380 * z > zone.clientWidth - 20 || top + 200 * z > zone.clientHeight - 20) {
-                _canvasState.panX = zone.clientWidth / 2 - (b.x + 190) * z;
-                _canvasState.panY = zone.clientHeight / 2 - (b.y + 90) * z;
-                _pcwApplyView();
-                _pcwSaveDraft();
-            }
-        }
-
-        function _pcwAddAfter(fromId, item) {
-            var src = _pcwBlockById(fromId);
-            if (!src || !item) return;
-            var spot = _pcwFreeSpot((src.x || 0) + 520, src.y || 0);
-            var blk = {
-                id: _pcwUid(),
-                label: item.label,
-                text: item.text,
-                cat: item.cat || null,
-                collapsed: false,
-                x: spot.x,
-                y: spot.y
-            };
-            _canvasBlocks.push(blk);
-            _pcwLink(fromId, blk.id, true);
-            renderCanvas();
-            _pcwReveal(blk.id);
-        }
-
-        function _pcwOpenPicker(fromId) {
-            _pcwClosePicker();
-            var zone = $('#pcwDropZone'),
-                p = _pcwPortPos(fromId, 'out', 0);
-            if (!zone || !p) return;
-            var el = document.createElement('div');
-            el.className = 'pcw-picker';
-            el.setAttribute('role', 'dialog');
-            el.setAttribute('aria-label', 'Add the next block');
-            el.innerHTML = '<div class="pcw-picker-head">Add the next block</div>' +
-                '<input type="search" class="form-input" placeholder="Search blocks" aria-label="Search blocks" autocomplete="off">' +
-                '<ul class="pcw-picker-list"></ul>' +
-                '<button type="button" class="pcw-picker-more">Browse the whole library</button>';
-            var left = p.x * _canvasState.zoom + _canvasState.panX + 18;
-            var top = p.y * _canvasState.zoom + _canvasState.panY - 24;
-            el.style.left = Math.max(8, Math.min(left, zone.clientWidth - 300)) + 'px';
-            el.style.top = Math.max(8, Math.min(top, zone.clientHeight - 340)) + 'px';
-            zone.appendChild(el);
-            _pcwPickerEl = el;
-            var QUICK = ['Role', 'Context', 'Task', 'Constraints', 'Examples', 'Output Format'];
-            var input = el.querySelector('input'),
-                list = el.querySelector('.pcw-picker-list');
-
-            function draw() {
-                var q = input.value.trim().toLowerCase();
-                var items = [];
-                if (!q) {
-                    QUICK.forEach(function(lbl) {
-                        var hit = BLOCKS.filter(function(b) {
-                            return b.label === lbl;
-                        })[0];
-                        if (hit) items.push(hit);
-                    });
-                } else {
-                    items = BLOCKS.filter(function(b) {
-                        return (b.label || '').toLowerCase().indexOf(q) !== -1 || (b.text || '').toLowerCase().indexOf(q) !== -1;
-                    }).slice(0, 8);
-                }
-                list.innerHTML = items.length ? items.map(function(b) {
-                    return '<li><button type="button" data-bi="' + BLOCKS.indexOf(b) + '"><span class="pcw-picker-dot" style="background:' + _pcwCatColor(b.cat) + '"></span><span>' + escH(b.label) + '</span></button></li>';
-                }).join('') : '<li class="pcw-picker-empty">No blocks match</li>';
-            }
-            draw();
-            input.addEventListener('input', draw);
-            list.addEventListener('click', function(ev) {
-                var btn = ev.target.closest('[data-bi]');
-                if (!btn) return;
-                _pcwClosePicker();
-                _pcwAddAfter(fromId, BLOCKS[parseInt(btn.dataset.bi, 10)]);
-            });
-            el.querySelector('.pcw-picker-more').addEventListener('click', function() {
-                _pcwClosePicker();
-                _galOpen({
-                    mode: 'home'
-                });
-            });
-            document.addEventListener('mousedown', _pcwPickerAway, true);
-            document.addEventListener('keydown', _pcwPickerKey, true);
-            input.focus();
-        }
-
-        // Wire every block to the next one in reading order
-        function _pcwChainAll() {
-            _canvasLinks = [];
-            var ord = _pcwSpatial();
-            for (var i = 1; i < ord.length; i++) _pcwLink(ord[i - 1].b.id, ord[i].b.id, true);
-            renderCanvas();
-        }
-
         /* ---- Add block to canvas ---- */
-        // New blocks join the end of the chain (switch off in the help card). Without a drop position they land to its right.
-        function _pcwAutoLink() {
-            var v = window.PL_prefs ? window.PL_prefs.get('pcw_autolink') : null;
-            return v !== '0';
-        }
-
         function addBlock(label, text, cat, pos) {
-            var p = pos;
-            if (!p) {
-                var tailId = _pcwAutoLink() && _canvasBlocks.length ? _pcwTailId({}) : null;
-                var tail = tailId ? _pcwBlockById(tailId) : null;
-                p = tail ? _pcwFreeSpot((tail.x || 0) + 520, tail.y || 0) : _pcwNextPos();
-            }
+            var p = pos || _pcwNextPos();
             _canvasBlocks.push({
                 label: label,
                 text: text,
@@ -13355,7 +12791,6 @@ Must avoid: [Anything sensitive or previously declined]`
                 y: p.y
             });
             renderCanvas();
-            _pcwReveal(_canvasBlocks[_canvasBlocks.length - 1].id);
         }
 
         function _pcwCatColor(cat) {
@@ -13368,27 +12803,12 @@ Must avoid: [Anything sensitive or previously declined]`
         /* ---- Add framework ---- */
         function addFramework(fw) {
             if (fw.blocks) {
-                var base = _pcwNextPos(),
-                    n = 0;
                 fw.blocks.forEach(function(blockLabel) {
                     var b = BLOCKS.filter(function(x) {
                         return x.label === blockLabel;
                     })[0];
-                    if (!b) return;
-                    _canvasBlocks.push({
-                        label: b.label,
-                        text: b.text,
-                        cat: b.cat || null,
-                        collapsed: false,
-                        x: base.x + (n % 3) * 520,
-                        y: base.y + Math.floor(n / 3) * 340
-                    });
-                    n++;
+                    if (b) addBlock(b.label, b.text);
                 });
-                if (n) {
-                    renderCanvas();
-                    if (n > 1) _pcwFitView();
-                }
             } else if (fw.text) {
                 addBlock(fw.name, fw.text);
             }
@@ -13485,11 +12905,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 var fwIdx = e.dataTransfer.getData('pcw-fw');
                 if (blockIdx !== '') {
                     var b = BLOCKS[parseInt(blockIdx, 10)];
-                    var zr = zone.getBoundingClientRect();
-                    if (b) addBlock(b.label, b.text, b.cat, {
-                        x: (e.clientX - zr.left - _canvasState.panX) / _canvasState.zoom - 190,
-                        y: (e.clientY - zr.top - _canvasState.panY) / _canvasState.zoom - 30
-                    });
+                    if (b) addBlock(b.label, b.text, b.cat);
                 } else if (fwIdx !== '') {
                     var f = FRAMEWORKS[parseInt(fwIdx, 10)];
                     if (f) addFramework(f);
@@ -13592,9 +13008,9 @@ Must avoid: [Anything sensitive or previously declined]`
                     label: it.label,
                     text: it.text,
                     cat: it.cat || null,
-                    collapsed: false,
-                    x: base.x + (i % 3) * 520,
-                    y: base.y + Math.floor(i / 3) * 340
+                    collapsed: i < _galCart.length - 1,
+                    x: base.x,
+                    y: base.y + i * 70
                 });
             });
             var n = _galCart.length;
@@ -14057,7 +13473,6 @@ Must avoid: [Anything sensitive or previously declined]`
             _aiClose();
             if (replace) {
                 _canvasBlocks = [];
-                _canvasLinks = [];
                 renderCanvas();
             }
             if (opt.title && $('#pcwTitleInput') && !$('#pcwTitleInput').value.trim()) {
@@ -14073,13 +13488,12 @@ Must avoid: [Anything sensitive or previously declined]`
             var zone = $('#pcwDropZone');
             var startCount = _canvasBlocks.length;
             var first = true;
-            _pcwChainMode = true; // blocks the AI adds one by one are wired in order
 
             try {
                 for (var i = 0; i < items.length; i++) {
                     var b = items[i];
-                    var tx = 80 + ((startCount + i) % 3) * 520,
-                        ty = 80 + Math.floor((startCount + i) / 3) * 340;
+                    var tx = 80,
+                        ty = 80 + (startCount + i) * 70;
                     var wsOpen = ws && ws.classList.contains('open');
                     if (_aiSkip || reduced || !wsOpen) {
                         _galClose();
@@ -14087,7 +13501,7 @@ Must avoid: [Anything sensitive or previously declined]`
                             label: b.label,
                             text: b.text,
                             cat: b.cat,
-                            collapsed: false,
+                            collapsed: i < items.length - 1,
                             x: tx,
                             y: ty
                         });
@@ -14165,7 +13579,7 @@ Must avoid: [Anything sensitive or previously declined]`
                         label: b.label,
                         text: b.text,
                         cat: b.cat,
-                        collapsed: false,
+                        collapsed: i < items.length - 1,
                         x: tx,
                         y: ty
                     });
@@ -14179,7 +13593,6 @@ Must avoid: [Anything sensitive or previously declined]`
                 if (ws) ws.classList.remove('pcw-ai-driving');
             }
             renderCanvas();
-            _pcwChainMode = false;
             var sheet = $('#pcwPreviewSheet');
             if (sheet && !sheet.classList.contains('open')) {
                 sheet.classList.add('open');
@@ -14270,7 +13683,6 @@ Must avoid: [Anything sensitive or previously declined]`
                         btn.innerHTML = '<span class="material-symbols-outlined">restart_alt</span> Clear canvas';
                         btn.style.cssText = '';
                         _canvasBlocks = [];
-                        _canvasLinks = [];
                         renderCanvas();
                     } else {
                         _pcwClearArmed = true;
@@ -14447,15 +13859,10 @@ Must avoid: [Anything sensitive or previously declined]`
             var zoneEl = $('#pcwDropZone');
             if (zoneEl) {
                 zoneEl.addEventListener('mousedown', function(e) {
-                    if (e.button !== 0 && e.button !== 1) return;
-                    if (e.button === 0 && (e.target.closest('.pcw-canvas-block') || e.target.closest('.pcw-quickstarts') ||
-                            e.target.closest('.pcw-view-tools') || e.target.closest('button') || e.target.closest('.pcw-wire-g') || e.target.closest('.pcw-help') || e.target.closest('.pcw-picker'))) return;
-                    if (e.button === 1 && e.target.closest('.pcw-view-tools')) return;
+                    if (e.button !== 0) return;
+                    if (e.target.closest('.pcw-canvas-block') || e.target.closest('.pcw-quickstarts') ||
+                        e.target.closest('.pcw-view-tools') || e.target.closest('button')) return;
                     e.preventDefault();
-                    if (_pcwSelLink) {
-                        _pcwSelLink = null;
-                        _pcwDrawWires();
-                    }
                     var sx = e.clientX,
                         sy = e.clientY;
                     var ox = _canvasState.panX,
@@ -14484,7 +13891,7 @@ Must avoid: [Anything sensitive or previously declined]`
                         var mx = e.clientX - rect.left,
                             my = e.clientY - rect.top;
                         var oldZ = _canvasState.zoom;
-                        var z = Math.max(PCW_ZOOM_MIN, Math.min(PCW_ZOOM_MAX, oldZ * (e.deltaY < 0 ? 1.1 : 0.9)));
+                        var z = Math.max(0.25, Math.min(2, oldZ * (e.deltaY < 0 ? 1.1 : 0.9)));
                         _canvasState.panX = mx - (mx - _canvasState.panX) * (z / oldZ);
                         _canvasState.panY = my - (my - _canvasState.panY) * (z / oldZ);
                         _canvasState.zoom = z;
@@ -14500,64 +13907,16 @@ Must avoid: [Anything sensitive or previously declined]`
                 });
             }
             if ($('#pcwZoomInBtn')) $('#pcwZoomInBtn').addEventListener('click', function() {
-                _canvasState.zoom = Math.min(PCW_ZOOM_MAX, _canvasState.zoom * 1.2);
+                _canvasState.zoom = Math.min(2, _canvasState.zoom * 1.2);
                 _pcwApplyView();
                 _pcwSaveDraft();
             });
             if ($('#pcwZoomOutBtn')) $('#pcwZoomOutBtn').addEventListener('click', function() {
-                _canvasState.zoom = Math.max(PCW_ZOOM_MIN, _canvasState.zoom / 1.2);
+                _canvasState.zoom = Math.max(0.25, _canvasState.zoom / 1.2);
                 _pcwApplyView();
                 _pcwSaveDraft();
             });
             if ($('#pcwFitBtn')) $('#pcwFitBtn').addEventListener('click', _pcwFitView);
-            // How wiring works: shown until dismissed, remembered in the database
-            function _pcwSyncHelp() {
-                var card = $('#pcwHelp');
-                if (!card) return;
-                var pref = window.PL_prefs ? window.PL_prefs.get('pcw_help') : null;
-                card.hidden = pref === 'hidden';
-                var box = $('#pcwAutoLink');
-                if (box) box.checked = _pcwAutoLink();
-            }
-            if (window.PL_prefs) window.PL_prefs.ready.then(_pcwSyncHelp);
-            _pcwSyncHelp();
-            if ($('#pcwHelpBtn')) $('#pcwHelpBtn').addEventListener('click', function() {
-                var card = $('#pcwHelp');
-                if (!card) return;
-                card.hidden = !card.hidden;
-                if (window.PL_prefs) window.PL_prefs.set('pcw_help', card.hidden ? 'hidden' : 'shown');
-            });
-            if ($('#pcwHelpClose')) $('#pcwHelpClose').addEventListener('click', function() {
-                $('#pcwHelp').hidden = true;
-                if (window.PL_prefs) window.PL_prefs.set('pcw_help', 'hidden');
-            });
-            if ($('#pcwAutoLink')) $('#pcwAutoLink').addEventListener('change', function(e) {
-                if (window.PL_prefs) window.PL_prefs.set('pcw_autolink', e.target.checked ? '1' : '0');
-            });
-            if ($('#pcwChainBtn')) $('#pcwChainBtn').addEventListener('click', function() {
-                if (!_canvasBlocks.length) {
-                    toast('Add some blocks first', 'info');
-                    return;
-                }
-                _pcwChainAll();
-                toast('Blocks wired in reading order', 'success');
-            });
-            if ($('#pcwUnlinkBtn')) $('#pcwUnlinkBtn').addEventListener('click', function() {
-                if (!_canvasLinks.length) return;
-                _canvasLinks = [];
-                _pcwSelLink = null;
-                renderCanvas();
-                toast('All wires removed. The prompt reads top to bottom again.', 'info');
-            });
-            document.addEventListener('keydown', function(e) {
-                if ((e.key !== 'Delete' && e.key !== 'Backspace') || !_pcwSelLink) return;
-                var wsEl = $('#componentsWorkspace');
-                if (!wsEl || !wsEl.classList.contains('open')) return;
-                var tg = e.target.tagName;
-                if (tg === 'INPUT' || tg === 'TEXTAREA' || tg === 'SELECT') return;
-                e.preventDefault();
-                _pcwRemoveLink(_pcwSelLink);
-            });
 
             // Component gallery wiring
             function _openGalleryHome() {
@@ -14747,7 +14106,6 @@ Must avoid: [Anything sensitive or previously declined]`
                     });
                 });
                 renderCanvas();
-                _pcwFitView();
             });
 
             // Keyboard add: Enter or Space on a focused palette row
