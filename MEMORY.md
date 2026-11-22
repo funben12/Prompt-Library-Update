@@ -782,3 +782,26 @@ Resulting state:
 - Gauntlet Loop is explicitly separate and untouched. Do not merge it into this workspace.
 - Files: `static/prompt-testing-workspace.js/.css`, `static/prompt-stress-lab.js` (analysis core export), `static/gauntlet-suite.js` (launcher delegation and specialist exports), `static/index.html`, `static/workspace-registry.js`, `static/workspace-previews.js`, and `docs/prompt-stress-lab/SPEC.md`.
 - Verified so far: JavaScript syntax checks pass for the changed JS files; specialist engine smoke test returns Surgeon, Red Team and Stress Lab results; QUICK/HARDEN/CRITICAL each return the expected lens sets; static integration checks pass. Interactive browser and installed PyWebView checks remain outstanding. This branch is not merged.
+
+
+## Prompt Testing AI bridge and Block Studio (2026-11-22, feature branch)
+
+### Combined AI review repaired
+
+- Root cause: `gauntlet-suite.js`, `prompt-stress-lab.js` and `agent-workspace-refresh.js` call `window.PLBridge.callAI` (then `window.callAI`). Neither was ever defined. `callAI` in `app.js` is private to its IIFE and only `window.PL_ai` (JSON mode, no advisor) was exposed, so every AI step silently returned an empty string and showed a generic failure.
+- Fix: `app.js` now defines `window.PLBridge = { callAI }` next to `window.PL_ai`. It is plain text and honours the Settings "second opinion" (advisor) toggle. This also repairs the Surgeon and Red Team AI steps and the agent workspace refresh.
+- The workspace and Stress Lab toasts now show the real reason (for example "No API key") instead of a generic failure.
+- Verified in headless Chromium with the provider endpoint mocked: with a key, one request is sent and the AI card renders; with no key, the reason is shown and the local report stays. Cache version for `gauntlet-suite.js` and its two children is `20261122a`.
+
+### Block Studio and Your Blocks
+
+- The earlier custom block script threw on load (`Cannot set property compilePrompt ... only a getter`), so the studio and its button never worked. Replaced by a new `static/builder-pro-custom-blocks.js` that never assigns to engine exports. Full design in `docs/prompt-builder-pro/block-creation-studio.md`.
+- Users define inputs, outputs (name, key, type, description), settings (text, long text, number, dropdown), instruction text with `{{input:key}}`, `{{setting:key}}`, `{{output:key}}` tokens, an icon, and a role: standard, agent, reviewer or team coordinator. A coordinator lists the agent each output briefs, so "Add its agents and wire them" works for it.
+- Storage: database via the existing `/api/components` routes (category `yours`, definition JSON in the packed description). localStorage `prompt-builder-pro.custom-blocks.v2` is only a cache. No schema change, no new dependency.
+- "Your Blocks" is the first group in the Builder Pro library and the first department in the Component Library (`window.PL_setYourBlocks` in `app.js`). In the Component Library the text uses `[blank]` placeholders. A Your Blocks item added through the Builder Pro Workshop becomes the real custom block (Workshop items carry a `def` link).
+- Builder Pro build now waits for `PLBlockStudio.ready` so a canvas restored after a browser storage reset keeps its custom blocks. Load order is engine, custom-blocks, builder-pro, showcases.
+- `builder-pro.js` changes are integration points only: Your Blocks group and edit pencil, `compileNodes` hook (`PLBlockStudio.prepare`), shared `window.PLBuilderSpawn`, `refreshBlocks`, `usageOf`, glyph icon lookup.
+- Bug found by testing and fixed: the studio focused the name field on a 30 ms timer, so text typed into another field inside that window landed in the name. It now focuses synchronously.
+- Rule note: the studio sheet is `#pbp-block-studio` (its CSS is scoped there, not under `#builderProWorkspace`) because it also opens from the Component Library. Builder Pro hand-set cache value is now `20261122e` (loader and the custom-blocks stylesheet link).
+- Verified (headless Chromium, disposable data folder): 19 create and use checks, 20 persistence, edit, delete and Component Library checks, light, dark and 390 px layouts, no page errors, showcase validator passes. Not checked: installed PyWebView on Windows.
+- Backups: `_rollbacks/22-11-2026-*` (app.js, app.css, index.html, builder-pro.js/.css, the old custom-blocks files, MEMORY.md).

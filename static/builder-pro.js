@@ -55,7 +55,7 @@
         agent_proponent: 'thumb_up', agent_red_team: 'security', agent_audience: 'visibility', agent_brainstormer: 'emoji_objects',
         agent_summariser: 'summarize', agent_coder: 'code', agent_tester: 'bug_report', agent_triage: 'emergency', agent_moderator: 'forum'
     });
-    const glyph = (type, n) => `<span class="pbp-glyph material-symbols-outlined" aria-hidden="true">${iconName(n && n.config && n.config.source && n.config.source.icon) || ICONS[type] || 'widgets'}</span>`;
+    const glyph = (type, n) => `<span class="pbp-glyph material-symbols-outlined" aria-hidden="true">${iconName(n && n.config && n.config.source && n.config.source.icon) || iconName(BLOCKS[type] && BLOCKS[type].icon) || ICONS[type] || 'widgets'}</span>`;
 
     /* ---------- Component Library link ----------
        Records from the Prompt Components dataset become a generic block. The dataset is read
@@ -359,7 +359,7 @@
       <div class="pbp-ws-list" id="pbp-ws-list"></div>
     </section>
     <div class="pbp-pane-head">
-      <div class="pbp-pane-head-row pbp-library-head-row"><span class="pbp-label">Block library</span><div class="pbp-lib-head-actions"><span class="pbp-mono pbp-count" id="pbp-lib-count"></span><button type="button" class="btn btn-accent pbp-btn-xs pbp-create-custom" data-create-custom="1" aria-haspopup="dialog" title="Create a reusable custom block" ><span class="material-symbols-outlined" aria-hidden="true">add_circle</span><span>Create custom block</span></button></div></div>
+      <div class="pbp-pane-head-row pbp-library-head-row"><span class="pbp-label">Block library</span><div class="pbp-lib-head-actions"><span class="pbp-mono pbp-count" id="pbp-lib-count"></span><button type="button" class="btn btn-accent pbp-btn-xs pbp-create-custom" data-act="createCustom" aria-haspopup="dialog" title="Design your own block: its inputs, outputs, settings and instructions"><span class="material-symbols-outlined" aria-hidden="true">add_circle</span><span>Create block</span></button></div></div>
       <input id="pbp-block-search" class="form-input" type="search" placeholder="Search blocks" aria-label="Search blocks" autocomplete="off">
       <div class="pbp-chips" id="pbp-cat-chips" role="group" aria-label="Filter by category"></div>
     </div>
@@ -587,12 +587,13 @@
 
         /* ---------- library ---------- */
         function renderChips() {
-            $('#pbp-cat-chips').innerHTML = [{ id: 'all', label: 'All' }, ...CATEGORIES.map(c => ({ id: c.id, label: c.label.split(' ')[0] }))]
+            $('#pbp-cat-chips').innerHTML = [{ id: 'all', label: 'All' }, ...CATEGORIES.map(c => ({ id: c.id, label: c.chip || c.label.split(' ')[0] }))]
                 .map(c => `<button class="pbp-tab" data-cat-chip="${c.id}" aria-pressed="${state.cat === c.id}">${c.label}</button>`).join('');
         }
         function renderLibrary() {
             const q = state.query.trim().toLowerCase();
-            const match = b => (state.cat === 'all' || b.category === state.cat) && (!q || `${b.label} ${b.hint} ${b.category}`.toLowerCase().includes(q));
+            const home = b => b.customBlock ? 'yours' : b.category;
+            const match = b => (state.cat === 'all' || home(b) === state.cat) && (!q || `${b.label} ${b.hint} ${b.category}`.toLowerCase().includes(q));
             const shown = LIBRARY.filter(match);
             $('#pbp-lib-count').textContent = `${shown.length} of ${LIBRARY.length}`;
             const KINDS = [
@@ -607,8 +608,22 @@
                     <span class="pbp-lib-text"><b>${esc(b.label)}</b><span>${esc(b.hint)}</span></span>
                     ${ms('add', 'pbp-lib-add')}
                 </button>`;
+            const customItem = b => `
+                <div class="pbp-lib-row">
+                    <button class="pbp-lib-item" draggable="true" data-add="${b.type}" data-cat="${b.category}" title="${esc(b.about || 'Add ' + b.label)}">
+                        ${glyph(b.type)}
+                        <span class="pbp-lib-text"><b>${esc(b.label)}</b><span>${b.category === 'agents' ? 'Agent' : 'Block'} · ${esc(b.hint)}</span></span>
+                        ${ms('add', 'pbp-lib-add')}
+                    </button>
+                    <button class="pbp-lib-edit" data-act="editCustom" data-type="${b.type}" aria-label="Edit ${esc(b.label)}" title="Edit this block">${ms('edit')}</button>
+                </div>`;
             const groups = CATEGORIES.map(c => {
-                const list = shown.filter(b => b.category === c.id);
+                const list = shown.filter(b => home(b) === c.id);
+                if (c.id === 'yours') {
+                    if (list.length) return `<div class="pbp-lib-group pbp-label"><span>${c.label}</span></div>` + list.map(customItem).join('');
+                    return q ? '' : `<div class="pbp-lib-group pbp-label"><span>${c.label}</span></div>
+                        <div class="pbp-lib-intro"><b>Make your own blocks.</b> Define what a block takes in, what it hands out and the instructions it adds. Blocks you save are kept in Your Blocks, here and in the Component Library.<span><button class="btn btn-accent pbp-btn-xs" data-act="createCustom">${ms('add_circle')}<span>Create your first block</span></button></span></div>`;
+                }
                 if (c.id === 'agents' && list.length) return `<div class="pbp-lib-group pbp-label"><span>${c.label}</span></div>
                     <div class="pbp-lib-intro"><b>New to agent teams?</b> Agents are separate blocks that you wire together. Coordinators are optional. The quickest start is a ready-made team.<span><button class="btn pbp-btn-xs" data-act="openGuide">Show me the teams</button></span></div>`
                     + KINDS.map(([k, name, line]) => { const sub = list.filter(b => b.kind === k); return sub.length ? `<div class="pbp-lib-sub"><b>${name}</b>${line}</div>` + sub.map(item).join('') : ''; }).join('');
@@ -802,7 +817,8 @@
                 <div class="pbp-insp-body">
                     ${d.about ? `<div class="pbp-about"><p>${esc(d.about)}</p><span class="pbp-label">What you can do with it</span><ul>${(d.use || []).map(u => `<li>${esc(u)}</li>`).join('')}</ul></div>` : ''}
                     ${missing ? `<button class="btn btn-accent btn-sm" data-act="addAgents">Add its ${missing === 1 ? 'missing agent' : missing + ' agents'} and wire them</button>` : ''}
-                    ${Array.isArray(d.inputs) ? `<div class="pbp-ports"><div><span class="pbp-label">Takes in</span>${d.inputs.map(p => `<span>${esc(p.label)}</span>`).join('')}</div><div><span class="pbp-label">Hands out</span>${d.outputs.map(p => `<span>${esc(p.label)}</span>`).join('')}</div></div>` : ''}
+                    ${Array.isArray(d.inputs) ? `<div class="pbp-ports"><div><span class="pbp-label">Takes in</span>${d.inputs.map(p => `<span title="${esc(p.desc || '')}">${esc(p.label)}</span>`).join('')}</div><div><span class="pbp-label">Hands out</span>${d.outputs.map(p => `<span title="${esc(p.desc || '')}">${esc(p.label)}</span>`).join('')}</div></div>` : ''}
+                    ${d.customBlock ? `<button class="btn pbp-btn-xs pbp-start" data-act="editCustom" data-type="${n.type}">${ms('edit')}<span>Edit this block's design</span></button>` : ''}
                     <div class="pbp-field"><label for="pbp-f-title">Block name</label><input class="form-input" id="pbp-f-title" data-field="title" value="${esc(n.config.title || '')}" autocomplete="off"></div>
                     ${isComponent(n) ? `<div class="pbp-field"><label for="pbp-f-section">Prompt section</label><select class="form-input" id="pbp-f-section" data-section>${COMPONENT_SECTIONS.map(id => `<option value="${id}" ${id === sectionOf(n) ? 'selected' : ''}>${esc(sectionTitle(id))}</option>`).join('')}</select></div>` : ''}
                     ${fields}
@@ -812,12 +828,12 @@
         }
 
         // Which agent each coordinator output expects: [block type, input port, block name].
-        const SPAWN = {
+        const SPAWN = Object.assign(window.PLBuilderSpawn = window.PLBuilderSpawn || {}, {
             multi_agent: { planner: ['agent_planner', 'task'], researcher: ['agent_researcher', 'task'], writer: ['agent_writer', 'task'], critic: ['agent_critic', 'task'] },
             agent_router: { to_planner: ['agent_planner', 'task'], to_researcher: ['agent_researcher', 'task'], to_writer: ['agent_writer', 'task'], to_critic: ['agent_critic', 'task'], fallback: ['meta_clarify', 'in'] },
             agent_moderator: { pro: ['agent_proponent', 'proposal'], con: ['agent_advocate', 'proposal'], judge: ['agent_judge', 'criteria'] },
             agent_lead: { worker_a: ['agent_specialist', 'task', 'Specialist A'], worker_b: ['agent_specialist', 'task', 'Specialist B'], worker_c: ['agent_specialist', 'task', 'Specialist C'] }
-        };
+        });
         function missingAgents(n) {
             return Object.keys(SPAWN[n.type] || {}).filter(port => !state.edges.some(e => e.from === n.id && e.fromPort === port));
         }
@@ -839,7 +855,11 @@
 
         /* ---------- render pipeline ---------- */
         // Components are compiled from a copy, so the stored text is never changed.
-        const compileNodes = () => state.nodes.map(n => isComponent(n) ? { ...n, config: { ...n.config, content: stripOwnLabel(n) } } : n);
+        const compileNodes = () => {
+            const base = state.nodes.map(n => isComponent(n) ? { ...n, config: { ...n.config, content: stripOwnLabel(n) } } : n);
+            const studio = window.PLBlockStudio;
+            return studio && studio.prepare ? studio.prepare(base, state.edges) : base;
+        };
         function compile() {
             result = PE.compilePrompt(compileNodes(), state.edges, {
                 format: state.format, order: state.order, sample: state.sample, title: state.title
@@ -920,7 +940,7 @@
             try {
                 const raw = JSON.parse(localStorage.getItem(WORKSHOP_STORE) || '[]');
                 workshop = (Array.isArray(raw) ? raw : []).filter(it => it && typeof it.label === 'string' && typeof it.text === 'string')
-                    .map(it => ({ label: it.label, text: it.text, cat: it.cat || null, icon: iconName(it.icon) || 'extension', badge: it.badge || '' }));
+                    .map(it => ({ label: it.label, text: it.text, cat: it.cat || null, icon: iconName(it.icon) || 'extension', badge: it.badge || '', def: it.def || '' }));
             } catch (e) { workshop = []; }
         }
         function renderWorkshop() {
@@ -941,7 +961,7 @@
             const have = new Set(workshop.map(wsKey));
             let added = 0, skipped = 0;
             (kit || []).forEach(raw => {
-                const it = { label: String(raw.label || 'Component'), text: String(raw.text || ''), cat: raw.cat || null, icon: iconName(raw.icon) || 'extension', badge: raw.badge || '' };
+                const it = { label: String(raw.label || 'Component'), text: String(raw.text || ''), cat: raw.cat || null, icon: iconName(raw.icon) || 'extension', badge: raw.badge || '', def: raw.def || '' };
                 if (have.has(wsKey(it))) { skipped++; return; }
                 have.add(wsKey(it));
                 workshop.push(it);
@@ -960,6 +980,8 @@
         // The Workshop item stays where it is. The canvas gets its own block built from the record.
         function addComponent(it, x, y, section) {
             if (!it) return;
+            // A block from Your Blocks comes back as the real block, with its ports and settings.
+            if (it.def && BLOCKS[it.def]) return addNode(it.def, x, y);
             const before = state.nodes.length;
             addNode(COMPONENT + (section || guessSection(it)), x, y);
             const n = node(state.selected);
@@ -2094,6 +2116,8 @@
             tourNext: () => (tourAt < TOUR_STEPS.length - 1 ? showTourStep(tourAt + 1) : endTour()),
             clear: () => (state.nodes.length ? $('#pbp-confirm-dialog').showModal() : toast('The canvas is already empty')),
             copy: btn => copyPrompt(btn),
+            createCustom: () => (window.PLBlockStudio ? window.PLBlockStudio.open(null) : toast('The block studio is still loading. Try again in a moment.', 'warning')),
+            editCustom: t => (window.PLBlockStudio ? window.PLBlockStudio.open(t.dataset.type) : toast('The block studio is still loading. Try again in a moment.', 'warning')),
             zoomIn: () => zoomBy(.1),
             zoomOut: () => zoomBy(-.1),
             deselect: () => select(null),
@@ -2225,6 +2249,7 @@
         // Keys only act while this workspace is open and nothing else has focus.
         document.addEventListener('keydown', e => {
             if (!isOpen()) return;
+            if (window.PLBlockStudio && window.PLBlockStudio.isOpen()) return;
             if (e.target !== document.body && !root.contains(e.target)) return;
             // While the library covers the workspace, keys belong to it. Escape with no focus closes it.
             if (libraryOpen()) {
@@ -2349,7 +2374,20 @@
             $$('.pbp-menu[open]').forEach(m => { m.open = false; });
         }
 
-        return { state, get result() { return result; }, get workshop() { return workshop; }, get panes() { return panes; }, buildExport, render, connect, addNode, contextBlock, loadTemplate, select, show, closeDialogs };
+        // The studio calls this after a block is saved, edited or deleted: wires to ports that no longer exist are dropped.
+        function refreshBlocks() {
+            const clean = PE.sanitizeGraph(state.nodes, state.edges);
+            const lost = state.nodes.length - clean.nodes.length;
+            state.nodes = clean.nodes;
+            state.edges = clean.edges;
+            if (state.selected && !node(state.selected)) state.selected = null;
+            renderChips();
+            renderLibrary();
+            render();
+            return lost;
+        }
+
+        return { state, get result() { return result; }, get workshop() { return workshop; }, get panes() { return panes; }, buildExport, render, connect, addNode, contextBlock, loadTemplate, select, show, closeDialogs, refreshBlocks, usageOf: type => state.nodes.filter(n => n.type === type).length };
     }
 
     function ensure() {
@@ -2368,13 +2406,18 @@
             el.classList.toggle('active', el.dataset.view === 'library'));
     }
 
+    // Custom blocks come from the database. Waiting a moment keeps them from being dropped out of a saved flow.
+    const studioReady = () => Promise.resolve(window.PLBlockStudio && window.PLBlockStudio.ready).catch(() => {});
     window.openBuilderProWorkspace = function () {
         if (!document.body.classList.contains('is-premium')) return toast('Prompt Builder Pro is a Pro feature', 'warning');
-        const root = ensure();
-        if (!root) return;
-        root.classList.add('open');
-        document.querySelectorAll('.nav-item[data-view]').forEach(el => el.classList.remove('active'));
-        api.show();
+        const go = () => {
+            const root = ensure();
+            if (!root) return;
+            root.classList.add('open');
+            document.querySelectorAll('.nav-item[data-view]').forEach(el => el.classList.remove('active'));
+            api.show();
+        };
+        if (api) go(); else studioReady().then(go);
     };
     window.PL_closeBuilderPro = closeWorkspace;
     window.PL_bpAddContext = function (b) { if (ensure() && api) api.contextBlock(b); };
@@ -2383,7 +2426,7 @@
     // Build the hidden markup once the page is idle, so the first open only has to paint.
     function initBuilderProWorkspace() {
         const idle = window.requestIdleCallback || (fn => setTimeout(fn, 400));
-        idle(() => { try { ensure(); } catch (e) { console.warn('Prompt Builder Pro failed to build:', e); } });
+        idle(() => { studioReady().then(() => { try { ensure(); } catch (e) { console.warn('Prompt Builder Pro failed to build:', e); } }); });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initBuilderProWorkspace);
     else initBuilderProWorkspace();

@@ -12343,6 +12343,46 @@ Must avoid: [Anything sensitive or previously declined]`
         window._pcwFRAMEWORKS = FRAMEWORKS;
         window._pcwCATEGORIES = CATEGORIES;
 
+        /* ---- Your Blocks: blocks the user designed, listed first in the Component Library ---- */
+        var _PCW_YOURS = {
+            id: 'yours',
+            label: 'Your Blocks',
+            icon: 'widgets',
+            desc: 'Blocks you designed yourself, ready to reuse.',
+            color: 'var(--accent)'
+        };
+        window.PL_setYourBlocks = function(rows) {
+            rows = Array.isArray(rows) ? rows : [];
+            for (var i = BLOCKS.length - 1; i >= 0; i--) {
+                if (BLOCKS[i].cat === 'yours') BLOCKS.splice(i, 1);
+            }
+            rows.forEach(function(r) {
+                BLOCKS.push({
+                    cat: 'yours',
+                    icon: /^[a-z0-9_]+$/.test(String(r.icon || '')) ? r.icon : 'widgets',
+                    label: String(r.label || 'Block'),
+                    text: String(r.text || r.label || ''),
+                    def: String(r.def || '')
+                });
+            });
+            if (!CATEGORIES.some(function(c) {
+                    return c.id === 'yours';
+                })) CATEGORIES.unshift(_PCW_YOURS);
+            try {
+                renderCatPills();
+                renderCatRail();
+                renderPalette($('#pcwPaletteSearch') ? $('#pcwPaletteSearch').value : '');
+                var g = $('#pcwGallery');
+                if (g && !g.hidden) _galRender();
+            } catch (e) {
+                /* the workspace is not built yet, it reads the list when it opens */
+            }
+        };
+        if (!CATEGORIES.some(function(c) {
+                return c.id === 'yours';
+            })) CATEGORIES.unshift(_PCW_YOURS);
+        if (window.__plYoursRows) window.PL_setYourBlocks(window.__plYoursRows);
+
         function escH(s) {
             return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
@@ -13571,7 +13611,8 @@ Must avoid: [Anything sensitive or previously declined]`
                 label: b.label,
                 text: b.text,
                 cat: b.cat,
-                icon: b.icon
+                icon: b.icon,
+                def: b.def || ''
             };
         }
 
@@ -13648,7 +13689,13 @@ Must avoid: [Anything sensitive or previously declined]`
                 BLOCKS.forEach(function(b, gi) {
                     if (b.cat === v.cat) list.push(_galBlockCard(b, gi));
                 });
-                body.innerHTML = '<div class="pcw-gal-grid">' + list.join('') + '</div>';
+                if (v.cat === 'yours') {
+                    body.innerHTML = '<div class="pcw-gal-yours"><p>Blocks you designed in Prompt Builder Pro. Add them to your kit like any other component.</p>' +
+                        (window.PLBlockStudio ? '<button type="button" class="btn btn-accent" data-gal-create="1"><span class="material-symbols-outlined">add_circle</span> Create a block</button>' : '') + '</div>' +
+                        (list.length ? '<div class="pcw-gal-grid">' + list.join('') + '</div>' : '<div class="pcw-gal-empty">You have no blocks yet. Create your first one and it will appear here.</div>');
+                } else {
+                    body.innerHTML = '<div class="pcw-gal-grid">' + list.join('') + '</div>';
+                }
 
             } else if (v.mode === 'fw') {
                 if (title) title.textContent = 'Frameworks';
@@ -13720,6 +13767,7 @@ Must avoid: [Anything sensitive or previously declined]`
                     '<pre class="pcw-gal-preview-text">' + escH(it.text) + '</pre>' +
                     '<div class="pcw-gal-preview-actions">' +
                     '<button type="button" class="btn btn-ghost" data-gal-backbtn="1"><span class="material-symbols-outlined">arrow_back</span> Keep browsing</button>' +
+                    (it.def && window.PLBlockStudio ? '<button type="button" class="btn btn-ghost" data-gal-edit="' + escH(it.def) + '"><span class="material-symbols-outlined">edit</span> Edit block</button>' : '') +
                     '<button type="button" class="btn btn-accent" data-gal-add="1"><span class="material-symbols-outlined">library_add</span> Add to kit</button>' +
                     '</div>' +
                     '</div>';
@@ -14542,7 +14590,11 @@ Must avoid: [Anything sensitive or previously declined]`
             if ($('#pcwGalBody')) {
                 $('#pcwGalBody').addEventListener('click', function(e) {
                     var el;
-                    if ((el = e.target.closest('[data-cart-block]'))) {
+                    if ((el = e.target.closest('[data-gal-create]'))) {
+                        if (window.PLBlockStudio) window.PLBlockStudio.open(null);
+                    } else if ((el = e.target.closest('[data-gal-edit]'))) {
+                        if (window.PLBlockStudio) window.PLBlockStudio.open(el.dataset.galEdit);
+                    } else if ((el = e.target.closest('[data-cart-block]'))) {
                         var cb = BLOCKS[parseInt(el.dataset.cartBlock, 10)];
                         if (cb) _galCartAdd(_galItemFromBlock(cb));
                     } else if ((el = e.target.closest('[data-cart-fw]'))) {
@@ -22644,6 +22696,13 @@ Must avoid: [Anything sensitive or previously declined]`
         },
         ask: function(systemPrompt, userMsg, maxTokens) {
             return callAI(systemPrompt, userMsg, maxTokens, { json: true, plain: true });
+        }
+    };
+
+    // Plain text bridge for Prompt Testing Workspace, Stress Lab and the agent workspaces (honours the second opinion setting)
+    window.PLBridge = {
+        callAI: function(systemPrompt, userMsg, maxTokens) {
+            return callAI(systemPrompt, userMsg, maxTokens);
         }
     };
 

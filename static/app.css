@@ -8280,6 +8280,21 @@
   text-align: center;
   padding: var(--sp-8, 48px);
 }
+.pcw-gal-yours {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    margin-bottom: var(--sp-4);
+    padding: var(--sp-3) var(--sp-4);
+    border: 1px solid var(--accent-line);
+    border-radius: var(--r-md);
+    background: var(--accent-soft);
+    color: var(--ink-2);
+    font-size: var(--fs-sm);
+}
+.pcw-gal-yours p { margin: 0; }
+.pcw-gal-yours .btn { display: inline-flex; align-items: center; gap: var(--sp-2); flex-shrink: 0; }
 .pcw-gal-preview {
   max-width: 720px;
   margin: 0 auto;
