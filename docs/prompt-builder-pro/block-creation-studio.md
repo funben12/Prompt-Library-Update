@@ -65,6 +65,15 @@ In the Component Library the same template is shown with `[Label]` blanks instea
 
 `window.PL_setYourBlocks(rows)` in `app.js` rebuilds the `yours` category inside the existing `BLOCKS` and `CATEGORIES`, and re-renders the palette and gallery. `rows` is also kept on `window.__plYoursRows` so a workspace opened later still reads it. Items carry a `def` field. When a Your Blocks item travels into the Builder Pro Workshop and onto the canvas, it becomes the real custom block with its ports and settings, not a plain Component.
 
+## Studio extras (2026-11-22, second pass)
+
+- **Draft with AI.** Describe a block in a sentence and the studio fills in the whole form (kind, ports, settings, instructions, and for a coordinator the agent each output briefs). One JSON request through `window.PL_ai.ask`, only when the button is pressed. Port and setting keys are derived from the labels, so the tokens the model writes match. Nothing is saved until the user does.
+- **Try it.** Sample text per input, then one plain request through `window.PLBridge.callAI` (it honours the second opinion setting). The block's tokens resolve to "given under INPUTS" and the samples are sent beside them. The answer shows in the studio and is never stored.
+- **Required inputs and typed wires.** Each input has a Required flag. `PLBlockStudio.diagnose(nodes, edges)` adds warnings to the Checks tab: a wired block with an unconnected required input, and a wire between two custom ports whose types disagree. Text is compatible with everything, so only clear clashes (for example Data into Number) warn. Built-in ports have no types, so wires to them are never flagged. Warnings never block copying.
+- **Duplicate.** From an edited block. Opens a new block with the same design and keys.
+- **Export and import.** Export one block from the studio, or everything from the Your Blocks header. File shape: `{ "type": "prompt-builder-blocks", "version": 1, "blocks": [...], "teams": [...] }`, without database ids. Import always creates new copies with new types (labels get " (imported)" when the name exists), remaps team nodes to the new types, and refuses files that are not this shape or larger than 2 MB.
+- **Team blocks.** Workflow menu, "Save canvas as team block". Saves every valid block and wire (keys instead of canvas ids, positions relative to the top left). Stored as a `component_blocks` row, definition `kind: "builder-team"`, body is the compiled prompt, so the Component Library lists it as text. In Your Blocks the team has a place button (adds every block and wire to the right of the current canvas through `placeGraph`, so it can be placed more than once) and a two press delete. Placing drops blocks whose type no longer exists and says so if none survive. Local cache key `prompt-builder-pro.teams.v1`.
+
 ## Verification
 
 Run on 2026-11-22 with headless Chromium, a disposable data folder and a fresh browser context:
@@ -72,6 +81,7 @@ Run on 2026-11-22 with headless Chromium, a disposable data folder and a fresh b
 - 19 checks on creating blocks from each starter, validation, discard guard, database rows, `[blank]` text, coordinator spawning four wired agents, token resolution from wiring, and the agent entry in the compiled prompt.
 - 20 checks on restoring from the database with empty browser storage, editing in place, the Component Library department order and count, the Workshop adding the real block, a saved canvas surviving reload, and a two step delete.
 - Light, dark and 390 px layouts checked by screenshot, with no horizontal overflow.
+- 32 checks on the second pass: required and type warnings, duplicate, single and full export, import (including a refused file), AI draft, Try it, team save, place twice, compiled prompt identical after placing, Component Library text, reload and two press delete. The two AI features were run with the provider endpoint mocked.
 - No page errors in any run. `node tests/builder-showcases/validate.js` still passes.
 
 Not checked: the installed Windows PyWebView build.

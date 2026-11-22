@@ -333,6 +333,7 @@
       <div class="pbp-menu-list" role="menu">
         <button class="pbp-menu-item" role="menuitem" data-act="autoLayout">${ms('auto_awesome_mosaic')}<span>Tidy layout</span></button>
         <button class="pbp-menu-item" role="menuitem" data-act="autoWire">${ms('cable')}<span>Wire loose blocks</span></button>
+        <button class="pbp-menu-item" role="menuitem" data-act="saveTeam">${ms('groups')}<span>Save canvas as team block</span></button>
         <div class="pbp-menu-sep"></div>
         <button class="pbp-menu-item" role="menuitem" data-act="importJson">${ms('upload')}<span>Import a prompt (Markdown)</span></button>
         <button class="pbp-menu-item" role="menuitem" data-act="exportMd">${ms('download')}<span>Export prompt (Markdown)</span></button>
@@ -617,11 +618,23 @@
                     </button>
                     <button class="pbp-lib-edit" data-act="editCustom" data-type="${b.type}" aria-label="Edit ${esc(b.label)}" title="Edit this block">${ms('edit')}</button>
                 </div>`;
+            const teamItem = t => `
+                <div class="pbp-lib-row">
+                    <button class="pbp-lib-item" data-act="placeTeam" data-team="${esc(t.id)}" title="Add all ${t.size} blocks, already wired">
+                        <span class="pbp-glyph material-symbols-outlined" aria-hidden="true">groups</span>
+                        <span class="pbp-lib-text"><b>${esc(t.label)}</b><span>Team · ${t.size} block${t.size === 1 ? '' : 's'}${t.hint ? ' · ' + esc(t.hint) : ''}</span></span>
+                        ${ms('add', 'pbp-lib-add')}
+                    </button>
+                    <button class="pbp-lib-edit" data-act="deleteTeam" data-team="${esc(t.id)}" aria-label="Delete ${esc(t.label)}" title="Delete this team block">${ms('delete')}</button>
+                </div>`;
             const groups = CATEGORIES.map(c => {
                 const list = shown.filter(b => home(b) === c.id);
                 if (c.id === 'yours') {
-                    if (list.length) return `<div class="pbp-lib-group pbp-label"><span>${c.label}</span></div>` + list.map(customItem).join('');
-                    return q ? '' : `<div class="pbp-lib-group pbp-label"><span>${c.label}</span></div>
+                    const studio = window.PLBlockStudio;
+                    const teamList = studio && studio.teams && (state.cat === 'all' || state.cat === 'yours') ? studio.teams().filter(t => !q || `${t.label} ${t.hint}`.toLowerCase().includes(q)) : [];
+                    const tools = `<span class="pbp-lib-group-tools"><button type="button" class="pbp-lib-tool" data-act="importBlocks" title="Import blocks from a file" aria-label="Import blocks from a file">${ms('upload')}</button>${list.length || teamList.length ? `<button type="button" class="pbp-lib-tool" data-act="exportBlocks" title="Export all as a file" aria-label="Export all blocks as a file">${ms('download')}</button>` : ''}</span>`;
+                    if (list.length || teamList.length) return `<div class="pbp-lib-group pbp-label"><span>${c.label}</span>${tools}</div>` + teamList.map(teamItem).join('') + list.map(customItem).join('');
+                    return q ? '' : `<div class="pbp-lib-group pbp-label"><span>${c.label}</span>${tools}</div>
                         <div class="pbp-lib-intro"><b>Make your own blocks.</b> Define what a block takes in, what it hands out and the instructions it adds. Blocks you save are kept in Your Blocks, here and in the Component Library.<span><button class="btn btn-accent pbp-btn-xs" data-act="createCustom">${ms('add_circle')}<span>Create your first block</span></button></span></div>`;
                 }
                 if (c.id === 'agents' && list.length) return `<div class="pbp-lib-group pbp-label"><span>${c.label}</span></div>
@@ -817,7 +830,7 @@
                 <div class="pbp-insp-body">
                     ${d.about ? `<div class="pbp-about"><p>${esc(d.about)}</p><span class="pbp-label">What you can do with it</span><ul>${(d.use || []).map(u => `<li>${esc(u)}</li>`).join('')}</ul></div>` : ''}
                     ${missing ? `<button class="btn btn-accent btn-sm" data-act="addAgents">Add its ${missing === 1 ? 'missing agent' : missing + ' agents'} and wire them</button>` : ''}
-                    ${Array.isArray(d.inputs) ? `<div class="pbp-ports"><div><span class="pbp-label">Takes in</span>${d.inputs.map(p => `<span title="${esc(p.desc || '')}">${esc(p.label)}</span>`).join('')}</div><div><span class="pbp-label">Hands out</span>${d.outputs.map(p => `<span title="${esc(p.desc || '')}">${esc(p.label)}</span>`).join('')}</div></div>` : ''}
+                    ${Array.isArray(d.inputs) ? `<div class="pbp-ports"><div><span class="pbp-label">Takes in</span>${d.inputs.map(p => `<span title="${esc(p.desc || '')}">${esc(p.label)}${p.required ? ' *' : ''}</span>`).join('')}</div><div><span class="pbp-label">Hands out</span>${d.outputs.map(p => `<span title="${esc(p.desc || '')}">${esc(p.label)}</span>`).join('')}</div></div>` : ''}
                     ${d.customBlock ? `<button class="btn pbp-btn-xs pbp-start" data-act="editCustom" data-type="${n.type}">${ms('edit')}<span>Edit this block's design</span></button>` : ''}
                     <div class="pbp-field"><label for="pbp-f-title">Block name</label><input class="form-input" id="pbp-f-title" data-field="title" value="${esc(n.config.title || '')}" autocomplete="off"></div>
                     ${isComponent(n) ? `<div class="pbp-field"><label for="pbp-f-section">Prompt section</label><select class="form-input" id="pbp-f-section" data-section>${COMPONENT_SECTIONS.map(id => `<option value="${id}" ${id === sectionOf(n) ? 'selected' : ''}>${esc(sectionTitle(id))}</option>`).join('')}</select></div>` : ''}
@@ -864,6 +877,15 @@
             result = PE.compilePrompt(compileNodes(), state.edges, {
                 format: state.format, order: state.order, sample: state.sample, title: state.title
             });
+            // Required inputs and mismatched port types on custom blocks, added to the engine's checks.
+            const studio = window.PLBlockStudio;
+            if (studio && studio.diagnose) {
+                const extra = studio.diagnose(state.nodes, state.edges);
+                if (extra.length) {
+                    const rank = { error: 0, warning: 1, info: 2 };
+                    result.diagnostics = [...result.diagnostics, ...extra].sort((a, b) => rank[a.level] - rank[b.level]);
+                }
+            }
             // A component in the Role, Task or Output section counts as that part of the prompt.
             const covers = { role: ['role', 'system'], task: ['task', 'instructions'], output: ['output'] };
             const active = new Set(result.activeIds);
@@ -2116,6 +2138,11 @@
             tourNext: () => (tourAt < TOUR_STEPS.length - 1 ? showTourStep(tourAt + 1) : endTour()),
             clear: () => (state.nodes.length ? $('#pbp-confirm-dialog').showModal() : toast('The canvas is already empty')),
             copy: btn => copyPrompt(btn),
+            saveTeam: () => (window.PLBlockStudio ? window.PLBlockStudio.openTeamDialog() : toast('The block studio is still loading. Try again in a moment.', 'warning')),
+            placeTeam: t => window.PLBlockStudio && window.PLBlockStudio.placeTeam(t.dataset.team),
+            deleteTeam: t => window.PLBlockStudio && window.PLBlockStudio.removeTeam(t.dataset.team),
+            importBlocks: () => window.PLBlockStudio && window.PLBlockStudio.importFile(),
+            exportBlocks: () => window.PLBlockStudio && window.PLBlockStudio.exportBlocks(),
             createCustom: () => (window.PLBlockStudio ? window.PLBlockStudio.open(null) : toast('The block studio is still loading. Try again in a moment.', 'warning')),
             editCustom: t => (window.PLBlockStudio ? window.PLBlockStudio.open(t.dataset.type) : toast('The block studio is still loading. Try again in a moment.', 'warning')),
             zoomIn: () => zoomBy(.1),
@@ -2387,7 +2414,33 @@
             return lost;
         }
 
-        return { state, get result() { return result; }, get workshop() { return workshop; }, get panes() { return panes; }, buildExport, render, connect, addNode, contextBlock, loadTemplate, select, show, closeDialogs, refreshBlocks, usageOf: type => state.nodes.filter(n => n.type === type).length };
+        // Adds a saved group of blocks and wires to the canvas, to the right of what is already there.
+        function placeGraph(items, links) {
+            const usable = (items || []).filter(it => BLOCKS[it.type]);
+            if (!usable.length) { toast('None of the blocks in that team exist any more.', 'warning'); return 0; }
+            if (state.nodes.length + usable.length > MAX_NODES) { toast(`Maximum ${MAX_NODES} blocks per workflow. Split into separate workflows for larger systems.`, 'warning'); return 0; }
+            const left = state.nodes.length ? Math.max(...state.nodes.map(n => n.x)) + NODE_W + 96 : 48;
+            const top = state.nodes.length ? Math.min(...state.nodes.map(n => n.y)) : 72;
+            const made = new Map();
+            usable.forEach(it => {
+                const id = uid('node');
+                made.set(it.key, id);
+                state.nodes.push({ id, type: it.type, x: Math.round((left + it.x) / 8) * 8, y: Math.round((top + it.y) / 8) * 8, config: JSON.parse(JSON.stringify(it.config || BLOCKS[it.type].defaults)) });
+            });
+            (links || []).forEach(l => {
+                const a = made.get(l.from), b = made.get(l.to);
+                if (a && b) state.edges.push({ id: uid('edge'), from: a, fromPort: l.fromPort, to: b, toPort: l.toPort || 'in' });
+            });
+            const clean = PE.sanitizeGraph(state.nodes, state.edges);
+            state.nodes = clean.nodes;
+            state.edges = clean.edges;
+            state.selected = null;
+            render();
+            fit();
+            return made.size;
+        }
+
+        return { state, get result() { return result; }, get workshop() { return workshop; }, get panes() { return panes; }, buildExport, render, connect, addNode, contextBlock, loadTemplate, select, show, closeDialogs, refreshBlocks, placeGraph, usageOf: type => state.nodes.filter(n => n.type === type).length };
     }
 
     function ensure() {

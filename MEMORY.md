@@ -805,3 +805,12 @@ Resulting state:
 - Rule note: the studio sheet is `#pbp-block-studio` (its CSS is scoped there, not under `#builderProWorkspace`) because it also opens from the Component Library. Builder Pro hand-set cache value is now `20261122e` (loader and the custom-blocks stylesheet link).
 - Verified (headless Chromium, disposable data folder): 19 create and use checks, 20 persistence, edit, delete and Component Library checks, light, dark and 390 px layouts, no page errors, showcase validator passes. Not checked: installed PyWebView on Windows.
 - Backups: `_rollbacks/22-11-2026-*` (app.js, app.css, index.html, builder-pro.js/.css, the old custom-blocks files, MEMORY.md).
+
+### Block Studio second pass (2026-11-22)
+
+- Added to the studio: Draft with AI (`PL_ai.ask`, JSON), Try it (`PLBridge.callAI`, one plain request, answer not stored), Required input flag plus typed wire warnings in the Checks tab (`PLBlockStudio.diagnose`, merged into the engine diagnostics inside `compile()` in `builder-pro.js`), Duplicate, Export and Import (JSON, `prompt-builder-blocks` v1, imports always become new copies), and Team blocks.
+- Team block = a saved canvas. Workflow menu "Save canvas as team block". Stored in `component_blocks` (definition kind `builder-team`, body is the compiled prompt, so it also shows in the Component Library as text). Placed with `placeGraph` in `builder-pro.js`, to the right of existing blocks, repeatable. Cache key `prompt-builder-pro.teams.v1`. Still no schema change or dependency.
+- Port types remain warnings only, never blocks. Text is compatible with every type.
+- Hand-set Builder Pro cache value is now `20261122f` (loader and the custom-blocks stylesheet link).
+- Verified in headless Chromium on a fresh data folder: 32 new checks, plus the earlier 19 and 20, no page errors. AI calls were mocked at the provider endpoint. Not checked: installed PyWebView (file chooser for Import and the save dialog for Export need a look there).
+- Backups: `_rollbacks/22-11-2026-*-pre-v2.*`.
