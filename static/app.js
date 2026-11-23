@@ -12873,20 +12873,34 @@ Must avoid: [Anything sensitive or previously declined]`
                     e.preventDefault();
                     var startX = e.clientX,
                         startY = e.clientY;
-                    var origX = _canvasBlocks[idx].x,
-                        origY = _canvasBlocks[idx].y;
+                    var origX = b.x || 0,
+                        origY = b.y || 0;
                     var moved = false;
+                    var copyOnDrag = e.altKey; // Alt held at press: drag a copy, the original stays put
+                    var dragBlock = b,
+                        dragCard = card;
 
                     function onMove(ev) {
                         if (!moved && Math.abs(ev.clientX - startX) + Math.abs(ev.clientY - startY) > 4) {
                             moved = true;
-                            card.classList.add('dragging');
+                            if (copyOnDrag) {
+                                // The copy is a fresh block with no wires, placed on the original, and takes over the drag
+                                var dup = JSON.parse(JSON.stringify(b));
+                                dup.id = _pcwUid();
+                                dup.x = origX;
+                                dup.y = origY;
+                                _canvasBlocks.push(dup);
+                                renderCanvas();
+                                dragBlock = dup;
+                                dragCard = world.querySelector('[data-block-id="' + dup.id + '"]') || card;
+                            }
+                            dragCard.classList.add('dragging');
                         }
                         if (moved) {
-                            _canvasBlocks[idx].x = origX + (ev.clientX - startX) / _canvasState.zoom;
-                            _canvasBlocks[idx].y = origY + (ev.clientY - startY) / _canvasState.zoom;
-                            card.style.left = _canvasBlocks[idx].x + 'px';
-                            card.style.top = _canvasBlocks[idx].y + 'px';
+                            dragBlock.x = origX + (ev.clientX - startX) / _canvasState.zoom;
+                            dragBlock.y = origY + (ev.clientY - startY) / _canvasState.zoom;
+                            dragCard.style.left = dragBlock.x + 'px';
+                            dragCard.style.top = dragBlock.y + 'px';
                             _pcwDrawWires();
                         }
                     }
@@ -12894,11 +12908,12 @@ Must avoid: [Anything sensitive or previously declined]`
                     function onUp() {
                         document.removeEventListener('mousemove', onMove);
                         document.removeEventListener('mouseup', onUp);
-                        card.classList.remove('dragging');
+                        dragCard.classList.remove('dragging');
                         if (moved) {
                             renderCanvas();
+                            if (copyOnDrag) _pcwReveal(dragBlock.id);
                         } else {
-                            _canvasBlocks[idx].collapsed = !_canvasBlocks[idx].collapsed;
+                            b.collapsed = !b.collapsed;
                             renderCanvas();
                         }
                     }

@@ -782,3 +782,13 @@ Resulting state:
 - Gauntlet Loop is explicitly separate and untouched. Do not merge it into this workspace.
 - Files: `static/prompt-testing-workspace.js/.css`, `static/prompt-stress-lab.js` (analysis core export), `static/gauntlet-suite.js` (launcher delegation and specialist exports), `static/index.html`, `static/workspace-registry.js`, `static/workspace-previews.js`, and `docs/prompt-stress-lab/SPEC.md`.
 - Verified so far: JavaScript syntax checks pass for the changed JS files; specialist engine smoke test returns Surgeon, Red Team and Stress Lab results; QUICK/HARDEN/CRITICAL each return the expected lens sets; static integration checks pass. Interactive browser and installed PyWebView checks remain outstanding. This branch is not merged.
+
+
+## Alt-drag to duplicate a block (2026-11-23, feature branch)
+
+- Holding Alt when you press a block and then dragging leaves the original where it is and drags a copy instead, as in Figma. Alt held at press time is what counts. Alt plus a plain click (no movement) does nothing extra.
+- **Prompt Builder Pro** (`static/builder-pro.js`): `pointerdown` stores `copy: e.altKey` on the node drag. At the 3px movement threshold, `pointermove` clones the node through the new `cloneNode()` helper (deep copy of config, new id, `showcase` flag dropped), selects the copy and hands the drag to it. The Duplicate button in the inspector now uses the same helper, so it also respects `MAX_NODES` (it did not before).
+- **Prompt Components** (`static/app.js`, header `mousedown` in `renderCanvas`): `copyOnDrag = e.altKey`. At the 4px threshold a JSON copy of the block (new `_pcwUid()`) is pushed at the original position, the canvas re-renders, and the drag continues on the copy's card. The copy has no wires; the original keeps its links. After the drop the copy is revealed with `_pcwReveal`.
+- Verified in headless Chromium against a disposable data folder: plain drag still moves a block in both workspaces; Alt-drag adds exactly one block, the original does not move, the copy lands at the drop point (Builder Pro snaps to 8px), wires stay on the original, text is copied, no stuck `dragging` class; Alt-click adds nothing. Not checked: the real WebView2 window (on Windows, Alt may flash the menu bar in some hosts).
+- Cache: Builder Pro loader `?v=20261123a`; `app.js` hash refreshed with `update_hash.py`. Backups: `_rollbacks/*.23-11-2026-pre-alt-drag`.
+- **Open issue, not caused by this change:** `builder-pro-custom-blocks.js:21` throws `Cannot set property compilePrompt of #<Object> which has only a getter` on every page load, so its compile wrapper is never installed. Needs a separate look.
