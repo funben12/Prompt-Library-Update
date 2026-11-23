@@ -11,7 +11,7 @@
 
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/app.css?v=a80162a6-plx">
+<link rel="stylesheet" href="/static/app.css?v=f2729def-plx">
 <link rel="stylesheet" href="/static/builder-pro.css?v=20261122j">
 <link rel="stylesheet" href="/static/builder-pro-custom-blocks.css?v=20261122j">
 <link rel="stylesheet" href="/static/workspace-picker.css?v=20261116m">
@@ -1081,8 +1081,14 @@
           <input type="password" id="configApiKeyInput" class="form-input" placeholder="Paste your API key…" autocomplete="off" />
         </div>
         <div id="configModelRow">
-          <div class="config-section-label" style="margin-top:var(--sp-3);">Model</div>
+          <div class="config-model-head">
+            <div class="config-section-label">Model</div>
+            <button type="button" class="config-link-btn" id="configModelRefresh" title="Ask the provider which models it offers today">
+              <span class="material-symbols-outlined">refresh</span> Refresh list
+            </button>
+          </div>
           <div class="config-api-row">
+            <select id="configModelSelect" class="form-input" aria-label="Model"></select>
             <input type="text" id="configModelInput" class="form-input" placeholder="Model name" autocomplete="off" spellcheck="false" />
           </div>
           <p class="config-hint" id="configModelHint"></p>
@@ -5156,12 +5162,12 @@
 
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
-<script defer src="/static/combine-prompts.js?v=4d26ba67"></script>
-<script defer src="/static/app.js?v=1e9ad47c"></script>
-<script defer src="/static/randomiser-motion.js?v=6852ea44"></script>
-<script defer src="/static/vartypes-3d.js?v=e36a83aa"></script>
-<script defer src="/static/deck-shuffles.js?v=3a1f9c7b"></script>
-<script defer src="/static/dice-rolls.js?v=0c4d5e7e"></script>
+<script defer src="/static/combine-prompts.js?v=5620e7a8"></script>
+<script defer src="/static/app.js?v=32423549"></script>
+<script defer src="/static/randomiser-motion.js?v=b58f9ac7"></script>
+<script defer src="/static/vartypes-3d.js?v=8848706c"></script>
+<script defer src="/static/deck-shuffles.js?v=23f50d79"></script>
+<script defer src="/static/dice-rolls.js?v=ff8e940b"></script>
 
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
@@ -5172,7 +5178,7 @@
   if (typeof window.createFolderInline !== 'function') window.createFolderInline = function () {};
   if (typeof window.clearAllFilters    !== 'function') window.clearAllFilters    = function () {};
   (function(){ var s=document.createElement("script"); s.src="/static/gauntlet-suite.js?v=20261122a"; s.defer=true; document.head.appendChild(s); })();
-  ["builder-pro-engine.js", "builder-pro-custom-blocks.js", "builder-pro.js", "builder-pro-showcases.js"].forEach(function(f){ var s=document.createElement("script"); s.src="/static/"+f+"?v=20261123c"; s.async=false; document.head.appendChild(s); });
+  ["builder-pro-engine.js", "builder-pro-custom-blocks.js", "builder-pro.js", "builder-pro-showcases.js"].forEach(function(f){ var s=document.createElement("script"); s.src="/static/"+f+"?v=20261123d"; s.async=false; document.head.appendChild(s); });
   ["workspace-registry.js", "workspace-previews.js", "workspace-picker.js", "workspace-sidebar.js", "prompt-pack-builder.js", "prompt-workflow-studio.js", "context-pack-builder.js", "library-browser.js", "agent-workspace-refresh.js"].forEach(function(f){ var s=document.createElement("script"); s.src="/static/"+f+"?v=20261117c"; s.async=false; document.head.appendChild(s); });
 </script>
 

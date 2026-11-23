@@ -450,6 +450,72 @@
                 settings: [{ label: "Rounds", type: "number", defaultValue: "2" }],
                 template: "Run this team for up to {{setting:rounds}} rounds. Give each agent only the part of {{input:task_in}} it needs. Brief the Planner first, then the Researcher, then the Writer, and finish with the Critic."
             }
+        },
+        {
+            id: "splitter", name: "Splitter", icon: "call_split", line: "Takes 1 to 2 inputs and splits them into up to 12 outputs.",
+            def: {
+                role: "standard", icon: "call_split", section: "workflow", inputs: [], outputs: [],
+                settings: [{ label: "Split by", type: "select", options: ["topic", "step", "audience", "theme", "size"], defaultValue: "topic" }],
+                dynamic: { inputs: { name: "Source in", type: "text", min: 1, max: 2, count: 1 }, outputs: { name: "Part out", type: "text", min: 1, max: 12, count: 3 } },
+                template: "Split the source into {{output_count}} separate parts, divided by {{setting:split_by}}. Treat the {{input_count}} input(s) as one source, in order.\nSource:\n{{inputs}}\nParts:\n{{outputs}}\nEvery part must stand on its own, together the parts must cover all of the source, and no part may repeat another. Part n goes to output n."
+            }
+        },
+        {
+            id: "router", name: "Router", icon: "alt_route", line: "Sends a request down the one route that fits best.",
+            def: {
+                role: "standard", icon: "alt_route", section: "workflow",
+                inputs: [{ label: "Request in", desc: "What needs routing" }, { label: "Rules", desc: "How to choose a route" }],
+                outputs: [],
+                settings: [{ label: "If no match", type: "select", options: ["use the first route", "use the last route", "ask for clarification"], defaultValue: "ask for clarification" }],
+                dynamic: { inputs: null, outputs: { name: "Route", type: "text", min: 2, max: 8, count: 3 } },
+                template: "Read {{input:request_in}} and choose the one route that fits it best, using {{input:rules}}. Send the request down that route only and leave the other routes empty. If no route fits, {{setting:if_no_match}}.\nThere are {{output_count}} routes:\n{{outputs}}"
+            }
+        },
+        {
+            id: "summariser", name: "Summariser", icon: "summarize", line: "Long text in, a short summary and key points out.",
+            def: {
+                role: "standard", icon: "summarize", section: "instructions",
+                inputs: [{ label: "Text in", desc: "The material to summarise" }],
+                outputs: [{ label: "Summary" }, { label: "Key points", type: "list" }],
+                settings: [
+                    { label: "Length", type: "select", options: ["one line", "short paragraph", "half a page"], defaultValue: "short paragraph" },
+                    { label: "Audience", type: "text", defaultValue: "a busy reader" }
+                ],
+                template: "Summarise {{input:text_in}} for {{setting:audience}}. Write the {{output:summary}} as {{setting:length}}, then list the {{output:key_points}}, each as a single sentence. Add nothing that is not in the source."
+            }
+        },
+        {
+            id: "rewriter", name: "Rewriter", icon: "edit_note", line: "Rewrites text to a tone and style guide.",
+            def: {
+                role: "standard", icon: "edit_note", section: "instructions",
+                inputs: [{ label: "Text in", desc: "The draft to rewrite" }, { label: "Style guide", desc: "Voice and rules to follow" }],
+                outputs: [{ label: "Rewrite" }, { label: "Changes", desc: "What changed and why" }],
+                settings: [
+                    { label: "Tone", type: "text", defaultValue: "clear and direct" },
+                    { label: "Mode", type: "select", options: ["keep the meaning exactly", "tighten", "expand"], defaultValue: "keep the meaning exactly" }
+                ],
+                template: "Rewrite {{input:text_in}} in a {{setting:tone}} tone, following {{input:style_guide}}. Mode: {{setting:mode}}. Give the {{output:rewrite}}, then a short {{output:changes}} list."
+            }
+        },
+        {
+            id: "extractor", name: "Extractor", icon: "data_object", line: "Pulls named fields out of a source as structured data.",
+            def: {
+                role: "standard", icon: "data_object", section: "instructions",
+                inputs: [{ label: "Source in", desc: "The text to read" }, { label: "Fields", desc: "What to pull out" }],
+                outputs: [{ label: "Data", type: "json" }, { label: "Gaps", desc: "Fields the source does not answer" }],
+                settings: [{ label: "Missing value", type: "select", options: ["null", "not stated", "leave out"], defaultValue: "not stated" }],
+                template: "From {{input:source_in}}, pull out each item named in {{input:fields}} and return them as {{output:data}}. Where the source does not say, use {{setting:missing_value}} and name the field in {{output:gaps}}. Do not guess."
+            }
+        },
+        {
+            id: "comparer", name: "Comparer", icon: "compare_arrows", line: "Adjustable options in, a comparison and a pick out.",
+            def: {
+                role: "standard", icon: "compare_arrows", section: "instructions",
+                inputs: [], outputs: [{ label: "Comparison" }, { label: "Recommendation" }],
+                settings: [{ label: "Criteria", type: "text", defaultValue: "cost, effort and risk" }],
+                dynamic: { inputs: { name: "Option", type: "text", min: 2, max: 8, count: 3 }, outputs: null },
+                template: "Compare these {{input_count}} options against {{setting:criteria}}.\n{{inputs}}\nGive the {{output:comparison}} with one row per option, then a {{output:recommendation}} that names one option and the main reason. Say so if the options are too close to call."
+            }
         }
     ];
 

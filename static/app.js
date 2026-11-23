@@ -6896,6 +6896,25 @@ Here are my prompts:
             });
         }
 
+        // Model dropdown: a list choice fills the saved value, "Other model name" reveals the text field
+        const modelSelect = $('#configModelSelect');
+        if (modelSelect) {
+            modelSelect.addEventListener('change', () => {
+                const input = $('#configModelInput');
+                if (!input) return;
+                if (modelSelect.value === _CONFIG_CUSTOM) {
+                    input.style.display = '';
+                    input.value = '';
+                    input.focus();
+                } else {
+                    input.style.display = 'none';
+                    input.value = modelSelect.value;
+                }
+            });
+        }
+        const modelRefresh = $('#configModelRefresh');
+        if (modelRefresh) modelRefresh.addEventListener('click', _configRefreshModels);
+
         // Save button
         const saveBtn = $('#configSaveBtn');
         if (saveBtn) {
@@ -6970,16 +6989,136 @@ Here are my prompts:
         });
     }
 
-    // Fill the model field and Second opinion switch for the chosen provider
+    // Built-in model shortlists. "Refresh list" swaps in whatever the provider offers today, so retired models drop out.
+    const _CONFIG_MODELS = {
+        openai: ['gpt-5.4-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4o', 'gpt-4o-mini'],
+        anthropic: ['claude-haiku-4-5-20251001', 'claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5', 'claude-fable-5-2', 'claude-sonnet-4-5'],
+        gemini: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite'],
+        openrouter: ['openai/gpt-5.4-mini', 'openai/gpt-oss-120b', 'anthropic/claude-sonnet-4.5', 'google/gemini-2.5-flash', 'deepseek/deepseek-chat'],
+        mistral: ['mistral-small-latest', 'mistral-medium-latest', 'mistral-large-latest'],
+        groq: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
+        deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+        xai: ['grok-4-latest', 'grok-3'],
+        cohere: ['command-a-03-2025', 'command-r-plus-08-2024', 'command-r-08-2024'],
+        perplexity: ['sonar', 'sonar-pro', 'sonar-reasoning']
+    };
+    const _CONFIG_CUSTOM = '__custom__';
+
+    function _configCachedModels(provider) {
+        try {
+            const c = JSON.parse(localStorage.getItem('pl_models_' + provider) || 'null');
+            if (c && Array.isArray(c.ids) && c.ids.length) return c;
+        } catch (e) {}
+        return null;
+    }
+
+    function _configModelMessage(text, isError) {
+        const hint = $('#configModelHint');
+        if (!hint) return;
+        hint.textContent = text;
+        hint.style.color = isError ? 'var(--danger, var(--ink-2))' : '';
+    }
+
+    function _configDefaultHint(provider) {
+        const def = _aiDefaultModel(provider);
+        if (!_CONFIG_MODELS[provider]) return def ? 'Leave blank to use ' + def + '.' : 'Use the model name your endpoint expects.';
+        return _configCachedModels(provider)
+            ? 'Showing the list your provider returned. Models it no longer offers are marked.'
+            : 'Built-in shortlist. Use Refresh list to check which models your provider offers today.';
+    }
+
+    // Build the dropdown. The text field stays the saved value; it only shows for "Other model name".
+    function _configRenderModelSelect(provider, current) {
+        const sel = $('#configModelSelect'), input = $('#configModelInput'), refresh = $('#configModelRefresh');
+        if (!sel || !input) return;
+        const hasList = !!_CONFIG_MODELS[provider];
+        sel.style.display = hasList ? '' : 'none';
+        if (refresh) refresh.style.display = hasList ? '' : 'none';
+        if (!hasList) { input.style.display = ''; input.value = current; return; }
+        const cached = _configCachedModels(provider);
+        const ids = (cached ? cached.ids : _CONFIG_MODELS[provider]).slice();
+        const def = _aiDefaultModel(provider);
+        sel.textContent = '';
+        const add = (value, label) => {
+            const o = document.createElement('option');
+            o.value = value;
+            o.textContent = label;
+            sel.appendChild(o);
+        };
+        add('', 'Default' + (def ? ' (' + def + ')' : ''));
+        ids.forEach(id => add(id, id));
+        if (current && !ids.includes(current)) add(current, current + (cached ? ' (no longer listed)' : ' (saved)'));
+        add(_CONFIG_CUSTOM, 'Other model name…');
+        sel.value = current || '';
+        input.value = current;
+        input.style.display = 'none';
+    }
+
+    // Ask the provider for its current chat models. Returns an array of ids.
+    async function _configFetchModels(provider, key) {
+        const getJson = async (url, headers) => {
+            const res = await _aiFetch(url, { headers: headers || {} }, 15000);
+            const d = await res.json().catch(() => ({}));
+            const err = d && d.error;
+            if (!res.ok || err) throw new Error((typeof err === 'string' ? err : err && err.message) || d.message || ('Error ' + res.status));
+            return d;
+        };
+        const bearer = { 'Authorization': 'Bearer ' + key };
+        const compat = { openai: 'https://api.openai.com/v1/models', mistral: 'https://api.mistral.ai/v1/models', groq: 'https://api.groq.com/openai/v1/models', deepseek: 'https://api.deepseek.com/models', xai: 'https://api.x.ai/v1/models' };
+        let ids = [];
+        if (compat[provider]) {
+            ids = ((await getJson(compat[provider], bearer)).data || []).map(m => m.id);
+            if (provider === 'openai') ids = ids.filter(id => /^(gpt|o\d|chatgpt)/.test(id) && !/(embed|whisper|tts|dall|image|audio|realtime|transcribe|moderation|search|instruct)/.test(id));
+            if (provider === 'groq') ids = ids.filter(id => !/(whisper|tts|guard|playai)/.test(id));
+        } else if (provider === 'anthropic') {
+            const d = await getJson('https://api.anthropic.com/v1/models?limit=100', { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' });
+            ids = (d.data || []).map(m => m.id);
+        } else if (provider === 'gemini') {
+            const d = await getJson('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=' + encodeURIComponent(key));
+            ids = (d.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => String(m.name || '').replace(/^models\//, ''));
+        } else if (provider === 'openrouter') {
+            ids = ((await getJson('https://openrouter.ai/api/v1/models', key ? bearer : {})).data || []).map(m => m.id);
+        } else if (provider === 'cohere') {
+            const d = await getJson('https://api.cohere.com/v1/models?endpoint=chat&page_size=100', bearer);
+            ids = (d.models || []).map(m => m.name);
+        } else {
+            throw new Error('This provider does not publish a model list. Use Other model name.');
+        }
+        ids = Array.from(new Set(ids.filter(Boolean))).sort();
+        if (!ids.length) throw new Error('The provider returned no chat models for this key.');
+        return ids;
+    }
+
+    async function _configRefreshModels() {
+        const provider = ($$('.config-provider-tab.active')[0]?.dataset.provider) || 'openai';
+        const btn = $('#configModelRefresh'), input = $('#configModelInput');
+        const key = ($('#configApiKeyInput')?.value || '').trim() || localStorage.getItem('pl_api_key_' + provider) || '';
+        if (!key && provider !== 'openrouter') {
+            _configModelMessage('Paste your API key above first, then refresh.', true);
+            return;
+        }
+        const label = ($$('.config-provider-tab.active')[0]?.textContent || 'the provider').trim();
+        if (btn) btn.disabled = true;
+        _configModelMessage('Asking ' + label + ' for its models…');
+        try {
+            const ids = await _configFetchModels(provider, key);
+            try { localStorage.setItem('pl_models_' + provider, JSON.stringify({ at: Date.now(), ids })); } catch (e) {}
+            _configRenderModelSelect(provider, (input?.value || '').trim());
+            _configModelMessage(ids.length + ' models from ' + label + '. Any saved model it no longer offers is marked.');
+        } catch (e) {
+            _configModelMessage('Could not load the list: ' + (e.message || 'unknown error') + '. The built-in shortlist is still available.', true);
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    // Fill the model dropdown and Second opinion switch for the chosen provider
     function _configSyncModelRow(provider) {
         const input = $('#configModelInput');
         const def = _aiDefaultModel(provider);
-        if (input) {
-            input.value = localStorage.getItem(_aiModelKey(provider)) || '';
-            input.placeholder = def || 'Model name';
-        }
-        const hint = $('#configModelHint');
-        if (hint) hint.textContent = def ? 'Leave blank to use ' + def + '.' : 'Use the model name your endpoint expects.';
+        if (input) input.placeholder = def || 'Model name';
+        _configRenderModelSelect(provider, (localStorage.getItem(_aiModelKey(provider)) || '').trim());
+        _configModelMessage(_configDefaultHint(provider));
         const advRow = $('#configAdvisorRow');
         if (advRow) advRow.style.display = provider === 'anthropic' ? '' : 'none';
         const advToggle = $('#configAdvisorToggle');
