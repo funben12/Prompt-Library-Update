@@ -784,6 +784,15 @@ Resulting state:
 - Verified so far: JavaScript syntax checks pass for the changed JS files; specialist engine smoke test returns Surgeon, Red Team and Stress Lab results; QUICK/HARDEN/CRITICAL each return the expected lens sets; static integration checks pass. Interactive browser and installed PyWebView checks remain outstanding. This branch is not merged.
 
 
+## Alt-drag to duplicate a block (2026-11-23, feature branch)
+
+- Holding Alt when you press a block and then dragging leaves the original where it is and drags a copy instead, as in Figma. Alt held at press time is what counts. Alt plus a plain click (no movement) does nothing extra.
+- **Prompt Builder Pro** (`static/builder-pro.js`): `pointerdown` stores `copy: e.altKey` on the node drag. At the 3px movement threshold, `pointermove` clones the node through the new `cloneNode()` helper (deep copy of config, new id, `showcase` flag dropped), selects the copy and hands the drag to it. The Duplicate button in the inspector now uses the same helper, so it also respects `MAX_NODES` (it did not before).
+- **Prompt Components** (`static/app.js`, header `mousedown` in `renderCanvas`): `copyOnDrag = e.altKey`. At the 4px threshold a JSON copy of the block (new `_pcwUid()`) is pushed at the original position, the canvas re-renders, and the drag continues on the copy's card. The restored Components screen has no wires or block ids, so the copy is simply appended (index `length - 1`) with a deep copy of label, text, category and collapsed state.
+- Verified in headless Chromium against a disposable data folder: plain drag still moves a block in both workspaces; Alt-drag adds exactly one block, the original does not move, the copy lands at the drop point (Builder Pro snaps to 8px), text is copied, no stuck `dragging` class, no page errors; Alt-click adds nothing. Re-run after merging the remote branch (block studio and restored floating-block Components). Not checked: the real WebView2 window (on Windows, Alt may flash the menu bar in some hosts).
+- Cache: Builder Pro loader `?v=20261123a`; `app.js` hash refreshed with `update_hash.py`. Backups: `_rollbacks/*.23-11-2026-pre-alt-drag`.
+- The `compilePrompt` getter error seen before the merge no longer appears: the remote branch loads `builder-pro-custom-blocks.js` before `builder-pro.js`.
+
 ## Prompt Testing AI bridge and Block Studio (2026-11-22, feature branch)
 
 ### Combined AI review repaired
@@ -838,3 +847,13 @@ Resulting state:
 - Cache value is `20261122j`. Verified: 37 new checks plus 19, 20, 33, 41 and 9 from earlier suites, all 13 templates load, Stress Lab AI still works, no page errors. Not checked: installed PyWebView.
 - Backups: `_rollbacks/22-11-2026-*-pre-dyn.*`.
 - Found while working, NOT yet fixed (awaiting approval): the Settings flyout `#configPanel` has no height limit, so with its current content (about 960 px) it grows past short windows, its header and close button go off-screen and the body cannot scroll. Proposed fix in `app.css`: `max-height: 100vh` on `#configPanel` and `min-height: 0` on `.config-panel-body`.
+
+
+## Template block in the component library (2026-11-23, feature branch)
+
+- One new Core block, **Template**, sits right after Input Template in `static/components-data.js` (icon `article`, 12 blanks: name, purpose, use when, three inputs, three sections, two rules, output). It is one library entry, not a new block type and not a new category.
+- It shows in the Prompt Components library (Browse) and in Prompt Builder Pro's Component Library, because Builder Pro borrows the same `window._pcwBLOCKS` data through `PL_galleryBorrow`. No change to `builder-pro.js` or the Builder engine.
+- Checked in headless Chromium: one block with label Template, category core, found by search in both libraries, the detail view shows the full text with "Add to kit", no page errors.
+- `components-data.js` had no cache-bust on its script tag; `index.html` now loads it as `components-data.js?v=20261123b`. Bump that value when the file changes.
+- The phone app takes this data through `scripts/build-components-data.js` in AI-App-Factory `apps/app-003-prompt-library-mobile`. Rerun it to bring the new block to the phone (not done here).
+- Backup: `_rollbacks/components-data.js.23-11-2026-pre-template-block`.

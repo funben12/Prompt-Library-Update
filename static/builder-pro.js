@@ -1228,6 +1228,16 @@
             state.selected = n.id;
             render();
         }
+        function cloneNode(n, x, y) {
+            if (state.nodes.length >= MAX_NODES) {
+                toast(`Maximum ${MAX_NODES} blocks per workflow. Split into separate workflows for larger systems.`, 'warning');
+                return null;
+            }
+            const c = { ...JSON.parse(JSON.stringify(n)), id: uid('node'), x, y };
+            delete c.showcase;
+            state.nodes.push(c);
+            return c;
+        }
         function removeNode(id) {
             state.nodes = state.nodes.filter(n => n.id !== id);
             state.edges = state.edges.filter(e => e.from !== id && e.to !== id);
@@ -2189,7 +2199,7 @@
             } else if (overNode) {
                 const n = node(overNode.dataset.id);
                 if (state.selected !== n.id) select(n.id);
-                drag = { mode: 'node', id: n.id, sx: e.clientX, sy: e.clientY, ox: n.x, oy: n.y, moved: false };
+                drag = { mode: 'node', id: n.id, sx: e.clientX, sy: e.clientY, ox: n.x, oy: n.y, moved: false, copy: e.altKey };
             } else if (wire) return;
             else {
                 drag = { mode: 'pan', sx: e.clientX - state.pan.x, sy: e.clientY - state.pan.y, moved: false };
@@ -2207,12 +2217,17 @@
                 els.canvas.classList.add('pbp-is-panning');
                 applyView();
             } else if (drag.mode === 'node') {
-                const n = node(drag.id);
-                if (!n) return;
                 const dx = (e.clientX - drag.sx) / state.zoom;
                 const dy = (e.clientY - drag.sy) / state.zoom;
                 if (!drag.moved && Math.hypot(dx, dy) < 3) return;
+                if (!drag.moved && drag.copy) {
+                    // Alt held at press: the original stays put and the copy takes the drag
+                    const c = cloneNode(node(drag.id), drag.ox, drag.oy);
+                    if (c) { drag.id = c.id; state.selected = c.id; render(); }
+                }
                 drag.moved = true;
+                const n = node(drag.id);
+                if (!n) return;
                 n.x = Math.round(drag.ox + dx);
                 n.y = Math.round(drag.oy + dy);
                 const el = nodeEl(n.id);
@@ -2332,9 +2347,8 @@
             duplicate: () => {
                 const n = node(state.selected);
                 if (!n) return;
-                const c = { ...JSON.parse(JSON.stringify(n)), id: uid('node'), x: n.x + 32, y: n.y + 32 };
-                delete c.showcase;
-                state.nodes.push(c);
+                const c = cloneNode(n, n.x + 32, n.y + 32);
+                if (!c) return;
                 state.selected = c.id;
                 render();
             },
