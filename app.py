@@ -3915,6 +3915,34 @@ def set_ui_prefs():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/skill-foundry', methods=['GET'])
+def get_skill_foundry():
+    """Skill Foundry skills as one JSON string, kept here because WebView localStorage can reset between launches."""
+    try:
+        with get_db() as con:
+            row = con.execute("SELECT value FROM settings WHERE key = 'skill_foundry'").fetchone()
+        return jsonify({'data': row['value'] if row else None})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/skill-foundry', methods=['POST'])
+def set_skill_foundry():
+    """Save the Skill Foundry JSON string whole. It must parse as an object and stay under 8 MB."""
+    data = _json_body().get('data')
+    if not isinstance(data, str) or len(data) > 8 * 1024 * 1024:
+        return jsonify({'error': 'invalid or too large'}), 400
+    try:
+        if not isinstance(json.loads(data), dict):
+            raise ValueError('not an object')
+    except Exception:
+        return jsonify({'error': 'not valid JSON'}), 400
+    try:
+        with get_db() as con:
+            con.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('skill_foundry', data))
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/settings/ai-baseurls', methods=['GET'])
 def get_ai_baseurls():
     """Return stored custom base URLs, keyed by provider slug."""

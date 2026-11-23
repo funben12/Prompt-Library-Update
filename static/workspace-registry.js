@@ -44,7 +44,8 @@
         openIntegrityWorkspace: { tags: ['tag-safety'] },
         openPromptPackBuilderWorkspace: { category: 'cat-publish', tags: ['tag-export', 'tag-community'] },
         openPromptWorkflowStudioWorkspace: { category: 'cat-build', tags: ['tag-canvas', 'tag-workflow', 'tag-quality'] },
-        openContextPackBuilderWorkspace: { category: 'cat-publish', tags: ['tag-context', 'tag-export'] }
+        openContextPackBuilderWorkspace: { category: 'cat-publish', tags: ['tag-context', 'tag-export'] },
+        openSkillFoundryWorkspace: { category: 'cat-build', tags: ['tag-export', 'tag-safety', 'tag-ai'] }
     };
     // Workspaces opened by function name that do not follow openXWorkspace to #xWorkspace.
     const ROOT_OVERRIDE = { openForkWorkstation: '#forkWorkstation', openPromptForkingWorkspace: '#forkWorkstation' };
@@ -68,6 +69,27 @@
     function save(what) {
         try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) { /* quota or private mode: changes last for this session */ }
         emit(what || 'store');
+    }
+
+    // Favourites are also kept in the database through PL_prefs, because WebView localStorage can reset between launches.
+    const FAV_PREF = 'ws_favs';
+    function mirrorFavs() {
+        try { if (window.PL_prefs) window.PL_prefs.set(FAV_PREF, JSON.stringify(load().favourites)); } catch (e) { /* localStorage copy still holds */ }
+    }
+    function hydrateFavs() {
+        const p = window.PL_prefs;
+        if (!p || !p.ready) return;
+        p.ready.then(() => {
+            const raw = p.get(FAV_PREF), s = load();
+            // Nothing saved in the database yet: push what this device already has.
+            if (raw === null || raw === undefined) { if (s.favourites.length) mirrorFavs(); return; }
+            let ids; try { ids = JSON.parse(raw); } catch (e) { return; }
+            if (!Array.isArray(ids)) return;
+            const next = ids.filter(x => typeof x === 'string');
+            if (JSON.stringify(next) === JSON.stringify(s.favourites)) return;
+            s.favourites = next;
+            save('fav');
+        }).catch(() => { /* keep the localStorage copy */ });
     }
 
     function rootFor(fn) {
@@ -163,7 +185,7 @@
 
         // Favourites and recents.
         isFav(id) { return load().favourites.includes(id); },
-        toggleFav(id) { const s = load(); s.favourites = s.favourites.includes(id) ? s.favourites.filter(x => x !== id) : s.favourites.concat(id); save('fav'); return s.favourites.includes(id); },
+        toggleFav(id) { const s = load(); s.favourites = s.favourites.includes(id) ? s.favourites.filter(x => x !== id) : s.favourites.concat(id); save('fav'); mirrorFavs(); return s.favourites.includes(id); },
         favourites() { return load().favourites.map(PLWS.get).filter(Boolean); },
         recent(n) { return load().recent.map(r => ({ w: PLWS.get(r.id), at: r.at })).filter(r => r.w).slice(0, n || 4); },
         markOpened(id) { const s = load(); s.recent = [{ id, at: Date.now() }].concat(s.recent.filter(r => r.id !== id)).slice(0, 12); save('recent'); },
@@ -212,4 +234,5 @@
     window.PLWS = PLWS;
     // Wrap once the workspace functions exist (app.js defines them during boot).
     window.addEventListener('load', () => { try { wrapOpeners(); } catch (e) { console.warn('PLWS wrap failed', e); } });
+    if (window.PL_prefs) hydrateFavs(); else window.addEventListener('load', hydrateFavs);
 })();
