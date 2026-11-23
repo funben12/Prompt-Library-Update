@@ -4822,6 +4822,50 @@
   color: var(--accent);
 }
 .ctxb-pill.active .ctxb-pill-count { color: var(--accent); }
+.ctxb-pill-manage { border-style: dashed; color: var(--accent); }
+.ctxb-pill-manage .material-symbols-outlined { font-size: 14px; }
+/* Your categories manager, under the find bar */
+.ctxb-catm {
+  padding: var(--sp-3) var(--sp-5) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  flex-shrink: 0;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.ctxb-catm[hidden] { display: none; }
+.ctxb-catm-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-2); }
+.ctxb-catm-title { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+.ctxb-catm-add { display: flex; gap: var(--sp-2); align-items: center; max-width: 520px; }
+.ctxb-catm-input {
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.ctxb-catm-input:focus { border-color: var(--accent); box-shadow: var(--ring); }
+.ctxb-catm-msg { min-height: 16px; margin: 6px 0 4px; font-size: var(--fs-xs); color: var(--accent); }
+.ctxb-catm-msg.error { color: var(--danger); }
+.ctxb-catm-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: 520px;
+  min-height: 40px;
+  border-bottom: 1px solid var(--line);
+}
+.ctxb-catm-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); font-weight: 600; color: var(--ink); }
+.ctxb-catm-count { font-family: var(--ff-mono); font-size: 11px; color: var(--ink-4); white-space: nowrap; }
+.ctxb-catm-q { flex: 1; font-size: var(--fs-sm); color: var(--ink-2); }
+.ctxb-catm-danger { color: var(--danger); }
+.ctxb-catm-note { margin: var(--sp-2) 0 0; font-size: var(--fs-xs); color: var(--ink-3); max-width: 520px; }
 .ctxb-sort {
   display: inline-flex;
   align-items: center;

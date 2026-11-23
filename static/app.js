@@ -8323,6 +8323,201 @@ Must avoid: [Anything sensitive or previously declined]`
     let _ctxPending = null;
     let _ctxPanelCat = 'all';
 
+    // Your own categories: localStorage pl_ctx_categories, with a copy in the settings table (ctx_categories)
+    const CTX_CATS_KEY = 'pl_ctx_categories';
+    const CTX_CAT_MAX = 30;
+    const CTX_CATS_MAX = 50;
+    const _ctxCatUI = { open: false, renaming: null, removing: null };
+
+    function _ctxCleanCat(s) {
+        return String(s || '').replace(/\s+/g, ' ').trim().slice(0, CTX_CAT_MAX);
+    }
+
+    function _ctxCustomCats() {
+        let list = null;
+        try { list = JSON.parse(localStorage.getItem(CTX_CATS_KEY) || 'null'); } catch (_) { list = null; }
+        if (!Array.isArray(list) && window.PL_prefs) {
+            try { list = JSON.parse(window.PL_prefs.get('ctx_categories') || 'null'); } catch (_) { list = null; }
+        }
+        return Array.isArray(list) ? list.map(_ctxCleanCat).filter(Boolean) : [];
+    }
+
+    // The settings copy takes plain text up to 2000 characters, so the list is kept to 50 names
+    function _ctxSaveCustomCats(list) {
+        const text = JSON.stringify(list.slice(0, CTX_CATS_MAX));
+        try { localStorage.setItem(CTX_CATS_KEY, text); } catch (_) { /* the settings copy still holds it */ }
+        if (window.PL_prefs) window.PL_prefs.set('ctx_categories', text);
+    }
+
+    function _ctxIsStarterCat(name) {
+        return CTX_CAT_ORDER.some(c => c.toLowerCase() === String(name || '').toLowerCase());
+    }
+
+    // A clean name, or the reason it cannot be used
+    function _ctxCheckCatName(raw, except) {
+        const name = _ctxCleanCat(raw);
+        if (!name) return { error: 'Type a name first' };
+        if (name.toLowerCase() === 'all') return { error: 'All is taken by the filter' };
+        const clash = _ctxCategories().map(c => c.name).concat(CTX_CAT_ORDER)
+            .find(c => c.toLowerCase() === name.toLowerCase() && c !== except);
+        if (clash) return { error: clash + ' already exists' };
+        if (!except && _ctxCustomCats().length >= CTX_CATS_MAX) return { error: 'Up to ' + CTX_CATS_MAX + ' categories' };
+        return { name };
+    }
+
+    function _ctxAddCat(raw) {
+        const res = _ctxCheckCatName(raw, null);
+        if (!res.error) _ctxSaveCustomCats(_ctxCustomCats().concat(res.name));
+        return res;
+    }
+
+    function _ctxRenameCat(from, raw) {
+        if (_ctxIsStarterCat(from)) return { error: 'Starter categories stay as they are' };
+        const res = _ctxCheckCatName(raw, from);
+        if (res.error) return res;
+        const own = _ctxCustomCats();
+        const i = own.indexOf(from);
+        if (i === -1) own.push(res.name);
+        else own[i] = res.name;
+        _ctxSaveCustomCats(own);
+        _ctxBlocks.forEach(b => { if (_ctxCat(b) === from) b.category = res.name; });
+        _ctxSave();
+        if (_ctxFilter === from) _ctxFilter = res.name;
+        return res;
+    }
+
+    // Removing a category moves its blocks to Other, so no block is lost
+    function _ctxRemoveCat(name) {
+        if (_ctxIsStarterCat(name)) return { error: 'Starter categories stay as they are' };
+        _ctxSaveCustomCats(_ctxCustomCats().filter(c => c !== name));
+        let moved = 0;
+        _ctxBlocks.forEach(b => { if (_ctxCat(b) === name) { b.category = 'Other'; moved++; } });
+        _ctxSave();
+        if (_ctxFilter === name) _ctxFilter = 'all';
+        return { moved };
+    }
+
+    // A name typed in the editor that matches a category in any case uses that category
+    function _ctxResolveCat(raw) {
+        const name = _ctxCleanCat(raw);
+        if (!name || name.toLowerCase() === 'all') return 'Other';
+        const hit = _ctxCategories().map(c => c.name).concat(CTX_CAT_ORDER).find(c => c.toLowerCase() === name.toLowerCase());
+        if (hit) return hit;
+        _ctxSaveCustomCats(_ctxCustomCats().concat(name));
+        return name;
+    }
+
+    function _ctxRenderCatManager(msg, isError) {
+        const box = $('#ctxCatManager');
+        if (!box) return;
+        box.hidden = !_ctxCatUI.open;
+        if (!_ctxCatUI.open) return;
+        const own = _ctxCustomCats();
+        const mine = _ctxCategories().map(c => c.name).filter(c => !_ctxIsStarterCat(c));
+        const rows = mine.map(c => {
+            const n = _ctxBlocks.filter(b => _ctxCat(b) === c).length;
+            const a = escapeAttr(c);
+            if (_ctxCatUI.renaming === c) {
+                return '<div class="ctxb-catm-row">' +
+                    '<input type="text" class="ctxb-catm-input" id="ctxCatRenameInput" maxlength="' + CTX_CAT_MAX + '" value="' + a + '" aria-label="New name for ' + a + '" autocomplete="off" />' +
+                    '<button type="button" class="btn btn-ghost btn-sm" data-catm="cancel">Cancel</button>' +
+                    '<button type="button" class="btn btn-accent btn-sm" data-catm="rename-save" data-cat="' + a + '">Save</button></div>';
+            }
+            if (_ctxCatUI.removing === c) {
+                return '<div class="ctxb-catm-row"><span class="ctxb-catm-q">Remove ' + escapeHtml(c) + '?' +
+                    (n ? ' Its ' + n + (n === 1 ? ' block moves' : ' blocks move') + ' to Other.' : '') + '</span>' +
+                    '<button type="button" class="btn btn-ghost btn-sm" data-catm="cancel">Keep</button>' +
+                    '<button type="button" class="btn btn-sm ctxb-catm-danger" data-catm="remove-yes" data-cat="' + a + '">Remove</button></div>';
+            }
+            return '<div class="ctxb-catm-row"><span class="ctxb-catm-name">' + escapeHtml(c) + '</span>' +
+                '<span class="ctxb-catm-count">' + n + (n === 1 ? ' block' : ' blocks') + (own.includes(c) ? '' : ', from your blocks') + '</span>' +
+                '<button type="button" class="btn btn-ghost btn-sm" data-catm="rename" data-cat="' + a + '">Rename</button>' +
+                '<button type="button" class="btn btn-ghost btn-sm ctxb-catm-danger" data-catm="remove" data-cat="' + a + '">Remove</button></div>';
+        }).join('');
+        box.innerHTML =
+            '<div class="ctxb-catm-head"><span class="ctxb-catm-title">Your categories</span>' +
+            '<button type="button" class="icon-btn" data-catm="close" aria-label="Close categories" title="Close"><span class="material-symbols-outlined">close</span></button></div>' +
+            '<div class="ctxb-catm-add"><input type="text" class="ctxb-catm-input" id="ctxCatNewName" maxlength="' + CTX_CAT_MAX + '" placeholder="New category, like Clients" aria-label="New category name" autocomplete="off" />' +
+            '<button type="button" class="btn btn-accent btn-sm" data-catm="add">Add</button></div>' +
+            '<p class="ctxb-catm-msg' + (isError ? ' error' : '') + '" role="status">' + escapeHtml(msg || '') + '</p>' +
+            (rows || '<p class="ctxb-catm-note">None yet. Add one and it shows up as a filter and in the block editor.</p>') +
+            '<p class="ctxb-catm-note">Starter categories like Persona stay as they are. Removing one of yours moves its blocks to Other.</p>';
+    }
+
+    // Redraw pills, list, manager and the editor's category list after a change
+    function _ctxRefreshCats(msg, isError, renamed) {
+        _ctxRenderAll();
+        _ctxRenderCatManager(msg, isError);
+        const sel = $('#ctxCategory');
+        if (sel && !$('#ctxEditorForm')?.hidden) {
+            let cur = sel.value === CTX_NEW_CAT ? 'Other' : sel.value;
+            if (renamed && cur === renamed.from) cur = renamed.to;
+            if (!_ctxCategories().some(c => c.name === cur) && !_ctxIsStarterCat(cur)) cur = 'Other';
+            sel.innerHTML = _ctxCategoryOptions(cur, true);
+            if (_ctxSnap && renamed && _ctxSnap.category === renamed.from) _ctxSnap.category = renamed.to;
+            _ctxUpdateMeta();
+        }
+    }
+
+    function _ctxCatManagerAction(act, cat) {
+        const focus = id => setTimeout(() => { const el = $(id); if (el) { el.focus(); if (el.select && id === '#ctxCatRenameInput') el.select(); } }, 30);
+        if (act === 'toggle') {
+            _ctxCatUI.open = !_ctxCatUI.open;
+            _ctxCatUI.renaming = _ctxCatUI.removing = null;
+            _ctxRenderPills();
+            _ctxRenderCatManager();
+            if (_ctxCatUI.open) focus('#ctxCatNewName');
+            return;
+        }
+        if (act === 'close') {
+            _ctxCatUI.open = false;
+            _ctxRenderPills();
+            return _ctxRenderCatManager();
+        }
+        if (act === 'cancel') {
+            _ctxCatUI.renaming = _ctxCatUI.removing = null;
+            return _ctxRenderCatManager();
+        }
+        if (act === 'add') {
+            const typed = $('#ctxCatNewName')?.value || '';
+            const res = _ctxAddCat(typed);
+            if (res.error) {
+                _ctxRenderCatManager(res.error, true);
+                const f = $('#ctxCatNewName');
+                if (f) f.value = typed;
+                return focus('#ctxCatNewName');
+            }
+            _ctxRefreshCats(res.name + ' added');
+            return focus('#ctxCatNewName');
+        }
+        if (act === 'rename') {
+            _ctxCatUI.renaming = cat;
+            _ctxCatUI.removing = null;
+            _ctxRenderCatManager();
+            return focus('#ctxCatRenameInput');
+        }
+        if (act === 'rename-save') {
+            const res = _ctxRenameCat(cat, $('#ctxCatRenameInput')?.value);
+            if (res.error) {
+                _ctxRenderCatManager(res.error, true);
+                return focus('#ctxCatRenameInput');
+            }
+            _ctxCatUI.renaming = null;
+            return _ctxRefreshCats(cat === res.name ? 'No change' : cat + ' is now ' + res.name, false, { from: cat, to: res.name });
+        }
+        if (act === 'remove') {
+            _ctxCatUI.removing = cat;
+            _ctxCatUI.renaming = null;
+            return _ctxRenderCatManager();
+        }
+        if (act === 'remove-yes') {
+            const res = _ctxRemoveCat(cat);
+            if (res.error) return _ctxRenderCatManager(res.error, true);
+            _ctxCatUI.removing = null;
+            return _ctxRefreshCats(cat + ' removed' + (res.moved ? ', ' + res.moved + (res.moved === 1 ? ' block' : ' blocks') + ' moved to Other' : ''), false, { from: cat, to: 'Other' });
+        }
+    }
+
     function _ctxCat(b) {
         return (b.category || '').trim() || 'Other';
     }
@@ -8334,6 +8529,7 @@ Must avoid: [Anything sensitive or previously declined]`
             const c = _ctxCat(b);
             counts[c] = (counts[c] || 0) + 1;
         });
+        _ctxCustomCats().forEach(c => { if (!(c in counts)) counts[c] = 0; });
         const rank = c => {
             if (c === 'Other') return 1000;
             const i = CTX_CAT_ORDER.indexOf(c);
@@ -8452,7 +8648,9 @@ Must avoid: [Anything sensitive or previously declined]`
         const pill = (key, label, count) =>
             '<button type="button" class="ctxb-pill' + (key === _ctxFilter ? ' active' : '') + '" data-ctx-filter="' + escapeAttr(key) + '">' +
             escapeHtml(label) + '<span class="ctxb-pill-count">' + count + '</span></button>';
-        row.innerHTML = pill('all', 'All', _ctxBlocks.length) + cats.map(c => pill(c.name, c.name, c.count)).join('');
+        row.innerHTML = pill('all', 'All', _ctxBlocks.length) + cats.map(c => pill(c.name, c.name, c.count)).join('') +
+            '<button type="button" class="ctxb-pill ctxb-pill-manage' + (_ctxCatUI.open ? ' active' : '') + '" id="ctxCatManageBtn" aria-expanded="' + (_ctxCatUI.open ? 'true' : 'false') + '" aria-controls="ctxCatManager">' +
+            '<span class="material-symbols-outlined">tune</span>Categories</button>';
     }
 
     function _ctxRenderList() {
@@ -8499,7 +8697,7 @@ Must avoid: [Anything sensitive or previously declined]`
     // ── Editor ───────────────────────────────────────────────────────────────────
     function _ctxFormVals() {
         const sel = $('#ctxCategory')?.value || 'Other';
-        const category = sel === CTX_NEW_CAT ? ($('#ctxCategoryNew')?.value || '').trim() || 'Other' : sel;
+        const category = sel === CTX_NEW_CAT ? _ctxCleanCat($('#ctxCategoryNew')?.value) || 'Other' : sel;
         return {
             title: ($('#ctxTitle')?.value || '').trim(),
             category,
@@ -8664,6 +8862,7 @@ Must avoid: [Anything sensitive or previously declined]`
     // ── CRUD ─────────────────────────────────────────────────────────────────────
     function _ctxSaveBlock() {
         const v = _ctxFormVals();
+        if ($('#ctxCategory')?.value === CTX_NEW_CAT && v.title && v.content) v.category = _ctxResolveCat(v.category);
         if (!v.title) {
             toast('Give the block a title', 'warning');
             $('#ctxTitle')?.focus();
@@ -8691,6 +8890,12 @@ Must avoid: [Anything sensitive or previously declined]`
         }
         _ctxSave();
         _ctxRenderPills();
+        if (_ctxCatUI.open) {
+            const typed = $('#ctxCatNewName')?.value || '';
+            _ctxRenderCatManager();
+            const f = $('#ctxCatNewName');
+            if (f) f.value = typed;
+        }
         _ctxShowBlock(_ctxActiveId);
         return true;
     }
@@ -8867,6 +9072,7 @@ Must avoid: [Anything sensitive or previously declined]`
             type: 'prompt-library-context-bank',
             version: 1,
             exported: d.toISOString(),
+            categories: _ctxCustomCats(),
             blocks: _ctxBlocks
         }, null, 2);
         try {
@@ -8890,6 +9096,16 @@ Must avoid: [Anything sensitive or previously declined]`
             toast('That file is not a Context Bank export', 'error');
             return;
         }
+        try {
+            const cats = JSON.parse(await file.text()).categories;
+            if (Array.isArray(cats)) {
+                const own = _ctxCustomCats();
+                cats.map(_ctxCleanCat).forEach(c => {
+                    if (c && c.toLowerCase() !== 'all' && !_ctxIsStarterCat(c) && !own.some(x => x.toLowerCase() === c.toLowerCase())) own.push(c);
+                });
+                _ctxSaveCustomCats(own);
+            }
+        } catch (_) { /* blocks still import */ }
         const key = (t, c) => t.toLowerCase() + '\n' + c;
         const seen = new Set(_ctxBlocks.map(b => key((b.title || '').trim(), (b.content || '').trim())));
         const now = new Date().toISOString();
@@ -8913,6 +9129,7 @@ Must avoid: [Anything sensitive or previously declined]`
                 updated: now
             });
         });
+        _ctxRenderAll();
         if (fresh.length) {
             _ctxBlocks = fresh.concat(_ctxBlocks);
             _ctxSave();
@@ -8931,6 +9148,8 @@ Must avoid: [Anything sensitive or previously declined]`
         document.body.style.overflow = 'hidden';
         $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'contextBank'));
         _ctxFilter = 'all';
+        _ctxCatUI.open = false;
+        _ctxRenderCatManager();
         const search = $('#ctxSearch');
         if (search) search.value = '';
         _ctxSync().then(() => {
@@ -8991,10 +9210,28 @@ Must avoid: [Anything sensitive or previously declined]`
         });
 
         $('#ctxCategoryRow')?.addEventListener('click', e => {
+            if (e.target.closest('#ctxCatManageBtn')) return _ctxCatManagerAction('toggle');
             const btn = e.target.closest('[data-ctx-filter]');
             if (!btn) return;
             _ctxFilter = btn.dataset.ctxFilter;
             _ctxRenderAll();
+        });
+        const catBox = $('#ctxCatManager');
+        catBox?.addEventListener('click', e => {
+            const btn = e.target.closest('[data-catm]');
+            if (btn) _ctxCatManagerAction(btn.dataset.catm, btn.dataset.cat);
+        });
+        catBox?.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && e.target.id === 'ctxCatNewName') {
+                e.preventDefault();
+                _ctxCatManagerAction('add');
+            } else if (e.key === 'Enter' && e.target.id === 'ctxCatRenameInput') {
+                e.preventDefault();
+                _ctxCatManagerAction('rename-save', _ctxCatUI.renaming);
+            } else if (e.key === 'Escape') {
+                e.stopPropagation();
+                _ctxCatManagerAction(_ctxCatUI.renaming || _ctxCatUI.removing ? 'cancel' : 'close');
+            }
         });
 
         const list = $('#ctxList');

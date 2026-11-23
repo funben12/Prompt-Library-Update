@@ -759,3 +759,14 @@ Resulting state:
 - **Checked:** scripted Chromium against the app with a mocked save bridge: 38 of 38 export actions saved with the right file and content; as plain browser downloads: 18 of 18; Prompt Board export both ways. Python bridge unit test: `python -m unittest discover tests/exports` (5 tests, pywebview stubbed).
 - **Not checked:** the real WebView2 window on Windows (no Windows here). Confirm on the installed build that Save As opens for each export and that the file lands where chosen.
 - **Cache:** loader `?v=` is `20261117c`; `app.js` hash refreshed by `update_hash.py`.
+
+### Context Bank own categories back (2026-11-23, session branch claude/project-thread-1z68z2, purpose name context-bank-categories)
+
+Supersedes the 2026-11-15 note that rename and remove were gone. Eugene chose (23 Nov, "Do what you think works") to bring own categories back, matching phone 0.12.2.
+- A dashed Categories pill at the end of the pill row (`#ctxCatManageBtn`) opens `#ctxCatManager` under the toolbar: add, rename, remove. Enter adds or saves a rename, Escape cancels or closes.
+- Stored in localStorage `pl_ctx_categories` (array, max 50, names max 30 characters) and copied to the settings table through `PL_prefs` key `ctx_categories` as JSON text, so the list survives a WebView storage reset. No schema change.
+- Starter categories stay fixed. A name that clashes in any case, or "All", is refused. Rename rewrites matching blocks. Remove moves its blocks to Other.
+- Own categories show as pills with count 0 before they hold a block. A category typed in the editor ("New category…") is added to the list.
+- Export writes `categories`, import merges them.
+- Test: `tests/context-bank/test_categories.mjs` with `serve.py` (Flask on a temp HOME, port 5099), 24 checks, passing at 1440 x 900 in headless Chromium. Not run in the PyWebView window.
+- JS hash 0144f555. Backups: `_rollbacks/* v-pre-ctx-categories-2.*`.
