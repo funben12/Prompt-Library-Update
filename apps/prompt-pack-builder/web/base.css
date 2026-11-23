@@ -1,0 +1,374 @@
+/* Base for the standalone Prompt Pack Builder.
+   Tokens and shared primitives copied verbatim from the Prompt Library app.css so the workspace looks the same. */
+@layer tokens, base, components;
+@layer tokens {
+  :root {
+    --fs-xs:   clamp(0.7rem, 0.67rem + 0.17vw, 0.75rem);
+    --fs-sm:   clamp(0.75rem, 0.72rem + 0.17vw, 0.8rem);
+    --fs-base: clamp(1rem, 1rem + 0vw, 1rem);
+    --fs-md:   clamp(1.1rem, 1.06rem + 0.25vw, 1.15rem);
+    --fs-lg:   clamp(1.3rem, 1.22rem + 0.42vw, 1.5rem);
+    --fs-xl:   clamp(1.6rem, 1.45rem + 0.65vw, 2rem);
+    --fs-2xl:  clamp(2.5rem, 2rem + 1.8vw, 3rem);
+
+    --ff-display: "Fraunces", "Iowan Old Style", "Charter", Georgia, serif;
+    --ff-sans:    "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --ff-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --sp-1: 0.22rem;   /* 3.5  */
+    --sp-2: 0.4rem;    /* 6.5  */
+    --sp-3: 0.65rem;   /* 10.4 */
+    --sp-4: 0.85rem;   /* 13.6 */
+    --sp-5: 1.25rem;   /* 20 */
+    --sp-6: 1.7rem;    /* 27.2 */
+    --sp-7: 2.5rem;    /* 40 */
+    --sp-8: 3.4rem;    /* 54.4 */
+    --sp-9: 5rem;      /* 80 */
+
+    --sidebar-w: 264px;
+    --detail-w: clamp(360px, 32vw, 480px);
+
+    --r-sm: 4px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-xl: 16px;
+
+    --t-fast:   120ms;
+    --t-base:   200ms;
+    --t-slow:   320ms;
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in:        cubic-bezier(0.7, 0, 0.84, 0);
+
+    /* Teal primary (#006666), warm beige surfaces (#E7E5E4), dark blue text (#1E2938) */
+    --bg:           oklch(93.5% 0.01 70);    /* page */
+    --surface:      oklch(95.2% 0.008 70);   /* cards / panels */
+    --surface-2:    oklch(92%   0.012 70);   /* hover, sidebar */
+    --surface-3:    oklch(88.5% 0.015 70);   /* deep wells, inputs at rest */
+    --surface-sunk: oklch(91%   0.012 70);   /* recessed (search, textarea) */
+
+    --line:         oklch(85%   0.016 70);
+    --line-strong:  oklch(78%   0.020 70);
+
+    --ink:          oklch(18%   0.04  260);  /* primary text */
+    --ink-2:        oklch(32%   0.03  260);  /* body */
+    --ink-3:        oklch(50%   0.015 260);  /* muted */
+    --ink-4:        oklch(68%   0.010 260);  /* hint */
+
+    --accent:       oklch(38%   0.14  190);  /* teal primary */
+    --accent-hover: oklch(33%   0.15  190);
+    --accent-soft:  oklch(93%   0.05  190);  /* tinted background */
+    --accent-line:  oklch(80%   0.08  190);
+
+    --warn:         oklch(63%   0.18  52);   /* #FE9900 */
+    --warn-soft:    oklch(94%   0.05  52);
+    --danger:       oklch(51%   0.21  30);   /* #FF2157 */
+    --danger-soft:  oklch(94%   0.04  30);
+    --success:      oklch(54%   0.14  140);  /* #00A63D */
+    --success-soft: oklch(94%   0.04  140);
+
+    --gold:         oklch(70%   0.14  85);   /* ratings, premium */
+
+    /* Prompt Components canvas: recessed well so cards read against it */
+    --canvas-well:  var(--surface-3);
+    --canvas-edge:  color-mix(in srgb, var(--ink-3) 65%, var(--surface-3));  /* about 2.4:1 on the well */
+    --canvas-dot:   color-mix(in srgb, var(--ink-3) 50%, transparent);
+    --canvas-text:  var(--ink-2);
+
+    --c-red:    oklch(60% 0.17 25);
+    --c-orange: oklch(70% 0.15 55);
+    --c-yellow: oklch(80% 0.13 90);
+    --c-green:  oklch(58% 0.13 145);
+    --c-teal:   oklch(60% 0.10 195);
+    --c-blue:   oklch(55% 0.13 245);
+    --c-purple: oklch(52% 0.16 295);
+    --c-pink:   oklch(63% 0.16 350);
+    --c-amber:    oklch(75% 0.14 68);
+    --c-lime:     oklch(72% 0.17 125);
+    --c-cyan:     oklch(68% 0.12 205);
+    --c-indigo:   oklch(50% 0.17 270);
+    --c-violet:   oklch(55% 0.18 305);
+    --c-magenta:  oklch(60% 0.19 330);
+    --c-fuchsia:  oklch(58% 0.21 316);
+    --c-rose:     oklch(62% 0.18 10);
+    --c-lavender: oklch(72% 0.09 290);
+
+    /* Pastel tints of the categorical palette -- same hues, same derivation as --accent-soft etc */
+    --c-red-soft:      oklch(94% 0.045 25);
+    --c-orange-soft:   oklch(94% 0.045 55);
+    --c-amber-soft:    oklch(94% 0.045 68);
+    --c-yellow-soft:   oklch(95% 0.045 90);
+    --c-lime-soft:     oklch(94% 0.045 125);
+    --c-green-soft:    oklch(94% 0.045 145);
+    --c-teal-soft:     oklch(94% 0.035 195);
+    --c-cyan-soft:     oklch(94% 0.035 205);
+    --c-blue-soft:     oklch(94% 0.04 245);
+    --c-indigo-soft:   oklch(93% 0.045 270);
+    --c-violet-soft:   oklch(93% 0.045 305);
+    --c-purple-soft:   oklch(93% 0.045 295);
+    --c-magenta-soft:  oklch(93% 0.05 330);
+    --c-fuchsia-soft:  oklch(93% 0.05 316);
+    --c-pink-soft:     oklch(94% 0.045 350);
+    --c-rose-soft:     oklch(94% 0.045 10);
+    --c-lavender-soft: oklch(94% 0.035 290);
+
+    --shadow-sm: 0 1px 2px oklch(18% 0.04 260 / 0.08);
+    --shadow-md: 0 6px 20px -8px oklch(18% 0.04 260 / 0.12), 0 2px 6px oklch(18% 0.04 260 / 0.06);
+    --shadow-lg: 0 20px 50px -16px oklch(18% 0.04 260 / 0.20), 0 6px 14px oklch(18% 0.04 260 / 0.09);
+    --ring:      0 0 0 3px oklch(38% 0.14 190 / 0.20);
+
+    /* 3D buttons: a soft top highlight, a short bottom edge and a small drop. Lift on hover, sink on press. */
+    --btn-edge:  oklch(74% 0.022 70);
+    --btn-rest:  inset 0 1px 0 oklch(100% 0 0 / 0.55), 0 2px 0 var(--btn-edge), 0 3px 6px -2px oklch(18% 0.04 260 / 0.16);
+    --btn-hover: inset 0 1px 0 oklch(100% 0 0 / 0.65), 0 3px 0 var(--btn-edge), 0 8px 12px -5px oklch(18% 0.04 260 / 0.22);
+    --btn-down:  inset 0 1px 3px oklch(18% 0.04 260 / 0.22), 0 0 0 var(--btn-edge);
+    --btn-lift:  -1px;
+    --btn-sink:  1px;
+    --btn-spring: 160ms cubic-bezier(0.34, 1.4, 0.64, 1);
+
+    /* Neuromorphic shadows — warm light source from top-left */
+    --neu-raised:
+      5px 5px 10px oklch(83% 0.016 70 / 0.70),
+      -5px -5px 10px oklch(99.5% 0.004 70 / 0.55);
+    --neu-raised-sm:
+      3px 3px 6px oklch(83% 0.016 70 / 0.55),
+      -3px -3px 6px oklch(99.5% 0.004 70 / 0.42);
+    --neu-inset:
+      inset 2px 2px 5px oklch(83% 0.016 70 / 0.55),
+      inset -2px -2px 5px oklch(99.5% 0.004 70 / 0.40);
+    --neu-pressed:
+      inset 3px 3px 7px oklch(80% 0.016 70 / 0.65),
+      inset -2px -2px 5px oklch(99.5% 0.004 70 / 0.35);
+
+    --z-sidebar: 10;
+    --z-detail:  20;
+    --z-overlay: 50;
+    --z-modal:   60;
+    --z-toast:   80;
+    --z-palette: 90;
+  }
+
+  :root[data-theme="dark"] {
+    --bg:           oklch(16%   0.012 70);
+    --surface:      oklch(20%   0.014 70);
+    --surface-2:    oklch(24%   0.016 70);
+    --surface-3:    oklch(28%   0.018 70);
+    --surface-sunk: oklch(14%   0.012 70);
+
+    --line:         oklch(30%   0.016 70);
+    --line-strong:  oklch(38%   0.018 70);
+
+    --ink:          oklch(93%   0.015 260);
+    --ink-2:        oklch(80%   0.015 260);
+    --ink-3:        oklch(62%   0.012 260);
+    --ink-4:        oklch(48%   0.010 260);
+
+    --accent:       oklch(72%   0.14  190);
+    --accent-hover: oklch(78%   0.14  190);
+    --accent-soft:  oklch(26%   0.08  190);
+    --accent-line:  oklch(38%   0.12  190);
+
+    --warn:         oklch(78%   0.17  52);
+    --warn-soft:    oklch(26%   0.08  52);
+    --danger:       oklch(74%   0.19  30);
+    --danger-soft:  oklch(26%   0.08  30);
+    --success:      oklch(74%   0.14  140);
+    --success-soft: oklch(24%   0.06  140);
+
+    --gold:         oklch(80%   0.14  85);
+
+    --canvas-well:  var(--bg);
+    --canvas-edge:  var(--line);
+    --canvas-dot:   color-mix(in srgb, var(--ink-4, #999) 30%, transparent);
+    --canvas-text:  var(--ink-3);
+
+    --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.5);
+    --shadow-md: 0 8px 24px -10px oklch(0% 0 0 / 0.65), 0 2px 8px oklch(0% 0 0 / 0.4);
+    --shadow-lg: 0 24px 60px -20px oklch(0% 0 0 / 0.80), 0 8px 18px oklch(0% 0 0 / 0.5);
+    --ring:      0 0 0 3px oklch(72% 0.14 190 / 0.35);
+
+    --btn-edge:  oklch(10% 0.012 70);
+    --btn-rest:  inset 0 1px 0 oklch(100% 0 0 / 0.07), 0 2px 0 var(--btn-edge), 0 3px 8px -2px oklch(0% 0 0 / 0.55);
+    --btn-hover: inset 0 1px 0 oklch(100% 0 0 / 0.1), 0 3px 0 var(--btn-edge), 0 8px 14px -5px oklch(0% 0 0 / 0.65);
+    --btn-down:  inset 0 1px 4px oklch(0% 0 0 / 0.5), 0 0 0 var(--btn-edge);
+
+    /* Neuromorphic shadows — dark mode */
+    --neu-raised:
+      5px 5px 10px oklch(10% 0.010 70 / 0.80),
+      -5px -5px 10px oklch(28% 0.016 70 / 0.50);
+    --neu-raised-sm:
+      3px 3px 6px oklch(10% 0.010 70 / 0.65),
+      -3px -3px 6px oklch(28% 0.016 70 / 0.40);
+    --neu-inset:
+      inset 2px 2px 5px oklch(10% 0.010 70 / 0.65),
+      inset -2px -2px 5px oklch(28% 0.016 70 / 0.40);
+    --neu-pressed:
+      inset 3px 3px 7px oklch(10% 0.010 70 / 0.75),
+      inset -2px -2px 5px oklch(28% 0.016 70 / 0.30);
+
+    --c-red:    oklch(72% 0.17 25);
+    --c-orange: oklch(80% 0.15 55);
+    --c-yellow: oklch(88% 0.13 90);
+    --c-green:  oklch(72% 0.14 140);
+    --c-teal:   oklch(70% 0.10 190);
+    --c-blue:   oklch(70% 0.14 245);
+    --c-purple: oklch(70% 0.16 295);
+    --c-pink:   oklch(76% 0.16 350);
+    --c-amber:    oklch(78% 0.14 68);
+    --c-lime:     oklch(75% 0.17 125);
+    --c-cyan:     oklch(72% 0.12 205);
+    --c-indigo:   oklch(58% 0.17 270);
+    --c-violet:   oklch(62% 0.18 305);
+    --c-magenta:  oklch(65% 0.19 330);
+    --c-fuchsia:  oklch(63% 0.21 316);
+    --c-rose:     oklch(67% 0.18 10);
+    --c-lavender: oklch(78% 0.09 290);
+
+    --c-red-soft:      oklch(30% 0.075 25);
+    --c-orange-soft:   oklch(30% 0.075 55);
+    --c-amber-soft:    oklch(30% 0.075 68);
+    --c-yellow-soft:   oklch(32% 0.075 90);
+    --c-lime-soft:     oklch(30% 0.075 125);
+    --c-green-soft:    oklch(30% 0.075 145);
+    --c-teal-soft:     oklch(28% 0.06 195);
+    --c-cyan-soft:     oklch(28% 0.06 205);
+    --c-blue-soft:     oklch(28% 0.07 245);
+    --c-indigo-soft:   oklch(28% 0.08 270);
+    --c-violet-soft:   oklch(28% 0.08 305);
+    --c-purple-soft:   oklch(28% 0.08 295);
+    --c-magenta-soft:  oklch(28% 0.09 330);
+    --c-fuchsia-soft:  oklch(28% 0.09 316);
+    --c-pink-soft:     oklch(30% 0.075 350);
+    --c-rose-soft:     oklch(30% 0.075 10);
+    --c-lavender-soft: oklch(28% 0.06 290);
+  }
+}
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--ff-sans); -webkit-font-smoothing: antialiased; }
+  button, input, textarea, select { font: inherit; }
+  button { cursor: pointer; }
+}
+@layer components {
+  .btn {
+    display: inline-flex; align-items: center; gap: var(--sp-2);
+    padding: 8px 14px;
+    border-radius: var(--r-sm);
+    font-family: var(--ff-sans);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: var(--btn-rest);
+    transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast),
+                transform var(--btn-spring), box-shadow var(--t-fast);
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface-2); border-color: var(--line-strong); transform: translateY(var(--btn-lift)); box-shadow: var(--btn-hover); }
+  .btn:active { transform: translateY(var(--btn-sink)); box-shadow: var(--btn-down); }
+  .btn:focus-visible { outline: none; box-shadow: var(--btn-rest), var(--ring); }
+  .btn:disabled, .btn[disabled] { transform: none; box-shadow: none; }
+  .btn .material-symbols-outlined { font-size: 16px; }
+  .btn-accent {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    --be: color-mix(in srgb, var(--accent) 60%, black);
+    --btn-rest: inset 0 1px 0 oklch(100% 0 0 / 0.28), 0 2px 0 var(--be), 0 3px 6px -2px oklch(18% 0.04 260 / 0.22);
+    --btn-hover: inset 0 1px 0 oklch(100% 0 0 / 0.34), 0 3px 0 var(--be), 0 8px 12px -5px oklch(18% 0.04 260 / 0.3);
+    --btn-down: inset 0 1px 3px oklch(0% 0 0 / 0.3), 0 0 0 var(--be);
+  }
+  .btn-accent:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn-danger { color: var(--danger); border-color: var(--line); background: var(--surface);
+    --be: color-mix(in srgb, var(--danger) 35%, var(--btn-edge));
+    --btn-rest: inset 0 1px 0 oklch(100% 0 0 / 0.5), 0 2px 0 var(--be), 0 3px 6px -2px oklch(18% 0.04 260 / 0.16);
+    --btn-hover: inset 0 1px 0 oklch(100% 0 0 / 0.6), 0 3px 0 var(--be), 0 8px 12px -5px oklch(18% 0.04 260 / 0.22);
+    --btn-down: inset 0 1px 3px oklch(18% 0.04 260 / 0.22), 0 0 0 var(--be); }
+  .btn-danger:hover { background: var(--danger-soft); border-color: var(--danger); }
+  .btn-primary:focus-visible, .btn-accent:focus-visible, .btn-danger:focus-visible { box-shadow: var(--btn-rest), var(--ring); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn, .btn:hover, .btn:active { transform: none; }
+  }
+  .icon-btn {
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    border-radius: var(--r-sm);
+    color: var(--ink-2);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: var(--btn-rest);
+    transition: transform var(--btn-spring), box-shadow var(--t-fast), background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+  }
+  .icon-btn:hover { background: var(--surface-2); color: var(--ink); border-color: var(--line-strong); transform: translateY(var(--btn-lift)); box-shadow: var(--btn-hover); }
+  .icon-btn:active { transform: translateY(var(--btn-sink)); box-shadow: var(--btn-down); }
+  .icon-btn:focus-visible { outline: none; box-shadow: var(--btn-rest), var(--ring); }
+  .icon-btn:disabled { transform: none; box-shadow: none; opacity: 0.5; }
+  .icon-btn .material-symbols-outlined { font-size: 18px; }
+  .form-textarea, .form-input {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--surface-sunk);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    font-family: var(--ff-sans);
+    font-size: var(--fs-sm);
+    color: var(--ink);
+    box-shadow: var(--neu-inset);
+    transition: border-color var(--t-fast), box-shadow var(--t-fast);
+  }
+  .form-textarea:focus, .form-input:focus {
+    border-color: var(--accent);
+    box-shadow: var(--ring), var(--neu-inset);
+  }
+.ws-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  flex-shrink: 0;
+  gap: var(--sp-4);
+}
+.ws-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.ws-header-icon {
+  font-size: 28px;
+  color: var(--accent);
+}
+.ws-title {
+  font-family: var(--ff-display, serif);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.ws-subtitle {
+  font-size: var(--fs-sm);
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+.ws-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+  @keyframes pl-ws-open { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .pl-toasts { position: fixed; right: 16px; bottom: 16px; z-index: var(--z-toast); display: flex; flex-direction: column; gap: var(--sp-2); max-width: min(420px, calc(100vw - 32px)); pointer-events: none; }
+  .pl-toast { display: flex; align-items: flex-start; gap: var(--sp-2); padding: 10px 14px; border-radius: var(--r-md); background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); box-shadow: var(--shadow-md, 0 8px 24px oklch(0% 0 0 / 0.18)); font-size: var(--fs-sm); animation: pl-ws-open 200ms var(--ease-out-expo) both; pointer-events: auto; }
+  .pl-toast .material-symbols-outlined { font-size: 18px; }
+  .pl-toast-success .material-symbols-outlined { color: var(--success); }
+  .pl-toast-warning .material-symbols-outlined { color: var(--warn); }
+  .pl-toast-error .material-symbols-outlined { color: var(--danger); }
+  .pl-toast-info .material-symbols-outlined { color: var(--accent); }
+  .pl-toast-msg { overflow-wrap: anywhere; }
+}

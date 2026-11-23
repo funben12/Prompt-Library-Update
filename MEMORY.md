@@ -759,3 +759,14 @@ Resulting state:
 - **Checked:** scripted Chromium against the app with a mocked save bridge: 38 of 38 export actions saved with the right file and content; as plain browser downloads: 18 of 18; Prompt Board export both ways. Python bridge unit test: `python -m unittest discover tests/exports` (5 tests, pywebview stubbed).
 - **Not checked:** the real WebView2 window on Windows (no Windows here). Confirm on the installed build that Save As opens for each export and that the file lands where chosen.
 - **Cache:** loader `?v=` is `20261117c`; `app.js` hash refreshed by `update_hash.py`.
+
+## Standalone Prompt Pack Builder app (2026-11-23)
+
+- `apps/prompt-pack-builder/` holds the Prompt Pack Builder workspace as its own desktop app, on branch `prompt-pack-builder-desktop`. Main library code is untouched.
+- Stack: pywebview only (`main.py`), no Flask. Page is `web/index.html` with `web/bridge.js` loaded before a copy of `static/prompt-pack-builder.js` and `.css`.
+- The JS copy has four hooks, all inert without bridge.js: `window.PPB_store` (localStorage shaped object), `window.PPB_loadLibrary`, `window.PPB_STANDALONE` (no Pro gate, no close button, Escape does not close). Changes to the library workspace must be copied across by hand.
+- Packs live in `Documents/PromptPackBuilder/packs.json` (atomic write, previous save kept as `.bak`, a damaged file is set aside as `packs.damaged-<time>.json`). Add from library opens `Documents/PromptLibrary/PromptLibrary.db` read only; with no database the button is hidden.
+- `web/base.css` is the token block and btn, icon-btn, form-input, ws-header rules copied from `static/app.css`. Fonts copied to `web/fonts/`.
+- Launch verified under Linux with the Qt backend (scripted checks plus screenshots). Not yet run on Windows.
+- Known, not fixed: the main app calls `webview.start()` with pywebview 5 defaults (private mode), so localStorage based workspaces may lose data on restart.
+
