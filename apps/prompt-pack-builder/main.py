@@ -17,6 +17,7 @@ import traceback
 
 import webview
 
+__version__ = '1.0.0'
 APP_TITLE = 'Prompt Pack Builder'
 MAX_STORE_BYTES = 20 * 1024 * 1024
 

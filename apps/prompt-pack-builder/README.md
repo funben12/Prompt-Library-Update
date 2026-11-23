@@ -5,11 +5,22 @@ Bundle prompts into a pack, check it, and export it for your community.
 
 ## Run it
 
-```
-start.bat
-```
+1. `setup.bat` once on a new machine (creates the venv and installs requirements).
+2. `start.bat` or `run.bat` to open the app.
 
-Or by hand: `pip install -r requirements.txt` then `python main.py`.
+| Script | What it does |
+| --- | --- |
+| `setup.bat` | First time install: venv plus requirements |
+| `requirements.bat` | Reinstall requirements after they change |
+| `run.bat`, `start.bat` | Launch the app |
+| `test.bat` | Run the pytest suite in `tests/` |
+| `build.bat` | Build `dist/PromptPackBuilder.exe` (one file, web folder bundled inside) |
+| `package.bat` | Zip `dist/` with today's date |
+| `installer.bat` | Build a Windows installer from `installer.iss` into `Output/` (needs Inno Setup 6) |
+| `clean.bat` | Remove build output and caches |
+| `update.bat` | `git pull` |
+
+Before the first real installer: replace the placeholder `AppId` in `installer.iss` with a real GUID, then never change it.
 
 ## What it does
 
@@ -33,13 +44,6 @@ behaves like the original when `web/bridge.js` is not loaded. If you change the 
 library, copy the change here too.
 
 `web/base.css` holds the design tokens and button, input and header styles copied from `static/app.css`.
-
-## Build an .exe
-
-```
-pip install pyinstaller
-pyinstaller PromptPackBuilder.spec
-```
 
 ## Settings for testing
 
