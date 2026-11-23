@@ -378,11 +378,11 @@
   window.PLNewWorkspaceSuite={open:openSuite,close:closeSuite};
   window.PL_PROMPT_TESTING_UNIFIED=true;
   const stressScript=document.createElement("script");
-  stressScript.src="/static/prompt-stress-lab.js?v=20261119a";
+  stressScript.src="/static/prompt-stress-lab.js?v=20261122a";
   stressScript.async=false;
   stressScript.onload=function(){
     const unifiedScript=document.createElement("script");
-    unifiedScript.src="/static/prompt-testing-workspace.js?v=20261119a";
+    unifiedScript.src="/static/prompt-testing-workspace.js?v=20261122a";
     unifiedScript.async=false;
     document.head.appendChild(unifiedScript);
   };

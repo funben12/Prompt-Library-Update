@@ -788,7 +788,62 @@ Resulting state:
 
 - Holding Alt when you press a block and then dragging leaves the original where it is and drags a copy instead, as in Figma. Alt held at press time is what counts. Alt plus a plain click (no movement) does nothing extra.
 - **Prompt Builder Pro** (`static/builder-pro.js`): `pointerdown` stores `copy: e.altKey` on the node drag. At the 3px movement threshold, `pointermove` clones the node through the new `cloneNode()` helper (deep copy of config, new id, `showcase` flag dropped), selects the copy and hands the drag to it. The Duplicate button in the inspector now uses the same helper, so it also respects `MAX_NODES` (it did not before).
-- **Prompt Components** (`static/app.js`, header `mousedown` in `renderCanvas`): `copyOnDrag = e.altKey`. At the 4px threshold a JSON copy of the block (new `_pcwUid()`) is pushed at the original position, the canvas re-renders, and the drag continues on the copy's card. The copy has no wires; the original keeps its links. After the drop the copy is revealed with `_pcwReveal`.
-- Verified in headless Chromium against a disposable data folder: plain drag still moves a block in both workspaces; Alt-drag adds exactly one block, the original does not move, the copy lands at the drop point (Builder Pro snaps to 8px), wires stay on the original, text is copied, no stuck `dragging` class; Alt-click adds nothing. Not checked: the real WebView2 window (on Windows, Alt may flash the menu bar in some hosts).
+- **Prompt Components** (`static/app.js`, header `mousedown` in `renderCanvas`): `copyOnDrag = e.altKey`. At the 4px threshold a JSON copy of the block (new `_pcwUid()`) is pushed at the original position, the canvas re-renders, and the drag continues on the copy's card. The restored Components screen has no wires or block ids, so the copy is simply appended (index `length - 1`) with a deep copy of label, text, category and collapsed state.
+- Verified in headless Chromium against a disposable data folder: plain drag still moves a block in both workspaces; Alt-drag adds exactly one block, the original does not move, the copy lands at the drop point (Builder Pro snaps to 8px), text is copied, no stuck `dragging` class, no page errors; Alt-click adds nothing. Re-run after merging the remote branch (block studio and restored floating-block Components). Not checked: the real WebView2 window (on Windows, Alt may flash the menu bar in some hosts).
 - Cache: Builder Pro loader `?v=20261123a`; `app.js` hash refreshed with `update_hash.py`. Backups: `_rollbacks/*.23-11-2026-pre-alt-drag`.
-- **Open issue, not caused by this change:** `builder-pro-custom-blocks.js:21` throws `Cannot set property compilePrompt of #<Object> which has only a getter` on every page load, so its compile wrapper is never installed. Needs a separate look.
+- The `compilePrompt` getter error seen before the merge no longer appears: the remote branch loads `builder-pro-custom-blocks.js` before `builder-pro.js`.
+
+## Prompt Testing AI bridge and Block Studio (2026-11-22, feature branch)
+
+### Combined AI review repaired
+
+- Root cause: `gauntlet-suite.js`, `prompt-stress-lab.js` and `agent-workspace-refresh.js` call `window.PLBridge.callAI` (then `window.callAI`). Neither was ever defined. `callAI` in `app.js` is private to its IIFE and only `window.PL_ai` (JSON mode, no advisor) was exposed, so every AI step silently returned an empty string and showed a generic failure.
+- Fix: `app.js` now defines `window.PLBridge = { callAI }` next to `window.PL_ai`. It is plain text and honours the Settings "second opinion" (advisor) toggle. This also repairs the Surgeon and Red Team AI steps and the agent workspace refresh.
+- The workspace and Stress Lab toasts now show the real reason (for example "No API key") instead of a generic failure.
+- Verified in headless Chromium with the provider endpoint mocked: with a key, one request is sent and the AI card renders; with no key, the reason is shown and the local report stays. Cache version for `gauntlet-suite.js` and its two children is `20261122a`.
+
+### Block Studio and Your Blocks
+
+- The earlier custom block script threw on load (`Cannot set property compilePrompt ... only a getter`), so the studio and its button never worked. Replaced by a new `static/builder-pro-custom-blocks.js` that never assigns to engine exports. Full design in `docs/prompt-builder-pro/block-creation-studio.md`.
+- Users define inputs, outputs (name, key, type, description), settings (text, long text, number, dropdown), instruction text with `{{input:key}}`, `{{setting:key}}`, `{{output:key}}` tokens, an icon, and a role: standard, agent, reviewer or team coordinator. A coordinator lists the agent each output briefs, so "Add its agents and wire them" works for it.
+- Storage: database via the existing `/api/components` routes (category `yours`, definition JSON in the packed description). localStorage `prompt-builder-pro.custom-blocks.v2` is only a cache. No schema change, no new dependency.
+- "Your Blocks" is the first group in the Builder Pro library and the first department in the Component Library (`window.PL_setYourBlocks` in `app.js`). In the Component Library the text uses `[blank]` placeholders. A Your Blocks item added through the Builder Pro Workshop becomes the real custom block (Workshop items carry a `def` link).
+- Builder Pro build now waits for `PLBlockStudio.ready` so a canvas restored after a browser storage reset keeps its custom blocks. Load order is engine, custom-blocks, builder-pro, showcases.
+- `builder-pro.js` changes are integration points only: Your Blocks group and edit pencil, `compileNodes` hook (`PLBlockStudio.prepare`), shared `window.PLBuilderSpawn`, `refreshBlocks`, `usageOf`, glyph icon lookup.
+- Bug found by testing and fixed: the studio focused the name field on a 30 ms timer, so text typed into another field inside that window landed in the name. It now focuses synchronously.
+- Rule note: the studio sheet is `#pbp-block-studio` (its CSS is scoped there, not under `#builderProWorkspace`) because it also opens from the Component Library. Builder Pro hand-set cache value is now `20261122e` (loader and the custom-blocks stylesheet link).
+- Verified (headless Chromium, disposable data folder): 19 create and use checks, 20 persistence, edit, delete and Component Library checks, light, dark and 390 px layouts, no page errors, showcase validator passes. Not checked: installed PyWebView on Windows.
+- Backups: `_rollbacks/22-11-2026-*` (app.js, app.css, index.html, builder-pro.js/.css, the old custom-blocks files, MEMORY.md).
+
+### Block Studio second pass (2026-11-22)
+
+- Added to the studio: Draft with AI (`PL_ai.ask`, JSON), Try it (`PLBridge.callAI`, one plain request, answer not stored), Required input flag plus typed wire warnings in the Checks tab (`PLBlockStudio.diagnose`, merged into the engine diagnostics inside `compile()` in `builder-pro.js`), Duplicate, Export and Import (JSON, `prompt-builder-blocks` v1, imports always become new copies), and Team blocks.
+- Team block = a saved canvas. Workflow menu "Save canvas as team block". Stored in `component_blocks` (definition kind `builder-team`, body is the compiled prompt, so it also shows in the Component Library as text). Placed with `placeGraph` in `builder-pro.js`, to the right of existing blocks, repeatable. Cache key `prompt-builder-pro.teams.v1`. Still no schema change or dependency.
+- Port types remain warnings only, never blocks. Text is compatible with every type.
+- Hand-set Builder Pro cache value is now `20261122f` (loader and the custom-blocks stylesheet link).
+- Verified in headless Chromium on a fresh data folder: 32 new checks, plus the earlier 19 and 20, no page errors. AI calls were mocked at the provider endpoint. Not checked: installed PyWebView (file chooser for Import and the save dialog for Export need a look there).
+- Backups: `_rollbacks/22-11-2026-*-pre-v2.*`.
+
+
+## Parallel Execution, Merge, Components revert, one background (2026-11-22)
+
+- **Prompt Components is back to the floating-block design. This supersedes the 2026-11-16 notes "Components is now a node canvas" and "Components wiring made self-explanatory".** The wiring layer is gone: no connection dots, wires, arrowheads, "How wiring works" card, Connect in order or Remove all wires. Blocks are cards on the endless canvas, dragged anywhere, numbered by reading order (top to bottom, ties left to right), assembled into the prompt in that order. Quick starts, the library kit, frameworks and AI Build add blocks the old way. Done by restoring the `initComponentsWorkspace` code from `_rollbacks/app.js.16-11-2026-pre-components-nodes` and carrying over only what was added since (Your Blocks, the Builder Workshop gallery link). Markup and CSS reverted the same way. Drafts saved with wires still open (extra fields are ignored).
+- Not loaded and not used: `static/prompt-components-node.js/.css` (the older node canvas) and `static/accounts.js`. They were left in place, not deleted.
+- **One background.** Builder's canvas now uses `--canvas-well` and `--canvas-dot`, the tokens Prompt Components paints with, instead of `--bg`. Light mode is the darker `--surface-3` (kept on purpose for bright screens), dark mode is `--bg`. Checked: computed colour of both canvases is identical in light (`oklch(0.885 0.015 70)`) and dark (`oklch(0.16 0.012 70)`).
+- **Parallel Execution (`parallel_exec`) and Merge (`merge_n`)**, Logic and flow group and listed as "Included" in Your Blocks. Parallel Execution defaults to 2 inputs and 2 outputs, Merge to 2 inputs, both 2 to 8 with +/- controls in the settings panel (disabled at the limits, invalid saved values corrected, wires to removed ports taken off with a notice). Counts live in node config (`inputCount`, `outputCount`). The engine is unchanged: each block registers 8 ports and the canvas shows the first n. The older Parallel Split and Merge Outputs are untouched. Full detail in `docs/prompt-builder-pro/flow-blocks.md`.
+- **Parallel execution setting** above the prompt: a switch (on, Parallel Execution blocks say run at once; off, in order) and Tracks (2 to 8, the starting count for new Parallel Execution blocks). Saved as `parallel` in `prompt-builder-pro.v5`.
+- "Your Blocks" interpretation: the two blocks appear there as Included entries (same types, no edit pencil). They are not user-editable custom blocks, because the Block Studio has fixed port lists. Making port counts adjustable in the studio is the next step if wanted.
+- Fixes found by testing: Wire loose blocks used a fixed `in` port (dropped by the engine for custom blocks), and the Yours filter showed "No blocks match" when only included or team blocks existed.
+- Cache values: Builder Pro loader, custom-blocks stylesheet and `builder-pro.css` are `20261122h`.
+- Verified in headless Chromium on clean data folders, no page errors: 41 checks for the new blocks, setting and background, 9 for the reverted Components screen, 33, 20 and 19 for the studio suites, all 13 built-in templates load, showcase validator passes, Stress Lab AI still works. Not checked: installed PyWebView on Windows.
+- Backups: `_rollbacks/22-11-2026-*-pre-v3.*`.
+
+### Block Studio adjustable port counts (2026-11-22)
+
+- Each side of a custom block is now Fixed ports or an Adjustable count (name, type, fewest 1 or more, most up to 12, starts with). Same engine as Parallel Execution and Merge: ports are generated as `in_1..in_max` / `out_1..`, the canvas shows the first n, `+`/`-` controls appear in the block's settings, wires to hidden ports are taken off with a notice. Definition field `dynamic: { inputs, outputs }`. Full detail in `docs/prompt-builder-pro/block-creation-studio.md`.
+- New tokens: `{{inputs}}`, `{{outputs}}` (ports with their wiring), `{{input_count}}`, `{{output_count}}`. Starters "Parallel tracks" and "Merge" are the editable versions of the built-in blocks. A team coordinator keeps fixed outputs.
+- `builder-pro.js`: every adjustable side carries its own `key`, `min`, `max`, `def` (`dynamic` on the registered block, `sideCount`, `clampCount(v, fallback, min, max)`), so built-in blocks use 2 to 8 and custom blocks use their own range.
+- The Fixed/Adjustable switch lives in its own bar (`#pbp-st-inputs-mode`, `#pbp-st-outputs-mode`) above each ports list, so the rows keep their positions.
+- Cache value is `20261122j`. Verified: 37 new checks plus 19, 20, 33, 41 and 9 from earlier suites, all 13 templates load, Stress Lab AI still works, no page errors. Not checked: installed PyWebView.
+- Backups: `_rollbacks/22-11-2026-*-pre-dyn.*`.
+- Found while working, NOT yet fixed (awaiting approval): the Settings flyout `#configPanel` has no height limit, so with its current content (about 960 px) it grows past short windows, its header and close button go off-screen and the body cannot scroll. Proposed fix in `app.css`: `max-height: 100vh` on `#configPanel` and `min-height: 0` on `.config-panel-body`.

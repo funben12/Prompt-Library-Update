@@ -212,7 +212,7 @@
     try{
       const answer=await fn.call(window.PLBridge||window,system,user,mode==="critical"?2200:1600);
       if(answer){const result=analyze(lastPrompt);renderResults(result,String(answer));}else toast("AI review returned no result.");
-    }catch(err){toast("AI review failed. Your local report is still available.");}
+    }catch(err){toast("AI review failed: "+((err&&err.message)||"unknown error")+". Your local report is still available.");}
     finally{btn.disabled=false;btn.innerHTML='<span class="material-symbols-outlined">auto_awesome</span> Optional AI review';}
   }
   async function copyReport(){
