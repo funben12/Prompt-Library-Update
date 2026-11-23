@@ -53,9 +53,10 @@
     const iconName = v => (/^[a-z0-9_]+$/.test(String(v || '')) ? v : '');
     Object.assign(ICONS, {
         agent_proponent: 'thumb_up', agent_red_team: 'security', agent_audience: 'visibility', agent_brainstormer: 'emoji_objects',
-        agent_summariser: 'summarize', agent_coder: 'code', agent_tester: 'bug_report', agent_triage: 'emergency', agent_moderator: 'forum'
+        agent_summariser: 'summarize', agent_coder: 'code', agent_tester: 'bug_report', agent_triage: 'emergency', agent_moderator: 'forum',
+        parallel_exec: 'splitscreen', merge_n: 'call_merge'
     });
-    const glyph = (type, n) => `<span class="pbp-glyph material-symbols-outlined" aria-hidden="true">${iconName(n && n.config && n.config.source && n.config.source.icon) || ICONS[type] || 'widgets'}</span>`;
+    const glyph = (type, n) => `<span class="pbp-glyph material-symbols-outlined" aria-hidden="true">${iconName(n && n.config && n.config.source && n.config.source.icon) || iconName(BLOCKS[type] && BLOCKS[type].icon) || ICONS[type] || 'widgets'}</span>`;
 
     /* ---------- Component Library link ----------
        Records from the Prompt Components dataset become a generic block. The dataset is read
@@ -164,6 +165,59 @@
         BLOCKS[b.type] = b;
         LIBRARY.push(b);
     });
+
+    /* ---------- flow blocks: Parallel Execution and Merge ----------
+       The number of inputs and outputs is chosen on each block. The engine reads fixed port lists, so each block registers its
+       largest set (FLOW_MAX) and the canvas shows the first n. Wires to a hidden port are removed when the count goes down, so the
+       engine only ever sees wires you can see. To the engine they are ordinary Workflow blocks, and flowPrepare() writes their text
+       from the wiring. The older Parallel Split and Merge Outputs blocks are untouched, saved flows and showcases keep using them. */
+    const FLOW_MIN = 2, FLOW_MAX = 8;
+    const portSet = (prefix, label, n) => Array.from({ length: n }, (_, i) => ({ id: prefix + (i + 1), label: label + ' ' + (i + 1) }));
+    const PARALLEL_MODES = ['One track per input (paired)', 'Every output can use every input'];
+    const MERGE_STYLES = ['Combine everything in order', 'Reconcile conflicts', 'Keep only the best parts'];
+    const MERGE_RULES = {
+        [MERGE_STYLES[0]]: 'Keep everything from every input, in the order listed.',
+        [MERGE_STYLES[1]]: 'Where the inputs disagree, say so and choose the better supported view.',
+        [MERGE_STYLES[2]]: 'Keep only the strongest material from each input and leave the rest out.'
+    };
+    const FLOW_BLOCKS = [
+        {
+            type: 'parallel_exec', label: 'Parallel Execution', hint: 'Several inputs and outputs, run at once', category: 'logic', glyph: '', section: 'workflow', included: true,
+            dynamic: { inputs: { key: 'inputCount', min: FLOW_MIN, max: FLOW_MAX, def: 2 }, outputs: { key: 'outputCount', min: FLOW_MIN, max: FLOW_MAX, def: 2 } },
+            about: 'Runs separate tracks at the same time. Each input is worked on independently and each output carries one track\'s result. Choose 2 to 8 inputs and 2 to 8 outputs on the block. The Parallel execution switch above the prompt turns this on or off for the whole prompt.',
+            use: ['Wire a different source into each input, then each output onward to its own next step.', 'Use Every output can use every input when the counts differ or the tracks need to share material.', 'Follow it with a Merge block to bring the results back together.'],
+            inputs: portSet('in', 'Input', FLOW_MAX), outputs: portSet('out', 'Output', FLOW_MAX),
+            fields: [
+                { key: 'inputCount', label: 'Number of inputs', type: 'count', min: FLOW_MIN, max: FLOW_MAX, def: 2 },
+                { key: 'outputCount', label: 'Number of outputs', type: 'count', min: FLOW_MIN, max: FLOW_MAX, def: 2 },
+                { key: 'mode', label: 'How the tracks relate', type: 'select', options: PARALLEL_MODES },
+                { key: 'content', label: 'Instructions', type: 'textarea', rows: 4, placeholder: '' }
+            ],
+            defaults: { title: 'Parallel Execution', inputCount: 2, outputCount: 2, mode: PARALLEL_MODES[0], content: 'Work on each track on its own. Do not let one track change the result of another.' }
+        },
+        {
+            type: 'merge_n', label: 'Merge', hint: 'Combine several inputs into one', category: 'logic', glyph: '', section: 'workflow', included: true,
+            dynamic: { inputs: { key: 'inputCount', min: FLOW_MIN, max: FLOW_MAX, def: 2 } },
+            about: 'Brings several inputs together into a single merged output. Choose 2 to 8 inputs on the block, then pick how they are combined. The older Merge Outputs block still works for flows that already use it.',
+            use: ['Wire each track or agent into its own numbered input.', 'Pick Reconcile conflicts when the inputs may disagree.', 'Wire the single Merged output onward, for example into an output format.'],
+            inputs: portSet('in', 'Input', FLOW_MAX), outputs: [{ id: 'out', label: 'Merged' }],
+            fields: [
+                { key: 'inputCount', label: 'Number of inputs', type: 'count', min: FLOW_MIN, max: FLOW_MAX, def: 2 },
+                { key: 'style', label: 'How to combine', type: 'select', options: MERGE_STYLES },
+                { key: 'content', label: 'Instructions', type: 'textarea', rows: 4, placeholder: '' }
+            ],
+            defaults: { title: 'Merge', inputCount: 2, style: MERGE_STYLES[0], content: 'Combine the inputs into one coherent result. Keep what agrees and name anything that conflicts.' }
+        }
+    ];
+    FLOW_BLOCKS.forEach(b => { BLOCKS[b.type] = b; });
+    LIBRARY.splice(LIBRARY.findIndex(x => x.type === 'merge') + 1, 0, ...FLOW_BLOCKS);
+    const dynInfo = type => (BLOCKS[type] && BLOCKS[type].dynamic) || null;
+    const clampCount = (v, fallback, min = FLOW_MIN, max = FLOW_MAX) => { const x = Math.round(Number(v)); return Number.isFinite(x) ? Math.max(min, Math.min(max, x)) : fallback; };
+    // How many ports of one side a copy shows, or null when the block has fixed ports on that side.
+    const sideCount = (n, side) => {
+        const dy = dynInfo(n.type), g = dy && dy[side];
+        return g ? clampCount(n.config[g.key], g.def, g.min, g.max) : null;
+    };
 
     /* ---------- Learn: hands-on lessons on the agent blocks ----------
        Each step can be done by hand or by pressing Show me. a = add [key, block type, column, row, name], w = wire
@@ -333,6 +387,7 @@
       <div class="pbp-menu-list" role="menu">
         <button class="pbp-menu-item" role="menuitem" data-act="autoLayout">${ms('auto_awesome_mosaic')}<span>Tidy layout</span></button>
         <button class="pbp-menu-item" role="menuitem" data-act="autoWire">${ms('cable')}<span>Wire loose blocks</span></button>
+        <button class="pbp-menu-item" role="menuitem" data-act="saveTeam">${ms('groups')}<span>Save canvas as team block</span></button>
         <div class="pbp-menu-sep"></div>
         <button class="pbp-menu-item" role="menuitem" data-act="importJson">${ms('upload')}<span>Import a prompt (Markdown)</span></button>
         <button class="pbp-menu-item" role="menuitem" data-act="exportMd">${ms('download')}<span>Export prompt (Markdown)</span></button>
@@ -359,7 +414,7 @@
       <div class="pbp-ws-list" id="pbp-ws-list"></div>
     </section>
     <div class="pbp-pane-head">
-      <div class="pbp-pane-head-row pbp-library-head-row"><span class="pbp-label">Block library</span><div class="pbp-lib-head-actions"><span class="pbp-mono pbp-count" id="pbp-lib-count"></span><button type="button" class="btn btn-accent pbp-btn-xs pbp-create-custom" data-create-custom="1" aria-haspopup="dialog" title="Create a reusable custom block" ><span class="material-symbols-outlined" aria-hidden="true">add_circle</span><span>Create custom block</span></button></div></div>
+      <div class="pbp-pane-head-row pbp-library-head-row"><span class="pbp-label">Block library</span><div class="pbp-lib-head-actions"><span class="pbp-mono pbp-count" id="pbp-lib-count"></span><button type="button" class="btn btn-accent pbp-btn-xs pbp-create-custom" data-act="createCustom" aria-haspopup="dialog" title="Design your own block: its inputs, outputs, settings and instructions"><span class="material-symbols-outlined" aria-hidden="true">add_circle</span><span>Create block</span></button></div></div>
       <input id="pbp-block-search" class="form-input" type="search" placeholder="Search blocks" aria-label="Search blocks" autocomplete="off">
       <div class="pbp-chips" id="pbp-cat-chips" role="group" aria-label="Filter by category"></div>
     </div>
@@ -408,6 +463,8 @@
           <label class="pbp-toggle">Sample values<button class="pbp-switch" role="switch" id="pbp-sample-switch" aria-checked="false" aria-label="Fill variables with sample values"></button></label>
           <label class="pbp-toggle" title="Adds your blocks to the end of a copied or exported prompt as a hidden comment, so Import can give the same blocks back. Turn it off for a clean prompt to paste into a model.">Keep blocks in copy<button class="pbp-switch" role="switch" id="pbp-embed-switch" aria-checked="true" aria-label="Add the blocks to the end of a copied or exported prompt so it can be imported again"></button></label>
           <label class="pbp-toggle">Follow wire order<button class="pbp-switch" role="switch" id="pbp-order-switch" aria-checked="false" aria-label="Order sections by wiring instead of the standard prompt structure"></button></label>
+          <label class="pbp-toggle" title="On: Parallel Execution blocks tell the model to run their tracks at the same time. Off: they are written as steps in order.">Parallel execution<button class="pbp-switch" role="switch" id="pbp-parallel-switch" aria-checked="true" aria-label="Run Parallel Execution tracks at the same time"></button></label>
+          <div class="pbp-toggle pbp-tracks" id="pbp-tracks" title="How many inputs and outputs a new Parallel Execution block starts with">Tracks<span class="pbp-stepper"><button type="button" data-tracks="-1" aria-label="Fewer tracks">&minus;</button><output id="pbp-tracks-n" aria-live="polite">2</output><button type="button" data-tracks="1" aria-label="More tracks">+</button></span></div>
         </div>
       </div>
     </div>
@@ -544,7 +601,7 @@
 
         const state = {
             title: '', nodes: [], edges: [], selected: null,
-            format: 'markdown', order: 'canonical', sample: false, embed: true,
+            format: 'markdown', order: 'canonical', sample: false, embed: true, parallel: { on: true, tracks: 2 },
             pan: { x: 24, y: 72 }, zoom: .85, nextId: 1,
             tab: 'prompt', cat: 'all', query: ''
         };
@@ -564,7 +621,7 @@
             try {
                 localStorage.setItem(STORE, JSON.stringify({
                     title: state.title, nodes: state.nodes, edges: state.edges,
-                    format: state.format, order: state.order, sample: state.sample, embed: state.embed
+                    format: state.format, order: state.order, sample: state.sample, embed: state.embed, parallel: state.parallel
                 }));
             } catch (e) { /* storage full or blocked, the canvas still works */ }
         }
@@ -579,7 +636,8 @@
                     embed: raw.embed !== false,
                     format: raw.format || 'markdown',
                     order: raw.order || 'canonical',
-                    sample: !!raw.sample
+                    sample: !!raw.sample,
+                    parallel: { on: !raw.parallel || raw.parallel.on !== false, tracks: clampCount(raw.parallel && raw.parallel.tracks, 2) }
                 });
                 return true;
             } catch (e) { return false; }
@@ -587,12 +645,13 @@
 
         /* ---------- library ---------- */
         function renderChips() {
-            $('#pbp-cat-chips').innerHTML = [{ id: 'all', label: 'All' }, ...CATEGORIES.map(c => ({ id: c.id, label: c.label.split(' ')[0] }))]
+            $('#pbp-cat-chips').innerHTML = [{ id: 'all', label: 'All' }, ...CATEGORIES.map(c => ({ id: c.id, label: c.chip || c.label.split(' ')[0] }))]
                 .map(c => `<button class="pbp-tab" data-cat-chip="${c.id}" aria-pressed="${state.cat === c.id}">${c.label}</button>`).join('');
         }
         function renderLibrary() {
             const q = state.query.trim().toLowerCase();
-            const match = b => (state.cat === 'all' || b.category === state.cat) && (!q || `${b.label} ${b.hint} ${b.category}`.toLowerCase().includes(q));
+            const home = b => b.customBlock ? 'yours' : b.category;
+            const match = b => (state.cat === 'all' || home(b) === state.cat) && (!q || `${b.label} ${b.hint} ${b.category}`.toLowerCase().includes(q));
             const shown = LIBRARY.filter(match);
             $('#pbp-lib-count').textContent = `${shown.length} of ${LIBRARY.length}`;
             const KINDS = [
@@ -607,14 +666,49 @@
                     <span class="pbp-lib-text"><b>${esc(b.label)}</b><span>${esc(b.hint)}</span></span>
                     ${ms('add', 'pbp-lib-add')}
                 </button>`;
+            const customItem = b => `
+                <div class="pbp-lib-row">
+                    <button class="pbp-lib-item" draggable="true" data-add="${b.type}" data-cat="${b.category}" title="${esc(b.about || 'Add ' + b.label)}">
+                        ${glyph(b.type)}
+                        <span class="pbp-lib-text"><b>${esc(b.label)}</b><span>${b.category === 'agents' ? 'Agent' : 'Block'} · ${esc(b.hint)}</span></span>
+                        ${ms('add', 'pbp-lib-add')}
+                    </button>
+                    <button class="pbp-lib-edit" data-act="editCustom" data-type="${b.type}" aria-label="Edit ${esc(b.label)}" title="Edit this block">${ms('edit')}</button>
+                </div>`;
+            const includedItem = b => `
+                <div class="pbp-lib-row">
+                    <button class="pbp-lib-item" draggable="true" data-add="${b.type}" data-cat="${b.category}" title="${esc(b.about || 'Add ' + b.label)}">
+                        ${glyph(b.type)}
+                        <span class="pbp-lib-text"><b>${esc(b.label)}</b><span>Included · ${esc(b.hint)}</span></span>
+                        ${ms('add', 'pbp-lib-add')}
+                    </button>
+                </div>`;
+            const teamItem = t => `
+                <div class="pbp-lib-row">
+                    <button class="pbp-lib-item" data-act="placeTeam" data-team="${esc(t.id)}" title="Add all ${t.size} blocks, already wired">
+                        <span class="pbp-glyph material-symbols-outlined" aria-hidden="true">groups</span>
+                        <span class="pbp-lib-text"><b>${esc(t.label)}</b><span>Team · ${t.size} block${t.size === 1 ? '' : 's'}${t.hint ? ' · ' + esc(t.hint) : ''}</span></span>
+                        ${ms('add', 'pbp-lib-add')}
+                    </button>
+                    <button class="pbp-lib-edit" data-act="deleteTeam" data-team="${esc(t.id)}" aria-label="Delete ${esc(t.label)}" title="Delete this team block">${ms('delete')}</button>
+                </div>`;
             const groups = CATEGORIES.map(c => {
-                const list = shown.filter(b => b.category === c.id);
+                const list = shown.filter(b => home(b) === c.id);
+                if (c.id === 'yours') {
+                    const studio = window.PLBlockStudio;
+                    const teamList = studio && studio.teams && (state.cat === 'all' || state.cat === 'yours') ? studio.teams().filter(t => !q || `${t.label} ${t.hint}`.toLowerCase().includes(q)) : [];
+                    const includedList = LIBRARY.filter(b => b.included && (state.cat === 'all' || state.cat === 'yours') && (!q || `${b.label} ${b.hint}`.toLowerCase().includes(q)));
+                    const tools = `<span class="pbp-lib-group-tools"><button type="button" class="pbp-lib-tool" data-act="importBlocks" title="Import blocks from a file" aria-label="Import blocks from a file">${ms('upload')}</button>${list.length || teamList.length ? `<button type="button" class="pbp-lib-tool" data-act="exportBlocks" title="Export all as a file" aria-label="Export all blocks as a file">${ms('download')}</button>` : ''}</span>`;
+                    if (list.length || teamList.length || includedList.length) return `<div class="pbp-lib-group pbp-label"><span>${c.label}</span>${tools}</div>` + includedList.map(includedItem).join('') + teamList.map(teamItem).join('') + list.map(customItem).join('');
+                    return q ? '' : `<div class="pbp-lib-group pbp-label"><span>${c.label}</span>${tools}</div>
+                        <div class="pbp-lib-intro"><b>Make your own blocks.</b> Define what a block takes in, what it hands out and the instructions it adds. Blocks you save are kept in Your Blocks, here and in the Component Library.<span><button class="btn btn-accent pbp-btn-xs" data-act="createCustom">${ms('add_circle')}<span>Create your first block</span></button></span></div>`;
+                }
                 if (c.id === 'agents' && list.length) return `<div class="pbp-lib-group pbp-label"><span>${c.label}</span></div>
                     <div class="pbp-lib-intro"><b>New to agent teams?</b> Agents are separate blocks that you wire together. Coordinators are optional. The quickest start is a ready-made team.<span><button class="btn pbp-btn-xs" data-act="openGuide">Show me the teams</button></span></div>`
                     + KINDS.map(([k, name, line]) => { const sub = list.filter(b => b.kind === k); return sub.length ? `<div class="pbp-lib-sub"><b>${name}</b>${line}</div>` + sub.map(item).join('') : ''; }).join('');
                 return list.length ? `<div class="pbp-lib-group pbp-label"><span>${c.label}</span></div>` + list.map(item).join('') : '';
             }).join('');
-            $('#pbp-library').innerHTML = shown.length ? groups : `<div class="pbp-empty"><b>No blocks match</b>Try a shorter search, or switch the filter back to All.</div>`;
+            $('#pbp-library').innerHTML = groups.trim() ? groups : `<div class="pbp-empty"><b>No blocks match</b>Try a shorter search, or switch the filter back to All.</div>`;
         }
 
         /* ---------- nodes ---------- */
@@ -628,6 +722,9 @@
             if (n.type === 'loop') return `Up to ${c.maxIterations || 3} passes, until ${c.exitCondition || '...'}`;
             if (n.type === 'feedback') return `${c.purpose || 'Revision'}, up to ${c.maxRounds || 2} round${Number(c.maxRounds || 2) === 1 ? '' : 's'}\n${c.content || ''}`;
             if (n.type === 'agent_specialist') return `${c.specialty || 'Specialist'}\n${c.content || ''}`;
+            if (n.type === 'parallel_exec') return `${activeIn(n).length} inputs, ${activeOut(n).length} outputs, ${state.parallel.on ? 'run at once' : 'run in order'}\n${c.content || ''}`;
+            if (n.type === 'merge_n') return `${activeIn(n).length} inputs merged into one output\n${c.content || ''}`;
+            if (BLOCKS[n.type].customBlock && dynInfo(n.type)) return `${activeIn(n).length} in, ${activeOut(n).length} out\n${c.content || ''}`;
             return c.content || (n.type === 'role' ? c.personaPreset : '') || 'Empty. Select to add text.';
         }
         function portName(n, p) {
@@ -635,6 +732,15 @@
             if (n.type === 'switch' && p.id === 'caseB') return n.config.caseBLabel || p.label;
             return p.label;
         }
+        // The ports a block shows. Most blocks show all of theirs, Parallel Execution and Merge show the first n.
+        const activeIn = n => {
+            const all = inputsOf(n.type), c = sideCount(n, 'inputs');
+            return c === null ? all : all.slice(0, c);
+        };
+        const activeOut = n => {
+            const all = BLOCKS[n.type].outputs, c = sideCount(n, 'outputs');
+            return c === null ? all : all.slice(0, c);
+        };
         const inputsOf = type => {
             const raw = BLOCKS[type].inputs;
             return raw === true ? [{ id: 'in', label: 'In' }] : Array.isArray(raw) ? raw : [];
@@ -646,15 +752,16 @@
             els.nodes.innerHTML = state.nodes.map(n => {
                 const d = BLOCKS[n.type];
                 const st = cyc.has(n.id) ? 'cycle' : unwired.has(n.id) ? 'unwired' : '';
-                const multiOut = d.outputs.length > 1;
-                const inputList = inputsOf(n.type);
+                const outList = activeOut(n);
+                const multiOut = outList.length > 1;
+                const inputList = activeIn(n);
                 const multiIn = inputList.length > 1;
                 const singleIn = d.inputs && !multiIn;
                 const inHtml = multiIn
                     ? `<div class="pbp-node-ports-in">${inputList.map(p => `<div class="pbp-port-row-in"><span class="pbp-port" data-port="${p.id}" data-dir="in" title="Drop a wire here"></span><span>${esc(p.label)}</span></div>`).join('')}</div>`
                     : singleIn ? `<span class="pbp-port pbp-port-in" data-port="${inputList[0].id}" data-dir="in" title="Input"></span>` : '';
                 return `<div class="pbp-node" id="pbp-node-${n.id}" data-id="${n.id}" data-cat="${d.category}" ${st ? `data-state="${st}"` : ''} ${state.selected === n.id ? 'data-selected' : ''} style="left:${n.x}px;top:${n.y}px">
-                    ${multiOut ? '' : `<span class="pbp-port pbp-port-out" data-port="${d.outputs[0].id}" data-dir="out" title="Drag to connect"></span>`}
+                    ${multiOut ? '' : `<span class="pbp-port pbp-port-out" data-port="${outList[0].id}" data-dir="out" title="Drag to connect"></span>`}
                     ${inHtml}
                     <div class="pbp-node-head" data-drag>
                         ${glyph(n.type, n)}
@@ -663,7 +770,7 @@
                     </div>
                     <p class="pbp-node-body">${esc(summary(n))}</p>
                     ${st === 'unwired' ? `<p class="pbp-node-flag">Not wired in, left out of the prompt</p>` : st === 'cycle' ? `<p class="pbp-node-flag">Circular link, remove a red wire</p>` : ''}
-                    ${multiOut ? `<div class="pbp-node-ports">${d.outputs.map(p => `<div class="pbp-port-row"><span>${esc(portName(n, p))}</span><span class="pbp-port" data-port="${p.id}" data-dir="out" title="Drag to connect"></span></div>`).join('')}</div>` : ''}
+                    ${multiOut ? `<div class="pbp-node-ports">${outList.map(p => `<div class="pbp-port-row"><span>${esc(portName(n, p))}</span><span class="pbp-port" data-port="${p.id}" data-dir="out" title="Drag to connect"></span></div>`).join('')}</div>` : ''}
                 </div>`;
             }).join('');
         }
@@ -696,7 +803,7 @@
                 const d = curve(a, b);
                 const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
                 const port = BLOCKS[src.type].outputs.find(p => p.id === e.fromPort);
-                let tag = BLOCKS[src.type].outputs.length > 1 && port ? portName(src, port) : '';
+                let tag = activeOut(src).length > 1 && port ? portName(src, port) : '';
                 if (tag.length > 20) tag = tag.slice(0, 19) + '…';
                 const w = tag.length * 6.2 + 16;
                 const hot = state.selected && (e.from === state.selected || e.to === state.selected);
@@ -774,6 +881,12 @@
         }
 
         /* ---------- inspector ---------- */
+        // A count control for blocks that choose how many inputs or outputs they have. It cannot leave FLOW_MIN to FLOW_MAX.
+        const stepper = (f, n, id) => {
+            const lo = f.min ?? FLOW_MIN, hi = f.max ?? FLOW_MAX;
+            const v = clampCount(n.config[f.key], f.def ?? lo, lo, hi);
+            return `<div class="pbp-stepper"><button type="button" data-count="-1" data-count-key="${f.key}" ${v <= lo ? 'disabled' : ''} aria-label="Fewer">&minus;</button><output id="${id}" aria-live="polite">${v}</output><button type="button" data-count="1" data-count-key="${f.key}" ${v >= hi ? 'disabled' : ''} aria-label="More">+</button><span class="pbp-stepper-note">${lo} to ${hi}</span></div>`;
+        };
         function renderInspector() {
             const n = node(state.selected);
             const box = els.inspector;
@@ -785,7 +898,7 @@
                 const v = n.config[f.key] ?? '';
                 const id = `pbp-f-${f.key}`;
                 const attr = `id="${id}" data-field="${f.key}" ${f.placeholder ? `placeholder="${esc(f.placeholder)}"` : ''}`;
-                const ctl = f.type === 'textarea'
+                const ctl = f.type === 'count' ? stepper(f, n, id) : f.type === 'textarea'
                     ? `<textarea class="form-textarea" rows="${f.rows || 4}" ${attr}>${esc(v)}</textarea>`
                     : f.type === 'select'
                         ? `<select class="form-input" ${attr}>${[...new Set([...(f.options || []), ...(v ? [v] : [])])].map(o => `<option ${o === v ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`
@@ -802,7 +915,8 @@
                 <div class="pbp-insp-body">
                     ${d.about ? `<div class="pbp-about"><p>${esc(d.about)}</p><span class="pbp-label">What you can do with it</span><ul>${(d.use || []).map(u => `<li>${esc(u)}</li>`).join('')}</ul></div>` : ''}
                     ${missing ? `<button class="btn btn-accent btn-sm" data-act="addAgents">Add its ${missing === 1 ? 'missing agent' : missing + ' agents'} and wire them</button>` : ''}
-                    ${Array.isArray(d.inputs) ? `<div class="pbp-ports"><div><span class="pbp-label">Takes in</span>${d.inputs.map(p => `<span>${esc(p.label)}</span>`).join('')}</div><div><span class="pbp-label">Hands out</span>${d.outputs.map(p => `<span>${esc(p.label)}</span>`).join('')}</div></div>` : ''}
+                    ${Array.isArray(d.inputs) ? `<div class="pbp-ports"><div><span class="pbp-label">Takes in</span>${activeIn(n).map(p => `<span title="${esc(p.desc || '')}">${esc(p.label)}${p.required ? ' *' : ''}</span>`).join('')}</div><div><span class="pbp-label">Hands out</span>${activeOut(n).map(p => `<span title="${esc(p.desc || '')}">${esc(p.label)}</span>`).join('')}</div></div>` : ''}
+                    ${d.customBlock ? `<button class="btn pbp-btn-xs pbp-start" data-act="editCustom" data-type="${n.type}">${ms('edit')}<span>Edit this block's design</span></button>` : ''}
                     <div class="pbp-field"><label for="pbp-f-title">Block name</label><input class="form-input" id="pbp-f-title" data-field="title" value="${esc(n.config.title || '')}" autocomplete="off"></div>
                     ${isComponent(n) ? `<div class="pbp-field"><label for="pbp-f-section">Prompt section</label><select class="form-input" id="pbp-f-section" data-section>${COMPONENT_SECTIONS.map(id => `<option value="${id}" ${id === sectionOf(n) ? 'selected' : ''}>${esc(sectionTitle(id))}</option>`).join('')}</select></div>` : ''}
                     ${fields}
@@ -812,12 +926,12 @@
         }
 
         // Which agent each coordinator output expects: [block type, input port, block name].
-        const SPAWN = {
+        const SPAWN = Object.assign(window.PLBuilderSpawn = window.PLBuilderSpawn || {}, {
             multi_agent: { planner: ['agent_planner', 'task'], researcher: ['agent_researcher', 'task'], writer: ['agent_writer', 'task'], critic: ['agent_critic', 'task'] },
             agent_router: { to_planner: ['agent_planner', 'task'], to_researcher: ['agent_researcher', 'task'], to_writer: ['agent_writer', 'task'], to_critic: ['agent_critic', 'task'], fallback: ['meta_clarify', 'in'] },
             agent_moderator: { pro: ['agent_proponent', 'proposal'], con: ['agent_advocate', 'proposal'], judge: ['agent_judge', 'criteria'] },
             agent_lead: { worker_a: ['agent_specialist', 'task', 'Specialist A'], worker_b: ['agent_specialist', 'task', 'Specialist B'], worker_c: ['agent_specialist', 'task', 'Specialist C'] }
-        };
+        });
         function missingAgents(n) {
             return Object.keys(SPAWN[n.type] || {}).filter(port => !state.edges.some(e => e.from === n.id && e.fromPort === port));
         }
@@ -839,11 +953,89 @@
 
         /* ---------- render pipeline ---------- */
         // Components are compiled from a copy, so the stored text is never changed.
-        const compileNodes = () => state.nodes.map(n => isComponent(n) ? { ...n, config: { ...n.config, content: stripOwnLabel(n) } } : n);
+        // Parallel Execution and Merge describe their own wiring, so their text is built from the edges on a copy.
+        function flowPrepare(nodes, edges) {
+            const byId = new Map(nodes.map(n => [n.id, n]));
+            const list = a => (a.length > 1 ? a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1] : a[0] || '');
+            const names = ids => [...new Set(ids.map(id => byId.get(id)).filter(Boolean).map(PE.titleOf))];
+            return nodes.map(n => {
+                if (n.type !== 'parallel_exec' && n.type !== 'merge_n') return n;
+                const c = n.config || {}, head = String(c.content || '').trim();
+                const ins = activeIn(n), outs = activeOut(n);
+                const inLines = ins.map(p => {
+                    const f = names(edges.filter(e => e.to === n.id && (e.toPort || 'in') === p.id).map(e => e.from));
+                    return `- ${p.label}${f.length ? ', from ' + list(f) : ', nothing connected'}`;
+                });
+                let text;
+                if (n.type === 'merge_n') {
+                    text = [head, `Merge these ${ins.length} inputs into one output:`, inLines.join('\n'), MERGE_RULES[c.style] || MERGE_RULES[MERGE_STYLES[0]], 'Hand the single merged result to the next step.'];
+                } else {
+                    const tracks = Math.max(ins.length, outs.length);
+                    const paired = c.mode !== PARALLEL_MODES[1] && ins.length === outs.length;
+                    const outLines = outs.map(p => {
+                        const t = names(edges.filter(e => e.from === n.id && e.fromPort === p.id).map(e => e.to));
+                        return `- ${p.label}${t.length ? ', to ' + list(t) : ', nothing connected'}`;
+                    });
+                    text = [
+                        head,
+                        state.parallel.on ? `Run the ${tracks} tracks in parallel: at the same time and independently of each other.` : `Work through the ${tracks} tracks one after another, in order, finishing each before starting the next.`,
+                        paired ? 'Track n takes Input n and produces Output n.' : 'Every output may draw on all of the inputs, and each output is its own piece of work.',
+                        'Inputs:', inLines.join('\n'), 'Outputs:', outLines.join('\n')
+                    ];
+                }
+                return Object.assign({}, n, { config: Object.assign({}, c, { content: text.filter(Boolean).join('\n') }) });
+            });
+        }
+        // Checks that belong to the two flow blocks, added to the engine's own.
+        function flowDiagnose() {
+            const out = [];
+            const wired = new Set();
+            state.edges.forEach(e => { wired.add(e.from); wired.add(e.to); });
+            state.nodes.forEach(n => {
+                if (!dynInfo(n.type) || !wired.has(n.id)) return;
+                const open = activeIn(n).filter(p => !state.edges.some(e => e.to === n.id && (e.toPort || 'in') === p.id));
+                if (n.type === 'merge_n' && activeIn(n).length - open.length < 2) out.push({ level: 'warning', code: 'merge_few', message: `"${PE.titleOf(n)}" has ${activeIn(n).length - open.length} wired input. A merge needs two or more, or lower its number of inputs.`, nodeId: n.id });
+                else if (open.length) out.push({ level: 'info', code: 'flow_open', message: `"${PE.titleOf(n)}": ${list2(open.map(p => p.label))} ${open.length === 1 ? 'is' : 'are'} not connected, so ${open.length === 1 ? 'that track is' : 'those tracks are'} empty.`, nodeId: n.id });
+            });
+            if (!state.parallel.on && state.nodes.some(n => n.type === 'parallel_exec')) out.push({ level: 'info', code: 'parallel_off', message: 'Parallel execution is switched off, so Parallel Execution blocks are written as steps in order.' });
+            return out;
+        }
+        const list2 = a => (a.length > 1 ? a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1] : a[0] || '');
+        const compileNodes = () => {
+            const base = flowPrepare(state.nodes.map(n => isComponent(n) ? { ...n, config: { ...n.config, content: stripOwnLabel(n) } } : n), state.edges);
+            const studio = window.PLBlockStudio;
+            return studio && studio.prepare ? studio.prepare(base, state.edges) : base;
+        };
+        // Keeps counts in range and drops wires that point at a port the block no longer shows.
+        function pruneFlow() {
+            state.nodes.forEach(n => {
+                const dy = dynInfo(n.type);
+                if (!dy) return;
+                ['inputs', 'outputs'].forEach(side => { if (dy[side]) n.config[dy[side].key] = sideCount(n, side); });
+            });
+            const before = state.edges.length;
+            state.edges = state.edges.filter(e => {
+                const a = node(e.from), b = node(e.to);
+                if (a && dynInfo(a.type) && !activeOut(a).some(p => p.id === e.fromPort)) return false;
+                if (b && dynInfo(b.type) && !activeIn(b).some(p => p.id === (e.toPort || 'in'))) return false;
+                return true;
+            });
+            return before - state.edges.length;
+        }
         function compile() {
+            pruneFlow();
             result = PE.compilePrompt(compileNodes(), state.edges, {
                 format: state.format, order: state.order, sample: state.sample, title: state.title
             });
+            // Required inputs and mismatched port types on custom blocks, added to the engine's checks.
+            const studio = window.PLBlockStudio;
+            {
+                const extra = [...flowDiagnose(), ...(studio && studio.diagnose ? studio.diagnose(state.nodes, state.edges) : [])];
+                if (extra.length) {
+                    const rank = { error: 0, warning: 1, info: 2 };
+                    result.diagnostics = [...result.diagnostics, ...extra].sort((a, b) => rank[a.level] - rank[b.level]);
+                }
+            }
             // A component in the Role, Task or Output section counts as that part of the prompt.
             const covers = { role: ['role', 'system'], task: ['task', 'instructions'], output: ['output'] };
             const active = new Set(result.activeIds);
@@ -920,7 +1112,7 @@
             try {
                 const raw = JSON.parse(localStorage.getItem(WORKSHOP_STORE) || '[]');
                 workshop = (Array.isArray(raw) ? raw : []).filter(it => it && typeof it.label === 'string' && typeof it.text === 'string')
-                    .map(it => ({ label: it.label, text: it.text, cat: it.cat || null, icon: iconName(it.icon) || 'extension', badge: it.badge || '' }));
+                    .map(it => ({ label: it.label, text: it.text, cat: it.cat || null, icon: iconName(it.icon) || 'extension', badge: it.badge || '', def: it.def || '' }));
             } catch (e) { workshop = []; }
         }
         function renderWorkshop() {
@@ -941,7 +1133,7 @@
             const have = new Set(workshop.map(wsKey));
             let added = 0, skipped = 0;
             (kit || []).forEach(raw => {
-                const it = { label: String(raw.label || 'Component'), text: String(raw.text || ''), cat: raw.cat || null, icon: iconName(raw.icon) || 'extension', badge: raw.badge || '' };
+                const it = { label: String(raw.label || 'Component'), text: String(raw.text || ''), cat: raw.cat || null, icon: iconName(raw.icon) || 'extension', badge: raw.badge || '', def: raw.def || '' };
                 if (have.has(wsKey(it))) { skipped++; return; }
                 have.add(wsKey(it));
                 workshop.push(it);
@@ -960,6 +1152,8 @@
         // The Workshop item stays where it is. The canvas gets its own block built from the record.
         function addComponent(it, x, y, section) {
             if (!it) return;
+            // A block from Your Blocks comes back as the real block, with its ports and settings.
+            if (it.def && BLOCKS[it.def]) return addNode(it.def, x, y);
             const before = state.nodes.length;
             addNode(COMPONENT + (section || guessSection(it)), x, y);
             const n = node(state.selected);
@@ -1029,9 +1223,20 @@
                 x: Math.round(x / 8) * 8, y: Math.round(y / 8) * 8,
                 config: JSON.parse(JSON.stringify(d.defaults))
             };
+            if (type === 'parallel_exec') n.config.inputCount = n.config.outputCount = state.parallel.tracks;
             state.nodes.push(n);
             state.selected = n.id;
             render();
+        }
+        function cloneNode(n, x, y) {
+            if (state.nodes.length >= MAX_NODES) {
+                toast(`Maximum ${MAX_NODES} blocks per workflow. Split into separate workflows for larger systems.`, 'warning');
+                return null;
+            }
+            const c = { ...JSON.parse(JSON.stringify(n)), id: uid('node'), x, y };
+            delete c.showcase;
+            state.nodes.push(c);
+            return c;
         }
         function removeNode(id) {
             state.nodes = state.nodes.filter(n => n.id !== id);
@@ -1044,7 +1249,8 @@
             if (!a || !b) return;
             if (from === to) return toast('A block cannot connect to itself', 'warning');
             if (!BLOCKS[b.type].inputs) return toast(`${BLOCKS[b.type].label} has no input, it only feeds other blocks`, 'warning');
-            if (!inputsOf(b.type).some(p => p.id === toPort)) return toast(`That block has no input port called "${toPort}"`, 'warning');
+            if (!activeIn(b).some(p => p.id === toPort)) return toast(`That block has no input port called "${toPort}"`, 'warning');
+            if (!activeOut(a).some(p => p.id === port)) return toast(`That block has no output port called "${port}"`, 'warning');
             if (state.edges.some(e => e.from === from && e.fromPort === port && e.to === to && (e.toPort || 'in') === toPort)) return toast('That wire already exists', 'warning');
             state.edges.push({ id: uid('edge'), from, fromPort: port, to, toPort });
             render({ inspector: false });
@@ -1052,13 +1258,41 @@
             if (result.cycleEdgeIds.includes(newest)) toast('Connected, but this creates a circular link. Return wires belong in a Feedback or Reports input.', 'warning');
             else if (result.loopEdgeIds.includes(newest)) toast('Connected. Loop closed.', 'success');
         }
+        // The + and - on a block's number of inputs or outputs. Wires to a port that disappears are removed, and the user is told.
+        function adjustCount(key, delta) {
+            const n = node(state.selected), dy = n && dynInfo(n.type);
+            const g = dy && Object.values(dy).find(x => x.key === key);
+            if (!g) return;
+            const cur = clampCount(n.config[key], g.def, g.min, g.max), next = clampCount(cur + delta, cur, g.min, g.max);
+            if (next === cur) return toast(`This block can have ${g.min} to ${g.max} ${key === 'inputCount' ? 'inputs' : 'outputs'}.`, 'info');
+            n.config[key] = next;
+            const before = state.edges.length;
+            pruneFlow();
+            const dropped = before - state.edges.length;
+            render();
+            if (dropped) toast(`${dropped} wire${dropped === 1 ? '' : 's'} to the removed ${key === 'inputCount' ? 'input' : 'output'} ${dropped === 1 ? 'was' : 'were'} taken off.`, 'info');
+        }
+        // The Parallel execution setting: how many tracks a new Parallel Execution block starts with.
+        function adjustTracks(delta) {
+            const next = clampCount(state.parallel.tracks + delta, state.parallel.tracks);
+            if (next === state.parallel.tracks) return toast(`Tracks can be ${FLOW_MIN} to ${FLOW_MAX}.`, 'info');
+            state.parallel.tracks = next;
+            syncParallelUi();
+            save();
+        }
+        function syncParallelUi() {
+            $('#pbp-parallel-switch').setAttribute('aria-checked', state.parallel.on);
+            $('#pbp-tracks-n').textContent = state.parallel.tracks;
+            $('#pbp-tracks').classList.toggle('pbp-is-off', !state.parallel.on);
+            $$('#pbp-tracks [data-tracks]').forEach(b => { b.disabled = !state.parallel.on || (+b.dataset.tracks < 0 ? state.parallel.tracks <= FLOW_MIN : state.parallel.tracks >= FLOW_MAX); });
+        }
         function autoWire() {
             const g = PE.analyzeGraph(state.nodes, state.edges);
             const byPos = (a, b) => a.x - b.x || a.y - b.y;
             const loose = [...g.unwired].sort(byPos);
             if (!loose.length) return toast('Every block is already wired in');
-            const link = (a, b) => state.edges.push({ id: uid('edge'), from: a.id, fromPort: BLOCKS[a.type].outputs[0].id, to: b.id, toPort: 'in' });
-            let tail = [...g.ordered].reverse().find(n => BLOCKS[n.type].outputs.length === 1 && !g.outEdges[n.id].length) || g.ordered[g.ordered.length - 1];
+            const link = (a, b) => state.edges.push({ id: uid('edge'), from: a.id, fromPort: activeOut(a)[0].id, to: b.id, toPort: (activeIn(b)[0] || { id: 'in' }).id });
+            let tail = [...g.ordered].reverse().find(n => activeOut(n).length === 1 && !g.outEdges[n.id].length) || g.ordered[g.ordered.length - 1];
             const head = g.ordered.find(n => BLOCKS[n.type].inputs);
             let count = 0;
             const sources = loose.filter(n => !BLOCKS[n.type].inputs);
@@ -1965,7 +2199,7 @@
             } else if (overNode) {
                 const n = node(overNode.dataset.id);
                 if (state.selected !== n.id) select(n.id);
-                drag = { mode: 'node', id: n.id, sx: e.clientX, sy: e.clientY, ox: n.x, oy: n.y, moved: false };
+                drag = { mode: 'node', id: n.id, sx: e.clientX, sy: e.clientY, ox: n.x, oy: n.y, moved: false, copy: e.altKey };
             } else if (wire) return;
             else {
                 drag = { mode: 'pan', sx: e.clientX - state.pan.x, sy: e.clientY - state.pan.y, moved: false };
@@ -1983,12 +2217,17 @@
                 els.canvas.classList.add('pbp-is-panning');
                 applyView();
             } else if (drag.mode === 'node') {
-                const n = node(drag.id);
-                if (!n) return;
                 const dx = (e.clientX - drag.sx) / state.zoom;
                 const dy = (e.clientY - drag.sy) / state.zoom;
                 if (!drag.moved && Math.hypot(dx, dy) < 3) return;
+                if (!drag.moved && drag.copy) {
+                    // Alt held at press: the original stays put and the copy takes the drag
+                    const c = cloneNode(node(drag.id), drag.ox, drag.oy);
+                    if (c) { drag.id = c.id; state.selected = c.id; render(); }
+                }
                 drag.moved = true;
+                const n = node(drag.id);
+                if (!n) return;
                 n.x = Math.round(drag.ox + dx);
                 n.y = Math.round(drag.oy + dy);
                 const el = nodeEl(n.id);
@@ -2036,12 +2275,12 @@
                 const t = node(overNode.dataset.id);
                 if (d.dir === 'out') {
                     const overPort = el?.closest('.pbp-port[data-dir=in]');
-                    const toPort = overPort?.dataset.port || inputsOf(t.type)[0]?.id || 'in';
+                    const toPort = overPort?.dataset.port || activeIn(t)[0]?.id || 'in';
                     connect(d.from, d.port, overNode.dataset.id, toPort);
                 } else {
                     const overPort = el?.closest('.pbp-port[data-dir=out]');
                     if (!BLOCKS[t.type].outputs.length) return;
-                    const fromPort = overPort?.dataset.port || BLOCKS[t.type].outputs[0].id;
+                    const fromPort = overPort?.dataset.port || activeOut(t)[0].id;
                     connect(overNode.dataset.id, fromPort, d.from, d.port);
                 }
             } else if (d.mode === 'node' && d.moved) {
@@ -2094,6 +2333,13 @@
             tourNext: () => (tourAt < TOUR_STEPS.length - 1 ? showTourStep(tourAt + 1) : endTour()),
             clear: () => (state.nodes.length ? $('#pbp-confirm-dialog').showModal() : toast('The canvas is already empty')),
             copy: btn => copyPrompt(btn),
+            saveTeam: () => (window.PLBlockStudio ? window.PLBlockStudio.openTeamDialog() : toast('The block studio is still loading. Try again in a moment.', 'warning')),
+            placeTeam: t => window.PLBlockStudio && window.PLBlockStudio.placeTeam(t.dataset.team),
+            deleteTeam: t => window.PLBlockStudio && window.PLBlockStudio.removeTeam(t.dataset.team),
+            importBlocks: () => window.PLBlockStudio && window.PLBlockStudio.importFile(),
+            exportBlocks: () => window.PLBlockStudio && window.PLBlockStudio.exportBlocks(),
+            createCustom: () => (window.PLBlockStudio ? window.PLBlockStudio.open(null) : toast('The block studio is still loading. Try again in a moment.', 'warning')),
+            editCustom: t => (window.PLBlockStudio ? window.PLBlockStudio.open(t.dataset.type) : toast('The block studio is still loading. Try again in a moment.', 'warning')),
             zoomIn: () => zoomBy(.1),
             zoomOut: () => zoomBy(-.1),
             deselect: () => select(null),
@@ -2101,9 +2347,8 @@
             duplicate: () => {
                 const n = node(state.selected);
                 if (!n) return;
-                const c = { ...JSON.parse(JSON.stringify(n)), id: uid('node'), x: n.x + 32, y: n.y + 32 };
-                delete c.showcase;
-                state.nodes.push(c);
+                const c = cloneNode(n, n.x + 32, n.y + 32);
+                if (!c) return;
                 state.selected = c.id;
                 render();
             },
@@ -2163,8 +2408,10 @@
         root.addEventListener('click', e => {
             $$('.pbp-menu[open]').forEach(m => { if (!m.querySelector('summary').contains(e.target)) m.open = false; });
             if (libraryOpen() && e.target.closest('#pcwGallery')) return;
-            const t = e.target.closest('[data-export], [data-ws-add], [data-ws-remove], [data-template], [data-act], [data-add], [data-del], [data-goto], [data-edge], [data-tab], [data-format], [data-cat-chip], [data-close], .pbp-part, .pbp-node-body');
+            const t = e.target.closest('[data-count], [data-tracks], [data-export], [data-ws-add], [data-ws-remove], [data-template], [data-act], [data-add], [data-del], [data-goto], [data-edge], [data-tab], [data-format], [data-cat-chip], [data-close], .pbp-part, .pbp-node-body');
             if (!t) return;
+            if (t.dataset.count) return adjustCount(t.dataset.countKey, +t.dataset.count);
+            if (t.dataset.tracks) return adjustTracks(+t.dataset.tracks);
             if (t.dataset.export) return exportAs(t.dataset.export);
             if (t.dataset.wsAdd) return addComponent(workshop[+t.dataset.wsAdd]);
             if (t.dataset.wsRemove) return removeFromWorkshop(+t.dataset.wsRemove);
@@ -2225,6 +2472,7 @@
         // Keys only act while this workspace is open and nothing else has focus.
         document.addEventListener('keydown', e => {
             if (!isOpen()) return;
+            if (window.PLBlockStudio && window.PLBlockStudio.isOpen()) return;
             if (e.target !== document.body && !root.contains(e.target)) return;
             // While the library covers the workspace, keys belong to it. Escape with no focus closes it.
             if (libraryOpen()) {
@@ -2279,6 +2527,14 @@
             });
         }
 
+        $('#pbp-parallel-switch').addEventListener('click', e => {
+            e.preventDefault();
+            state.parallel.on = !state.parallel.on;
+            syncParallelUi();
+            render({ inspector: false });
+        });
+        syncParallelUi();
+
         $('#pbp-json-action').addEventListener('click', jsonAction);
         $('#pbp-json-pick').addEventListener('click', () => $('#pbp-json-file').click());
         $('#pbp-json-file').addEventListener('change', async e => {
@@ -2325,6 +2581,7 @@
             $('#pbp-sample-switch').setAttribute('aria-checked', state.sample);
             $('#pbp-order-switch').setAttribute('aria-checked', state.order === 'wire');
             $('#pbp-embed-switch').setAttribute('aria-checked', state.embed);
+            syncParallelUi();
         }
 
         // The canvas measures the DOM, so the first paint waits until the workspace is on screen.
@@ -2349,7 +2606,46 @@
             $$('.pbp-menu[open]').forEach(m => { m.open = false; });
         }
 
-        return { state, get result() { return result; }, get workshop() { return workshop; }, get panes() { return panes; }, buildExport, render, connect, addNode, contextBlock, loadTemplate, select, show, closeDialogs };
+        // The studio calls this after a block is saved, edited or deleted: wires to ports that no longer exist are dropped.
+        function refreshBlocks() {
+            const clean = PE.sanitizeGraph(state.nodes, state.edges);
+            const lost = state.nodes.length - clean.nodes.length;
+            state.nodes = clean.nodes;
+            state.edges = clean.edges;
+            if (state.selected && !node(state.selected)) state.selected = null;
+            renderChips();
+            renderLibrary();
+            render();
+            return lost;
+        }
+
+        // Adds a saved group of blocks and wires to the canvas, to the right of what is already there.
+        function placeGraph(items, links) {
+            const usable = (items || []).filter(it => BLOCKS[it.type]);
+            if (!usable.length) { toast('None of the blocks in that team exist any more.', 'warning'); return 0; }
+            if (state.nodes.length + usable.length > MAX_NODES) { toast(`Maximum ${MAX_NODES} blocks per workflow. Split into separate workflows for larger systems.`, 'warning'); return 0; }
+            const left = state.nodes.length ? Math.max(...state.nodes.map(n => n.x)) + NODE_W + 96 : 48;
+            const top = state.nodes.length ? Math.min(...state.nodes.map(n => n.y)) : 72;
+            const made = new Map();
+            usable.forEach(it => {
+                const id = uid('node');
+                made.set(it.key, id);
+                state.nodes.push({ id, type: it.type, x: Math.round((left + it.x) / 8) * 8, y: Math.round((top + it.y) / 8) * 8, config: JSON.parse(JSON.stringify(it.config || BLOCKS[it.type].defaults)) });
+            });
+            (links || []).forEach(l => {
+                const a = made.get(l.from), b = made.get(l.to);
+                if (a && b) state.edges.push({ id: uid('edge'), from: a, fromPort: l.fromPort, to: b, toPort: l.toPort || 'in' });
+            });
+            const clean = PE.sanitizeGraph(state.nodes, state.edges);
+            state.nodes = clean.nodes;
+            state.edges = clean.edges;
+            state.selected = null;
+            render();
+            fit();
+            return made.size;
+        }
+
+        return { state, get result() { return result; }, get workshop() { return workshop; }, get panes() { return panes; }, buildExport, render, connect, addNode, contextBlock, loadTemplate, select, show, closeDialogs, refreshBlocks, placeGraph, usageOf: type => state.nodes.filter(n => n.type === type).length };
     }
 
     function ensure() {
@@ -2368,13 +2664,18 @@
             el.classList.toggle('active', el.dataset.view === 'library'));
     }
 
+    // Custom blocks come from the database. Waiting a moment keeps them from being dropped out of a saved flow.
+    const studioReady = () => Promise.resolve(window.PLBlockStudio && window.PLBlockStudio.ready).catch(() => {});
     window.openBuilderProWorkspace = function () {
         if (!document.body.classList.contains('is-premium')) return toast('Prompt Builder Pro is a Pro feature', 'warning');
-        const root = ensure();
-        if (!root) return;
-        root.classList.add('open');
-        document.querySelectorAll('.nav-item[data-view]').forEach(el => el.classList.remove('active'));
-        api.show();
+        const go = () => {
+            const root = ensure();
+            if (!root) return;
+            root.classList.add('open');
+            document.querySelectorAll('.nav-item[data-view]').forEach(el => el.classList.remove('active'));
+            api.show();
+        };
+        if (api) go(); else studioReady().then(go);
     };
     window.PL_closeBuilderPro = closeWorkspace;
     window.PL_bpAddContext = function (b) { if (ensure() && api) api.contextBlock(b); };
@@ -2383,7 +2684,7 @@
     // Build the hidden markup once the page is idle, so the first open only has to paint.
     function initBuilderProWorkspace() {
         const idle = window.requestIdleCallback || (fn => setTimeout(fn, 400));
-        idle(() => { try { ensure(); } catch (e) { console.warn('Prompt Builder Pro failed to build:', e); } });
+        idle(() => { studioReady().then(() => { try { ensure(); } catch (e) { console.warn('Prompt Builder Pro failed to build:', e); } }); });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initBuilderProWorkspace);
     else initBuilderProWorkspace();
