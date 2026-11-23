@@ -100,3 +100,9 @@ Run on 2026-11-22 with headless Chromium, a disposable data folder and a fresh b
 - 37 checks on adjustable counts: both starters, limits and guard rails, generated ports, wiring, shrinking, merge text, editing a saved block, coordinator rule, AI draft, Try it, export and import, team blocks, and restore from the database with empty browser storage.
 
 Not checked: the installed Windows PyWebView build.
+
+## Starter block: Template
+
+On first load with the database reachable, `seedTemplate()` in `builder-pro-custom-blocks.js` saves one Your Block called **Template** (type `user_block_template`, standard role, Instructions section, icon `edit_note`). It has seven settings (name, purpose, use when, inputs to fill in, structure, rules, output) whose defaults are the same `[blanks]` as the Core library block of the same name. It appears under Your Blocks in the Block Library and, because it is a normal saved block, in the Component Library's Your Blocks department. You can edit or delete it like any other.
+
+A flag (`PL_prefs` key `builder_seed_template`, mirrored in localStorage `prompt-builder-pro.seed.template.v1`) is set after the save, so a deleted Template does not come back. If the database cannot be reached the block is not created and the next launch tries again.

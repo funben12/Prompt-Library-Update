@@ -320,6 +320,39 @@
         return host && host.refreshBlocks ? host.refreshBlocks() : 0;
     }
 
+    // Starter Your Block, saved once per install. A flag stops it coming back if you delete it.
+    const SEED_FLAG = "builder_seed_template", SEED_LOCAL = "prompt-builder-pro.seed.template.v1";
+    const SEED_TEMPLATE = {
+        type: "user_block_template", label: "Template", icon: "edit_note", role: "standard", section: "instructions",
+        hint: "A reusable skeleton with fill-in slots",
+        about: "A reusable prompt skeleton. Fill in each setting, or wire context into it, and it adds the finished template to the prompt.",
+        inputs: [{ id: "details_in", label: "Details in", desc: "Anything the template should draw on" }],
+        outputs: [{ id: "next", label: "Next" }],
+        settings: [
+            { id: "template_name", label: "Template name", type: "text", defaultValue: "[template name]" },
+            { id: "purpose", label: "Purpose", type: "text", defaultValue: "[what this template produces]" },
+            { id: "use_when", label: "Use when", type: "text", defaultValue: "[the situation it suits]" },
+            { id: "inputs_to_fill", label: "Inputs to fill in", type: "textarea", defaultValue: "- [input 1]\n- [input 2]\n- [input 3]" },
+            { id: "structure", label: "Structure", type: "textarea", defaultValue: "1. [section 1]\n2. [section 2]\n3. [section 3]" },
+            { id: "rules", label: "Rules", type: "textarea", defaultValue: "- [rule 1]\n- [rule 2]" },
+            { id: "output_format", label: "Output", type: "text", defaultValue: "[format and length]" }
+        ],
+        template: "Template: {{setting:template_name}}\n\nPurpose: {{setting:purpose}}\nUse when: {{setting:use_when}}\n\nInputs to fill in:\n{{setting:inputs_to_fill}}\n\nStructure:\n{{setting:structure}}\n\nRules:\n{{setting:rules}}\n\nOutput: {{setting:output_format}}"
+    };
+    async function seedTemplate() {
+        try { if (window.PL_prefs && window.PL_prefs.ready) await window.PL_prefs.ready; } catch (e) { /* the local flag still applies */ }
+        let done = false;
+        try { done = !!(window.PL_prefs && window.PL_prefs.get(SEED_FLAG)) || localStorage.getItem(SEED_LOCAL) === "1"; } catch (e) { /* storage blocked */ }
+        if (done) return;
+        const mark = () => {
+            try { if (window.PL_prefs) window.PL_prefs.set(SEED_FLAG, true); } catch (e) { /* ignore */ }
+            try { localStorage.setItem(SEED_LOCAL, "1"); } catch (e) { /* ignore */ }
+        };
+        if (defs.some(d => d.type === SEED_TEMPLATE.type)) return mark();
+        const d = normalise(clone(SEED_TEMPLATE));
+        try { await dbSave(d); register(d); mark(); } catch (e) { /* the database was unreachable: try again next launch */ }
+    }
+
     async function load() {
         let rows = null;
         try {
@@ -350,6 +383,7 @@
             const copy = Object.assign({}, t, { dbId: undefined });
             try { await dbSave(copy); registerTeam(copy); } catch (e) { registerTeam(t); }
         }
+        await seedTemplate();
         writeCache();
         publish();
         return true;

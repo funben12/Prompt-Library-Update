@@ -857,3 +857,12 @@ Resulting state:
 - `components-data.js` had no cache-bust on its script tag; `index.html` now loads it as `components-data.js?v=20261123b`. Bump that value when the file changes.
 - The phone app takes this data through `scripts/build-components-data.js` in AI-App-Factory `apps/app-003-prompt-library-mobile`. Rerun it to bring the new block to the phone (not done here).
 - Backup: `_rollbacks/components-data.js.23-11-2026-pre-template-block`.
+
+
+## Template as a Your Block (2026-11-23, feature branch)
+
+- Prompt Builder Pro now saves a starter **Template** Your Block once per install (`seedTemplate()` in `static/builder-pro-custom-blocks.js`, called at the end of `load()`). It is a normal `component_blocks` row (category `yours`), so it is editable and deletable, shows under Your Blocks in the Block Library, and shows in the Component Library's Your Blocks department. It has seven settings whose defaults match the Core library Template block, so the compiled text is the same skeleton.
+- Not an "Included" block: Parallel Execution and Merge are `included: true` code blocks in `builder-pro.js` and only list in Builder's Your Blocks group. Template is a real saved block so it also reaches the Component Library.
+- One-time flag: `PL_prefs` `builder_seed_template` plus localStorage `prompt-builder-pro.seed.template.v1`. Deleting the block does not bring it back. If the database is unreachable nothing is created and the next launch retries. A block deleted straight through the API while the localStorage cache still lists it gets re-saved by the existing cache migration in `load()`; deleting through the studio clears the cache entry, so this only affects hand-made API calls.
+- Checked in headless Chromium against a fresh data folder: one row saved on first load, registered with all settings, drops on the canvas and compiles to the Template skeleton, listed in the Component Library under Your Blocks, no duplicate after reload, stays deleted after delete and reload, no page errors.
+- Cache: Builder Pro loader `?v=20261123c`. Backup: `_rollbacks/builder-pro-custom-blocks.js.23-11-2026-pre-template-yours`.
