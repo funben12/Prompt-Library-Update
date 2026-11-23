@@ -768,5 +768,6 @@ Resulting state:
 - Packs live in `Documents/PromptPackBuilder/packs.json` (atomic write, previous save kept as `.bak`, a damaged file is set aside as `packs.damaged-<time>.json`). Add from library opens `Documents/PromptLibrary/PromptLibrary.db` read only; with no database the button is hidden.
 - `web/base.css` is the token block and btn, icon-btn, form-input, ws-header rules copied from `static/app.css`. Fonts copied to `web/fonts/`.
 - Launch verified under Linux with the Qt backend (scripted checks plus screenshots). Not yet run on Windows.
+- Batch scaffold added (2026-11-23): setup, requirements, run, start, build, test, clean, update, package, installer.bat plus installer.iss. build.bat bundles `web` with `--add-data "web;web" --collect-all webview` (the old PromptPackBuilder.spec was removed because clean.bat deletes *.spec). installer.iss AppId is still a placeholder GUID. `tests/` has 18 pytest tests (storage, backup, damaged file, read only library, page files). Version lives in `main.py` `__version__`.
 - Known, not fixed: the main app calls `webview.start()` with pywebview 5 defaults (private mode), so localStorage based workspaces may lose data on restart.
 
