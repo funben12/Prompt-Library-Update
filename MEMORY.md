@@ -847,3 +847,13 @@ Resulting state:
 - Cache value is `20261122j`. Verified: 37 new checks plus 19, 20, 33, 41 and 9 from earlier suites, all 13 templates load, Stress Lab AI still works, no page errors. Not checked: installed PyWebView.
 - Backups: `_rollbacks/22-11-2026-*-pre-dyn.*`.
 - Found while working, NOT yet fixed (awaiting approval): the Settings flyout `#configPanel` has no height limit, so with its current content (about 960 px) it grows past short windows, its header and close button go off-screen and the body cannot scroll. Proposed fix in `app.css`: `max-height: 100vh` on `#configPanel` and `min-height: 0` on `.config-panel-body`.
+
+
+## Template block in the component library (2026-11-23, feature branch)
+
+- One new Core block, **Template**, sits right after Input Template in `static/components-data.js` (icon `article`, 12 blanks: name, purpose, use when, three inputs, three sections, two rules, output). It is one library entry, not a new block type and not a new category.
+- It shows in the Prompt Components library (Browse) and in Prompt Builder Pro's Component Library, because Builder Pro borrows the same `window._pcwBLOCKS` data through `PL_galleryBorrow`. No change to `builder-pro.js` or the Builder engine.
+- Checked in headless Chromium: one block with label Template, category core, found by search in both libraries, the detail view shows the full text with "Add to kit", no page errors.
+- `components-data.js` had no cache-bust on its script tag; `index.html` now loads it as `components-data.js?v=20261123b`. Bump that value when the file changes.
+- The phone app takes this data through `scripts/build-components-data.js` in AI-App-Factory `apps/app-003-prompt-library-mobile`. Rerun it to bring the new block to the phone (not done here).
+- Backup: `_rollbacks/components-data.js.23-11-2026-pre-template-block`.

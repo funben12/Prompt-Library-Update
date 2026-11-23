@@ -303,6 +303,12 @@ const BLOCKS = [
     },
     {
         cat: 'core',
+        icon: 'article',
+        label: 'Template',
+        text: 'Template: [template name]\n\nPurpose: [what this template produces]\nUse when: [the situation it suits]\n\nInputs to fill in:\n- [input 1]\n- [input 2]\n- [input 3]\n\nStructure:\n1. [section 1]\n2. [section 2]\n3. [section 3]\n\nRules:\n- [rule 1]\n- [rule 2]\n\nOutput: [format and length]'
+    },
+    {
+        cat: 'core',
         icon: 'lightbulb',
         label: 'Core Idea',
         text: 'Core idea: [state the single most important concept in one sentence].\n\nEverything else in this prompt serves this idea.'
