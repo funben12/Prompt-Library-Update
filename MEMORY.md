@@ -583,6 +583,14 @@ Only `static/vartypes-3d.js` dice section changed (card deck, drums, roll logic 
 - Format: lowercase, words joined by hyphens, feature first. One purpose per branch.
 - Cloud sessions are told to develop on a fixed branch (currently `ccr-e4605b92-9rygdj`) and that name cannot be changed by Claude. When the session branch is fixed, say so and suggest the purpose name for the PR title instead.
 
+### Nested sessions and direction change (2026-11-15)
+
+- The 7 agents (lead, reviewer, coder, web search, monitor, migrator, verifier) and their feature blocks for Prompt Builder Pro are DROPPED by Eugene for now. Nothing was built.
+- Two nested sessions were started from the combine session:
+  - Desktop: "Desktop: verify combined features on Builder Pro", starts from `ccr-e4605b92-9rygdj`, pushes to `desktop-combine-verify`, draft PR into main. Scope: prove Pinterest board, X-Ray layouts, nearby share and Context Bank work on top of Prompt Builder Pro, fix defects only, no UI changes, writes `outputs/15-11-2026-desktop-verification.md`.
+  - Mobile: "Mobile: audit phone branches for combine and new APK", in AI-App-Factory (apps/app-003-prompt-library-mobile), pushes to `phone-branch-audit`. Read only audit of the phone branches plus desktop sync checks (vartypes-3d.js, xray-views.js, forge-frameworks.js, variable_meta, nearby share). No UI or code changes, no merges. Writes `apps/app-003-prompt-library-mobile/outputs/15-11-2026-phone-branch-audit.md`.
+- Phone main is at versionName 0.7.2. Newer phone work (0.8.x, 0.9.0 nearby share) lives on unmerged AI-App-Factory branches. Goal: combine them on a purpose named integration branch, then build a new APK. Not started.
+
 ### Desktop combine verification (2026-11-15)
 
 - Branch `desktop-combine-verify`, from `ccr-e4605b92-9rygdj`. Full report: `outputs/15-11-2026-desktop-verification.md`.
@@ -759,3 +767,8 @@ Resulting state:
 - **Checked:** scripted Chromium against the app with a mocked save bridge: 38 of 38 export actions saved with the right file and content; as plain browser downloads: 18 of 18; Prompt Board export both ways. Python bridge unit test: `python -m unittest discover tests/exports` (5 tests, pywebview stubbed).
 - **Not checked:** the real WebView2 window on Windows (no Windows here). Confirm on the installed build that Save As opens for each export and that the file lands where chosen.
 - **Cache:** loader `?v=` is `20261117c`; `app.js` hash refreshed by `update_hash.py`.
+
+### PR 70 reconciled with main (2026-11-19)
+
+- `main` (26d1792) already contains the work from `desktop-combine-verify`, which started from this branch, so all code from PR 70 is in main. This branch now differs from main only by these memory notes.
+- `grep -c "<script" static/index.html` is 11 on main now (was 5). Use the live count from main when checking for truncation.
