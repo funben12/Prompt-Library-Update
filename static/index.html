@@ -11,12 +11,14 @@
 
 <!-- Neumorphism typography: Space Mono (display/UI) + JetBrains Mono (code/mono) -->
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/app.css?v=3d190b34-plx">
-<link rel="stylesheet" href="/static/builder-pro.css?v=20261116n">
+<link rel="stylesheet" href="/static/app.css?v=f2729def-plx">
+<link rel="stylesheet" href="/static/builder-pro.css?v=20261122j">
+<link rel="stylesheet" href="/static/builder-pro-custom-blocks.css?v=20261122j">
 <link rel="stylesheet" href="/static/workspace-picker.css?v=20261116m">
 <link rel="stylesheet" href="/static/workspace-sidebar.css?v=20261117b">
 <link rel="stylesheet" href="/static/workspace-previews.css?v=20261116m">
 <link rel="stylesheet" href="/static/prompt-pack-builder.css?v=20261116m">
+<link rel="stylesheet" href="/static/skill-foundry.css?v=20261124a">
 <link rel="stylesheet" href="/static/prompt-workflow-studio.css?v=20261116m">
 <link rel="stylesheet" href="/static/context-pack-builder.css?v=20261116m">
 <link rel="stylesheet" href="/static/library-browser.css?v=20261117b">
@@ -1080,8 +1082,14 @@
           <input type="password" id="configApiKeyInput" class="form-input" placeholder="Paste your API key…" autocomplete="off" />
         </div>
         <div id="configModelRow">
-          <div class="config-section-label" style="margin-top:var(--sp-3);">Model</div>
+          <div class="config-model-head">
+            <div class="config-section-label">Model</div>
+            <button type="button" class="config-link-btn" id="configModelRefresh" title="Ask the provider which models it offers today">
+              <span class="material-symbols-outlined">refresh</span> Refresh list
+            </button>
+          </div>
           <div class="config-api-row">
+            <select id="configModelSelect" class="form-input" aria-label="Model"></select>
             <input type="text" id="configModelInput" class="form-input" placeholder="Model name" autocomplete="off" spellcheck="false" />
           </div>
           <p class="config-hint" id="configModelHint"></p>
@@ -3236,7 +3244,7 @@
       <span class="material-symbols-outlined ws-header-icon">extension</span>
       <div>
         <h2 class="ws-title">Prompt Components</h2>
-        <p class="ws-subtitle">Pick components, then wire them together on an endless canvas. The prompt follows your wires.</p>
+        <p class="ws-subtitle">Browse the library, pick your components, and build your prompt on the canvas.</p>
       </div>
     </div>
     <div class="ws-header-actions">
@@ -3254,20 +3262,7 @@
       <div class="pcw-canvas-inner">
         <div class="pcw-drop-zone pcw-infinite" id="pcwDropZone">
           <div class="pcw-world" id="pcwWorld"><!-- canvas blocks injected here --></div>
-          <div class="pcw-help" id="pcwHelp" hidden>
-            <div class="pcw-help-head"><b>How wiring works</b><button type="button" class="icon-btn" id="pcwHelpClose" aria-label="Hide this help"><span class="material-symbols-outlined">close</span></button></div>
-            <ol class="pcw-help-steps">
-              <li><span class="pcw-key pcw-key-flow" aria-hidden="true"></span><div><b>Order.</b> Drag from a block's top right dot to the next block. The prompt follows the arrows. Click that dot to add the next block.</div></li>
-              <li><span class="pcw-key pcw-key-bg" aria-hidden="true"></span><div><b>Background.</b> Drag from the lower right dot to a block it should support. The background block is placed just before it.</div></li>
-              <li><span class="pcw-key pcw-key-num" aria-hidden="true">3</span><div><b>The number</b> on each block is its place in the final prompt. Blocks with no wire go last.</div></li>
-            </ol>
-            <label class="pcw-help-opt"><input type="checkbox" id="pcwAutoLink" checked> New blocks join the end of the chain</label>
-          </div>
           <div class="pcw-view-tools">
-            <button type="button" class="icon-btn" id="pcwHelpBtn" title="How wiring works"><span class="material-symbols-outlined">help</span></button>
-            <button type="button" class="icon-btn" id="pcwChainBtn" title="Wire the blocks together in reading order"><span class="material-symbols-outlined">cable</span></button>
-            <button type="button" class="icon-btn" id="pcwUnlinkBtn" title="Remove all wires"><span class="material-symbols-outlined">link_off</span></button>
-            <span class="pcw-tools-sep" aria-hidden="true"></span>
             <button type="button" class="icon-btn" id="pcwZoomOutBtn" title="Zoom out"><span class="material-symbols-outlined">remove</span></button>
             <span class="pcw-zoom-label" id="pcwZoomLabel">100%</span>
             <button type="button" class="icon-btn" id="pcwZoomInBtn" title="Zoom in"><span class="material-symbols-outlined">add</span></button>
@@ -3275,7 +3270,7 @@
           </div>
           <div class="pcw-drop-hint" id="pcwDropHint">
             <span class="material-symbols-outlined">drag_indicator</span>
-            <p>Your canvas is empty.<br>Open the library and pick your components, then wire them with the dots on each block.</p>
+            <p>Your canvas is empty.<br>Open the library and pick your components.</p>
             <div class="pcw-quickstarts" id="pcwQuickstarts">
               <button type="button" class="pcw-qs-btn pcw-qs-primary" id="pcwBrowseBtnEmpty"><span class="material-symbols-outlined">storefront</span> Open component library</button>
               <span class="pcw-qs-label">Quick start</span>
@@ -4620,6 +4615,13 @@
       </span>
         <span class="launcher-card-pro">PRO</span>
       </button>
+      <button class="launcher-card" data-open="openSkillFoundryWorkspace">
+        <span class="material-symbols-outlined launcher-card-icon">handyman</span>
+        <span class="launcher-card-text">
+        <span class="launcher-card-title">Skill Foundry</span>
+        <span class="launcher-card-desc">Build a Claude skill by hand, review it for weaknesses and security, export it ready to use</span>
+      </span>
+      </button>
       <button class="launcher-card" data-open="openContextPackBuilderWorkspace" data-premium="true">
         <span class="material-symbols-outlined launcher-card-icon">folder_zip</span>
         <span class="launcher-card-text">
@@ -4787,14 +4789,7 @@
       </span>
         <span class="launcher-card-pro">PRO</span>
       </button>
-      <button class="launcher-card" data-open="openPlxSurgeonWorkspace" data-premium="true">
-        <span class="material-symbols-outlined launcher-card-icon">medical_services</span>
-        <span class="launcher-card-text">
-        <span class="launcher-card-title">Prompt Surgeon</span>
-        <span class="launcher-card-desc">Diagnose weak prompts, expose structural gaps, and repair them without losing intent</span>
-      </span>
-        <span class="launcher-card-pro">PRO</span>
-      </button>
+      
       <button class="launcher-card" data-open="openPlxTeammateWorkspace" data-premium="true">
         <span class="material-symbols-outlined launcher-card-icon">smart_toy</span>
         <span class="launcher-card-text">
@@ -4803,7 +4798,7 @@
       </span>
         <span class="launcher-card-pro">PRO</span>
       </button>
-      <button class="launcher-card" data-open="openPlRedTeamWorkspace" data-premium="true"><span class="material-symbols-outlined launcher-card-icon">security</span><span class="launcher-card-text"><span class="launcher-card-title">Prompt Red Team</span><span class="launcher-card-desc">Attack prompts with adversarial inputs, failure modes, conflicts and edge cases</span></span><span class="launcher-card-pro">PRO</span></button>        </div>
+              </div>
       </div>
       <div class="launcher-group" data-group="inspect">
         <button type="button" class="launcher-group-label launcher-group-toggle" aria-expanded="true">
@@ -4813,6 +4808,14 @@
           <span class="material-symbols-outlined launcher-group-chevron" aria-hidden="true">expand_more</span>
         </button>
         <div class="launcher-grid">
+      <button class="launcher-card" data-open="openPlxSurgeonWorkspace" data-premium="true">
+        <span class="material-symbols-outlined launcher-card-icon">rule</span>
+        <span class="launcher-card-text">
+          <span class="launcher-card-title">Prompt Testing Workspace</span>
+          <span class="launcher-card-desc">Improve, challenge and stress test one prompt through a shared assessment</span>
+        </span>
+        <span class="launcher-card-pro">PRO</span>
+      </button>
       <button class="launcher-card" data-open="openLibraryBrowserWorkspace">
         <span class="material-symbols-outlined launcher-card-icon">collections_bookmark</span>
         <span class="launcher-card-text">
@@ -5144,16 +5147,6 @@
 
 
 
-<div id="plxRedTeamWorkspace" class="plx-workspace" role="dialog" aria-modal="true"><header class="plx-header"><div><span class="plx-kicker">Attack</span><h2>Prompt Red Team</h2><p>Find the failure modes the happy path ignores.</p></div><button class="icon-btn" data-plx-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></header><main class="plx-grid plx-two"><section class="plx-panel"><textarea id="plxRedTeamInput" class="plx-editor" placeholder="Paste the prompt you want to break..."></textarea><div class="plx-actions"><button class="btn btn-accent" id="plxRedTeamRun">Red team it</button></div></section><section class="plx-panel"><pre id="plxRedTeamOutput" class="plx-output">Your attack report will appear here.</pre><div class="plx-save-row"><button class="btn btn-ghost" data-plx-copy="plxRedTeamOutput">Copy</button><button class="btn btn-ghost" data-plx-save="plxRedTeamOutput" data-title="Prompt Red Team Report">Save to Library</button></div></section></main></div>
-<!-- Prompt engineering workspaces added as an isolated suite -->
-<div id="plxSurgeonWorkspace" class="plx-workspace" role="dialog" aria-modal="true" aria-label="Prompt Surgeon">
-  <header class="plx-header"><div><span class="plx-kicker">Inspect</span><h2>Prompt Surgeon</h2><p>Find the largest structural weakness, then repair it.</p></div><button class="icon-btn" data-plx-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></header>
-  <main class="plx-grid plx-two">
-    <section class="plx-panel"><div class="plx-panel-head"><div><strong>Target prompt</strong><small>Load one from your library or paste it.</small></div><select id="plxSurgeonPicker" class="form-input"></select></div><textarea id="plxSurgeonInput" class="plx-editor" placeholder="Paste the prompt you want to diagnose..."></textarea><div class="plx-actions"><button class="btn btn-accent" id="plxSurgeonRun"><span class="material-symbols-outlined">healing</span> Diagnose + repair</button><button class="btn btn-ghost" data-plx-copy="plxSurgeonOutput">Copy report</button></div></section>
-    <section class="plx-panel"><div class="plx-panel-head"><div><strong>Clinical report</strong><small>Observable weaknesses, not vibes.</small></div></div><pre id="plxSurgeonOutput" class="plx-output">Your diagnosis will appear here.</pre><div class="plx-save-row"><button class="btn btn-ghost" data-plx-save="plxSurgeonOutput" data-title="Prompt Surgeon Report">Save report</button></div></section>
-  </main>
-</div>
-
 <div id="plxTeammateWorkspace" class="plx-workspace" role="dialog" aria-modal="true" aria-label="AI Teammate Studio">
   <header class="plx-header"><div><span class="plx-kicker">Design</span><h2>AI Teammate Studio</h2><p>Build an AI partner around a mission, not a persona gimmick.</p></div><button class="icon-btn" data-plx-close aria-label="Close"><span class="material-symbols-outlined">close</span></button></header>
   <main class="plx-grid plx-teammate-grid">
@@ -5171,18 +5164,19 @@
 
 
 <!-- Components library data (loaded before app.js) -->
-<script src="/static/components-data.js"></script>
+<script src="/static/components-data.js?v=20261123b"></script>
 <script src="/static/forge-frameworks.js"></script>
 <script src="/static/xray-views.js"></script>
 
 <!-- App script -->
 <script src="/static/qrcode.min.js"></script>
-<script defer src="/static/combine-prompts.js?v=4d26ba67"></script>
-<script defer src="/static/app.js?v=27f1f918"></script>
-<script defer src="/static/randomiser-motion.js?v=6852ea44"></script>
-<script defer src="/static/vartypes-3d.js?v=e36a83aa"></script>
-<script defer src="/static/deck-shuffles.js?v=3a1f9c7b"></script>
-<script defer src="/static/dice-rolls.js?v=0c4d5e7e"></script>
+<script defer src="/static/combine-prompts.js?v=5620e7a8"></script>
+<script defer src="/static/app.js?v=2bb35737"></script>
+<script defer src="/static/randomiser-motion.js?v=b58f9ac7"></script>
+<script defer src="/static/vartypes-3d.js?v=8848706c"></script>
+<script defer src="/static/deck-shuffles.js?v=23f50d79"></script>
+<script defer src="/static/dice-rolls.js?v=ff8e940b"></script>
+
 
 <!-- Static helpers used from HTML onclick="" attributes (pure UI, no data) -->
 <script>
@@ -5191,9 +5185,9 @@
   }
   if (typeof window.createFolderInline !== 'function') window.createFolderInline = function () {};
   if (typeof window.clearAllFilters    !== 'function') window.clearAllFilters    = function () {};
-  (function(){ var s=document.createElement("script"); s.src="/static/gauntlet-suite.js?v=20261005b"; s.defer=true; document.head.appendChild(s); })();
-  ["builder-pro-engine.js", "builder-pro.js", "builder-pro-showcases.js"].forEach(function(f){ var s=document.createElement("script"); s.src="/static/"+f+"?v=20261117c"; s.async=false; document.head.appendChild(s); });
-  ["workspace-registry.js", "workspace-previews.js", "workspace-picker.js", "workspace-sidebar.js", "prompt-pack-builder.js", "prompt-workflow-studio.js", "context-pack-builder.js", "library-browser.js"].forEach(function(f){ var s=document.createElement("script"); s.src="/static/"+f+"?v=20261117c"; s.async=false; document.head.appendChild(s); });
+  (function(){ var s=document.createElement("script"); s.src="/static/gauntlet-suite.js?v=20261122a"; s.defer=true; document.head.appendChild(s); })();
+  ["builder-pro-engine.js", "builder-pro-custom-blocks.js", "builder-pro.js", "builder-pro-showcases.js"].forEach(function(f){ var s=document.createElement("script"); s.src="/static/"+f+"?v=20261123d"; s.async=false; document.head.appendChild(s); });
+  ["workspace-registry.js", "workspace-previews.js", "workspace-picker.js", "workspace-sidebar.js", "prompt-pack-builder.js", "prompt-workflow-studio.js", "context-pack-builder.js", "library-browser.js", "agent-workspace-refresh.js", "skill-foundry-review.js", "skill-foundry.js"].forEach(function(f){ var s=document.createElement("script"); s.src="/static/"+f+"?v=20261124a"; s.async=false; document.head.appendChild(s); });
 </script>
 
 </body>

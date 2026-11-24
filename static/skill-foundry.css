@@ -1,0 +1,186 @@
+/* ============================================================================
+   SKILL FOUNDRY WORKSPACE
+   Everything is scoped under #skillFoundryWorkspace and uses app.css tokens only.
+   Shared pieces come from app.css: ws-header, btn, icon-btn, form-input, form-textarea.
+   ============================================================================ */
+#skillFoundryWorkspace {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background: var(--bg);
+  flex-direction: column;
+  color: var(--ink);
+  font-family: var(--ff-sans);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+#skillFoundryWorkspace.open {
+  display: flex;
+  animation: pl-ws-open 240ms var(--ease-out-expo) both;
+}
+#skillFoundryWorkspace:focus { outline: none; }
+#skillFoundryWorkspace * { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+#skillFoundryWorkspace [hidden] { display: none !important; }
+#skillFoundryWorkspace :where(button, summary, [tabindex], a, input, textarea, select):focus-visible { outline: none; box-shadow: var(--ring); }
+#skillFoundryWorkspace .btn:focus-visible { box-shadow: var(--btn-rest), var(--ring); }
+#skillFoundryWorkspace .btn:disabled, #skillFoundryWorkspace .icon-btn:disabled { opacity: 0.4; pointer-events: none; }
+:root[data-theme="dark"] #skillFoundryWorkspace .btn-accent { color: var(--bg); }
+#skillFoundryWorkspace .form-input, #skillFoundryWorkspace .form-textarea { padding: 7px var(--sp-3); }
+#skillFoundryWorkspace .form-textarea { line-height: 1.55; resize: vertical; min-height: 84px; }
+#skillFoundryWorkspace select.form-input { cursor: pointer; }
+
+/* ---------- shared bits ---------- */
+#skillFoundryWorkspace .sf-label {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+#skillFoundryWorkspace .sf-dim { color: var(--ink-3); font-size: var(--fs-xs); }
+#skillFoundryWorkspace .sf-hint { color: var(--ink-3); font-size: var(--fs-xs); margin: var(--sp-2) 0; }
+#skillFoundryWorkspace .sf-warn { color: var(--warn); }
+#skillFoundryWorkspace .sf-row { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; }
+#skillFoundryWorkspace .sf-start { justify-self: start; align-self: flex-start; }
+#skillFoundryWorkspace .sf-push { margin-left: auto; }
+#skillFoundryWorkspace .sf-btn-xs { padding: 3px var(--sp-2); font-size: var(--fs-xs); }
+#skillFoundryWorkspace .sf-btn-danger { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
+#skillFoundryWorkspace .sf-btn-danger:hover { background: var(--danger); color: var(--bg); border-color: var(--danger); }
+
+/* ---------- header ---------- */
+#skillFoundryWorkspace .sf-header .ws-header-actions { flex: 1; justify-content: flex-end; min-width: 0; flex-wrap: wrap; }
+#skillFoundryWorkspace .sf-skill-select { flex: 0 1 220px; min-width: 140px; width: auto; font-weight: 600; }
+#skillFoundryWorkspace .sf-save { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--ink-3); font-size: var(--fs-xs); margin-right: var(--sp-2); }
+#skillFoundryWorkspace .sf-save .material-symbols-outlined { font-size: 16px; }
+#skillFoundryWorkspace .sf-save-saved .material-symbols-outlined { color: var(--success); }
+#skillFoundryWorkspace .sf-save-local, #skillFoundryWorkspace .sf-save-local .material-symbols-outlined { color: var(--warn); }
+#skillFoundryWorkspace .sf-save-failed, #skillFoundryWorkspace .sf-save-failed .material-symbols-outlined { color: var(--danger); }
+
+/* ---------- body ---------- */
+#skillFoundryWorkspace .sf-body { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+#skillFoundryWorkspace .sf-main { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: var(--sp-4) var(--sp-5) var(--sp-5); gap: var(--sp-4); }
+#skillFoundryWorkspace .sf-titlebar { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--sp-4); flex-shrink: 0; }
+#skillFoundryWorkspace .sf-titlebar h3 { margin: var(--sp-1) 0; font-family: var(--ff-display, serif); font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.02em; color: var(--ink); }
+#skillFoundryWorkspace .sf-titlebar p { margin: 0; color: var(--ink-3); max-width: 70ch; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+#skillFoundryWorkspace .sf-grid {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr) 360px;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+#skillFoundryWorkspace .sf-files, #skillFoundryWorkspace .sf-editor-panel, #skillFoundryWorkspace .sf-review { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+#skillFoundryWorkspace .sf-files, #skillFoundryWorkspace .sf-editor-panel { border-right: 1px solid var(--line); }
+#skillFoundryWorkspace .sf-review { background: var(--surface-2); padding: var(--sp-4); gap: var(--sp-3); overflow: hidden; }
+#skillFoundryWorkspace .sf-review:focus { outline: none; }
+#skillFoundryWorkspace .sf-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--line); min-height: 56px; flex-shrink: 0; }
+
+/* ---------- file tree ---------- */
+#skillFoundryWorkspace .sf-tree { flex: 1; overflow: auto; padding: var(--sp-2); display: flex; flex-direction: column; gap: 1px; }
+#skillFoundryWorkspace .sf-tree-item {
+  display: flex; align-items: center; gap: var(--sp-2);
+  width: 100%; min-height: 32px; padding: 5px var(--sp-3);
+  border: 0; border-radius: var(--r-sm);
+  background: transparent; color: var(--ink-2);
+  text-align: left; font: inherit; cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+#skillFoundryWorkspace .sf-tree-item:hover { background: var(--surface-2); color: var(--ink); }
+#skillFoundryWorkspace .sf-tree-item.selected { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+#skillFoundryWorkspace .sf-tree-icon { font-size: 17px; color: var(--ink-3); flex-shrink: 0; }
+#skillFoundryWorkspace .sf-tree-item.selected .sf-tree-icon { color: var(--accent); }
+#skillFoundryWorkspace .sf-tree-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#skillFoundryWorkspace .sf-tree-foot { display: flex; gap: var(--sp-1); padding: var(--sp-2); border-top: 1px solid var(--line); flex-shrink: 0; }
+
+/* ---------- editor ---------- */
+#skillFoundryWorkspace .sf-path { font-family: var(--ff-mono); font-size: var(--fs-xs); color: var(--ink-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#skillFoundryWorkspace .sf-tools { display: flex; align-items: center; gap: var(--sp-2); flex-shrink: 0; }
+#skillFoundryWorkspace .sf-editor-empty { flex: 1; display: grid; align-content: center; justify-items: start; gap: var(--sp-2); padding: var(--sp-7); }
+#skillFoundryWorkspace .sf-editor-empty h3 { margin: 0; font-family: var(--ff-display, serif); font-size: var(--fs-lg); font-weight: 600; color: var(--ink); }
+#skillFoundryWorkspace .sf-editor-empty p { margin: 0 0 var(--sp-2); color: var(--ink-3); max-width: 38ch; }
+#skillFoundryWorkspace .sf-editor-area { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+#skillFoundryWorkspace .sf-textarea {
+  flex: 1; width: 100%; min-height: 0; resize: none;
+  padding: var(--sp-4) var(--sp-5); border: 0; border-left: 2px solid transparent; border-radius: 0;
+  background: transparent; color: var(--ink);
+  font-family: var(--ff-mono); font-size: var(--fs-sm); line-height: 1.8; tab-size: 2;
+}
+#skillFoundryWorkspace .sf-textarea:focus { outline: none; box-shadow: none; border-left-color: var(--accent); }
+#skillFoundryWorkspace .sf-preview { flex: 1; overflow: auto; padding: var(--sp-5) var(--sp-6); color: var(--ink-2); line-height: 1.75; }
+#skillFoundryWorkspace .sf-preview h1, #skillFoundryWorkspace .sf-preview h2, #skillFoundryWorkspace .sf-preview h3 { font-family: var(--ff-display, serif); color: var(--ink); font-weight: 600; line-height: 1.2; }
+#skillFoundryWorkspace .sf-preview pre { padding: var(--sp-3); overflow: auto; background: var(--surface-3); border-radius: var(--r-md); font-family: var(--ff-mono); font-size: var(--fs-xs); }
+#skillFoundryWorkspace .sf-preview code { font-family: var(--ff-mono); font-size: 0.92em; background: var(--surface-2); padding: 0 var(--sp-1); border-radius: var(--r-sm); }
+#skillFoundryWorkspace .sf-preview blockquote { margin-left: 0; padding-left: var(--sp-3); border-left: 2px solid var(--accent); color: var(--ink-3); }
+#skillFoundryWorkspace .sf-editor-foot { display: flex; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-2) var(--sp-4); border-top: 1px solid var(--line); color: var(--ink-3); font-size: var(--fs-xs); flex-shrink: 0; }
+
+/* ---------- review panel ---------- */
+#skillFoundryWorkspace .sf-review-head { display: flex; justify-content: space-between; gap: var(--sp-3); align-items: flex-start; flex-shrink: 0; }
+#skillFoundryWorkspace .sf-verdict { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-1); font-weight: 600; color: var(--ink); }
+#skillFoundryWorkspace .sf-v-clear .material-symbols-outlined { color: var(--success); }
+#skillFoundryWorkspace .sf-v-fair .material-symbols-outlined { color: var(--warn); }
+#skillFoundryWorkspace .sf-v-bad .material-symbols-outlined { color: var(--danger); }
+#skillFoundryWorkspace .sf-counts { display: grid; gap: 1px; text-align: right; color: var(--ink-2); font-size: var(--fs-xs); }
+#skillFoundryWorkspace .sf-counts b { font-family: var(--ff-mono); color: var(--ink); }
+#skillFoundryWorkspace .sf-review-actions { display: flex; gap: var(--sp-2); flex-shrink: 0; }
+#skillFoundryWorkspace .sf-ai-box { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3); border: 1px solid var(--accent-line); border-radius: var(--r-md); background: var(--accent-soft); color: var(--ink-2); flex-shrink: 0; }
+#skillFoundryWorkspace .sf-ai-box p { margin: 0; }
+#skillFoundryWorkspace .sf-ai-error { flex-direction: row; align-items: flex-start; border-color: var(--danger); background: var(--danger-soft); }
+#skillFoundryWorkspace .sf-ai-error .material-symbols-outlined { color: var(--danger); }
+#skillFoundryWorkspace .sf-spin { animation: sf-spin 1s linear infinite; }
+@keyframes sf-spin { to { transform: rotate(360deg); } }
+#skillFoundryWorkspace .sf-review-scroll { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: var(--sp-2); padding-right: var(--sp-1); }
+#skillFoundryWorkspace .sf-sec-title { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-3) 0 var(--sp-1); font-size: var(--fs-sm); font-weight: 700; color: var(--ink); }
+#skillFoundryWorkspace .sf-sec-title .material-symbols-outlined { font-size: 18px; color: var(--accent); }
+#skillFoundryWorkspace .sf-sec-title span:last-child { font-family: var(--ff-mono); font-weight: 500; color: var(--ink-3); }
+#skillFoundryWorkspace .sf-none { margin: 0; color: var(--ink-3); }
+#skillFoundryWorkspace .sf-finding { display: grid; gap: var(--sp-1); padding: var(--sp-3); border: 1px solid var(--line); border-left-width: 3px; border-radius: var(--r-md); background: var(--surface); }
+#skillFoundryWorkspace .sf-sev-high { border-left-color: var(--danger); }
+#skillFoundryWorkspace .sf-sev-medium { border-left-color: var(--warn); }
+#skillFoundryWorkspace .sf-sev-low { border-left-color: var(--line-strong); }
+#skillFoundryWorkspace .sf-f-top { display: flex; gap: var(--sp-2); align-items: baseline; }
+#skillFoundryWorkspace .sf-sev { flex-shrink: 0; font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); }
+#skillFoundryWorkspace .sf-sev-high .sf-sev { color: var(--danger); }
+#skillFoundryWorkspace .sf-sev-medium .sf-sev { color: var(--warn); }
+#skillFoundryWorkspace .sf-f-title { font-weight: 600; color: var(--ink); }
+#skillFoundryWorkspace .sf-ai-tag { margin-left: auto; padding: 0 var(--sp-1); border: 1px solid var(--accent-line); border-radius: var(--r-sm); font-size: var(--fs-xs); font-weight: 700; color: var(--accent); }
+#skillFoundryWorkspace .sf-f-loc { justify-self: start; padding: 0; border: 0; background: transparent; color: var(--accent); font-family: var(--ff-mono); font-size: var(--fs-xs); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+#skillFoundryWorkspace .sf-f-detail, #skillFoundryWorkspace .sf-f-fix { margin: 0; color: var(--ink-2); }
+#skillFoundryWorkspace .sf-f-ex { margin: 0; padding: var(--sp-2); overflow: auto; background: var(--surface-3); border-radius: var(--r-sm); font-family: var(--ff-mono); font-size: var(--fs-xs); white-space: pre-wrap; word-break: break-word; }
+
+/* ---------- empty state ---------- */
+#skillFoundryWorkspace .sf-empty { flex: 1; display: grid; align-content: center; justify-items: start; gap: var(--sp-3); max-width: 640px; margin: 0 auto; padding: var(--sp-7); }
+#skillFoundryWorkspace .sf-empty h3 { margin: 0; font-family: var(--ff-display, serif); font-size: clamp(2rem, 4vw, 3rem); font-weight: 600; line-height: 1.05; letter-spacing: -0.03em; color: var(--ink); }
+#skillFoundryWorkspace .sf-empty p { margin: 0 0 var(--sp-3); color: var(--ink-2); max-width: 52ch; line-height: 1.7; }
+
+/* ---------- dialogs ---------- */
+#skillFoundryWorkspace .sf-backdrop { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: var(--sp-5); background: color-mix(in oklch, var(--ink) 55%, transparent); }
+#skillFoundryWorkspace .sf-modal { width: min(500px, 100%); max-height: 100%; overflow: auto; padding: var(--sp-5); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-lg); }
+#skillFoundryWorkspace .sf-modal-top { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+#skillFoundryWorkspace .sf-modal h3 { margin: var(--sp-1) 0 0; font-family: var(--ff-display, serif); font-size: var(--fs-lg); font-weight: 600; color: var(--ink); }
+#skillFoundryWorkspace .sf-modal-body { display: grid; gap: var(--sp-3); color: var(--ink-2); }
+#skillFoundryWorkspace .sf-modal-body p { margin: 0; line-height: 1.6; }
+#skillFoundryWorkspace .sf-field { display: grid; gap: var(--sp-1); }
+#skillFoundryWorkspace .sf-field > span { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.07em; color: var(--ink-3); }
+#skillFoundryWorkspace .sf-modal-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-5); padding-top: var(--sp-4); border-top: 1px solid var(--line); }
+#skillFoundryWorkspace .sf-list { margin: 0; padding-left: var(--sp-5); display: grid; gap: var(--sp-1); }
+#skillFoundryWorkspace .sf-code { margin: 0; padding: var(--sp-3); background: var(--surface-3); border-radius: var(--r-md); font-family: var(--ff-mono); font-size: var(--fs-xs); overflow: auto; }
+
+/* ---------- smaller windows ---------- */
+@media (max-width: 1180px) {
+  #skillFoundryWorkspace .sf-grid { grid-template-columns: 220px minmax(0, 1fr) 320px; }
+  #skillFoundryWorkspace .sf-header .ws-header-actions .btn span:last-child { display: none; }
+}
+@media (max-width: 900px) {
+  #skillFoundryWorkspace .sf-main { overflow: auto; }
+  #skillFoundryWorkspace .sf-grid { grid-template-columns: minmax(0, 1fr); flex: none; overflow: visible; }
+  #skillFoundryWorkspace .sf-files { max-height: 240px; border-right: 0; border-bottom: 1px solid var(--line); }
+  #skillFoundryWorkspace .sf-editor-panel { min-height: 420px; border-right: 0; border-bottom: 1px solid var(--line); }
+  #skillFoundryWorkspace .sf-review { min-height: 360px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #skillFoundryWorkspace .sf-spin { animation: none; }
+}

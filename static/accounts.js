@@ -248,13 +248,13 @@
       const link = document.createElement("link");
       link.id = "plnCanvasCss";
       link.rel = "stylesheet";
-      link.href = "/static/prompt-components-node.css?v=node1";
+      link.href = "/static/prompt-components-node.css?v=node2";
       document.head.appendChild(link);
     }
     if (!document.getElementById("plnCanvasScript")) {
       const script = document.createElement("script");
       script.id = "plnCanvasScript";
-      script.src = "/static/prompt-components-node.js?v=node1";
+      script.src = "/static/prompt-components-node.js?v=node3";
       script.defer = true;
       document.head.appendChild(script);
     }

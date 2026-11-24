@@ -759,3 +759,142 @@ Resulting state:
 - **Checked:** scripted Chromium against the app with a mocked save bridge: 38 of 38 export actions saved with the right file and content; as plain browser downloads: 18 of 18; Prompt Board export both ways. Python bridge unit test: `python -m unittest discover tests/exports` (5 tests, pywebview stubbed).
 - **Not checked:** the real WebView2 window on Windows (no Windows here). Confirm on the installed build that Save As opens for each export and that the file lands where chosen.
 - **Cache:** loader `?v=` is `20261117c`; `app.js` hash refreshed by `update_hash.py`.
+
+
+## Prompt Stress Lab (2026-11-18, feature branch)
+
+- A new Pro workspace, **Prompt Stress Lab**, is being introduced as a central QA layer alongside Prompt Auditor, Prompt Surgeon, Prompt Red Team and Gauntlet Loop. It complements those tools rather than replacing them.
+- Files: `static/prompt-stress-lab.js`, `static/prompt-stress-lab.css`, and `docs/prompt-stress-lab/SPEC.md`. The existing `static/gauntlet-suite.js` loads the new module; `static/index.html` cache-busts that suite loader. The launcher card is injected into the Inspect group and discovered by the existing PLWS registry.
+- Modes: QUICK (clarity, ambiguity, inputs, output), HARDEN (full structural set), CRITICAL (adds adversarial checks).
+- Token policy: local heuristic scans are the default and use zero AI tokens. AI review is a separate explicit action, one request per run, bounded to 1,600 output tokens or 2,200 in CRITICAL. Optional Context Bank inclusion is off by default and capped at two blocks / 2,800 characters.
+- Original prompts are not rewritten. Findings are advisory, and a structural scan is never represented as proof of runtime reliability.
+- Recurring QA findings are stored separately in localStorage key `promptlib.stresslab.patterns.v1`, not written into Context Bank. Pattern history can be exported. Optional Context Bank blocks are read only for AI context.
+- No database schema changes, new dependencies, cloud storage, account system or authentication changes.
+- This work is on branch `feature/prompt-stress-lab` and is not merged. Browser and installed PyWebView verification are required before merge. Do not describe it as production-ready until those checks pass.
+
+
+## Unified Prompt Testing Workspace (2026-11-19, current branch)
+
+- Prompt Surgeon, Prompt Red Team and Prompt Stress Lab now share one full-screen workspace on `feature/prompt-stress-lab`. One prompt and one optional objective feed the selected specialist checks. Results are collected into one report.
+- Automatic routing uses local keyword signals. Users can override with Surgeon, Red Team, Stress Lab or Full assessment. Local checks use no AI. Optional combined AI review makes one bounded request for the selected specialists.
+- Stress Lab's QUICK, HARDEN and CRITICAL modes remain available. Optional Context Bank inclusion is off by default and capped at two relevant blocks / 2,800 characters. Recurring QA patterns remain in localStorage `promptlib.stresslab.patterns.v1` and can be exported.
+- The old separate Surgeon and Red Team launcher cards and workspace markup have been removed. The shared launcher is in Inspect. Workspace registry tags and preview now describe the combined tool.
+- Gauntlet Loop is explicitly separate and untouched. Do not merge it into this workspace.
+- Files: `static/prompt-testing-workspace.js/.css`, `static/prompt-stress-lab.js` (analysis core export), `static/gauntlet-suite.js` (launcher delegation and specialist exports), `static/index.html`, `static/workspace-registry.js`, `static/workspace-previews.js`, and `docs/prompt-stress-lab/SPEC.md`.
+- Verified so far: JavaScript syntax checks pass for the changed JS files; specialist engine smoke test returns Surgeon, Red Team and Stress Lab results; QUICK/HARDEN/CRITICAL each return the expected lens sets; static integration checks pass. Interactive browser and installed PyWebView checks remain outstanding. This branch is not merged.
+
+
+## Alt-drag to duplicate a block (2026-11-23, feature branch)
+
+- Holding Alt when you press a block and then dragging leaves the original where it is and drags a copy instead, as in Figma. Alt held at press time is what counts. Alt plus a plain click (no movement) does nothing extra.
+- **Prompt Builder Pro** (`static/builder-pro.js`): `pointerdown` stores `copy: e.altKey` on the node drag. At the 3px movement threshold, `pointermove` clones the node through the new `cloneNode()` helper (deep copy of config, new id, `showcase` flag dropped), selects the copy and hands the drag to it. The Duplicate button in the inspector now uses the same helper, so it also respects `MAX_NODES` (it did not before).
+- **Prompt Components** (`static/app.js`, header `mousedown` in `renderCanvas`): `copyOnDrag = e.altKey`. At the 4px threshold a JSON copy of the block (new `_pcwUid()`) is pushed at the original position, the canvas re-renders, and the drag continues on the copy's card. The restored Components screen has no wires or block ids, so the copy is simply appended (index `length - 1`) with a deep copy of label, text, category and collapsed state.
+- Verified in headless Chromium against a disposable data folder: plain drag still moves a block in both workspaces; Alt-drag adds exactly one block, the original does not move, the copy lands at the drop point (Builder Pro snaps to 8px), text is copied, no stuck `dragging` class, no page errors; Alt-click adds nothing. Re-run after merging the remote branch (block studio and restored floating-block Components). Not checked: the real WebView2 window (on Windows, Alt may flash the menu bar in some hosts).
+- Cache: Builder Pro loader `?v=20261123a`; `app.js` hash refreshed with `update_hash.py`. Backups: `_rollbacks/*.23-11-2026-pre-alt-drag`.
+- The `compilePrompt` getter error seen before the merge no longer appears: the remote branch loads `builder-pro-custom-blocks.js` before `builder-pro.js`.
+
+## Prompt Testing AI bridge and Block Studio (2026-11-22, feature branch)
+
+### Combined AI review repaired
+
+- Root cause: `gauntlet-suite.js`, `prompt-stress-lab.js` and `agent-workspace-refresh.js` call `window.PLBridge.callAI` (then `window.callAI`). Neither was ever defined. `callAI` in `app.js` is private to its IIFE and only `window.PL_ai` (JSON mode, no advisor) was exposed, so every AI step silently returned an empty string and showed a generic failure.
+- Fix: `app.js` now defines `window.PLBridge = { callAI }` next to `window.PL_ai`. It is plain text and honours the Settings "second opinion" (advisor) toggle. This also repairs the Surgeon and Red Team AI steps and the agent workspace refresh.
+- The workspace and Stress Lab toasts now show the real reason (for example "No API key") instead of a generic failure.
+- Verified in headless Chromium with the provider endpoint mocked: with a key, one request is sent and the AI card renders; with no key, the reason is shown and the local report stays. Cache version for `gauntlet-suite.js` and its two children is `20261122a`.
+
+### Block Studio and Your Blocks
+
+- The earlier custom block script threw on load (`Cannot set property compilePrompt ... only a getter`), so the studio and its button never worked. Replaced by a new `static/builder-pro-custom-blocks.js` that never assigns to engine exports. Full design in `docs/prompt-builder-pro/block-creation-studio.md`.
+- Users define inputs, outputs (name, key, type, description), settings (text, long text, number, dropdown), instruction text with `{{input:key}}`, `{{setting:key}}`, `{{output:key}}` tokens, an icon, and a role: standard, agent, reviewer or team coordinator. A coordinator lists the agent each output briefs, so "Add its agents and wire them" works for it.
+- Storage: database via the existing `/api/components` routes (category `yours`, definition JSON in the packed description). localStorage `prompt-builder-pro.custom-blocks.v2` is only a cache. No schema change, no new dependency.
+- "Your Blocks" is the first group in the Builder Pro library and the first department in the Component Library (`window.PL_setYourBlocks` in `app.js`). In the Component Library the text uses `[blank]` placeholders. A Your Blocks item added through the Builder Pro Workshop becomes the real custom block (Workshop items carry a `def` link).
+- Builder Pro build now waits for `PLBlockStudio.ready` so a canvas restored after a browser storage reset keeps its custom blocks. Load order is engine, custom-blocks, builder-pro, showcases.
+- `builder-pro.js` changes are integration points only: Your Blocks group and edit pencil, `compileNodes` hook (`PLBlockStudio.prepare`), shared `window.PLBuilderSpawn`, `refreshBlocks`, `usageOf`, glyph icon lookup.
+- Bug found by testing and fixed: the studio focused the name field on a 30 ms timer, so text typed into another field inside that window landed in the name. It now focuses synchronously.
+- Rule note: the studio sheet is `#pbp-block-studio` (its CSS is scoped there, not under `#builderProWorkspace`) because it also opens from the Component Library. Builder Pro hand-set cache value is now `20261122e` (loader and the custom-blocks stylesheet link).
+- Verified (headless Chromium, disposable data folder): 19 create and use checks, 20 persistence, edit, delete and Component Library checks, light, dark and 390 px layouts, no page errors, showcase validator passes. Not checked: installed PyWebView on Windows.
+- Backups: `_rollbacks/22-11-2026-*` (app.js, app.css, index.html, builder-pro.js/.css, the old custom-blocks files, MEMORY.md).
+
+### Block Studio second pass (2026-11-22)
+
+- Added to the studio: Draft with AI (`PL_ai.ask`, JSON), Try it (`PLBridge.callAI`, one plain request, answer not stored), Required input flag plus typed wire warnings in the Checks tab (`PLBlockStudio.diagnose`, merged into the engine diagnostics inside `compile()` in `builder-pro.js`), Duplicate, Export and Import (JSON, `prompt-builder-blocks` v1, imports always become new copies), and Team blocks.
+- Team block = a saved canvas. Workflow menu "Save canvas as team block". Stored in `component_blocks` (definition kind `builder-team`, body is the compiled prompt, so it also shows in the Component Library as text). Placed with `placeGraph` in `builder-pro.js`, to the right of existing blocks, repeatable. Cache key `prompt-builder-pro.teams.v1`. Still no schema change or dependency.
+- Port types remain warnings only, never blocks. Text is compatible with every type.
+- Hand-set Builder Pro cache value is now `20261122f` (loader and the custom-blocks stylesheet link).
+- Verified in headless Chromium on a fresh data folder: 32 new checks, plus the earlier 19 and 20, no page errors. AI calls were mocked at the provider endpoint. Not checked: installed PyWebView (file chooser for Import and the save dialog for Export need a look there).
+- Backups: `_rollbacks/22-11-2026-*-pre-v2.*`.
+
+
+## Parallel Execution, Merge, Components revert, one background (2026-11-22)
+
+- **Prompt Components is back to the floating-block design. This supersedes the 2026-11-16 notes "Components is now a node canvas" and "Components wiring made self-explanatory".** The wiring layer is gone: no connection dots, wires, arrowheads, "How wiring works" card, Connect in order or Remove all wires. Blocks are cards on the endless canvas, dragged anywhere, numbered by reading order (top to bottom, ties left to right), assembled into the prompt in that order. Quick starts, the library kit, frameworks and AI Build add blocks the old way. Done by restoring the `initComponentsWorkspace` code from `_rollbacks/app.js.16-11-2026-pre-components-nodes` and carrying over only what was added since (Your Blocks, the Builder Workshop gallery link). Markup and CSS reverted the same way. Drafts saved with wires still open (extra fields are ignored).
+- Not loaded and not used: `static/prompt-components-node.js/.css` (the older node canvas) and `static/accounts.js`. They were left in place, not deleted.
+- **One background.** Builder's canvas now uses `--canvas-well` and `--canvas-dot`, the tokens Prompt Components paints with, instead of `--bg`. Light mode is the darker `--surface-3` (kept on purpose for bright screens), dark mode is `--bg`. Checked: computed colour of both canvases is identical in light (`oklch(0.885 0.015 70)`) and dark (`oklch(0.16 0.012 70)`).
+- **Parallel Execution (`parallel_exec`) and Merge (`merge_n`)**, Logic and flow group and listed as "Included" in Your Blocks. Parallel Execution defaults to 2 inputs and 2 outputs, Merge to 2 inputs, both 2 to 8 with +/- controls in the settings panel (disabled at the limits, invalid saved values corrected, wires to removed ports taken off with a notice). Counts live in node config (`inputCount`, `outputCount`). The engine is unchanged: each block registers 8 ports and the canvas shows the first n. The older Parallel Split and Merge Outputs are untouched. Full detail in `docs/prompt-builder-pro/flow-blocks.md`.
+- **Parallel execution setting** above the prompt: a switch (on, Parallel Execution blocks say run at once; off, in order) and Tracks (2 to 8, the starting count for new Parallel Execution blocks). Saved as `parallel` in `prompt-builder-pro.v5`.
+- "Your Blocks" interpretation: the two blocks appear there as Included entries (same types, no edit pencil). They are not user-editable custom blocks, because the Block Studio has fixed port lists. Making port counts adjustable in the studio is the next step if wanted.
+- Fixes found by testing: Wire loose blocks used a fixed `in` port (dropped by the engine for custom blocks), and the Yours filter showed "No blocks match" when only included or team blocks existed.
+- Cache values: Builder Pro loader, custom-blocks stylesheet and `builder-pro.css` are `20261122h`.
+- Verified in headless Chromium on clean data folders, no page errors: 41 checks for the new blocks, setting and background, 9 for the reverted Components screen, 33, 20 and 19 for the studio suites, all 13 built-in templates load, showcase validator passes, Stress Lab AI still works. Not checked: installed PyWebView on Windows.
+- Backups: `_rollbacks/22-11-2026-*-pre-v3.*`.
+
+### Block Studio adjustable port counts (2026-11-22)
+
+- Each side of a custom block is now Fixed ports or an Adjustable count (name, type, fewest 1 or more, most up to 12, starts with). Same engine as Parallel Execution and Merge: ports are generated as `in_1..in_max` / `out_1..`, the canvas shows the first n, `+`/`-` controls appear in the block's settings, wires to hidden ports are taken off with a notice. Definition field `dynamic: { inputs, outputs }`. Full detail in `docs/prompt-builder-pro/block-creation-studio.md`.
+- New tokens: `{{inputs}}`, `{{outputs}}` (ports with their wiring), `{{input_count}}`, `{{output_count}}`. Starters "Parallel tracks" and "Merge" are the editable versions of the built-in blocks. A team coordinator keeps fixed outputs.
+- `builder-pro.js`: every adjustable side carries its own `key`, `min`, `max`, `def` (`dynamic` on the registered block, `sideCount`, `clampCount(v, fallback, min, max)`), so built-in blocks use 2 to 8 and custom blocks use their own range.
+- The Fixed/Adjustable switch lives in its own bar (`#pbp-st-inputs-mode`, `#pbp-st-outputs-mode`) above each ports list, so the rows keep their positions.
+- Cache value is `20261122j`. Verified: 37 new checks plus 19, 20, 33, 41 and 9 from earlier suites, all 13 templates load, Stress Lab AI still works, no page errors. Not checked: installed PyWebView.
+- Backups: `_rollbacks/22-11-2026-*-pre-dyn.*`.
+- Found while working, NOT yet fixed (awaiting approval): the Settings flyout `#configPanel` has no height limit, so with its current content (about 960 px) it grows past short windows, its header and close button go off-screen and the body cannot scroll. Proposed fix in `app.css`: `max-height: 100vh` on `#configPanel` and `min-height: 0` on `.config-panel-body`.
+
+
+## Template block in the component library (2026-11-23, feature branch)
+
+- One new Core block, **Template**, sits right after Input Template in `static/components-data.js` (icon `article`, 12 blanks: name, purpose, use when, three inputs, three sections, two rules, output). It is one library entry, not a new block type and not a new category.
+- It shows in the Prompt Components library (Browse) and in Prompt Builder Pro's Component Library, because Builder Pro borrows the same `window._pcwBLOCKS` data through `PL_galleryBorrow`. No change to `builder-pro.js` or the Builder engine.
+- Checked in headless Chromium: one block with label Template, category core, found by search in both libraries, the detail view shows the full text with "Add to kit", no page errors.
+- `components-data.js` had no cache-bust on its script tag; `index.html` now loads it as `components-data.js?v=20261123b`. Bump that value when the file changes.
+- The phone app takes this data through `scripts/build-components-data.js` in AI-App-Factory `apps/app-003-prompt-library-mobile`. Rerun it to bring the new block to the phone (not done here).
+- Backup: `_rollbacks/components-data.js.23-11-2026-pre-template-block`.
+
+
+## Template as a Your Block (2026-11-23, feature branch)
+
+- Prompt Builder Pro now saves a starter **Template** Your Block once per install (`seedTemplate()` in `static/builder-pro-custom-blocks.js`, called at the end of `load()`). It is a normal `component_blocks` row (category `yours`), so it is editable and deletable, shows under Your Blocks in the Block Library, and shows in the Component Library's Your Blocks department. It has seven settings whose defaults match the Core library Template block, so the compiled text is the same skeleton.
+- Not an "Included" block: Parallel Execution and Merge are `included: true` code blocks in `builder-pro.js` and only list in Builder's Your Blocks group. Template is a real saved block so it also reaches the Component Library.
+- One-time flag: `PL_prefs` `builder_seed_template` plus localStorage `prompt-builder-pro.seed.template.v1`. Deleting the block does not bring it back. If the database is unreachable nothing is created and the next launch retries. A block deleted straight through the API while the localStorage cache still lists it gets re-saved by the existing cache migration in `load()`; deleting through the studio clears the cache entry, so this only affects hand-made API calls.
+- Checked in headless Chromium against a fresh data folder: one row saved on first load, registered with all settings, drops on the canvas and compiles to the Template skeleton, listed in the Component Library under Your Blocks, no duplicate after reload, stays deleted after delete and reload, no page errors.
+- Cache: Builder Pro loader `?v=20261123c`. Backup: `_rollbacks/builder-pro-custom-blocks.js.23-11-2026-pre-template-yours`.
+
+
+## Settings panel scroll, model dropdown, twelve Block Studio starters (2026-11-23, feature branch)
+
+- **Settings panel fix:** `#configPanel` in `static/app.css` is fixed to the bottom of the sidebar with no height cap, so on short windows its header and top rows sat off screen. It now has `max-height: 100vh` (and `100dvh`) and `.config-panel-body` has `min-height: 0`, so the header stays visible and the body scrolls. Checked at 1100 x 560: panel top is 0.
+- **Model dropdown:** the Model row is now a `<select id="configModelSelect">` plus the original `#configModelInput`, which stays the saved value (the Save handler is unchanged). The select lists "Default (x)", a built-in shortlist per provider (`_CONFIG_MODELS` in `app.js`), the saved model if it is not in the list, and "Other model name…" which reveals the text field. Azure OpenAI and custom providers have no list and keep the text field only.
+- **Refresh list** (button in the Model row) asks the provider for its current models with the same direct browser fetch transport as `callAI` (`_aiFetch`): OpenAI, Anthropic, Gemini, OpenRouter, Mistral, Groq, DeepSeek, xAI, Cohere. Perplexity has no list endpoint and keeps the shortlist. The result is cached in localStorage `pl_models_<provider>`; a saved model missing from a fetched list is marked "(no longer listed)". Needs a key in the field or saved (OpenRouter needs none).
+- **Verified:** dropdown, custom option, no-key message, provider switch and a refresh against a mocked response (retired model marked). **Not verified:** real provider list calls, nothing was run against a live key. The shortlists are static and will go stale, Refresh list is the source of truth.
+- **Block Studio starters:** `STARTERS` in `static/builder-pro-custom-blocks.js` went from 6 to 12 tiles (three rows of four). New: **Splitter** (1 to 2 inputs, 1 to 12 outputs, "Split by" setting), **Router** (Request in and Rules, 2 to 8 routes, "If no match" setting), **Summariser**, **Rewriter**, **Extractor** (JSON Data output plus Gaps), **Comparer** (2 to 8 options in, Comparison and Recommendation out). All standard blocks, no schema or engine change. Checked in headless Chromium: each loads, preview and compiled text render, the only check shown is the empty name.
+- Cache: `app.js?v=32423549`, `app.css?v=f2729def` (update_hash.py), Builder Pro loader `?v=20261123d`.
+- Backups: `_rollbacks/<file> v-pre-model-dropdown-and-starters.<ext>` for app.js, app.css, index.html, builder-pro-custom-blocks.js and .css.
+- The local branch was 13 commits behind origin when this started, so it was fast-forwarded first.
+
+## Skill Foundry workspace and favourites fix (2026-11-23, branch feature/prompt-stress-lab)
+
+- **Skill Foundry** is a new self-contained workspace in the launcher's Build list (`openSkillFoundryWorkspace`, root `#skillFoundryWorkspace`, no Pro gate). It is the manual Skill Builder (from the standalone `skill-foundry.html`) moved into the app: create a skill, add files and folders, write `SKILL.md`, export a ZIP with the skill folder inside. Starter folders are `references`, `resources`, `examples`, `templates`.
+- **Files:** `static/skill-foundry.js` (interface, storage, ZIP export and import, Markdown backup), `static/skill-foundry-review.js` (reviewer, no DOM), `static/skill-foundry.css` (every rule under `#skillFoundryWorkspace`, `app.css` tokens only). `index.html` holds only a stylesheet link, the launcher card and two names in the existing loader list. `app.js` only gained `'#skillFoundryWorkspace'` in `_escapeToLibrary()`. Cache busting is by hand: `?v=20261123a` in `index.html` (stylesheet link and the loader line, which also covers `workspace-registry.js`). `update_hash.py` does not touch these files.
+- **Reviewer:** offline rules are plain data (`PATTERN_RULES` and `FILE_RULES` in `skill-foundry-review.js`) and run over every file, line by line. Security: instruction override, role swap, hiding actions from the user, API keys and private keys (masked in the panel), credentials, download and run, destructive commands, dynamic exec, credential files, `.env`, capture hosts, plain http, external urls, skipping confirmation, invisible characters, encoded blocks, hidden HTML comments, bundled scripts, `allowed-tools` wildcards. Weaknesses: frontmatter, name format and length, description placeholder, short or without a trigger, starter text left, thin body, no steps, no output format, no missing-input guidance, vague wording, shouting, very long SKILL.md, broken references, orphan files, empty and huge files. It runs live while typing. Export is blocked on invalid frontmatter and asks for confirmation when any high priority finding exists.
+- **AI review** is optional and additional. It goes through `window.PL_ai` only (no key read in the workspace), asks before sending, wraps the skill as untrusted data, and shows an error while the offline results stay. The button is disabled with no key. Skill text goes to the user's chosen provider, which the confirmation says.
+- **Storage:** skills live in localStorage (`skill-foundry.v1`) and in the `settings` table under key `skill_foundry` through new routes `GET` and `POST /api/skill-foundry` in `app.py` (whole JSON string, 8 MB cap, must parse as an object). The newer copy wins on start. No schema change. A failed save shows a visible state in the header.
+- **Backups are Markdown** (`DD-MM-YYYY-skill-foundry-backup.md`): marker comment, one `## Skill:` section per skill with JSON-quoted slug, name, description and created, then `### Folder:` and `### File:` headings with each file in a code fence longer than any backtick run inside it. Restore adds skills, never overwrites, and makes export folder names unique. Old JSON backups can still be imported (kept deliberately for backups made in the standalone tool). ZIP import skips binary files, refuses unsafe paths, and caps entries and size.
+- **Workspace picker favourites fix:** favourites were stored only in localStorage (`pl.ws.org.v1`), which the desktop WebView can reset on close, so they vanished on reopen. `static/workspace-registry.js` now mirrors the favourites list to the database through `PL_prefs` key `ws_favs` and reads it back on start (the database copy wins, a device-only list is pushed up once). Folders, tags and categories in the same store are still localStorage only and have the same weakness.
+- **Verified (scripted Playwright, headless Chromium, disposable data folder):** favourites survive a localStorage wipe plus reload and stay removed once removed; Skill Foundry opens from the launcher card, creates and edits a skill, shows live findings, exports a ZIP that opens with a standard unzip tool, makes a Markdown backup, restores it and re-imports the ZIP with files identical, survives a localStorage wipe through the database copy, handles AI success, AI failure and no key, and closes on Escape. `node --check` passes for `app.js` and the new files, `python3 -m py_compile app.py` passes, `grep -c "<script" static/index.html` is 11.
+- **Not verified:** installed PyWebView (the Save As bridge path), a real AI provider call, dark theme and narrow window appearance. The pre-existing console error "Cannot set property compilePrompt of #<Object> which has only a getter" appears on every page load, comes from Builder Pro files this work did not touch, and was not investigated.
+- Backups taken before editing are in `_rollbacks/` (`index.23-11-2026-pre-skillfoundry.html`, `app.23-11-2026-pre-skillfoundry.js`, `workspace-registry.23-11-2026-pre-favs-db.js`).
+
+## 2026-11-24 stale Skill Foundry files after the 23 Nov commit
+
+- **Cause:** commit `a2bed67` changed `workspace-registry.js`, `skill-foundry.js`, `skill-foundry-review.js` and `skill-foundry.css` but left their hand-set `?v=20261123a` unchanged, so a client holding the old URL kept the old files. `update_hash.py` only covers `app.js`, `app.css` and the randomiser files, so these hand-set values are never refreshed for you.
+- **Fix:** both places in `static/index.html` (the `skill-foundry.css` link and the inline loader line ending in `skill-foundry.js`) are now `?v=20261124a`. Backup: `_rollbacks/index.24-11-2026-pre-cache-bump.html`. `grep -c "<script"` is still 11.
+- **Rule for next time:** whenever a file loaded with a hand-set `?v=` changes, bump that value in `index.html` in the same change. Other hand-set values currently live: `20261123d` (four builder-pro scripts), `20261122j` (builder-pro css), `20261123b` (components-data), `20261122a` (gauntlet-suite). `forge-frameworks.js`, `xray-views.js` and `qrcode.min.js` carry no `?v=` at all.
+- **Where the work lives:** all of the above is on branch `prompt-builder-templates` (open PR #76 into `main`, not merged). A copy of the app that runs `main`, or has not pulled that branch, will not show any of it.
