@@ -3915,6 +3915,34 @@ def set_ui_prefs():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/skill-foundry', methods=['GET'])
+def get_skill_foundry():
+    """Skill Foundry skills as one JSON string, kept here because WebView localStorage can reset between launches."""
+    try:
+        with get_db() as con:
+            row = con.execute("SELECT value FROM settings WHERE key = 'skill_foundry'").fetchone()
+        return jsonify({'data': row['value'] if row else None})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/skill-foundry', methods=['POST'])
+def set_skill_foundry():
+    """Save the Skill Foundry JSON string whole. It must parse as an object and stay under 8 MB."""
+    data = _json_body().get('data')
+    if not isinstance(data, str) or len(data) > 8 * 1024 * 1024:
+        return jsonify({'error': 'invalid or too large'}), 400
+    try:
+        if not isinstance(json.loads(data), dict):
+            raise ValueError('not an object')
+    except Exception:
+        return jsonify({'error': 'not valid JSON'}), 400
+    try:
+        with get_db() as con:
+            con.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('skill_foundry', data))
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/settings/ai-baseurls', methods=['GET'])
 def get_ai_baseurls():
     """Return stored custom base URLs, keyed by provider slug."""
@@ -4730,10 +4758,32 @@ def licence_status():
 
 # ══ Component workspace ═════════════════════════════════════════════
 
+_COMPONENT_DEFINITION_PREFIX = '__PL_COMPONENT_DEF_V1__:'
+
+
+def _store_component_description(description, definition=None):
+    description = str(description or '')
+    if isinstance(definition, dict) and definition:
+        payload = {'description': description, 'definition': definition}
+        return _COMPONENT_DEFINITION_PREFIX + json.dumps(payload, ensure_ascii=False)
+    return description
+
+
 def serialize_component(row):
     b = dict(row)
-    b['description'] = b.get('description') or ''
-    b['source']      = b.get('source') or 'user'
+    raw_description = b.get('description') or ''
+    b['definition'] = {}
+    if raw_description.startswith(_COMPONENT_DEFINITION_PREFIX):
+        try:
+            payload = json.loads(raw_description[len(_COMPONENT_DEFINITION_PREFIX):])
+            b['description'] = str(payload.get('description') or '')
+            definition = payload.get('definition')
+            b['definition'] = definition if isinstance(definition, dict) else {}
+        except (TypeError, ValueError):
+            b['description'] = raw_description
+    else:
+        b['description'] = raw_description
+    b['source'] = b.get('source') or 'user'
     return b
 
 def serialize_composition(row, blocks=None):
@@ -4794,7 +4844,7 @@ def create_component():
         '''INSERT INTO component_blocks (name, category, body, description, source, forked_from)
            VALUES (?,?,?,?,?,?)''',
         (name, (data.get('category') or 'misc').strip(), body,
-         data.get('description') or '',
+         _store_component_description(data.get('description') or '', data.get('definition')),
          'fork' if data.get('forked_from') else 'user',
          data.get('forked_from'))
     )
@@ -4819,7 +4869,7 @@ def update_component(bid):
         ((data.get('name') or row['name']).strip(),
          (data.get('category') or row['category']).strip(),
          data.get('body') if data.get('body') is not None else row['body'],
-         data.get('description') if data.get('description') is not None else row['description'],
+         _store_component_description(data.get('description') if data.get('description') is not None else serialize_component(row)['description'], data.get('definition')) if isinstance(data.get('definition'), dict) else (data.get('description') if data.get('description') is not None else row['description']),
          bid)
     )
     conn.commit()
@@ -4979,6 +5029,8 @@ def composition_graph(cid):
         nodes = data.get('nodes') or []
         edges = data.get('edges') or []
         view_state = data.get('view_state') or {}
+        if not isinstance(view_state, dict):
+            view_state = {}
         conn.execute('DELETE FROM composition_edges WHERE composition_id=?', (cid,))
         conn.execute('DELETE FROM composition_blocks WHERE composition_id=?', (cid,))
         node_map = {}
@@ -5017,6 +5069,13 @@ def composition_graph(cid):
                     edge.get('relation') or 'sequence'
                 )
             )
+        node_meta = view_state.get('node_meta') or {}
+        if isinstance(node_meta, dict):
+            view_state['node_meta'] = {
+                str(node_map[key]): value
+                for key, value in node_meta.items()
+                if str(key) in node_map
+            }
         conn.execute(
             'UPDATE compositions SET view_state=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',
             (json.dumps(view_state), cid)

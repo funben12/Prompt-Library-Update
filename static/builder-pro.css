@@ -352,8 +352,9 @@
 #builderProWorkspace .pbp-canvas {
   position: relative;
   overflow: hidden;
-  background-color: var(--bg);
-  background-image: radial-gradient(color-mix(in oklch, var(--ink-4) 45%, transparent) 1px, transparent 1px);
+  /* The same token Prompt Components paints its canvas with, so both screens always show the same colour. */
+  background-color: var(--canvas-well);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px);
   background-size: 22px 22px;
   touch-action: none;
   cursor: default;
@@ -1156,3 +1157,39 @@
   margin: 4px 0 0; max-height: 180px; overflow: auto; padding: var(--sp-2); font-family: var(--ff-mono); font-size: 11px; line-height: 1.5;
   white-space: pre-wrap; color: var(--ink-2); background: var(--surface-sunk); border: 1px solid var(--line); border-radius: var(--r-sm);
 }
+
+/* ---------- Parallel Execution and Merge: count steppers ---------- */
+#builderProWorkspace .pbp-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+#builderProWorkspace .pbp-stepper button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-md);
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+#builderProWorkspace .pbp-stepper button:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+#builderProWorkspace .pbp-stepper button:focus-visible { outline: none; box-shadow: var(--ring); }
+#builderProWorkspace .pbp-stepper button:disabled { opacity: 0.4; cursor: not-allowed; }
+#builderProWorkspace .pbp-stepper output {
+  min-width: 2ch;
+  text-align: center;
+  font-family: var(--ff-mono);
+  font-weight: 700;
+  color: var(--ink);
+}
+#builderProWorkspace .pbp-stepper-note { font-size: var(--fs-xs); color: var(--ink-3); }
+#builderProWorkspace .pbp-tracks { display: inline-flex; align-items: center; gap: var(--sp-2); }
+#builderProWorkspace .pbp-tracks.pbp-is-off { opacity: 0.55; }

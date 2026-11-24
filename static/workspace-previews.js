@@ -322,21 +322,15 @@
     // Panel style workspaces that use the plx header (kicker, title, one line).
     LAY.openPlxSurgeonWorkspace = id => frame(id, { plx: true, sub: 360 },
         row({ f: 1, g: 18, p: '8px 28px 26px' },
-            pane({ f: 1, g: 12 }, row({ jc: 'space-between', al: 'center' }, col({ g: 7 }, bar('130px', 'hd'), bar('190px', 'soft')), sel(150)), area([94, 82, 90, 70, 88, 76, 92, 60, 84], { f: 1 }), row({ g: 10 }, btn('a', 190, true), btn('g', 120, true))),
-            pane({ f: 1, g: 12 }, row({ al: 'center', g: 10 }, ic('medical_services', 24, 'wsv-ac'), hd(40), '<span style="flex:1"></span>', badge('3 FINDINGS', 'wn')),
-                rep(3, i => col({ g: 8, x: 'padding:12px 14px;border-radius:10px;border:2px solid var(--line);border-left:5px solid var(--' + ['danger', 'warn', 'warn'][i] + ');flex:none' }, row({ g: 8, al: 'center' }, badge(['HIGH', 'MED', 'MED'][i], ['bad', 'wn', 'wn'][i]), bar(50, 'hd')), ln([90, 62], 7)), 3),
-                D('area', { c: 'wsv-out wsv-hl', f: 1 }, [row({ g: 8, al: 'center' }, ic('build', 20, 'wsv-ac'), lab(80)), seq([[60, 'del'], [30, 'add']]), seq([[80, 'add']])]))));
+            pane({ w: S ? 340 : 410, g: 12 }, row({ jc: 'space-between', al: 'center' }, col({ g: 7 }, bar(140, 'hd'), bar(190, 'soft')), sel(150)), area([94, 82, 90, 70, 88, 76, 92, 60], { f: 1 }), area([90, 74, 84], { h: 74 }), row({ g: 10 }, btn('a', 180, true), btn('g', 130))),
+            pane({ f: 1, g: 12 }, row({ al: 'center', g: 10 }, ic('rule', 24, 'wsv-ac'), hd(42), '<span style="flex:1"></span>', badge('SHARED REVIEW', 'ok')),
+                rep(3, i => col({ g: 8, x: 'padding:12px 14px;border-radius:10px;border:2px solid var(--line);flex:none' }, row({ g: 8, al: 'center' }, ic(['healing', 'security', 'fact_check'][i], 20), bar([125, 135, 120][i], 'hd'), '<span style="flex:1"></span>', badge(['SURGEON', 'RED TEAM', 'STRESS LAB'][i], 'wn')), ln([92, 68, 82][i], 7)), 3),
+                D('area', { c: 'wsv-out wsv-hl', f: 1 }, [row({ g: 8, al: 'center' }, ic('checklist', 20, 'wsv-ac'), lab(100)), seq([[72, 'del'], [42, 'add']]), seq([[88, 'add']])]))));
     LAY.openPlxTeammateWorkspace = id => frame(id, { plx: true, sub: 380 },
         row({ f: 1, g: 18, p: '8px 28px 26px' },
             pane({ w: S ? 360 : 440, g: 14 }, rep(4, i => col({ g: 8 }, row({ g: 8, al: 'center' }, ic(['flag', 'memory', 'handyman', 'block'][i], 20), lab(70 + i * 10)), field(null, { fill: 60 - i * 8 })), 4), btn('a', 230, true)),
             pane({ f: 1, g: 14 }, row({ jc: 'space-between', al: 'center' }, col({ g: 7 }, hd(44), bar(200, 'soft')), av('purple')),
                 rep(5, i => row({ g: 12, x: 'padding:10px 12px;border-radius:10px;background:var(--surface-2);flex:none;align-items:flex-start' }, ic(['flag', 'memory', 'handyman', 'block', 'autorenew'][i], 22, 'wsv-ac'), col({ f: 1, g: 7 }, lab(70 + i * 8), bar(88 - i * 6, 'soft'), fine(bar(60 - i * 4, 'soft')))), 4))));
-    LAY.openPlRedTeamWorkspace = id => frame(id, { plx: true, sub: 330 },
-        row({ f: 1, g: 18, p: '8px 28px 26px' },
-            pane({ f: 1, g: 12 }, area([94, 80, 90, 70, 88, 76, 92, 58], { f: 1 }), row({ g: 10 }, btn('d', 190, true), btn('g', 110, true))),
-            pane({ f: 1, g: 12 }, row({ al: 'center', g: 10 }, ic('security', 24, 'wsv-bad'), hd(36), '<span style="flex:1"></span>', mono('7 of 10 held', 'ok')),
-                col({ g: 8, f: 1 }, rep(7, i => li({ c: 'wsv-card' }, badge(['HIGH', 'HIGH', 'MED', 'MED', 'LOW', 'MED', 'LOW'][i], ['bad', 'bad', 'wn', 'wn', 'n', 'wn', 'n'][i]), bar(44 + (i * 13) % 30, 'soft'), '<span class="wsv-end">' + ic(i === 1 || i === 4 || i === 6 ? 'close' : 'check', 22, i === 1 || i === 4 || i === 6 ? 'wsv-bad' : 'wsv-ok') + '</span>'), 5)))));
-
     LAY.openAuditWorkspace = id => frame(id, { acts: [['a', 120]], sub: 330 },
         row({ f: 1, g: 0 },
             col({ w: S ? 380 : 450, g: 12, p: '22px 26px', x: 'border-right:2px solid var(--line)' }, lab(60), sel(), area([94, 82, 90, 68, 86, 76, 60], { f: 1 }), row({ g: 10 }, btn('a', 110, true), btn('g', 170, true))),
