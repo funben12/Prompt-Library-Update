@@ -339,3 +339,5 @@ HASH — app.js — cache-bust hash updated to f98a0f86
 [13-11-2026] MODIFIED — static/index.html — builder files version value 20261113b to 20261113c
 [13-11-2026] MODIFIED — MEMORY.md — phase 5 section, stale phase notes superseded
 [13-11-2026] MODIFIED — CLAUDE.md — new Prompt Builder Pro section, script tag count corrected from 3 to 5
+[23-11-2026 08-58] ADD — apps/prompt-pack-builder/ — new folder — Prompt Pack Builder as a standalone pywebview app: main.py, web/ (bridge.js, base.css, workspace copy, fonts), requirements.txt, start.bat, PromptPackBuilder.spec, README.md — branch prompt-pack-builder-desktop
+[23-11-2026 10-50] ADD — apps/prompt-pack-builder/ — batch scaffold: setup, requirements, run, build, test, clean, update, package, installer .bat files, installer.iss, tests/ (18 pytest tests), .gitignore; removed PromptPackBuilder.spec (build.bat replaces it); __version__ 1.0.0 in main.py

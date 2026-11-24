@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en-GB" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prompt Pack Builder</title>
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="prompt-pack-builder.css">
+  <style>
+    /* Standalone only: no library database means no library picker, and the window is the workspace. */
+    body.ppb-no-library #ppb-add-library { display: none !important; }
+    body.ppb-booting::after { content: "Loading your packs"; position: fixed; inset: 0; display: grid; place-items: center; color: var(--ink-3); font-size: var(--fs-sm); }
+  </style>
+</head>
+<body class="ppb-booting">
+  <script src="bridge.js"></script>
+  <script src="prompt-pack-builder.js"></script>
+</body>
+</html>
